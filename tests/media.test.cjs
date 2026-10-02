@@ -1,0 +1,2 @@
+const test=require('node:test'),assert=require('node:assert/strict'),{validateOperation}=require('../server/media.cjs');
+test('media processing accepts only bounded trim intervals and fixed operations',()=>{assert.deepEqual(validateOperation('trim',new URLSearchParams({start:'1',end:'3'})),{start:1,end:3});for(const q of [{start:-1,end:3},{start:1,end:1},{start:0,end:99999},{start:'nan',end:3}])assert.throws(()=>validateOperation('trim',new URLSearchParams(q)));assert.throws(()=>validateOperation('shell',new URLSearchParams()));});
