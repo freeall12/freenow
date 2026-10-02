@@ -1,4 +1,5 @@
 import {install} from './entry.mjs';
+import {historyMigrationNotice} from './migration.mjs';
 import {groupRows} from './model.mjs';
 const make=(tag,cls,text)=>{const node=document.createElement(tag);node.className=cls || '';if(text!==undefined)node.textContent=text;return node;};
 const button=(text,action,cls='')=>{const node=make('button',cls,text);node.type='button';node.onclick=action;return node;};
@@ -12,10 +13,11 @@ export function mountHistory({panel,head,app,loadHistory=install}) {
   const content=make('div','panel-scroll'),footer=make('div','history-footer');
   const Observer=globalThis.IntersectionObserver,observer=Observer?new Observer(entries=>{for(const entry of entries){const view=rowViews.get(entry.target.dataset.historyId);if(view?.tile===entry.target){if(entry.isIntersecting)view.loadThumbnail();else releaseImage(view);}}},{root:content,rootMargin:'200px'}):null;
   const message=text=>{if(!alive)return;status.textContent=text || '';status.hidden=!text;};
-  const action=async operation=>{if(busy)return;busy=true;render();try{await operation();message('');}catch(error){message(error.message);app.notify(error.message);}finally{busy=false;if(alive)render();}};
+  const action=async operation=>{if(busy)return;busy=true;render();try{const result=await operation();message(typeof result==='string'?result:'');}catch(error){message(error.message);app.notify(error.message);}finally{busy=false;if(alive)render();}};
   const select=button('选择',()=>{selecting=!selecting;if(!selecting)selected.clear();render();});select.setAttribute('aria-label','选择历史素材');
   const toggle=button('',()=>{list=!list;render();},'resource-icon-button');toggle.append(icon('list'));toggle.setAttribute('aria-label','切换历史列表视图');
   const expand=button('',()=>{const expanded=panel.classList.toggle('expanded-panel');expand.setAttribute('aria-expanded',String(expanded));},'resource-icon-button');expand.append(icon('expand'));expand.setAttribute('aria-label','展开历史');expand.setAttribute('aria-expanded','false');head.append(select,toggle,expand);
+  const migrate=button('迁移本地素材',()=>action(async()=>historyMigrationNotice(await history.migrateLocalMedia())));migrate.setAttribute('aria-label','迁移本地素材');head.append(migrate);
   const tabs=make('div','segmented');tabs.setAttribute('role','tablist');tabs.setAttribute('aria-label','历史素材类型');
   const labels=[['image','图片'],['video','视频'],['audio','音频'],['model','3D']];
   labels.forEach(([value,label],index)=>{const tab=button(label,()=>{type=value;selected.clear();render();});tab.setAttribute('role','tab');tab.dataset.type=value;tab.onkeydown=event=>{if(['ArrowLeft','ArrowRight','Home','End'].includes(event.key)){event.preventDefault();const next=event.key==='Home'?0:event.key==='End'?3:(index+(event.key==='ArrowRight'?1:-1)+4)%4;tabs.children[next].click();tabs.children[next].focus();}};tabs.append(tab);});
@@ -56,16 +58,17 @@ export function mountHistory({panel,head,app,loadHistory=install}) {
   function render() {
     if(!alive)return;
     const diagnostics=history?.diagnostics() || {receipts:[]},unresolved=diagnostics.receipts.filter(entry=>['unknown','running','queued'].includes(entry.status)),rows=history?.list({type,search:query}) || [];
-    const next=JSON.stringify([!!history,type,list,selecting,query,busy,[...selected],diagnostics.error,diagnostics.canvasPending,diagnostics.canvasError,unresolved.map(entry=>[entry.taskId,entry.status]),rows.map(rowKey)]);
+    const next=JSON.stringify([!!history,type,list,selecting,query,busy,[...selected],diagnostics.error,diagnostics.canvasPending,diagnostics.canvasError,diagnostics.migration,unresolved.map(entry=>[entry.taskId,entry.status]),rows.map(rowKey)]);
     // Storage revision and application metadata can change while the visible
     // history stays identical. Keep rows/images intact during those emissions.
     if(signature===next)return;signature=next;
     const focusedId=document.activeElement?.dataset?.historyId,scroll=content.scrollTop;
-    select.textContent=selecting?'取消':'选择';select.setAttribute('aria-pressed',String(selecting));select.disabled=busy || !history;
+    select.textContent=selecting?'取消':'选择';select.setAttribute('aria-pressed',String(selecting));select.disabled=busy || !history; migrate.disabled=busy||typeof history?.migrateLocalMedia!=='function';
     toggle.setAttribute('aria-pressed',String(list));
     for(const tab of tabs.children){const active=tab.dataset.type===type;tab.classList.toggle('chosen',active);tab.setAttribute('aria-selected',String(active));tab.tabIndex=active?0:-1;}
     content.replaceChildren();footer.replaceChildren();
     if(!history){content.append(make('p','panel-empty','正在读取历史…'));return;}
+    if(diagnostics.migration&&(diagnostics.migration.status!=='ready'||diagnostics.migration.summary?.unresolved)){const migration=make('div','generation-history-failure');migration.append(make('span','',historyMigrationNotice(diagnostics.migration)));content.append(migration);}
     if(diagnostics.error){const failure=make('div','generation-history-failure');failure.append(make('span','',diagnostics.error),button('重试保存',()=>action(()=>history.retrySave())));content.append(failure);}
     if(diagnostics.canvasPending){const failure=make('div','generation-history-failure');failure.append(make('span','','素材已插入但未保存：'+(diagnostics.canvasError || '正在保存')),button('重试画布保存',()=>action(()=>history.retryCanvasSave())));content.append(failure);}
     if(unresolved.length){const pending=make('div','generation-history-failure');pending.append(make('span','',`${unresolved.length} 个任务尚无完成结果`),button('查询原任务',()=>action(async()=>{for(const entry of unresolved)await history.retry(entry.taskId);})));content.append(pending);}

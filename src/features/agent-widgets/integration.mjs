@@ -1,6 +1,7 @@
 import {createHtmlCard, createWidgetCard} from './cards.mjs';
 import {prepareHtml, prepareWidget} from './tools.mjs';
 import {openHtmlPreview} from '../agent-artifacts/html-preview.mjs';
+import {independentNavigationUrl} from '../local-resource-migration/origin-policy.mjs';
 export {prepareHtml, prepareWidget};
 
 const supported = trace => ['show_html', 'show_widget'].includes(trace?.name);
@@ -83,8 +84,8 @@ export function createArtifactController({getContext, getStore, onQueuePrompt, o
       },
       onOpenLink: (url, captured) => {
         if (!current(record) || captured !== record.trace) return false;
-        const target = new URL(url);if (!['http:', 'https:'].includes(target.protocol)) return false;
-        return openLink ? openLink(target.href, captured, record.chat) : globalThis.window.open(target.href, '_blank', 'noopener,noreferrer');
+        const target = independentNavigationUrl(url);
+        return openLink ? openLink(target, captured, record.chat) : globalThis.window.open(target, '_blank', 'noopener,noreferrer');
       },
     });
     return record.card.element;

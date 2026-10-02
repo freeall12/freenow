@@ -1,6 +1,8 @@
 import {assetFromNode,getSubjectStore} from '../subject-library/store.mjs';
 import {subjectToken} from '../subject-library/model.mjs';
 import {applySubject} from '../subject-library/apply.mjs';
+import {isStaticAssetRef} from '../local-resource-migration/index-format.mjs';
+import {importIndexedAsset} from '../local-resource-migration/import-asset.mjs';
 
 const fail=(code,message,details={})=>Object.assign(Error(message),{code,...details});
 const abort=signal=>{if(signal?.aborted)throw signal.reason||new DOMException('主体操作已取消','AbortError');};
@@ -16,7 +18,7 @@ const readable=value=>String(value||'').replace(/\b(?:data:[^\s"'<>)]*|blob:[^\s
 
 // UI and Agent use one committed subject snapshot and await the durable receipt.
 export function createSubjectAgentService({app=globalThis.CanvasApp,storage=globalThis.localStorage,storageKey,subjectStore,
-  store=globalThis.CanvasStore,canvasStore=store,localAssets=globalThis.LocalAssets,localMedia=globalThis.LocalMedia,fetchImpl=(...args)=>fetch(...args),apply=applySubject,fromNode=assetFromNode,hash=digest,createId=()=>crypto.randomUUID(),now=Date.now,
+  store=globalThis.CanvasStore,canvasStore=store,localAssets=globalThis.LocalAssets,localMedia=globalThis.LocalMedia,fetchImpl=(...args)=>fetch(...args),apply=applySubject,fromNode=assetFromNode,hash=digest,hashBytes,createId=()=>crypto.randomUUID(),now=Date.now,
   notify=()=>globalThis.document?.dispatchEvent(new Event('subjects:changed')),resolveUrl}={}){
   if(typeof app?.getState!=='function')throw TypeError('Canvas adapter is required');
   const library=subjectStore||getSubjectStore({storage,store,storageKey,notify});
@@ -62,14 +64,20 @@ export function createSubjectAgentService({app=globalThis.CanvasApp,storage=glob
     if(previous?.scope!=='personal'||previous?.deletedAt){if(previous)throw fail('subject_unavailable','仅支持未归档的个人主体');}
     if(previous?await version(previous)!==expectedVersion:expectedVersion!=='0')throw fail('version_conflict','主体内容版本已变化，请先重新读取');
     const sourceNodes=nodeIds.map(nodeId=>{const node=app.getState().nodes.find(n=>n.id===nodeId);if(!node||!supported.has(node.type))throw fail('node_unavailable','只支持实际画布图片、视频、音频、文本节点');if(node.clip!=null||node.trim!=null)throw fail('clip_requires_export','裁剪节点请先使用 video_trim 导出真实视频，再加入主体');return node;});
-    const assets=sourceNodes.map(node=>{const asset=structuredClone(fromNode(structuredClone(node)));if(asset.type!=='text'&&(typeof asset.url!=='string'||!asset.url||! /^(asset:|https?:|blob:|data:(image|video|audio)\/)/i.test(asset.url)))throw fail('media_unavailable','素材没有可持久化实际媒体，请先导入或导出该素材');if(asset.type==='text'&&typeof asset.text!=='string')asset.text='';return asset;});
+    const assets=sourceNodes.map(node=>{const asset=structuredClone(fromNode(structuredClone(node)));if(asset.type!=='text'&&(typeof asset.url!=='string'||!asset.url||! /^(asset:|https?:|blob:|data:(image|video|audio)\/)/i.test(asset.url)&&!isStaticAssetRef(asset.url)))throw fail('media_unavailable','素材没有可持久化实际媒体，请先导入或导出该素材');if(asset.type==='text'&&typeof asset.text!=='string')asset.text='';return asset;});
     const sourceKeys=sourceNodes.map(node=>canonical(fromNode(node))),sourceGuard=()=>{abort(signal);for(const [index,node]of sourceNodes.entries())if(!app.getState().nodes.includes(node)||canonical(fromNode(node))!==sourceKeys[index]||node.clip!=null||node.trim!=null)throw fail('source_changed','保存期间画布素材已变化');};
-    const localized=new Map();
+    const localized=new Map();let resourceIndex;
     for(const asset of assets)for(const field of ['url','image']){
-      const source=asset[field];if(typeof source!=='string'||! /^(data:|blob:)/i.test(source))continue;
-      if(typeof localAssets?.put!=='function'){if(source.startsWith('blob:'))throw fail('media_unavailable','临时素材需要先写入本地素材存储');continue;}
+      const source=asset[field],staticRef=isStaticAssetRef(source);if(typeof source!=='string'||! /^(data:|blob:)/i.test(source)&&!staticRef)continue;
+      if(typeof localAssets?.put!=='function'){if(source.startsWith('blob:')||staticRef)throw fail('media_unavailable','临时或静态素材需要先写入本地素材存储');continue;}
       if(!localized.has(source)){
-        sourceGuard();const response=await fetchImpl(source,{signal});sourceGuard();if(!response.ok)throw fail('media_unavailable','画布内联素材读取失败');
+        sourceGuard();
+        if(staticRef){
+          resourceIndex||=await(await import('../local-resource-migration/canvas-load.mjs')).loadResourceIndex({fetchIndex:fetchImpl});sourceGuard();
+          if(resourceIndex.state!=='ready')throw fail('media_unavailable','可信本地资源索引尚未就绪，请先导入实际素材');
+          const saved=await importIndexedAsset(source,{index:resourceIndex.index,assets:localAssets,fetchImpl,signal,expectedKind:field==='image'?'image':asset.type,...(hashBytes?{hashBytes}:{}),beforePut:sourceGuard});sourceGuard();localized.set(source,saved);asset[field]=saved;continue;
+        }
+        const response=await fetchImpl(source,{signal});sourceGuard();if(!response.ok)throw fail('media_unavailable','画布素材读取失败');
         const blob=await response.blob();sourceGuard();if(!blob.size||blob.size>80*1024*1024||! /^(image|video|audio)\//.test(blob.type))throw fail('media_unavailable','画布内联素材无效或超过 80 MB');
         const saved=await localAssets.put(blob);sourceGuard();if(typeof saved!=='string'||!saved.startsWith('asset:'))throw fail('media_unavailable','画布素材未写入本地存储');localized.set(source,saved);
       }

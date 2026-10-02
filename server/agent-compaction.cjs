@@ -1,6 +1,7 @@
 'use strict';
 const {isDeepStrictEqual}=require('node:util');
 const {checkAbort}=require('./agent-stream.cjs');
+const {protectModelClient}=require('./outbound-client.cjs');
 
 // This is a request-size heuristic, not a tokenizer or an advertised model limit.
 function contextSize(input){
@@ -21,6 +22,7 @@ function validateCompaction(response,original){
 }
 
 async function compactContext({client,session,threshold=160000,instructions,onEvent}){
+ client=protectModelClient(client);
  const before=contextSize(session.input);
  const state=session.contextCompaction??={count:0,lastAttemptSize:0,disabled:false};
  if(state.disabled||before<threshold||before<state.lastAttemptSize+Math.min(32000,threshold/4))return;

@@ -21,9 +21,9 @@ function dom(){
 }
 const tick=()=>new Promise(resolve=>setImmediate(resolve));
 const row=(id,type='image')=>({id,taskId:id.split(':')[0],type,outputIndex:0,title:'same prompt',prompt:'same prompt',createdAt:'2026-10-02T08:00:00Z',archiveStatus:'ready'});
-async function setup({rows=[row('first:0'),row('second:0')],load,thumbnail,acquireThumbnail}={}){
+async function setup({rows=[row('first:0'),row('second:0')],load,thumbnail,acquireThumbnail,migrate}={}){
   const fixture=dom();global.document=fixture.document;const {mountHistory}=await import('../src/features/generation-history/ui.mjs');const listeners=new Set(),applied=[],previewed=[],downloads=[];
-  const history={list:({type,search}={})=>rows.filter(row=>(!type||row.type===type)&&(!search||row.prompt.includes(search))),diagnostics:()=>({receipts:[]}),subscribe(fn){listeners.add(fn);return()=>listeners.delete(fn);},thumbnail:thumbnail || (async()=>null),...(acquireThumbnail?{acquireThumbnail}:{}),apply:async rows=>applied.push(rows.map(row=>row.id)),preview:async row=>previewed.push(row.id),download:async rows=>downloads.push(rows.map(row=>row.id))};
+  const history={...(migrate?{migrateLocalMedia:migrate}:{}),list:({type,search}={})=>rows.filter(row=>(!type||row.type===type)&&(!search||row.prompt.includes(search))),diagnostics:()=>({receipts:[]}),subscribe(fn){listeners.add(fn);return()=>listeners.delete(fn);},thumbnail:thumbnail || (async()=>null),...(acquireThumbnail?{acquireThumbnail}:{}),apply:async rows=>applied.push(rows.map(row=>row.id)),preview:async row=>previewed.push(row.id),download:async rows=>downloads.push(rows.map(row=>row.id))};
   const dispose=mountHistory({...fixture,app:{notify(){}},loadHistory:load || (async()=>history)});await tick();return {...fixture,history,listeners,applied,previewed,downloads,dispose};
 }
 test('closing while loading avoids late subscriptions or reopening the history drawer',async()=>{
@@ -63,4 +63,11 @@ test('long history lists acquire only visible thumbnails, idle events do not rel
 test('visibility leases are canceled on tab switch/destruction and late resolutions never reattach images',async()=>{
   const io=intersection();const pending=[];let released=0;try{const f=await setup({rows:[row('image:0'),row('video:0','video')],acquireThumbnail:()=>({source:new Promise(resolve=>pending.push(resolve)),release(){released++;}})});io.observer.show(f.find(node=>node.dataset.historyId)[0]);f.find(node=>node.dataset.type==='video')[0].click();assert.equal(released,1);io.observer.show(f.find(node=>node.dataset.historyId)[0]);f.dispose();assert.equal(released,2);for(const finish of pending)finish('blob:late');await tick();assert.equal(f.find(node=>node.tagName==='img').length,0);assert.equal(io.observer.disconnected,true);
   }finally{io.restore();}
+});
+
+
+test('history migration stays explicit and its existing text button reports verified changes without auto-running', async () => {
+ let calls=0;const f=await setup({migrate:async()=>{calls++;return {status:'pending_import',persisted:true,summary:{changed:2,unresolved:1},diagnostics:[{path:'$.rows[0].source',code:'local_import_required'}]};}});
+ assert.equal(calls,0);const button=f.head.children.find(node=>node.getAttribute('aria-label')==='迁移本地素材');assert.ok(button);assert.equal(button.disabled,false);await button.click();assert.equal(calls,1);assert.equal(button.disabled,false);
+ const status=f.find(node=>node.getAttribute('role')==='status')[0];assert.match(status.textContent,/已迁移 2 项/);assert.match(status.textContent,/原引用已保留/);f.dispose();
 });

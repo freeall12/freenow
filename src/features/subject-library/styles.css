@@ -25,3 +25,5 @@
 
 /* Rq fixes landscape preview height while the media frame stays 225px. */
 .subject-manager-preview:has(.subject-preview-frame[data-square=false]){height:333px;box-sizing:border-box}.subject-manager-preview:has(.subject-preview-frame[data-square=false]) .subject-preview-body{min-height:0;flex:1}.subject-preview-apply{flex-shrink:1}
+
+.subject-manager-migration{flex:none;margin:0 16px 12px;padding:8px 0;border-bottom:1px solid #ffffff14;font-size:12px;line-height:18px;color:#ffffff8c}.subject-manager-migration>button:disabled{opacity:.5}.subject-manager-migration-status:empty{display:none}.subject-manager-migration-status{margin-top:6px;max-height:140px;overflow:auto;overflow-wrap:anywhere}.subject-manager-migration-status p{margin:0}.subject-manager-migration-status details{margin-top:4px}.subject-manager-migration-status ul{margin:4px 0;padding-left:18px}

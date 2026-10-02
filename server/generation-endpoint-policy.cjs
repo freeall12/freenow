@@ -2,7 +2,7 @@
 const {normalizeApiBaseUrl}=require('../generation-api.js');
 const BLOCKED=['tapnow.media','tapnow.ai','tapnow.art','tapnow.top','tapnow.zone','tapnow.plus','tapnow.tv','tamaredge.top','conversation-service-131786869360.asia-northeast1.run.app'];
 const localHost=host=>host==='localhost'||host.endsWith('.localhost')||host==='127.0.0.1'||host==='::1'||host==='::ffff:7f00:1';
-const hostName=url=>url.hostname.toLowerCase().replace(/\.$/,'').replace(/^\[|\]$/g,'');
+const hostName=url=>url.hostname.toLowerCase().replace(/\.+$/,'').replace(/^\[|\]$/g,'');
 function assertNetworkDestination(value){
  let url;try{url=new URL(typeof value==='string'?value:value?.url||value?.href);}catch{throw Object.assign(Error('生成网络目标无效'),{code:'configuration_destination_forbidden'});}
  const host=hostName(url);

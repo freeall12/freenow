@@ -1,14 +1,15 @@
 'use strict';
 const core=import('../video-mask-core.mjs');
+const {assertNetworkDestination,protectGenerationFetch}=require('./generation-endpoint-policy.cjs');
+const {assertCredentialFree}=require('./outbound-client.cjs');
 const fail=(message,code,status=400)=>Object.assign(Error(message),{code,status});
 const abort=()=>Object.assign(Error('识别已取消；外部服务是否停止尚未确认'),{name:'AbortError',code:'segmentation_cancelled'});
 const object=value=>!!value&&typeof value==='object'&&!Array.isArray(value);
-const blockedDomains=['tapnow.media','tapnow.ai','tapnow.art','tapnow.top','tapnow.zone','tapnow.plus','tapnow.tv','tamaredge.top','conversation-service-131786869360.asia-northeast1.run.app'];
 function checkedUrl(value,base,{endpoint=false}={}){
  if(typeof value!=='string'||!value.trim()||value!==value.trim()||value.length>8192)throw fail('视频分割服务地址无效','segmentation_invalid_url');
  let url;try{url=new URL(value,base);}catch{throw fail('视频分割服务地址无效','segmentation_invalid_url');}
- const host=url.hostname.toLowerCase().replace(/\.+$/,'');
- if(!['http:','https:'].includes(url.protocol)||url.username||url.password||url.hash||endpoint&&url.search||blockedDomains.some(domain=>host===domain||host.endsWith('.'+domain)))throw fail('视频分割服务地址不允许','segmentation_invalid_url');
+ try{assertNetworkDestination(url);}catch{throw fail('视频分割服务地址不允许','segmentation_invalid_url');}
+ if(url.username||url.password||url.hash||endpoint&&url.search)throw fail('视频分割服务地址不允许','segmentation_invalid_url');
  return url;
 }
 
@@ -19,6 +20,7 @@ function createVideoSegmentationAdapter({baseUrl='',apiKey='',fetchImpl=fetch,ti
  try{
   if(baseUrl)endpoint=checkedUrl(baseUrl,undefined,{endpoint:true});
   if(typeof apiKey!=='string'||apiKey.length>4096||/[\x00-\x1f\x7f]/.test(apiKey)||apiKey!==apiKey.trim()||typeof fetchImpl!=='function')throw Error();
+  fetchImpl=protectGenerationFetch(fetchImpl);
  }catch{invalid=true;}
  const configured=!!endpoint&&!invalid;
  const config=()=>({configured,missing:!baseUrl?['VIDEO_SEGMENTATION_API_BASE_URL']:[],configurationError:invalid?'configuration_invalid':null,availabilityVerified:false,remoteCancellation:'unknown'});
@@ -71,6 +73,7 @@ function createVideoSegmentationAdapter({baseUrl='',apiKey='',fetchImpl=fetch,ti
    let result=await read(response);
    if(!object(result))throw fail('视频分割服务响应格式无效','segmentation_invalid_result',502);
    if(result.rleUrl&&!result.frames){
+    assertCredentialFree(result.rleUrl,apiKey);
     const maskUrl=checkedUrl(result.rleUrl,endpoint);
     if(maskUrl.origin!==endpoint.origin)throw fail('蒙层文件必须来自已配置的分割服务','segmentation_invalid_url',502);
     const maskResponse=await fetchResponse(maskUrl.href,{redirect:'error',signal:controller.signal});
@@ -79,7 +82,7 @@ function createVideoSegmentationAdapter({baseUrl='',apiKey='',fetchImpl=fetch,ti
    if(controller.signal.aborted)throw signal?.aborted?abort():fail('识别状态未知，未自动重试','segmentation_unknown',503);
    const {validateMask}=await core;
    let mask;try{mask=validateMask(result,request);}catch{throw fail('视频分割服务返回无效的RLE蒙层','segmentation_invalid_result',502);}
-   return {width:mask.width,height:mask.height,fps:mask.fps,frames:mask.frames};
+   return assertCredentialFree({width:mask.width,height:mask.height,fps:mask.fps,frames:mask.frames},apiKey);
   }catch(error){
    if(signal?.aborted)throw abort();
    if(typeof error?.code==='string'&&(error.code.startsWith('segmentation_')||error.code==='configuration_required'))throw error;

@@ -2,6 +2,7 @@ import {fileTextSpark} from './icons.mjs';
 import {mediaBridgeSource} from './media-bridge.mjs';
 import {createWidgetMediaReceiver} from './media-receiver.mjs';
 import {whiteboxCaptureSource} from './whitebox-capture.mjs';
+import {independentNavigationUrl} from '../local-resource-migration/origin-policy.mjs';
 
 const completed = trace => ['done', 'completed'].includes(trace?.status) && !trace?.error && !trace?.result?.error;
 const active = trace => ['pending', 'started', 'running'].includes(trace?.status) && !trace?.error && !trace?.result?.error;
@@ -166,10 +167,13 @@ export function createWidgetCard({trace, streaming = trace?.streaming === true, 
       if (!['http:', 'https:'].includes(url.protocol) || !userAction()) return;
       const version = generation, source = event.source, token = data.nonce;
       try {
-        Promise.resolve(onOpenLink ? onOpenLink(url.href, value) : window.open(url.href, '_blank', 'noopener,noreferrer')).catch(() => {
+        const target = independentNavigationUrl(url.href);
+        Promise.resolve(onOpenLink ? onOpenLink(target, value) : window.open(target, '_blank', 'noopener,noreferrer')).then(result => {
+          if (result === false && interactive(version, source, token)) onError('链接无法打开');
+        }).catch(() => {
           if (interactive(version, source, token)) onError('链接无法打开');
         });
-      } catch {if (interactive(version, source, token)) onError('链接无法打开');}
+      } catch (error) {if (interactive(version, source, token)) onError(error.code === 'original_service_blocked' ? error.message : '链接无法打开');}
     }
   }
   window.addEventListener('message', receive);

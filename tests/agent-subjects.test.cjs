@@ -154,3 +154,10 @@ test('navigation drains pending subject writes, unload warns, and a finished fai
  const saving=library.save({id:'pending',scope:'personal',name:'主体',assets:[]});let navigated=false;const navigation=guards[0]().then(result=>{assert.equal(result,null);navigated=true;});const event={preventDefault(){this.prevented=true;}};listeners.beforeunload(event);assert.equal(event.prevented,true);await new Promise(done=>setImmediate(done));assert.equal(navigated,false);gate.resolve();await saving;await navigation;assert.equal(library.pending,false);
  fail=true;await assert.rejects(library.save({id:'failed',scope:'personal',name:'失败',assets:[]}),/commit failed/);assert.equal(await guards[0](),null);fail=false;await library.save({id:'retry',scope:'personal',name:'重试',assets:[]});await library.flush();assert.equal(library.list().length,2);
 });
+
+test('saving mapped static subject media imports verified actual bytes and rejects arbitrary assets paths',async()=>{
+ const bytes=new Uint8Array([1,2,3,4]),ref='/assets/known-subject.png',index={version:1,algorithm:'sha256-exact-utf8',entries:{[await hash('original')]:{ref,sha256:createHash('sha256').update(bytes).digest('hex'),bytes:4}}};let puts=0;
+ const f=await fixture({localAssets:{put:async()=>{puts++;return 'asset:actual-static';}},hashBytes:value=>createHash('sha256').update(value).digest('hex'),fetchImpl:async source=>source==='/assets/local-resource-index.json'?{ok:true,json:async()=>index}:new Response(bytes,{headers:{'content-type':'image/png'}})});
+ f.state.nodes[2].image=f.state.nodes[2].fullImage=ref;assert.equal((await f.service.save({...create,nodeIds:['image']})).saved,true);assert.equal(puts,1);const subject=JSON.parse(f.data.get('test-subjects'))[0];assert.equal(subject.assets[0].url,'asset:actual-static');assert.equal(subject.assets[0].image,'asset:actual-static');
+ f.state.nodes[2].image=f.state.nodes[2].fullImage='/assets/arbitrary.png';await assert.rejects(f.service.save({...create,operationId:'untrusted',nodeIds:['image']}),error=>error.code==='media_unavailable');assert.equal(puts,1);assert.equal(f.calls.writes,1);
+});

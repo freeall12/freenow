@@ -1,5 +1,6 @@
 'use strict';
 const policy=import('../src/features/agent-search/model.mjs');
+const {protectModelClient}=require('./outbound-client.cjs');
 const fail=(message,code,status=400)=>Object.assign(Error(message),{code,status});
 const abort=()=>new DOMException('检索已停止','AbortError');
 
@@ -33,9 +34,10 @@ async function normalizeSearchResponse(response,{query,model,now=Date.now}={}){
  return {status:sources.length?'completed':'no_results',query,model,responseId:typeof response.id==='string'?response.id:null,retrievedAt:new Date(now()).toISOString(),text:parts.join('\n\n'),sources,citations,searchCalls:calls.map(call=>({id:call.id,status:call.status,action:call.action?.type,queries:(call.action?.queries||[call.action?.query]).filter(value=>typeof value==='string').map(value=>value.slice(0,2000)).slice(0,10)})),droppedSources,untrusted:true};
 }
 
-function createWebSearch({client,model='',timeoutMs=90000,maxConcurrent=2,now=Date.now}={}){
+function createWebSearch({client,model='',timeoutMs=90000,maxConcurrent=2,now=Date.now,configurationError=null}={}){
+ client=protectModelClient(client);
  let active=0;
- const config=()=>({configured:!!client&&!!model,model:model||null,provider:'responses.web_search',missing:[...(!client?['OPENAI_API_KEY']:[]),...(!model?['OPENAI_WEB_SEARCH_MODEL or OPENAI_MODEL']:[])],availabilityVerified:false});
+ const config=()=>({configured:!!client&&!!model,model:model||null,provider:'responses.web_search',missing:[...(!client?['OPENAI_API_KEY']:[]),...(!model?['OPENAI_WEB_SEARCH_MODEL or OPENAI_MODEL']:[])],availabilityVerified:false,...(configurationError?{configurationError}:{})});
  async function search(input,{signal}={}){
   const {validateSearchInput}=await policy;const args=validateSearchInput(input);
   if(signal?.aborted)throw abort();

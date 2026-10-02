@@ -16,13 +16,13 @@ const generation=createGenerationGateway({localPort:Number(process.env.PORT||417
 const OpenAI=require('openai');const {AgentRuntime}=require('./agent.cjs');
 const root=path.resolve(__dirname,'..'),port=Number(process.env.PORT||4173);
 const localResourceIndexReady=require('../src/features/local-resource-migration/cli.cjs').writeLocalResourceIndex({root}).catch(()=>({published:false}));
-const configured=!!process.env.OPENAI_API_KEY&&!!process.env.OPENAI_MODEL;
-const client=process.env.OPENAI_API_KEY?new OpenAI({apiKey:process.env.OPENAI_API_KEY,...(process.env.OPENAI_BASE_URL?{baseURL:process.env.OPENAI_BASE_URL}:{})}):null;
-const webSearch=createWebSearch({client,model:process.env.OPENAI_WEB_SEARCH_MODEL||process.env.OPENAI_MODEL});
+const modelConnection=require('./outbound-client.cjs').createConfiguredModelClient({apiKey:process.env.OPENAI_API_KEY,baseUrl:process.env.OPENAI_BASE_URL,localPort:port});
+const client=modelConnection.client,configured=modelConnection.configured&&!!process.env.OPENAI_MODEL;
+const webSearch=createWebSearch({client,model:process.env.OPENAI_WEB_SEARCH_MODEL||process.env.OPENAI_MODEL,configurationError:modelConnection.configurationError});
 const agentSessionStore=createAgentSessionStore({directory:path.join(__dirname,'.agent-sessions')});
 // Provider identity excludes credentials: key rotation does not change a run's
 // destination, while a different endpoint or model configuration cannot resume it.
-const providerIdentity=createHash('sha256').update(JSON.stringify({baseURL:client?.baseURL||process.env.OPENAI_BASE_URL||'https://api.openai.com/v1',model:process.env.OPENAI_MODEL||null,models:process.env.AGENT_MODEL_MAP||null,reasoning:process.env.AGENT_REASONING_MAP||null})).digest('hex');
+const providerIdentity=createHash('sha256').update(JSON.stringify({baseURL:modelConnection.baseURL||'configuration-invalid',model:process.env.OPENAI_MODEL||null,models:process.env.AGENT_MODEL_MAP||null,reasoning:process.env.AGENT_REASONING_MAP||null})).digest('hex');
 const runtime=new AgentRuntime({client,model:process.env.OPENAI_MODEL,models:process.env.AGENT_MODEL_MAP,reasoning:process.env.AGENT_REASONING_MAP,sessionStore:agentSessionStore,providerIdentity});
 const mime={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.mjs':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.json':'application/json; charset=utf-8','.svg':'image/svg+xml','.png':'image/png','.jpg':'image/jpeg','.webp':'image/webp','.mp4':'video/mp4','.webm':'video/webm','.wav':'audio/wav','.mp3':'audio/mpeg','.ogg':'audio/ogg','.m4a':'audio/mp4','.aac':'audio/aac','.flac':'audio/flac','.glb':'model/gltf-binary','.woff2':'font/woff2','.wasm':'application/wasm'};
 function json(res,status,data){res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});res.end(JSON.stringify(data));}
@@ -39,9 +39,9 @@ const server=http.createServer(async(req,res)=>{try{
   if(req.headers.origin&&req.headers.origin!=='http://'+host)return json(res,403,{error:'跨域请求不允许'});
   if(pathname.startsWith('/api/video-segmentation/'))return await videoSegmentation.handle(req,res,pathname,{json,body});
   if(pathname.startsWith('/api/generation/'))return await generation.handle(req,res,pathname,{json,body:req=>body(req,64*1024*1024)});
-  if(pathname==='/api/agent/config'&&req.method==='GET')return json(res,200,{configured,model:process.env.OPENAI_MODEL||null,missing:[...(!process.env.OPENAI_API_KEY?['OPENAI_API_KEY']:[]),...(!process.env.OPENAI_MODEL?['OPENAI_MODEL']:[])]});
+  if(pathname==='/api/agent/config'&&req.method==='GET')return json(res,200,{configured,configurationError:modelConnection.configurationError,model:process.env.OPENAI_MODEL||null,missing:[...(!process.env.OPENAI_API_KEY?['OPENAI_API_KEY']:[]),...(!process.env.OPENAI_MODEL?['OPENAI_MODEL']:[])]});
   if(pathname==='/api/agent/search/config'&&req.method==='GET')return json(res,200,webSearch.config());
-  if(pathname==='/api/voice/config'&&req.method==='GET')return json(res,200,{configured:!!client&&!!process.env.OPENAI_TRANSCRIPTION_MODEL});
+  if(pathname==='/api/voice/config'&&req.method==='GET')return json(res,200,{configured:!!client&&!!process.env.OPENAI_TRANSCRIPTION_MODEL,configurationError:modelConnection.configurationError});
   if(pathname==='/api/media-reviews/config'&&req.method==='GET')return json(res,200,{configured:false,message:'待连接合规验证 API，尚未提交审核'});
   if(pathname==='/api/media-reviews'||pathname.startsWith('/api/media-reviews/'))return json(res,503,{code:'configuration_required',error:'待连接合规验证 API，尚未提交审核'});
   if(req.method!=='POST')return json(res,405,{error:'Method not allowed'});
@@ -74,6 +74,10 @@ const server=http.createServer(async(req,res)=>{try{
  const file=path.resolve(root,relative);if(!file.startsWith(root+path.sep))return json(res,403,{error:'Invalid path'});
  let stat;try{stat=await fs.promises.stat(file);}catch{return json(res,404,{error:'Not found'});}if(!stat.isFile())return json(res,404,{error:'Not found'});
  const headers={'Content-Type':mime[path.extname(file)]||'application/octet-stream','Accept-Ranges':'bytes','Cache-Control':'no-cache','X-Content-Type-Options':'nosniff'};
+ // All configured generation and Agent requests now use this server; completed
+ // media is localized before publication. Unknown legacy references remain in
+ // storage, but cannot reconnect the main canvas to an external resource host.
+ if(relative==='index.html')headers['Content-Security-Policy']="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' blob:; style-src 'self' 'unsafe-inline'; connect-src 'self' data: blob:; img-src 'self' data: blob:; media-src 'self' data: blob:; font-src 'self' data: blob:; worker-src 'self' blob:; frame-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'";
  // Bundled app sandboxes use local code/media, including standalone demos.
  // Generated result bytes are served by the private local media route.
  if(/^src\/features\/(?:agent-apps\/resources\/|agent-widgets\/widget-proxy\.html$)/.test(relative)&&path.extname(file)==='.html')headers['Content-Security-Policy']=`default-src 'self' http://${host} data: blob:; script-src 'self' http://${host} 'unsafe-inline' 'unsafe-eval' blob:; style-src 'self' http://${host} 'unsafe-inline'; connect-src 'self' http://${host} data: blob:; img-src 'self' http://${host} data: blob:; media-src 'self' http://${host} data: blob:; font-src 'self' http://${host} data:; frame-src 'self' http://${host} blob:; worker-src 'self' http://${host} blob:; object-src 'none'; base-uri 'self'; form-action 'self'`;

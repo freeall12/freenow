@@ -5,11 +5,12 @@ export function createHistory({projectId,store,archive,lookup,changed = () => {}
   const listeners = new Set(), transient = new Map();
   const transientLoss = () => state.rows.find(row=>row.archiveStatus==='failed' && !row.source && !state.receipts.find(entry=>entry.taskId===row.taskId)?.recoverable);
   const emit = () => { changed(); for (const listener of listeners) listener(); };
-  const merge = remote => {
+  const merge = (remote,{authoritative=false}={}) => {
     if (!remote) return;
     if (remote.projectId !== projectId) throw Error('生成历史项目标识不匹配');
+    state={...state,...remote,rows:state.rows,receipts:state.receipts};
     for (const field of ['rows','receipts']) { const id = field === 'rows' ? 'id' : 'taskId', merged = new Map((remote[field] || []).map(row => [row[id],row]));
-      for (const row of state[field]) { const prior = merged.get(row[id]); if (field==='rows' && prior?.archiveStatus==='ready' && row.archiveStatus!=='ready') continue; if (!prior || (row.updatedAt || '') >= (prior.updatedAt || '')) merged.set(row[id],row); }
+      for (const row of state[field]) { const prior = merged.get(row[id]); if (field==='rows' && prior?.archiveStatus==='ready' && row.archiveStatus!=='ready') continue; if (!prior || (authoritative?(row.updatedAt || '') > (prior.updatedAt || ''):(row.updatedAt || '') >= (prior.updatedAt || ''))) merged.set(row[id],row); }
       state[field] = [...merged.values()]; }
   };
   async function save() {
@@ -51,7 +52,7 @@ export function createHistory({projectId,store,archive,lookup,changed = () => {}
     }
   }
   const api = {
-    async ready() { if (ready) return; const value = await store.readRecord(key); if (value) { if (value.projectId !== projectId) throw Error('生成历史项目标识不匹配'); state={version:1,projectId,rows:value.rows || [],receipts:value.receipts || []}; } ready=true; emit(); },
+    async ready() { if (ready) return; const value = await store.readRecord(key); if (value) { if (value.projectId !== projectId) throw Error('生成历史项目标识不匹配'); state={...value,version:1,projectId,rows:value.rows || [],receipts:value.receipts || []}; } ready=true; emit(); },
     captureSubmission(job,{recoverable=false}={}) { return enqueue(async()=>{ const existing=state.receipts.find(row=>row.taskId===job.id); upsert('receipts',job.id,{...receipt(job,projectId,recoverable),...existing,updatedAt:stamp()}); await save(); }); },
     observe(job) { const snapshot={...job,request:structuredClone(job.request),outputs:job.outputs?.map(output=>({...output}))}; return enqueue(()=>observeNow(snapshot)); },
     retry(taskId) { return enqueue(async()=>{ const entry=state.receipts.find(row=>row.taskId===taskId); if (!entry) throw Error('未找到此项目的原任务');
@@ -63,8 +64,37 @@ export function createHistory({projectId,store,archive,lookup,changed = () => {}
     async flush() { let pending; do { pending=latest; await pending; } while(pending!==latest); if(error) throw error; if(state.rows.some(row=>row.archiveStatus==='pending'))throw Error('生成历史媒体仍在保存，请等待完成');const lost=transientLoss();if(lost)throw Error('此历史结果只保留在当前页面，离开会失去原始媒体。请先重试归档：'+lost.archiveError); },
     list(options) { return listRows(structuredClone(state.rows),options); },
     get(id) { const row=state.rows.find(row=>row.id===id);return row?structuredClone(row):null; },
-    diagnostics() { return {pending,error:error?.message || null,transientLoss:transientLoss()?.id || null,receipts:structuredClone(state.receipts)}; },
+    diagnostics() { return {pending,error:error?.message || null,transientLoss:transientLoss()?.id || null,receipts:structuredClone(state.receipts),migration:state.localMediaMigration?structuredClone(state.localMediaMigration):null}; },
     subscribe(listener) { listeners.add(listener); return ()=>listeners.delete(listener); },
+    migrateLocalMedia(migrate) { return enqueue(async()=>{
+      if(typeof migrate!=='function')throw Error('历史本地迁移尚未配置');
+      merge(await store.readRecord(key),{authoritative:true});
+      const identity=value=>JSON.stringify({projectId:value.projectId,rows:value.rows.map(row=>[row.id,row.taskId,row.outputIndex,row.createdAt,row.updatedAt]),receipts:value.receipts.map(row=>[row.taskId,row.createdAt,row.updatedAt,row.remoteTaskId,row.status])});
+      for(let attempt=0;attempt<3;attempt++){
+        const original=structuredClone(state),result=await migrate(structuredClone(original)),candidate=result?.snapshot;
+        if(!candidate||candidate.version!==1||!Array.isArray(candidate.rows)||!Array.isArray(candidate.receipts)||identity(candidate)!==identity(original))throw Error('历史迁移改变了原任务身份或日期，未保存');
+        const report={status:result.status||'ready',summary:result.summary||null,retryRequired:candidate.rows.some(row=>['failed','pending'].includes(row.archiveStatus)),diagnostics:(result.unresolved||[]).map(({path,code})=>({path,code}))};
+        candidate.localMediaMigration=report;
+        if(!(result.changes||[]).length&&JSON.stringify(original.localMediaMigration)===JSON.stringify(report)){emit();return {...report,persisted:false};}
+        try{
+          await store.writeRecord(key,structuredClone(candidate));state=candidate;error=null;
+          // Signed outputs may exist only in memory. Patch the migrated media
+          // slot after a successful write without discarding its sibling output.
+          for(const change of result.changes||[]){
+            const match=change.path?.match(/^\$\.receipts\[(\d+)\]\.outputs\[(\d+)\]\.(url|sourceUrl|image|fullImage|video|audio|poster|thumbnail)$/);
+            if(!match)continue;
+            const taskId=original.receipts[Number(match[1])]?.taskId,outputs=transient.get(taskId),index=Number(match[2]);
+            if(outputs?.[index]){const updated=[...outputs];updated[index]={...outputs[index],[match[3]]:candidate.receipts[Number(match[1])].outputs[index][match[3]]};transient.set(taskId,updated);}
+          }
+          emit();return {...report,persisted:true};
+        }catch(failure){
+          if(failure.name!=='AgentConversationConflictError'||attempt===2){error=failure;emit();throw failure;}
+          // Never merge already-migrated rows over a newer task result. Re-read
+          // the authoritative record and recompute only its resource positions.
+          merge(await store.readRecord(key),{authoritative:true});
+        }
+      }
+    }); },
     retrySave() { return enqueue(save); },
     markUnavailable(id,failure) { return enqueue(async()=>{const row=state.rows.find(row=>row.id===id);if(!row || row.archiveStatus!=='ready')return;upsert('rows',id,{...row,archiveStatus:'failed',archiveError:failure.message || '本地历史媒体无法读取',updatedAt:stamp()});await save();}); },
     updateThumbnail(id,mediaRef,patch) { return enqueue(async()=>{const row=state.rows.find(row=>row.id===id);if(!row || row.type!=='video' || row.archiveStatus!=='ready' || row.mediaRef!==mediaRef)return;if(patch.thumbnailRef && !patch.thumbnailRef.startsWith('asset:'))throw Error('历史缩略图必须保存到本地素材');const allowed=Object.fromEntries(['thumbnailRef','thumbnailStatus','thumbnailError'].filter(key=>patch[key]!==undefined).map(key=>[key,patch[key]]));upsert('rows',id,{...row,...allowed,updatedAt:stamp()});await save();}); }

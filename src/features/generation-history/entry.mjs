@@ -1,3 +1,4 @@
+import {assertReadableMediaSource,isLocalMediaSource} from '../generation-results/media-ref.mjs';
 import {createHistory} from './core.mjs';
 import {createArchiver} from './archive.mjs';
 import {createImporter} from './apply.mjs';
@@ -48,7 +49,7 @@ export function install(options = {}) {
     };
     const unavailableThumbnail=async(row,error)=>{if(row.type==='video')await history.updateThumbnail(row.id,row.mediaRef,{thumbnailRef:null,thumbnailStatus:'failed',thumbnailError:error.message});else await history.markUnavailable(row.id,error);};
     const thumbnailResources=createThumbnailResources({
-      load:async(row,signal)=>{const current=await ensureThumbnail(row,{signal});if(signal.aborted)throw signal.reason;if(current.type==='model')return {source:current.worldPatch?.image};if(!current.thumbnailRef)return null;try{return {blob:await archive.blob(current.thumbnailRef,{signal})};}catch(error){if(!signal.aborted)await unavailableThumbnail(current,error);throw error;}},
+      load:async(row,signal)=>{const current=await ensureThumbnail(row,{signal});if(signal.aborted)throw signal.reason;if(current.type==='model'){const source=current.worldPatch?.image;if(!source)return null;assertReadableMediaSource(source);return {blob:await archive.blob(source,{signal})};}if(!current.thumbnailRef)return null;try{return {blob:await archive.blob(current.thumbnailRef,{signal})};}catch(error){if(!signal.aborted)await unavailableThumbnail(current,error);throw error;}},
       createUrl:options.createThumbnailUrl,revokeUrl:options.revokeThumbnailUrl
     });
     const prepare=async row=>{try{return await archive.node(row);}catch(error){await history.markUnavailable(row.id,error);throw error;}};
@@ -59,15 +60,16 @@ export function install(options = {}) {
     const importer=createImporter({app,prepare,persist,position:options.position || (()=>{
       const {view}=app.getState(),canvas=document.querySelector('#canvas');return {x:(canvas.clientWidth/2-view.x)/view.scale-187.5,y:(canvas.clientHeight/2-view.y)/view.scale-125};
     })});
-    const coreFlush=history.flush.bind(history),coreDiagnostics=history.diagnostics.bind(history),operations=new Set();let importFailure=null;
+    const coreMigrate=history.migrateLocalMedia.bind(history),coreFlush=history.flush.bind(history),coreDiagnostics=history.diagnostics.bind(history),operations=new Set();let importFailure=null;
     const trackApply=execute=>{const operation=execute().then(result=>{importFailure=null;return result;},error=>{if(importer.pending)importFailure=error;throw error;}).finally(()=>operations.delete(operation));operations.add(operation);return operation;};
     const extended=Object.assign(history,{
+      async migrateLocalMedia(){const {createHistoryMigration}=await import('./migration.mjs');return coreMigrate(createHistoryMigration({assets,fetchImpl:fetcher,...(options.migration||{})}));},
       apply:rows=>trackApply(()=>importer(rows)),
       retryCanvasSave:()=>trackApply(()=>importer.retrySave()),
       diagnostics:()=>({...coreDiagnostics(),canvasPending:importer.pending,canvasError:importFailure?.message || null}),
       async flush(){do{await Promise.allSettled([...operations]);}while(operations.size);await coreFlush();if(importer.pending)throw Error('已导入的历史素材尚未保存，请在历史面板重试画布保存：'+(importFailure?.message || '保存未完成'));},
       async preview(row){const node=await prepare(row);if(node.type==='world')return (await import('../world-node/resource.mjs')).preview(node);return app.preview(node);},
-      async thumbnail(row){if(row.archiveStatus!=='ready')return null;const current=await ensureThumbnail(row);try{if(current.type==='model')return current.worldPatch?.image || null;return current.thumbnailRef?await assets.url(current.thumbnailRef):null;}catch(error){await unavailableThumbnail(current,error);throw error;}},
+      async thumbnail(row){if(row.archiveStatus!=='ready')return null;const current=await ensureThumbnail(row);try{const source=current.type==='model'?current.worldPatch?.image:current.thumbnailRef;if(!source)return null;assertReadableMediaSource(source);return isLocalMediaSource(source)?await assets.url(source):await asDataUrl(await archive.blob(source));}catch(error){await unavailableThumbnail(current,error);throw error;}},
       acquireThumbnail(row){return thumbnailResources.acquire(row.id+':'+(row.thumbnailRef || row.mediaRef)+':'+(row.thumbnailStatus || ''),row);},
       retryThumbnail(id){const row=history.get(id);if(!row)throw Error('历史视频未找到');return ensureThumbnail(row,{force:true});},
       thumbnailUnavailable:unavailableThumbnail,

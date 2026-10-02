@@ -75,7 +75,34 @@ const result = await migrateCanvasSnapshot(saved, {index});
 - `studioV2.asset`、worldResource 主资源/缩略图及已知世界 splat/mesh/pano 字段。
 - `generation.refs/inputs/references` 中明确资源位置。
 
-提示词、文字、标识、原始 provenance、信息页 URL 不改写。此模块不解析 HTML、脚本、CSS 或字符串化文档，也不迁移 library/subject/template/Agent 记录；需要各自类型化适配。无法从字段名推断的资源不会被盲目替换。
+提示词、文字、标识、原始 provenance、信息页 URL 不改写。此模块不解析 HTML、脚本、CSS、字符串化文档或 Agent 会话；需要各自类型化适配。无法从字段名推断的资源不会被盲目替换。
+
+## 素材库、主体、模板与生成历史
+
+以下函数全部从 `snapshot.mjs` 导出，异步参数为 `(value, {index, hashSource?})`，返回同一 `{snapshot, changes, unresolved, summary}` 合同。原输入不变；shape 错误、缺索引或索引无效均拒绝，不降级为“空资源成功”。
+
+| 函数 | 输入结构 | 明确迁移字段 |
+|---|---|---|
+| `migrateLibrarySnapshot` | 素材 items 数组，或 `{items, folders?, ...}` envelope | 每个素材的 `image/fullImage/video/audio/poster/thumbnail` |
+| `migrateSubjectSnapshot` | 完整 `{version:1, libraryKey, subjects, ...}` 权威记录 | 媒体型主体 assets 的 `url` 和主媒体字段；text assets 保持原样 |
+| `migrateTemplateSnapshot` | 单个 IndexedDB 模板 row，或 row 数组；row 必须含 `graph:{version:1,nodes,edges,...}` | 封面 `image/video`；graph 节点使用完整画布资源 visitor |
+| `migrateGenerationHistorySnapshot` | 完整 `{version:1, projectId, receipts, rows, ...}` 权威记录 | 媒体型 receipt outputs 的 `url/sourceUrl`、媒体别名和世界 splat/mesh/pano；rows 的 `source/mediaRef/thumbnailRef` 与模型 `worldPatch` |
+
+主体诊断示例为 `$.subjects[0].assets[1].url`，模板集合示例为 `$[0].graph.nodes[1].image`，历史示例为 `$.receipts[0].outputs[1].world.assets.mesh.hqMeshUrl`。动态 splat resolution 名称使用数字下标，避免把任意私有 key 放入诊断。
+
+所有库的 IDs、文本、操作回执、删除时间、未知扩展字段、provenance 保留。素材库 `mediaKey` 保留，因为它是既有收藏身份；接线方须验证基于旧 URL 的收藏匹配，不要把键值保存成功当作功能验证。模板 createdAt/updatedAt、边、参数和布局不重写。生成历史 status、archiveStatus、archiveError、application、taskId、sourceFileId 与 projectId 不改，绝不因为找到映射就改成归档成功。
+
+`outputs[].sourceUrl` 是现有输出校验、原结果重试使用的媒体 descriptor，所以迁移；`provenance.sourceUrl`、`worldResource.sourceUrl` 的信息性原始来源和 `world.marbleUrl` 保持原样。文本型 outputs 的 `url/text` 不被作为媒体改写。
+
+对应权威边界：素材库当前 `tapnow-library` localStorage items；主体使用 `agent-subject-library:<base>` IndexedDB；模板使用独立 templates object store；历史使用 `agent-generation-history:<projectId>` record。纯函数不触碰这些存储。调用方应在读取后、媒体展示前迁移，使用存储的 revision/CAS 与缓存 guard 保存完整快照，保存失败时保留原权威记录和迁移诊断。
+
+### 历史兼容与归档
+
+精确索引目标是静态 `/assets/...`，并非“已在本地素材 Blob 库归档”。历史 `archive.node()` 对模型要求 `asset:`。普通图片、视频、音频和 GLB 在纯迁移后，可由接线将**本轮 changes 所证明的静态资源**按索引校验 SHA-256/bytes 后读取为 Blob 并存入 LocalAssets，将对应明确字段改成持久 `asset:`。不能扩大任意 URL/路径白名单；任意既有 `/assets/...` 也不能自动当成已经过本轮索引证明的资源。
+
+这一步仍要保持关联字段一致：模型 row.mediaRef 与 worldPatch.worldResource.url；同一 sourceHash 在本次迁移复用同一 asset 引用，避免同一模型被保存成两个不同 asset 身份。输出 `sourceUrl` 必须一起处理，因为现有可读性校验会检查它。迁移不应自动 resubmit 原任务。归档状态只能由现有实际解码/归档流程确认；读取或存储失败保留旧记录并显示修复状态。
+
+SPZ/world 是独立边界：`outputSnapshot()` 的 world 嵌套资源目前只接受受信生成路由或原公开 HTTPS，既不接受静态路径，也不接受 `asset:`；archive 又要求保存 world metadata 与原 output metadata 一致。当前默认 `world-node/resource.materialize()` 本身只支持 GLB。直接把 SPZ 世界资源全部转为 asset 会破坏归档、重试及节点恢复校验。此批接线应保持该世界的一致性组原样并显示明确待修复/不支持归档状态，不能以零 unresolved 声称可恢复。完整支持需要独立的受信本地 world 校验和 reader adapter，或者恢复原任务已封存的 `/api/generation/media/...` 引用，不能直接放开现有 URL 校验白名单。
 
 ## 接线与失败规则
 
@@ -85,8 +112,8 @@ const result = await migrateCanvasSnapshot(saved, {index});
 4. `unresolved` 展示字段级待导入记录，不公开来源/提示词。未解决记录不删除，不能把“已屏蔽网络”当作素材可用。
 5. 部分映射成功可保存为部分迁移，但必须保留未解决计数；不要写全量完成标记。
 6. 迁移可能改变媒体签名。启动中的生成恢复/任务运行应与迁移协调，不能伪造更新 recovery.signature 或原任务身份来恢复已经变化的输入。
-7. HTML/widget 的宿主媒体绑定、共享库、生成历史、素材实际渲染和正式产品命名属于后续接线责任；本模块通过单测不代表整个本地化目标完成。
+7. HTML/widget 的宿主媒体绑定、共享库与生成历史的权威存储接线、素材实际渲染和正式产品命名属于其他接线责任；本模块通过单测不代表整个本地化目标完成。
 
 ## 验证范围
 
-专项回归覆盖纯迁移保留性、重复运行、查询参数精确性、字段级诊断、Fabric/片场/撤销历史、合法空表、非法表、文件校验、目录穿越、符号链接越界及构建失败时不覆盖旧索引。使用临时合成素材，不触碰真实用户存储。
+专项回归覆盖纯迁移保留性、重复运行、查询参数精确性、字段级诊断、Fabric/片场/撤销历史、四类共享记录、合法空表、非法表、文件校验、目录穿越、符号链接越界及构建失败时不覆盖旧索引。使用临时合成素材，不触碰真实用户存储。

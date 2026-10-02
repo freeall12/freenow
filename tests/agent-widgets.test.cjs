@@ -100,6 +100,27 @@ test('widget actions require source, nonce, current card and supported protocol;
  }finally{f.close();}
 });
 
+test('widget navigation blocks original service domains without invoking host and preserves independent links',async()=>{
+ const f=await fixture();try{
+  const nonce=f.handshake();f.message({type:'rendered',nonce});f.message({type:'resize',height:200,nonce});
+  for(const url of ['https://files.tapnow.ai/a','https://TAPNOW.MEDIA./canvas','https://assets.tamaredge.top/a','https://conversation-service-131786869360.asia-northeast1.run.app/a']){
+   f.advance(350);f.message({type:'openLink',url,nonce});
+  }
+  assert.deepEqual(f.links,[]);assert.equal(f.errors.length,4);assert.ok(f.errors.every(message=>message.includes('本地版本不连接')));
+  f.advance(350);f.message({type:'openLink',url:'https://docs.example.org/help?source=tapnow.ai',nonce});
+  assert.deepEqual(f.links,['https://docs.example.org/help?source=tapnow.ai']);
+  f.advance(350);f.message({type:'openLink',url:'https://name:secret@docs.example.org/help',nonce});assert.equal(f.links.length,1);
+ }finally{f.close();}
+});
+
+test('widget reports a live host navigation rejection',async()=>{
+ const f=await fixture({onOpenLink:()=>false});try{
+  const nonce=f.handshake();f.message({type:'rendered',nonce});f.message({type:'resize',height:200,nonce});
+  f.message({type:'openLink',url:'https://docs.example.org/help',nonce});await new Promise(setImmediate);
+  assert.deepEqual(f.errors,['链接无法打开']);
+ }finally{f.close();}
+});
+
 test('suspend receives passive readiness, resumes timeout without replacing frame, and suppresses late action failures',async()=>{
  const pending=deferred(),f=await fixture({onSendPrompt:()=>pending.promise});try{
   const frame=f.frame(),nonce=f.handshake();f.advance(3000);f.card.suspend();assert.equal(f.timers.size,0);

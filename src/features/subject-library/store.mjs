@@ -13,14 +13,15 @@ export function getSubjectStore({storage=globalThis.localStorage,store=globalThi
   const legacyKey=base,recordKey='agent-subject-library:'+encodeURIComponent(base);
   const existing=instances.find(item=>item.storage===storage&&item.store===store&&item.legacyKey===legacyKey&&item.recordKey===recordKey);if(existing)return existing.api;
   const durable=typeof store?.readRecord==='function'&&typeof store?.writeRecord==='function';
-  let items=[],loaded=false,hydration=null,latest=Promise.resolve(),pendingCount=0;
+  let items=[],loaded=false,hydration=null,latest=Promise.resolve(),pendingCount=0,migrationReport=null;
+  const migrations=new Set();
   function legacy(){let raw,value;try{raw=storage?.getItem(legacyKey)??null;value=raw===null?[]:JSON.parse(raw);}catch(error){throw failure('library_unreadable','主体库读取失败或数据损坏，未修改原数据',error);}return {raw,items:validate(value)};}
   function emit(){try{notify();}catch{/* A notification cannot invalidate a committed receipt. */}}
   function enqueue(work){pendingCount++;const pending=latest.catch(()=>{}).then(work).finally(()=>{pendingCount--;});latest=pending;return pending;}
   async function persist(next){
     try{if(durable){if(await store.writeRecord(recordKey,{version:1,libraryKey:base,subjects:next})===false)throw Error('本地记录未能提交');}else storage.setItem(legacyKey,JSON.stringify(next));}
     catch(error){throw failure('subject_save_failed','主体保存失败：'+error.message+'；原主体库保持不变',error);}
-    if(durable)items=next;emit();
+    if(durable)items=next;migrationReport=null;emit();
   }
   const api={
     ready(){
@@ -61,8 +62,32 @@ export function getSubjectStore({storage=globalThis.localStorage,store=globalThi
       });
     },
     archive(id){return enqueue(async()=>{await api.ready();const next=api.snapshot().items,subject=next.find(s=>s.id===id&&!s.deletedAt);if(subject){subject.deletedAt=Date.now();await persist(next);}});},
-    get pending(){return pendingCount>0||!!hydration;},
-    async flush(){if(hydration)await hydration;let pending;do{pending=latest;await pending;}while(pending!==latest);}
+    migrationStatus(){return structuredClone(migrationReport);},
+    migrateResources({indexState,index,fetchIndex,hashSource,migrate}={}){
+      const pending=Promise.resolve().then(async()=>{
+        await api.ready();
+        if(!durable)throw failure('subject_store_unavailable','主体资源迁移需要本地数据库');
+        const snapshot=api.snapshot();
+        const resources=indexState||(index?{index,state:'ready'}:await(await import('../local-resource-migration/canvas-load.mjs')).loadResourceIndex({...(fetchIndex?{fetchIndex}:{})}));
+        const report=value=>{migrationReport=value;emit();return structuredClone(value);};
+        if(resources.state!=='ready')return report({status:resources.state,persisted:false,summary:null,diagnostics:[]});
+        const migrateSnapshot=migrate||(await import('../local-resource-migration/snapshot.mjs')).migrateSubjectSnapshot;
+        const result=await migrateSnapshot({version:1,libraryKey:base,subjects:snapshot.items},{index:resources.index,...(hashSource?{hashSource}:{})});
+        const diagnostics=result.unresolved.map(({path,code})=>({path,code}));
+        const summary={...result.summary},status=diagnostics.length?'pending_import':'ready';
+        if(api.snapshot().raw!==snapshot.raw)return report({status:'local_edits',persisted:false,summary,diagnostics});
+        if(!result.changes.length)return report({status,persisted:false,summary,diagnostics});
+        try{await api.write(snapshot,result.snapshot.subjects);}
+        catch(error){
+          if(error.code==='version_conflict'||error.cause?.name==='AgentConversationConflictError')return report({status:'local_edits',persisted:false,summary,diagnostics});
+          throw error;
+        }
+        return report({status,persisted:true,summary,diagnostics});
+      }).catch(error=>{migrationReport={status:'migration_failed',persisted:false,summary:null,diagnostics:[]};emit();throw error;}).finally(()=>{migrations.delete(pending);});
+      migrations.add(pending);return pending;
+    },
+    get pending(){return pendingCount>0||!!hydration||migrations.size>0;},
+    async flush(){let pending;do{if(hydration)await hydration;await Promise.all([...migrations]);pending=latest;await pending;}while(pending!==latest||migrations.size||hydration);}
   };
   root?.CanvasProjects?.registerNavigationGuard(async()=>{
     if(!api.pending)return null;

@@ -46,7 +46,27 @@ node --test tests/generation-results-workflow.test.cjs tests/generation-recovery
 
 实际入口包括 `TaskService.consume/recover/validateResult`，`generation-results/workflow.apply` 与 `recovery.importRecoveredOutputs`，历史 `outputSnapshot/archive/node/blob/thumbnail`，以及世界 `materialize/preview/download`、全景 `panoramaStage`。生成应用与恢复的赋值流程本身支持同源路径，无需转换为供应商地址。任务进度、成功和恢复仅透传公开的 `providerStatus` 与 `localization:{state,revision,errorCode,retryable}`，素材保存失败保留 unknown 与原任务恢复原因，不产生第二次生成请求。
 
-旧远程迁移尚未完成：保留历史源记录，不删除或假装已归档。已确认的 TapNow/tamaredge运行域在这些媒体读取入口先提示需要迁移，不自动下载；其他合法供应商远程来源保留既有读取能力，尚需后续迁移。旧合法地址重定向到 TapNow、画布中已有远程img/video、旧模型内嵌资源和其他旧素材入口仍需统一迁移审计，本轮没有借全局CSP封锁来声明整个应用已隔离。
+历史已提供下面的显式本地迁移。已确认的 TapNow/tamaredge 运行域在媒体读取入口先提示需要迁移，不自动下载；其他合法供应商远程来源保留既有读取能力，历史归档、预览、下载与封面读取均使用 `redirect:'error'`，拒绝通过重定向重新连接原服务。独立供应商的兼容能力仍受主页面 CSP 和供应商 CORS 约束。本模块的完成范围不代表画布既有媒体、模型内嵌资源和其他旧素材入口已全部离线。
+
+## 显式迁移历史素材（2026-10-03）
+
+实际入口：打开主页面 `http://127.0.0.1:4173/` → 左侧「历史」→ 抽屉标题旁「迁移本地素材」。按钮沿用现有文字按钮样式，仅点击时执行；空历史提示「没有新增可迁移的历史素材引用。」。独立历史 fixture 入口为 `/qa/generation-history-app.html?session=history-migration`；它使用独立 Canvas/Assets namespace，现有合成历史按钮不构造旧远程索引样本。
+
+`entry.mjs` 将按钮接到 `core.mjs` 的既有历史操作队列。迁移先重读 `agent-generation-history:<projectId>` 权威记录，再运行 `migration.mjs`；CAS 冲突最多重读并重算三次，不把旧迁移结果覆盖到后来任务输出上。保留新增任务、收据、附加元数据、任务与结果身份、创建日期和 `updatedAt`。写入失败不发布迁移引用；写入成功只更新内存中已迁移输出的对应媒体字段，保留同任务其他未迁移、仅在内存可用的签名媒体，避免正常安全快照剔除签名 URL 后失去原任务重试能力。
+
+可信索引使用完整原 URL 的 UTF-8 SHA-256 精确匹配。只读取索引指向的 `/assets/` 字节，核对内容 SHA-256、准确字节数和类型 MIME，再写入真实 `asset:` 素材。不同索引项指向同一路径但 SHA/字节数不一致时拒绝导入。模型预算 12 MiB、音频 50 MiB、图片/视频 100 MiB；受控读取有界流且禁重定向。同一操作及 CAS 重算复用已导入引用，收据、历史行和 GLB 封面/模型槽位保持对应。普通归档接口没有因此放开任意 `/assets/` 路径。
+
+未知原引用和未索引静态引用原样保留，迁移本身从不请求原站；报告只包含安全字段位置与错误码。迁移不把 `archiveStatus` 提升为 `ready`：原失败结果仍须点击现有「重试归档」，经实际解码或 materializer 验证后才可预览、下载、应用。迁移后的模型封面从真实素材字节读取；再次应用时将 `asset:` 封面转换为 data URL。
+
+SPZ/Marble 世界整组保留原输出和相关历史行，报告 `unimplemented_world_archive`。当前历史世界合同与渲染器尚不支持把整组嵌套引用改成 `asset:`，因此不会只替换一部分地址破坏 LOD/身份一致性，也不会宣称 SPZ 已渲染或归档成功。
+
+定向回归：
+
+```sh
+node --test tests/generation-history-migration.test.cjs tests/generation-history-ui.test.cjs tests/generation-history-world.test.cjs tests/generation-history-thumbnails.test.cjs
+```
+
+覆盖精确字节导入、未知引用、SPZ 整组保留、坏 SHA 拒绝发布、CAS 等时间戳变化与新增任务、队列顺序、重复迁移、真实 entry 重开与归档重试、禁止原站及供应商重定向策略，以及同任务混合签名输出的数据保护。Node 回归不证明真实 GLB 视觉效果或供应商联网能力。
 
 
 独立浏览器验收 fixture：运行 `node tests/fixtures/generation-local-media-server.cjs --port 4174`，打开 `http://127.0.0.1:4174/qa/generation-local-media.html`。默认先显示素材保存失败，再点击“只取回原任务”经 GET 本地保存、真实解码图片；两项 POST 计数均应为 1。刷新保留原任务标识。页面不调用真实供应商，不需要真实 Key；只有固定的非秘密配置哨兵用于满足现有 tasks-v1 配置门，实际 provider transport 全在内存执行。`--success` 可启动直接成功模式，新一轮验收使用不同端口避免旧浏览器任务记录串入。服务仅绑定127.0.0.1，任务与媒体保存在新建临时私有目录，静态服务仅开放专属页面和所需前端模块。默认失败闸门要由显式GET解除，避免自动轮询跳过失败画面；这是验收注入，不是生产恢复协议。

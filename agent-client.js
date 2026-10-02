@@ -640,7 +640,7 @@
    const oldRevision=trace.projection_revision,next={...result,response:projection.projection.response,previsSourceContext:projection.projection.previsSourceContext},revision={message_sequence:chat.messages.indexOf(trace),part_index:(oldRevision?.part_index??0)+1};trace.result=next;trace.projection_revision=revision;
    try{if(!save())throw Error('已选真实图板投影保存失败');await flushConversation();if(trace.result!==next||trace.appState!==state||JSON.stringify(state)!==stateKey||pageLeaving||draft()!==chat)throw Error('已选图板投影保存期间来源已切换');const verified=getGenerationAppSourceContext(next.response,trace,chat);try{await verified.validateSourcesCurrent();}finally{verified.dispose();}}
    catch(error){if(trace.result===next)trace.result=result;if(trace.projection_revision===revision){if(oldRevision===undefined)delete trace.projection_revision;else trace.projection_revision=oldRevision;}try{if(!save())throw Error('已选图板补偿未保存');await flushConversation();}catch{throw Error('已选图板投影及补偿保存失败，请保留本页核对');}throw error;}render();
-  }finally{context.dispose();}});previsSelectionWork.set(trace,{result,stateKey,work});return work;
+  }finally{context.dispose();}}).catch(error=>{if(previsSelectionWork.get(trace)?.work===work)previsSelectionWork.delete(trace);throw error;});previsSelectionWork.set(trace,{result,stateKey,work});return work;
  }
  const previsProjectionWork=new WeakMap();
  function refreshPrevisProjection(trace,chat){

@@ -1,5 +1,5 @@
 import {el,button,preview,loadStyles} from './ui.mjs';
-import {listSubjects,saveSubject,archiveSubject,readySubjects} from './store.mjs';
+import {listSubjects,saveSubject,archiveSubject,readySubjects,getSubjectStore} from './store.mjs';
 import {editSubject} from './editor.mjs';
 import {managerIcons} from './manager-icons.mjs';
 import {subjectPreview} from './manager-preview.mjs';
@@ -8,9 +8,32 @@ const iconButton=(label,action,icon,cls='')=>{const b=button(label,action,cls);b
 export function openSubjectManager({onBack,onApply,onClose=()=>{}}) {
   loadStyles();const root=el('aside','subject-manager'),abort=new AbortController();root.ariaLabel='个人主体库';root.dataset.libraryView='element-library';
   const pending=new Set();
-  let mode='grid',closed=false,loading=true,loadError=null,editor=null,menu=null,hover=null,hoverTimer,leaveTimer,renameId=null,confirmation=null;
+  let mode='grid',closed=false,loading=true,loadError=null,migrating=false,migrationError=null,editor=null,menu=null,hover=null,hoverTimer,leaveTimer,renameId=null,confirmation=null;
+  const subjectStore=getSubjectStore();
   const header=el('header'),back=iconButton('返回',onBack,'back'),toggle=iconButton('列表视图',()=>{mode=mode==='grid'?'list':'grid';draw();},'grid');header.append(back,el('h2','','主体库'),toggle);
-  const scroll=el('div','subject-manager-scroll'),items=el('div','subject-manager-items');scroll.append(items);root.append(header,scroll);
+  const repair=el('section','subject-manager-migration'),repairButton=button('迁移本地素材',async()=>{
+    if(loading||loadError||migrating)return;migrating=true;migrationError=null;drawMigration();
+    try{await subjectStore.migrateResources();}catch(error){migrationError=error;}
+    finally{migrating=false;if(!closed)drawMigration();}
+  },'subject-manager-name'),repairStatus=el('div','subject-manager-migration-status');repairStatus.role='status';repairStatus.setAttribute('aria-live','polite');repair.append(repairButton,repairStatus);
+  const scroll=el('div','subject-manager-scroll'),items=el('div','subject-manager-items');scroll.append(items);root.append(header,repair,scroll);
+  function drawMigration(){
+    repairButton.disabled=loading||!!loadError||migrating;repairButton.setAttribute('aria-busy',String(migrating));repairStatus.replaceChildren();
+    if(migrating){repairStatus.textContent='正在核对并迁移主体素材…';return;}
+    if(migrationError){repairStatus.textContent='主体素材迁移未保存：'+migrationError.message;return;}
+    const report=subjectStore.migrationStatus();if(!report)return;
+    const messages={migration_failed:'主体素材迁移未保存，请重试。',index_missing:'本地资源索引尚未生成，原引用已保留。',index_invalid:'本地资源索引无效，原引用已保留。',index_unavailable:'本地资源索引暂时无法读取，原引用已保留。',local_edits:'主体在迁移期间已修改，迁移已暂停。请重新核对。'};
+    repairStatus.append(el('p','',messages[report.status]||(report.persisted?'已迁移 '+report.summary.changed+' 项引用。':'没有新增可迁移引用。')+(report.summary?.unresolved?'另有 '+report.summary.unresolved+' 项需导入本地素材，原引用已保留。':'')));
+    if(report.diagnostics?.length){
+      const details=el('details'),list=el('ul');details.append(el('summary','','查看待修复位置'));
+      for(const diagnostic of report.diagnostics.slice(0,20)){
+        const match=diagnostic.path.match(/^\$\.subjects\[(\d+)\]\.assets\[(\d+)\]\.([A-Za-z]+)$/),field=match?.[3]==='image'?'封面':'素材';
+        const label=match?'主体 '+(Number(match[1])+1)+' · 素材 '+(Number(match[2])+1)+' · '+field:'主体媒体';
+        list.append(el('li','',label+(diagnostic.code==='transient_blob'?'：临时素材需重新导入':'：需导入本地素材')));
+      }
+      if(report.diagnostics.length>20)list.append(el('li','','另有 '+(report.diagnostics.length-20)+' 项待修复'));details.append(list);repairStatus.append(details);
+    }
+  }
   function hidePreview(){clearTimeout(hoverTimer);clearTimeout(leaveTimer);hover?.dispose();hover?.remove();hover=null;}
   function queuePreview(card,subject){if(menu||renameId)return;clearTimeout(leaveTimer);clearTimeout(hoverTimer);hoverTimer=setTimeout(()=>{hidePreview();if(!card.isConnected)return;hover=subjectPreview(subject,()=>apply(subject));document.body.append(hover);const r=card.getBoundingClientRect();hover.style.left=Math.max(8,Math.min(innerWidth-hover.offsetWidth-24,r.right+12))+'px';hover.style.top=Math.max(16,Math.min(innerHeight-hover.offsetHeight-16,r.top+r.height/2-hover.offsetHeight/2))+'px';hover.onpointerenter=()=>clearTimeout(leaveTimer);hover.onpointerleave=()=>leaveTimer=setTimeout(hidePreview,150);},300);}
   async function apply(subject){if(pending.has(subject.id))return;hidePreview();closeMenu();pending.add(subject.id);draw();try{await onApply(subject,{signal:abort.signal});}catch(error){if(!abort.signal.aborted)window.CanvasApp?.notify('主体素材导入失败：'+error.message);}finally{pending.delete(subject.id);draw();}}
@@ -23,7 +46,7 @@ export function openSubjectManager({onBack,onApply,onClose=()=>{}}) {
     popup.onkeydown=e=>{e.stopPropagation();const rows=[...popup.querySelectorAll('button')],index=rows.indexOf(document.activeElement);if(['ArrowDown','ArrowUp','Home','End'].includes(e.key)){e.preventDefault();rows[e.key==='Home'?0:e.key==='End'?rows.length-1:(index+(e.key==='ArrowDown'?1:-1)+rows.length)%rows.length].focus();}if(e.key==='Escape'){e.preventDefault();closeMenu();trigger.focus();}};
   }
   function confirmDelete(subject){const dialog=el('dialog','subject-delete-dialog');confirmation=dialog;dialog.ariaLabel='删除主体';dialog.append(el('h2','','删除主体'),el('p','','确定删除“'+subject.name+'”吗？此操作不会删除原始素材。'));const footer=el('footer');footer.append(button('取消',()=>dialog.close()),button('删除',async event=>{const trigger=event.currentTarget;trigger.disabled=true;try{await archiveSubject(subject.id);dialog.close();}catch(error){window.CanvasApp?.notify(error.message);}finally{trigger.disabled=false;}},'destructive'));dialog.append(footer);dialog.onkeydown=e=>e.stopPropagation();dialog.onclose=()=>{confirmation=null;dialog.remove();};document.body.append(dialog);dialog.showModal();}
-  function draw(){if(closed)return;hidePreview();root.dataset.view=mode;toggle.ariaLabel=mode==='grid'?'列表视图':'网格视图';toggle.setAttribute('aria-pressed',String(mode==='list'));toggle.innerHTML=managerIcons[mode];items.replaceChildren();const create=button('新建主体',()=>edit(),'subject-manager-create');create.replaceChildren();const glyph=button('',null,'','plus');const tile=el('span','subject-manager-thumb');tile.append(...glyph.childNodes);create.append(tile,el('span','','新建主体'));create.disabled=loading||!!loadError;items.append(create);if(loading||loadError){items.append(el('p','',loadError?'主体库读取失败：'+loadError.message:'正在读取主体库…'));return;}
+  function draw(){if(closed)return;hidePreview();drawMigration();root.dataset.view=mode;toggle.ariaLabel=mode==='grid'?'列表视图':'网格视图';toggle.setAttribute('aria-pressed',String(mode==='list'));toggle.innerHTML=managerIcons[mode];items.replaceChildren();const create=button('新建主体',()=>edit(),'subject-manager-create');create.replaceChildren();const glyph=button('',null,'','plus');const tile=el('span','subject-manager-thumb');tile.append(...glyph.childNodes);create.append(tile,el('span','','新建主体'));create.disabled=loading||!!loadError;items.append(create);if(loading||loadError){items.append(el('p','',loadError?'主体库读取失败：'+loadError.message:'正在读取主体库…'));return;}
     for(const subject of listSubjects('personal')){const card=el('div','subject-manager-card');card.dataset.subjectId=subject.id;const media=button(subject.name,()=>edit(subject),'subject-manager-thumb');media.disabled=pending.has(subject.id);media.setAttribute('aria-busy',String(pending.has(subject.id)));media.replaceChildren(preview(subject.assets.find(a=>a.image||['image','video'].includes(a.type))||subject.assets[0]));const dots=iconButton('更多操作：'+subject.name,()=>showMenu(subject,dots),'more','subject-manager-more');dots.disabled=pending.has(subject.id);dots.setAttribute('aria-haspopup','menu');dots.setAttribute('aria-expanded','false');card.append(media,dots);
       if(renameId===subject.id){const input=el('input','subject-manager-rename');input.ariaLabel='重命名主体';input.maxLength=50;input.value=subject.name;let finished=false;const finish=async save=>{if(finished)return;finished=true;renameId=null;const name=input.value.trim();if(save&&name&&name!==subject.name){pending.add(subject.id);try{await saveSubject({...subject,name,updatedAt:Date.now()});}catch(error){window.CanvasApp?.notify(error.message);}finally{pending.delete(subject.id);}}draw();};input.onkeydown=e=>{e.stopPropagation();if(e.key==='Enter'){e.preventDefault();finish(true);}if(e.key==='Escape'){e.preventDefault();finish(false);}};input.onblur=()=>finish(true);card.append(input);}else card.append(button('重命名：'+subject.name,()=>rename(subject),'subject-manager-name'));
       const name=card.querySelector('.subject-manager-name');if(name)name.textContent=subject.name;

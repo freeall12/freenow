@@ -1,5 +1,86 @@
 # 运行时原站依赖独立审计 · 2026-10-03
 
+## 当前补充复核：同源网关落盘后的主页面 CSP 与剩余持久资源
+
+本节优先于下面的历史复核结论。此次只读代码、已有文档与入口属性，没有读取用户会话/产物私有数据库，没有扫描官方 minified 正文，没有执行浏览器联网验收。root 正在并行修改代码，以下定位对应本节复读时。
+
+### 主页面严格同源 CSP 已在代码落地，运行验收待完成
+
+本次追加复读确认 `server/server.cjs:80` 已对 `relative === 'index.html'` 返回下述同源策略，覆盖 `/` 与 `/index.html`；`:83` 的 App/widget HTML 专用策略保持独立。本节的可行性判断现已形成代码变更，但没有据此推定浏览器运行通过。
+
+此前撤回全局 CSP 的两个主要原因已经发生实质变化：`generation-ui.js:70–88` 的主 provider 固定使用同源 `/api/generation`；`generation-config/client.mjs:16` 配置保存也只 POST 同源端点。网关目标地址是送给本机服务的配置数据，浏览器不再对它直接 POST/poll。生成媒体通过已封存的本地 API route 读取。页面 CSP 不影响本机服务按显式配置访问独立供应商。
+
+主 `index.html` 的直接资源属性聚合为 21 个 link.href、2 个 img.src、71 个 script.src，共 94 个，远程属性计数为零。主链未发现必需远程字体、模块、Worker、WebSocket 或 AudioWorklet。图片编辑器 `image-editor-entry.mjs:25–26` 的 FontFace 使用本地 `assets/fonts/`；Three 在 `studio.mjs:29` 与 `studio-v2/model-io.mjs:11` 使用本地 `/node_modules/three/.../draco/gltf/` 解码器。DRACOLoader 会读取本地 JS/WASM，并用 Blob 创建 worker，不能遗漏 `worker-src 'self' blob:` 和当前 WASM/动态代码所需 eval 权限。Fabric/Tiptap 资源来自项目本地 bundle。
+
+建议用于**主页面**的权限形状：
+
+```text
+default-src 'self';
+script-src 'self' 'unsafe-inline' 'unsafe-eval' blob:;
+style-src 'self' 'unsafe-inline';
+connect-src 'self' data: blob:;
+img-src 'self' data: blob:;
+media-src 'self' data: blob:;
+font-src 'self' data: blob:;
+worker-src 'self' blob:;
+frame-src 'self' blob:;
+object-src 'none';
+base-uri 'self';
+form-action 'self'
+```
+
+不要用通用全HTML规则覆盖已有 opaque App/widget 代理的专用权限和本地握手处理。主页面策略足以阻止未映射原站 `img/video/audio/fetch` 自动发出请求，并保留数据和字段诊断；不能据此声称旧素材已经可用。
+
+仍存在的明确功能变化：`agent-workflows/media-resolver.mjs:32` 接受通用 HTTPS 来源，后续 Image/video/audio.src 会在浏览器解码；`media-transport.mjs:66` 的 forceInline 分支会跨源 fetch。这类**用户独立 HTTPS 参考直读**也会被严格 CSP 拒绝，需要先导入本机。`agent-attachments/media-inputs.mjs:9–14` 的历史附件解码同样如此。Marble 公有 URI 仅作为数据传给本机服务/供应商的分支不受页面 CSP 限制。不能把限制独立 HTTPS 参考直读说成没有行为变化；若该流程仍须保留，应走受控显式本地导入，而非放行所有 HTTPS。
+
+### 1. HTML 导出的真实网络边界尚未继承预览隔离
+
+入口一为 `agent-artifacts/panel.mjs:77` 的文件预览；入口二为 `agent-widgets/integration.mjs:37–56` 的 show_html 卡片。两者读取权威 artifact file 后调用同一个 `openHtmlPreview`。
+
+`agent-artifacts/html-preview.mjs:3–7,43` 仅给 iframe.srcdoc 加入 CSP 并设置 sandbox。但 `:24–27` 的“下载 HTML”直接 `Blob([file.content])`，导出的是原始正文，没有复制这层 CSP。下载本身只读取本机 Blob；用户随后打开文件时，里面的 script src、图片、媒体、CSS URL、fetch、表单或导航才可能产生网络行为。这是**条件性入口**，本次没有读取私有 HTML，不能声称实际导出内容必含原站 URL。`:34` 的 share 回调也传原正文，不过当前 show_html 集成明确 `showShare:false`，默认分享提供方未配置，不是自动上传路径。
+
+最小下一批：保留原文和 revision，生成独立派生的离线预览/下载正文。用 DOMParser 处理真实资源属性，按完整来源哈希索引验证本地文件并嵌入 data URL；至少处理 img/src/srcset、video/audio/source、poster、SVG image href。CSS URL 必须有独立解析支持，不能以全局正则替换冒充覆盖。未知资源返回只含位置/hash的诊断。派生导出前置真实 head CSP；预览和下载消费同一派生结果。脚本内动态 URL、meta refresh 和外部 anchor 导航是另一明确边界，CSP 的资源限制不等于通用导航禁令。不要静默删除原始内容或声称任意 HTML 已完全离线。
+
+权威存储为 `agent-artifacts/store.mjs:4–13` 的 `<project namespace>-artifacts`，documents store 的 canvas document；文件通过 `store.write()` → `model.nextDocument()` 检查 expected_revision。若需要保存本地化派生文件，使用新 artifact_path 和 source_artifact_path/source_revision 保留来源，不能覆盖不匹配 revision 的原文件。
+
+### 2. Widget 历史资源已被挡，仍缺入向素材绑定
+
+`agent-widgets/cards.mjs:105–110,192–204` 从历史 trace.args.widget_code 取正文，经本地 proxy postMessage/render 进入 `widget-proxy.html:156–170` 的 DOMParser 和真实 head CSP。内层 img/media 仅允许 data/blob，connect-src none。因此历史代码中的远程资源目前会被阻止，而不是自动修复；本地 `/assets/...` 同样不能直接在这个 opaque 内层使用。
+
+root 本轮已在 cards 与 integration 的 openLink 两层调用 `local-resource-migration/origin-policy.mjs`，禁止原站域及其子域，保留用户激活、nonce/source和当前trace校验。这是已修的宿主导航入口，不应继续列成未修原站跳转。
+
+最小下一批：宿主在 sendRender 前从惰性 DOM 采集明确资源槽，精确映射/用户导入后转成 data URL，构建派生 widget HTML，并绑定 chat/trace/code版本。保留原 widget_code，单独保存资源绑定或派生 revision；已有 uploadToCanvas 是组件**输出进入画布**的出向桥，不能直接解决历史图片进入组件。宿主读取完成时仍要验证 generation/nonce/trace/code 与当前会话一致。
+
+### 3. Agent 会话与主页面数据驱动入口
+
+`project-context.js:20–35` 的权威记录为 `agent-conversations:<projectId>`，保存 `{chats,activeId}`；旧 localStorage 快照在 IndexedDB存在时仅作为遗留来源。`agent-client.js:29–32` 会先读取旧会话再由权威记录 hydrate，目前没有资源纯迁移钩子。
+
+下一批最小字段范围为 chats[].uploads、messages[].uploads、queuedMessages[].uploads 内明确 asset；再按已注册 App resource_uri，单独处理 trace.result.response 与 appState 中当前可读媒体槽。不要通用递归替换 tool args、文字、提示词、ID、raw request或恢复 journal。`projectAppModelResult()` 的媒体剥除只用于模型投影，不是持久化迁移。
+
+实际读取入口包括：
+
+| 入口 | 触发与行为 |
+|---|---|
+| `app.js:112` makeNode | 当前画布、撤销恢复后直接赋 img.src；unknown保留旧 URL 时仍会请求，主 CSP 可统一挡住 |
+| `canvas-projects/ui.js:25` | 项目列表 thumbnail 直接赋 img.src；可能来自尚未打开项目的旧记录 |
+| `agent-client.js:405` | 工具结果卡直接显示当前节点 image |
+| `agent-attachments/picker.mjs:12–13` | 引用选择器直接设置节点 img/video.src，仅 asset:随后解析 |
+| `agent-composer/reference-preview.mjs:7` | 引用预览经 LocalAssets.url 后赋 media.src；该resolver当前非asset来源原样返回 |
+| `agent-client.js:97`、forms view | 表单图片来源从当前节点/已上传附件解析；旧来源仍需读取边界保护 |
+| `agent-client.js:711–714`、media-inputs | 发送Agent附件时实际浏览器解码并采样媒体；不是只把名字发给模型 |
+
+普通消息 `agent-messages/markdown.mjs:14–23` 丢弃 raw HTML，把 Markdown 图片变成 anchor，不会自动请求图片。`safeMessageLink():7–10` 仍允许通用 HTTP/HTTPS/mailto，原站链接是用户点击后的导航入口。若要求全部用户导航也脱离原站，应复用明确域策略，不要把 Markdown 正文当媒体字符串改写。文本产物 `TextEditor.html` 同样剥除图片并把链接变成静态 span，不是自动联网入口。SVG/XML namespace、ui://tapnow RPC 标识、DB/key名称、skill sourceUrl证据字段、URL格式示例均不能按请求数量统计。
+
+### 4. 素材库与模板专项提交边界复读
+
+`sidebars.js:14–38` 的普通素材库写入与迁移共用 Web Locks 写锁，普通写入按自身快照串行提交并比较原始存储字串；迁移在锁内同时比较内存 baseline、权威原始字串和未保存状态。不支持锁时迁移返回 lock_unavailable。`templates-ui.js:24–31` 的迁移在同一 IndexedDB 读写事务内读取全部记录、比较 baseline 并批量 put，提交后才换缓存；`:36–37` 的普通保存对目标记录做同事务 CAS。本次静态复读没有发现这两个合作写入协议的覆盖新版本路径，未运行专项测试。
+
+两处 mediaSource 在赋 src 前拒绝已识别原站域与子域，模板图使用也有单独读取检查。仍有一个条件性有效来源边界：`sidebars.js:81` 先检查素材条目，再把 `EDITOR_DATA.nodes[item.nodeId].video` 补入预览对象；插入检查同样只检查条目，`app.js:579` 随后补入视频。若条目没有 video 且后备视频仍为原站，该专项检查不会给出迁移提示，主 CSP 会在实际加载时阻止请求。应按最终后备来源检查，或明确证明静态后备始终本地；不能把检查条目直接来源等同于检查最终来源。已向专项实现线程反馈。
+
+### 本节验收范围与限度
+
+本节没有运行 CUA、没有捕获私有内容、没有执行广泛测试。主 CSP 加入后仍须验收同源任务配置/POST/poll、封存媒体预览、Three Draco/WASM/blob worker、Fabric/字体、Agent会话恢复，以及unknown原站媒体没有实际请求且有可用导入修复入口。导出HTML应单独打开派生文件验证网络行为。阻止原站请求、数据迁移成功和功能可用是三个不同结论。
+
 审计目录：`/Users/laplace/Documents/Codex/2026-09-22/new-chat/outputs/canvas-replica`。范围为 Agent Apps 官方 HTML、四类沙箱代理、互动学习/个人素材、内置技能详情、服务端运行资源与遥测。字体与帮助入口由其他审计负责。本记录只改文档，未运行广泛测试、未提交代码。代码在根线程同时更新，因此分别列出修改前证据和本轮复读状态；下列“当前”是本文件生成时状态。
 
 ## 结论

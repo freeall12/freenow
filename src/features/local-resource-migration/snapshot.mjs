@@ -7,7 +7,7 @@ const durable = value => isStaticAssetRef(value) || isGenerationMediaRef(value) 
   /^asset:[^\s]+$/.test(value) || /^data:(?:image\/|video\/|audio\/|model\/|application\/octet-stream;)/.test(value);
 
 // Only resource positions are visited. Prompts, IDs, task bindings and provenance stay intact.
-function resourceSlots(snapshot) {
+function resourceSlots(snapshot, kind = 'canvas') {
   const slots = [];
   const field = (target, key, path) => {if (object(target) && typeof target[key] === 'string' && target[key]) slots.push({target, key, path: path + '.' + key});};
   const fields = (target, keys, path) => keys.forEach(key => field(target, key, path));
@@ -33,7 +33,7 @@ function resourceSlots(snapshot) {
     if (object(urls)) Object.keys(urls).forEach((key, index) => {
       if (typeof urls[key] === 'string' && urls[key]) slots.push({target: urls, key, path: path + '.assets.splats.spzUrls[' + index + ']'});
     });
-    fields(value.assets.mesh, ['colliderMeshUrl', 'fullResMeshUrl'], path + '.assets.mesh');
+    fields(value.assets.mesh, ['colliderMeshUrl', 'fullResMeshUrl', 'hqMeshUrl'], path + '.assets.mesh');
     field(value.assets.imagery, 'panoUrl', path + '.assets.imagery');
   }
   function studio(value, path) {
@@ -67,17 +67,38 @@ function resourceSlots(snapshot) {
     list(value.generation?.references, path + '.generation.references', resource);
   }
   function graph(value, path) {list(value?.nodes, path + '.nodes', node);}
-  graph(snapshot, '$');
-  list(snapshot.history, '$.history', graph); list(snapshot.future, '$.future', graph);
+  if (kind === 'canvas') {
+    graph(snapshot, '$');
+    list(snapshot.history, '$.history', graph); list(snapshot.future, '$.future', graph);
+  } else if (kind === 'library') {
+    list(Array.isArray(snapshot) ? snapshot : snapshot.items, Array.isArray(snapshot) ? '$' : '$.items', (item, path) => fields(item, mediaFields, path));
+  } else if (kind === 'subject') {
+    list(snapshot.subjects, '$.subjects', (subject, path) => list(subject.assets, path + '.assets', (asset, at) => {
+      if (['image', 'video', 'audio'].includes(asset.type)) resource(asset, at);
+    }));
+  } else if (kind === 'template') {
+    const template = (item, path) => {fields(item, ['image', 'video'], path); graph(item.graph, path + '.graph');};
+    if (Array.isArray(snapshot)) list(snapshot, '$', template); else template(snapshot, '$');
+  } else if (kind === 'generation-history') {
+    list(snapshot.receipts, '$.receipts', (receipt, path) => list(receipt.outputs, path + '.outputs', (output, at) => {
+      if (!['image', 'video', 'audio', 'model'].includes(output?.type)) return;
+      // output.sourceUrl is a readable media descriptor, unlike provenance.sourceUrl.
+      fields(output, ['url', 'sourceUrl', ...mediaFields], at); world(output.world, at + '.world');
+    }));
+    list(snapshot.rows, '$.rows', (row, path) => {
+      if (!['image', 'video', 'audio', 'model'].includes(row.type)) return;
+      fields(row, ['source', 'mediaRef', 'thumbnailRef'], path);
+      if (row.type === 'model') node(row.worldPatch, path + '.worldPatch');
+    });
+  }
   return slots;
 }
 
-export async function migrateCanvasSnapshot(value, {index, hashSource = defaultHash} = {}) {
-  if (!object(value) || !Array.isArray(value.nodes) || !Array.isArray(value.edges)) throw Error('画布迁移需要完整快照');
+async function migrateSnapshot(value, {index, hashSource = defaultHash} = {}, kind) {
   if (typeof hashSource !== 'function') throw Error('资源哈希适配器无效');
   const validated = validateResourceIndex(index), snapshot = structuredClone(value);
   const changes = [], unresolved = [], cache = new Map();
-  const slots = resourceSlots(snapshot);
+  const slots = resourceSlots(snapshot, kind);
   for (const slot of slots) {
     const source = slot.target[slot.key];
     if (durable(source)) continue;
@@ -91,4 +112,35 @@ export async function migrateCanvasSnapshot(value, {index, hashSource = defaultH
     } else unresolved.push({path: slot.path, sourceHash, code: source.startsWith('blob:') ? 'transient_blob' : 'local_import_required'});
   }
   return {snapshot, changes, unresolved, summary: {references: slots.length, changed: changes.length, unresolved: unresolved.length, alreadyLocal: slots.length - changes.length - unresolved.length}};
+}
+
+export async function migrateCanvasSnapshot(value, options) {
+  if (!object(value) || !Array.isArray(value.nodes) || !Array.isArray(value.edges)) throw Error('画布迁移需要完整快照');
+  return migrateSnapshot(value, options, 'canvas');
+}
+
+export async function migrateLibrarySnapshot(value, options) {
+  const items = Array.isArray(value) ? value : object(value) ? value.items : null;
+  if (!Array.isArray(items) || items.some(item => !object(item))) throw Error('素材库迁移需要完整素材数组');
+  return migrateSnapshot(value, options, 'library');
+}
+
+export async function migrateSubjectSnapshot(value, options) {
+  if (!object(value) || value.version !== 1 || typeof value.libraryKey !== 'string' || !Array.isArray(value.subjects) ||
+      value.subjects.some(subject => !object(subject) || !Array.isArray(subject.assets) || subject.assets.some(asset => !object(asset)))) throw Error('主体库迁移需要完整权威记录');
+  return migrateSnapshot(value, options, 'subject');
+}
+
+export async function migrateTemplateSnapshot(value, options) {
+  const rows = Array.isArray(value) ? value : [value];
+  if (rows.some(row => !object(row) || !object(row.graph) || row.graph.version !== 1 || !Array.isArray(row.graph.nodes) ||
+      !Array.isArray(row.graph.edges))) throw Error('模板迁移需要完整模板记录');
+  return migrateSnapshot(value, options, 'template');
+}
+
+export async function migrateGenerationHistorySnapshot(value, options) {
+  if (!object(value) || value.version !== 1 || typeof value.projectId !== 'string' || !Array.isArray(value.rows) ||
+      !Array.isArray(value.receipts) || value.rows.some(row => !object(row)) || value.receipts.some(row => !object(row) ||
+        row.outputs !== undefined && !Array.isArray(row.outputs))) throw Error('生成历史迁移需要完整权威记录');
+  return migrateSnapshot(value, options, 'generation-history');
 }

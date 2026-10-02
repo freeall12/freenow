@@ -6,7 +6,7 @@ export function createArchiver({assets, fetch: fetcher, asDataUrl, validate, mat
   async function blob(source,{signal}={}) {
     if (!source) throw Error('原始媒体地址不可恢复，请查询原任务');
     assertReadableMediaSource(source);
-    const response = await fetcher(await assets.url(source),signal?{signal}:undefined);
+    const response = await fetcher(await assets.url(source),{redirect:'error',...(signal?{signal}:{})});
     if (!response.ok) throw Error('历史媒体读取失败');
     const value = await response.blob(); if (!value.size) throw Error('历史媒体内容为空'); return value;
   }
@@ -62,7 +62,7 @@ export function createArchiver({assets, fetch: fetcher, asDataUrl, validate, mat
       const resource=row.worldPatch?.worldResource;
       if(typeof resource?.url!=='string'||!/^asset:[^\s]+$/.test(resource.url)||row.mediaRef&&resource.url!==row.mediaRef||!['glb','spz'].includes(resource.format))throw Error('3D 历史缺少有效的原始素材或格式');
       if(resource.format==='spz')outputSnapshot({type:'model',format:'spz',representation:resource.representation,sourceFileId:resource.world?.worldId,world:resource.world,url:resource.world?.assets?.splats?.spzUrls?.[resource.world?.splatResolution]});
-      await blob(resource.url); return {...base,...structuredClone(row.worldPatch),worldConfig:{...row.parameters,prompt:row.prompt,model:row.model}};
+      await blob(resource.url);const patch=structuredClone(row.worldPatch);if(patch.image){assertReadableMediaSource(patch.image);if(patch.image.startsWith('asset:')&&typeof asDataUrl==='function')patch.image=await asDataUrl(await blob(patch.image));}return {...base,...patch,worldConfig:{...row.parameters,prompt:row.prompt,model:row.model}};
     }
     const value = await blob(row.mediaRef);
     if (row.type === 'audio') return {...base,audio:row.mediaRef,audioMode:'upload',durationMs:row.duration ? row.duration * 1000 : undefined};

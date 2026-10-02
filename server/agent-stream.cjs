@@ -1,4 +1,5 @@
 'use strict';
+const {protectModelClient}=require('./outbound-client.cjs');
 
 function streamError(message,code){return Object.assign(new Error(message),{code});}
 function checkAbort(signal){if(signal?.aborted)throw streamError('已取消','cancelled');}
@@ -6,6 +7,7 @@ function checkAbort(signal){if(signal?.aborted)throw streamError('已取消','ca
 // Only a completed Responses payload is authoritative for tool arguments. Deltas
 // are display-only and reasoning events expose activity, never private content.
 async function streamedResponse(client,request,{signal,onEvent,sessionId,round}){
+ client=protectModelClient(client);
  const emit=event=>onEvent({...event,sessionId,round}),reasoning=new Set();let stream,completed;
  try{
   checkAbort(signal);
