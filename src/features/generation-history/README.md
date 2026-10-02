@@ -7,11 +7,15 @@
 - 预览和重新应用图片 / 视频时，把任务 ID、请求类型、原提示词、实际模型绑定到转成 data URL 的媒体，并恢复真实创建日期。修改下一次生成设置不能改变该媒体的来源。媒体地址替换后，旧来源不再提供模型。
 - `video.analyze` 与包含 `sourceRange` 的裁片保存为分析来源，预览省略生成模型；描述模型不能显示为视频生成模型。历史不会为旧导入媒体或空项目补造任务。
 - 创建时间仍保存为 UTC ISO 并按实际时间倒序；侧栏日期分组按浏览器本地日历日，和共享预览的本地日期一致。类型与文本筛选不变，没有增加日期过滤或改写原收据。
+- Marble 原世界输出保留严格、有界的 `worldId/model/marbleUrl/assets/coordinateSystem/splatResolution`。所选 SPZ 地址必须与 LOD 项一致，身份必须与 `sourceFileId` 一致，语义数值必须有效；未知键、缺失来源或格式矛盾直接拒绝。签名资源查询原样保存，便于刷新后重试原输出。
+- 成功归档仍依赖实际 world materializer。历史完整传递它保存的 `worldPatch/worldResource.world`，校验格式与原元数据；SPZ MIME 为 `application/octet-stream`，GLB 为 `model/gltf-binary`。下载后缀优先实际 `worldResource.format`，其次原 `row.format`，只允许 `spz/glb`；不按通用 Blob MIME 把 SPZ 改名成 GLB，也不改变下载字节。
+- `world.assets` 中其余远程 LOD、mesh 与 pano 元数据仍是原地址；仅所选、实际本地化的 `worldResource.url` 可称本地素材。没有渲染器时保持归档失败并允许原结果重试，不声明 SPZ 可渲染或全部 LOD 已离线。
 
 聚焦回归：
 
 ```sh
 node --test tests/generation-history.test.cjs tests/media-preview.test.cjs
+node --test tests/generation-history-world.test.cjs
 ```
 
 可重复的隔离浏览器入口：

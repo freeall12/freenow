@@ -15,8 +15,15 @@
  import('./src/features/agent-search/view.mjs').then(module=>{searchResultView=module.createSearchResult;if(panel)render();}).catch(error=>notice('检索来源展示加载失败：'+error.message));
  const artifactCardsReady=Promise.all([import('./src/features/agent-widgets/integration.mjs'),import('./src/features/agent-messages/reconcile.mjs')]).then(([module,dom])=>{reconcileMessages=dom.reconcileConnectedChildren;artifactCards=module.createArtifactController({getContext:()=>({chat:draft(),panelActive:!!panel,pageLeaving,streaming:busy}),getStore:()=>artifactsReady,onQueuePrompt:queueWidgetPrompt,onUploadMedia:receiveWidgetMedia,onDownloadMedia:downloadWidgetMedia,onError:notice});if(panel)render();return module;});
  artifactCardsReady.catch(error=>notice('互动作品模块加载失败：'+error.message));
- let appCards=null;
- const appCardsReady=import('./src/features/agent-apps/integration.mjs').then(module=>{appCards=module.createAppController({getContext:()=>({chat:draft(),panelActive:!!panel,pageLeaving,streaming:busy}),onQueuePrompt:queueWidgetPrompt,onSaveState:saveAppState,onError:notice});if(panel)render();return module;});
+ // local-assets.js follows this client in the entrypoint. Resolve the live store
+ // at use time so a cached actor module cannot break every app during startup.
+ function actorAssetStore(){const assets=window.LocalAssets;if(typeof assets?.put!=='function'||typeof assets?.url!=='function')throw Error('本地素材存储尚未就绪，请等待页面加载完成后重试人物情绪应用');return assets;}
+ const actorAssets={put:blob=>actorAssetStore().put(blob),url:asset=>actorAssetStore().url(asset)};
+ let appCards=null,actorGuideRuntime=null,productionProgressRuntime=null,libraryPickerRuntime=null;
+ function liveLibrary(){const library=window.CanvasLibrary;if(!Array.isArray(library?.items)||!Array.isArray(library?.folders))throw Error('个人素材库尚未就绪');return library;}
+ const libraryAdapter={get items(){return liveLibrary().items;},get folders(){return liveLibrary().folders;}};
+ const liveGeneration={getJobs(){if(typeof window.GenerationAPI?.getJobs!=='function')throw Error('真实制作任务服务尚未就绪');return window.GenerationAPI.getJobs();}};
+ const appCardsReady=Promise.all([import('./src/features/agent-apps/integration.mjs'),import('./src/features/agent-apps/actor-guide-runtime.mjs'),import('./src/features/agent-apps/production-progress-runtime.mjs'),import('./src/features/agent-apps/library-picker-runtime.mjs')]).then(([module,actor,production,library])=>{productionProgressRuntime=production.createProductionProgressRuntime({app,generationAPI:liveGeneration,getProjectId:()=>window.CanvasProjects?.id?.()||project.id,localAssets:actorAssets});libraryPickerRuntime=library.createLibraryPickerRuntime({app,library:libraryAdapter,localAssets:actorAssets,store:canvasPersistence,getProjectId:()=>window.CanvasProjects?.id?.()||project.id,persistConversation:async()=>{if(!save())throw Error('素材选择会话回执未能保存');await flushConversation();}});actorGuideRuntime=actor.createActorGuideRuntime({app,localAssets:actorAssets,store:canvasPersistence,getProjectId:()=>window.CanvasProjects?.id?.()||project.id,persistConversation:async()=>{if(!save())throw Error('表情参考会话记录未能保存');await flushConversation();}});appCards=module.createAppController({getContext:()=>({chat:draft(),panelActive:!!panel,pageLeaving,streaming:busy}),onQueuePrompt:queueWidgetPrompt,onSaveState:saveAppState,getActorSourceContext,onSaveExpressionGuide:saveExpressionGuide,getProductionSourceContext,onProductionProgressQuery:queryProductionProgress,getLibrarySourceContext,onLibraryAddToCanvas:addLibraryAsset,onError:notice});if(panel)render();return module;});
  appCardsReady.catch(error=>notice('应用模块加载失败：'+error.message));
  try{chats=JSON.parse(localStorage.getItem(project.storageKey('tapnow-agent-chats'))||'[]');}catch{}if(!chats.length)chats=[newDraft()];
  try{const activeId=localStorage.getItem(project.storageKey('tapnow-agent-active-chat'));const index=chats.findIndex(chat=>chat.id===activeId);if(index>=0)current=index;}catch{}
@@ -179,6 +186,16 @@
   if(!isCurrent()||signal.aborted)throw Error('媒体下载已取消');
   window.LocalMedia.download(blob,filename);
  }
+ function getActorSourceContext(response,trace,chat){
+  const result=trace.result;
+  return actorGuideRuntime.capture(response,{trace,chat,isCurrent:()=>!pageLeaving&&!!panel&&draft()===chat&&chat.messages.includes(trace)&&trace.result===result&&trace.result.response===response&&trace.status==='done'&&!trace.error&&!trace.result.error});
+ }
+ function saveExpressionGuide(args,trace,chat,options){return track(()=>actorGuideRuntime.save(args,trace,chat,options));}
+ function appSourceCurrent(response,trace,chat){const result=trace.result;return ()=>!pageLeaving&&!!panel&&draft()===chat&&chat.messages.includes(trace)&&trace.result===result&&trace.result.response===response&&trace.status==='done'&&!trace.error&&!trace.result.error;}
+ function getProductionSourceContext(response,trace,chat){return productionProgressRuntime.capture(response,{trace,chat,isCurrent:appSourceCurrent(response,trace,chat)});}
+ function queryProductionProgress(args,trace,chat,{sourceContext,isCurrent}){return sourceContext.query(args,{isCurrent});}
+ function getLibrarySourceContext(response,trace,chat){return libraryPickerRuntime.capture(response,{trace,chat,isCurrent:appSourceCurrent(response,trace,chat)});}
+ function addLibraryAsset(args,trace,chat,{sourceContext,isCurrent,userAction}){return track(()=>sourceContext.addToCanvas(args,{isCurrent,userAction}));}
  function receiveWidgetMedia(...args){return track(()=>receiveWidgetMediaTracked(...args));}
  async function receiveWidgetMediaTracked(payload,trace,chat,options){
   if(!options.isCurrent()||options.signal.aborted)throw new DOMException('媒体交接已取消','AbortError');
@@ -257,7 +274,7 @@
   case 'artifacts_read':return (await artifactsReady).read(a);
   case 'artifacts_write':return (await artifactsReady).write(a);
   case 'show_form':return {form:clone(a),awaiting_submission:true};
-  case 'show_app':return (await appCardsReady).prepareApp(a);
+  case 'show_app':{const apps=await appCardsReady,chat=draft(),options={chat,signal,isCurrent:()=>!pageLeaving&&draft()===chat};let args=await actorGuideRuntime.prepareAppArgs(a,options);args=await productionProgressRuntime.prepareAppArgs(args,options);args=await libraryPickerRuntime.prepareAppArgs(args,options);let result=apps.prepareApp(args);result=actorGuideRuntime.bindPreparedResult(result,args);result=productionProgressRuntime.bindPreparedResult(result,args);return libraryPickerRuntime.bindPreparedResult(result,args);}
   case 'show_widget':return (await artifactCardsReady).prepareWidget(a);
   case 'show_html':return (await artifactCardsReady).prepareHtml(a,{store:await artifactsReady});
   case 'conversation_read':return (await import('./src/features/agent-history/context.mjs')).readConversation(draft(),a);
@@ -538,7 +555,14 @@
   if(!queueModule||!queueRunner||!modelModule||!composerModule)throw Error('消息模块正在加载，请稍后再试');
   // A widget submits a new turn; never route it through the pending question's
   // send() handler or consume the user's unrelated composer draft/attachments.
-  const submission=queueModule.captureSubmission({...chat,text,composerDoc:composerModule.textDocument(text),uploads:[],refs:chat.studioNodeId?[chat.studioNodeId]:[],referencePins:[],artifactRefs:[],quotedText:''},{selection:modelModule.prepareSessionSelection(chat)});
+  const composerDoc=composerModule.textDocument(text);
+  if(trace.result?.resource_uri==='ui://tapnow/library-picker@v1'){
+   const ref=metadata?.libraryReference;if(!isSourceCurrent()||ref?.kind!=='library'||ref.scope!=='personal'||typeof ref.id!=='string'||typeof ref.label!=='string'||!liveLibrary().items.some(item=>item.id===ref.id&&item.scope!=='team'&&item.type===ref.mediaType))throw Error('素材库交接缺少已核验的实际个人素材引用');
+   // The trusted runtime resolves this mention through the existing attachment
+   // pipeline, so the model receives actual bytes rather than a library token.
+   composerDoc.content.unshift({type:'paragraph',content:[{type:'referenceMention',attrs:clone(ref)}]});
+  }
+  const submission=queueModule.captureSubmission({...chat,text,composerDoc,uploads:[],refs:chat.studioNodeId?[chat.studioNodeId]:[],referencePins:[],artifactRefs:[],quotedText:''},{selection:modelModule.prepareSessionSelection(chat)});
   submission.widgetOrigin={traceId:trace.id,callId:trace.callId,title:trace.args?.title||'互动组件',...(trace.name==='show_app'?{resourceUri:trace.result.resource_uri,handoffId}: {})};
   // Hidden changes presentation only; preserve the raw prompt and provenance.
   if(trace.name==='show_app'&&metadata?.hidden===true)submission.hidden=true;
@@ -596,10 +620,17 @@
    await executionReady;await flushConversation();
    const {conversationContext}=await import('./src/features/agent-history/context.mjs');
    const conversationMemory=conversationContext({...d,messages:priorMessages});
+   let appLibraryContext=null;
+   if(item.widgetOrigin?.resourceUri==='ui://tapnow/library-picker@v1'){
+    const origin=d.messages.find(trace=>trace.id===item.widgetOrigin.traceId&&trace.name==='show_app'&&trace.status==='done'&&trace.result?.resource_uri===item.widgetOrigin.resourceUri);
+    if(!origin||submittedReferences.filter(ref=>ref.kind==='library'&&ref.scope==='personal').length!==1)throw Error('素材库排队任务缺少原始应用和实际引用来源');
+    appLibraryContext=getLibrarySourceContext(origin.result.response,origin,d);await appLibraryContext.guard();
+   }
    const referencedMaterials=composerModule?.resolveReferenceData(submittedReferences,referenceData())||[];
    const mediaItems=[...item.uploads,...referencedMaterials.filter(n=>n.source==='library'&&(n.image||n.fullImage||n.video)).map(n=>({name:n.name,asset:n.video||n.fullImage||n.image,type:n.video?'video':'image'})),...submittedRefs.map(id=>attachmentNodes().find(n=>n.id===id)).filter(n=>n&&(n.image||n.video)).map(n=>({name:n.title||n.type,asset:n.video||n.image,type:n.video?'video':'image'}))];
    const prepare=attachmentInputAdapter||(await import('./src/features/agent-attachments/media-inputs.mjs')).prepareMediaInputs;
    const mediaInputs=await prepare(mediaItems,{signal:controller.signal,resolveUrl:window.LocalAssets.url});
+   if(appLibraryContext)await appLibraryContext.guard();
    if(controller.signal.aborted)throw new DOMException('Aborted','AbortError');
    if(d.studioNodeId){await window.StudioAPI.prepareAgentContext();validateSubmission(d,item);}
    const depthHost=await depthHostFor(d);depthHost.beginTurn(item.id);

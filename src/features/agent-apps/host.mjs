@@ -2,6 +2,7 @@ const resourcePattern = /^ui:\/\/tapnow\/([a-z0-9-]+)@(v\d+)$/;
 const object = value => !!value && typeof value === 'object' && !Array.isArray(value);
 const fault = (code, message) => Object.assign(new Error(message), {code});
 const protocolVersion = '2026-01-26';
+const actorEmotionUri = 'ui://tapnow/actor-emotion@v1', expressionGuideTool = 'actor_emotion_save_expression_guide', expressionGuideLimit = 128 * 1024;
 
 function dataCopy(value, limit = 1000000, stripMedia = false) {
   let text;
@@ -9,6 +10,38 @@ function dataCopy(value, limit = 1000000, stripMedia = false) {
   catch {throw fault(-32602, 'data must be JSON serializable');}
   if (text === undefined || new TextEncoder().encode(text).length > limit) throw fault(-32602, 'data exceeds the supported size');
   return JSON.parse(text);
+}
+function strictDataCopy(value, limit) {
+  const ancestors = new Set();let count = 0;
+  function visit(item, depth = 0) {
+    if (++count > limit || depth > 64) throw fault(-32602, 'data exceeds the supported structure');
+    if (item === null || typeof item === 'boolean' || typeof item === 'string' && item.length <= limit || typeof item === 'number' && Number.isFinite(item)) return;
+    if (!item || typeof item !== 'object') throw fault(-32602, 'data must contain only JSON values');
+    const array = Array.isArray(item), prototype = Object.getPrototypeOf(item);
+    if (!array && prototype !== null && Object.getPrototypeOf(prototype) !== null || ancestors.has(item)) throw fault(-32602, 'data must contain only JSON objects');
+    ancestors.add(item);
+    const keys = Reflect.ownKeys(item);
+    if (array && (item.length > limit || keys.length !== item.length + 1)) throw fault(-32602, 'data must contain only JSON arrays');
+    for (const key of keys) {
+      if (array && key === 'length') continue;
+      const descriptor = Object.getOwnPropertyDescriptor(item, key);
+      if (typeof key !== 'string' || !descriptor.enumerable || !Object.hasOwn(descriptor, 'value') || array && !/^(0|[1-9]\d*)$/.test(key)) throw fault(-32602, 'data must contain only JSON fields');
+      visit(descriptor.value, depth + 1);
+    }
+    ancestors.delete(item);
+  }
+  visit(value);return dataCopy(value, limit);
+}
+function expressionGuideParams(value, requestId) {
+  const params = strictDataCopy(value, expressionGuideLimit);
+  if (Object.keys(params).length !== 3 || Object.keys(params).some(key => !['name', 'arguments', '_meta'].includes(key)) || !object(params.arguments) || !object(params._meta)) throw fault(-32602, 'invalid expression guide parameters');
+  if (params.name !== expressionGuideTool) throw fault(-32601, 'tool is not supported');
+  const meta = params._meta, callId = meta['tapnow/callId'];
+  if (Object.keys(meta).some(key => !['tapnow/callId', 'progressToken'].includes(key)) || typeof callId !== 'string' || !/^[A-Za-z0-9_-]{8,128}$/.test(callId)) throw fault(-32602, 'invalid expression guide metadata');
+  // The official SDK adds its numeric request ID when callServerTool enables
+  // progress handling. This transport field never reaches the domain callback.
+  if (Object.hasOwn(meta, 'progressToken') && (!Number.isSafeInteger(meta.progressToken) || meta.progressToken < 0 || meta.progressToken !== requestId)) throw fault(-32602, 'invalid progress token');
+  return {arguments: params.arguments, metadata: {callId}};
 }
 function sameJsonValue(left, right) {
   if (left === right) return true;
@@ -48,6 +81,11 @@ export function createMcpAppHost(options) {
   const {iframe, callbacks = {}, isCurrent = () => true, allowResource = () => true} = options;
   const window = iframe.ownerDocument?.defaultView || globalThis.window;
   const resource = resourcePattern.exec(options.resourceUri || '');
+  const canSaveExpressionGuide = options.resourceUri === actorEmotionUri && typeof callbacks.onSaveExpressionGuide === 'function';
+  const canQueryProduction = options.resourceUri === 'ui://tapnow/production-progress@v1' && typeof callbacks.onProductionProgressQuery === 'function';
+  const canFindLibrary = options.resourceUri === 'ui://tapnow/library-picker@v1' && typeof callbacks.onLibraryFind === 'function';
+  const canUpdateLibraryContext = canFindLibrary && typeof callbacks.onLibraryModelContext === 'function';
+  const canAddLibraryAsset = canFindLibrary && typeof callbacks.onLibraryAddToCanvas === 'function';
   const widgetStateLimit = options.widgetStateLimit ?? 65536;
   if (![65536, 128 * 1024].includes(widgetStateLimit)) throw fault(-32602, 'invalid widget state limit');
   let nonce = window.crypto.randomUUID(), started = false, disposed = false, ready = false, initialized = false, failed = false, loadSeen = false;
@@ -87,10 +125,57 @@ export function createMcpAppHost(options) {
       if (!object(params)) throw fault(-32602, 'params must be an object');
       if (method === 'ui/initialize') {
         initialized = true;
-        complete({protocolVersion, hostInfo: {name: 'canvas-replica', version: '1.0.0'}, hostCapabilities: {...callbacks.onSendPrompt ? {message: {text: {}}} : {}}, hostContext: dataCopy(hostContext)});return;
+        complete({protocolVersion, hostInfo: {name: 'canvas-replica', version: '1.0.0'}, hostCapabilities: {...callbacks.onSendPrompt ? {message: {text: {}}} : {}, ...canSaveExpressionGuide || canQueryProduction || canFindLibrary ? {serverTools: {}} : {}, ...canUpdateLibraryContext ? {updateModelContext: {}} : {}}, hostContext: dataCopy(hostContext)});return;
       }
       if (method === 'ping') {complete({});return;}
       if (!ready || !live()) throw fault(-32000, 'app is not ready or current');
+      if (method === 'tools/call' && (canQueryProduction || canFindLibrary)) {
+        const input = strictDataCopy(params, 65536), expected = canQueryProduction ? 'get_production_result' : 'find_library_assets';
+        if (Object.keys(input).some(key => !['name', 'arguments', '_meta'].includes(key)) || !object(input.arguments)) throw fault(-32602, 'invalid scoped query parameters');
+        if (input.name !== expected) throw fault(-32601, 'tool is not supported for this app');
+        if (input._meta !== undefined) {
+          if (!object(input._meta) || Object.keys(input._meta).some(key => !['tapnow/callId', 'progressToken'].includes(key)) || Object.hasOwn(input._meta, 'tapnow/callId') && (typeof input._meta['tapnow/callId'] !== 'string' || !/^[A-Za-z0-9_-]{8,128}$/.test(input._meta['tapnow/callId'])) || Object.hasOwn(input._meta, 'progressToken') && (!Number.isSafeInteger(input._meta.progressToken) || input._meta.progressToken < 0 || input._meta.progressToken !== id)) throw fault(-32602, 'invalid scoped query metadata');
+        }
+        const userAction = iframe.ownerDocument?.activeElement === iframe && window.navigator.userActivation?.isActive === true;
+        const isSourceCurrent = () => validGeneration(version, token);
+        // Production polling and saved library browse restoration are reads.
+        // The library callback alone can prove that a passive query is a restore.
+        const receipt = canQueryProduction ? await callbacks.onProductionProgressQuery(input.arguments, isSourceCurrent) : await callbacks.onLibraryFind(input.arguments, {userAction, restore: !userAction}, isSourceCurrent);
+        if (!validGeneration(version, token)) return;
+        if (!object(receipt) || !Array.isArray(receipt.content) || !object(receipt.structuredContent)) throw fault(-32000, 'scoped query did not return actual data');
+        complete(strictDataCopy(receipt, canQueryProduction ? 16 * 1024 * 1024 : 2 * 1024 * 1024));return;
+      }
+      if (method === 'ui/update-model-context' || method === 'tapnow/addToCanvas') {
+        const callback = method === 'ui/update-model-context' ? canUpdateLibraryContext && callbacks.onLibraryModelContext : canAddLibraryAsset && callbacks.onLibraryAddToCanvas;
+        if (!callback) throw fault(-32601, 'library action is not configured for this app');
+        if (conversationActive === true || sending) throw fault(-32000, 'conversation or app action is busy');
+        if (iframe.ownerDocument?.activeElement !== iframe || window.navigator.userActivation?.isActive !== true) throw fault(-32000, 'a current user action is required');
+        const input = strictDataCopy(params, 65536), isSourceCurrent = () => validGeneration(version, token) && conversationActive !== true;
+        sending = true;
+        try {
+          const receipt = await callback(input, {userAction: true}, isSourceCurrent);
+          if (!validGeneration(version, token)) return;
+          if (!isSourceCurrent() || !object(receipt)) throw fault(-32000, 'library action source is no longer current');
+          complete(strictDataCopy(receipt, 65536));
+        } finally {if (generation === version) sending = false;}
+        return;
+      }
+      if (method === 'tools/call') {
+        if (!canSaveExpressionGuide) throw fault(-32601, 'tool saving is not configured for this app');
+        const input = expressionGuideParams(params, id);
+        if (conversationActive === true || sending) throw fault(-32000, 'conversation or app action is busy');
+        if (iframe.ownerDocument?.activeElement !== iframe || window.navigator.userActivation?.isActive !== true) throw fault(-32000, 'a current user action is required');
+        const isSourceCurrent = () => validGeneration(version, token) && conversationActive !== true;
+        sending = true;
+        try {
+          const receipt = await callbacks.onSaveExpressionGuide(input.arguments, input.metadata, isSourceCurrent);
+          if (!validGeneration(version, token)) return;
+          if (!isSourceCurrent()) throw fault(-32000, 'expression guide source is no longer current');
+          if (!object(receipt) || !Array.isArray(receipt.content) || !object(receipt.structuredContent)) throw fault(-32000, 'expression guide was not saved');
+          complete(strictDataCopy(receipt, expressionGuideLimit));
+        } finally {if (generation === version) sending = false;}
+        return;
+      }
       if (method === 'tapnow/setWidgetState') {
         if (!callbacks.onSetWidgetState) throw fault(-32601, 'widget state persistence is not configured');
         if (!object(params.state)) throw fault(-32602, 'state must be an object');

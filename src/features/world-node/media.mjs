@@ -37,13 +37,26 @@ export async function prepareWorldMediaRequest(request,{
   if(request?.kind!=='world.generate')return request;
   const check=()=>{if(signal?.aborted)throw signal.reason??new DOMException('世界素材准备已取消','AbortError');validateSources();};
   check();assertWorkflowRequestBudget(request);
-  const selected=resolveProviderConfiguration(nativeConfiguration,request),native=selected?.protocol==='tripo-native';
+  const selected=resolveProviderConfiguration(nativeConfiguration,request),tripo=selected?.protocol==='tripo-native',marble=selected?.protocol==='marble-native',native=tripo||marble;
   if(!Array.isArray(request.inputs))throw failure('invalid_media_request','世界生成缺少素材列表');
-  if(native&&(request.parameters?.provider!=='tripo'||!['TEXT_TO_WORLD','IMAGE_TO_WORLD'].includes(request.parameters?.modelType)||
+  if(tripo&&(request.parameters?.provider!=='tripo'||!['TEXT_TO_WORLD','IMAGE_TO_WORLD'].includes(request.parameters?.modelType)||
     request.inputs.some(input=>input.type!=='image')||request.inputs.length>1||
     request.parameters.modelType==='IMAGE_TO_WORLD'&&request.inputs.length!==1||
     request.parameters.modelType==='TEXT_TO_WORLD'&&request.inputs.length!==0))
     throw failure('unsupported_generation','当前 Tripo 原生接口仅支持文字或单张图片生成');
+  if(marble){
+    const p=request.parameters||{},images=request.inputs.filter(input=>input?.type==='image').length,videos=request.inputs.filter(input=>input?.type==='video').length;
+    // Reconstructing images changes provider behavior. Only the submitted true
+    // value opts into eight images; never infer it from an oversized reference set.
+    const maxImages=p.marbleParams?.reconstruct_images===true?8:4;
+    const valid=p.provider==='worldlabs'&&request.inputs.every(input=>['image','video'].includes(input?.type))&&
+      images<=maxImages&&videos<=1&&!(images&&videos)&&(
+        p.modelType==='TEXT_TO_WORLD'&&request.inputs.length===0&&typeof request.prompt==='string'&&!!request.prompt.trim()||
+        ['IMAGE_TO_WORLD','PANORAMA_TO_WORLD'].includes(p.modelType)&&images===1&&videos===0||
+        p.modelType==='MULTI_IMAGE_TO_WORLD'&&images>=2&&videos===0||
+        p.modelType==='VIDEO_TO_WORLD'&&videos===1&&images===0);
+    if(!valid)throw failure('unsupported_generation','Marble 输入须与生成模式一致：文字、单图/全景、多图或单视频；默认最多 4 图，显式 reconstruct_images:true 可用 8 图，不能混图与视频或引用音频');
+  }
   const prepared=structuredClone(request);
   const nodes=prepared.inputs.map((input,index)=>({id:input.nodeId||input.id||'world-input:'+index,type:input.type,
     ...input.type==='image'?{image:input.url,fullImage:input.fullImage||input.url}:input.type==='video'?{video:input.url,
@@ -58,27 +71,44 @@ export async function prepareWorldMediaRequest(request,{
     if(input.type==='text'){if(typeof input.text!=='string')throw failure('invalid_media_input','文字参考缺少内容');continue;}
     if(!['image','video'].includes(input.type)||typeof (input.fullImage||input.url)!=='string'||!(input.fullImage||input.url))
       throw failure('invalid_media_input','世界生成只支持完整图片或视频素材');
-    const actual=await resolveMedia(nodes[index],{signal,...native?{decodeImage:false}:{}});check();
+    // An uncut public Marble video uses the official URI contract directly.
+    // Clip/trim inputs still go through the real clip exporter and its guards.
+    const source=input.fullImage||input.url,url=new URL(source,baseUrl);
+    const publicVideo=marble&&input.type==='video'&&nodes[index].clip==null&&nodes[index].trim==null&&url.protocol==='https:'&&
+      (!baseUrl||url.origin!==new URL(baseUrl).origin);
+    const actual=publicVideo?{url:url.href}:await resolveMedia(nodes[index],{signal,...native?{decodeImage:false}:{}});check();
     input.sourceUrl=input.fullImage||input.url;input.url=actual.url;delete input.fullImage;
+    // Uncut inline bytes already retain the full source in url. Duplicating
+    // those bytes as provenance halves the bounded request's usable capacity;
+    // canvas guards still capture the original media independently of transport.
+    if(nodes[index].clip==null&&nodes[index].trim==null&&input.sourceUrl===input.url&&input.url.startsWith('data:'))delete input.sourceUrl;
     if(native){
       const url=new URL(input.url,baseUrl),sameOrigin=!!baseUrl&&url.origin===new URL(baseUrl).origin;
       if(url.username||url.password||url.protocol==='http:'&&!sameOrigin)
-        throw failure('invalid_media_url','Tripo 公开图片参考需要无凭据的 HTTPS 地址');
+        throw failure('invalid_media_url',(marble?'Marble':'Tripo')+' 公开素材参考需要无凭据的 HTTPS 地址');
     }
     if(actual.width!==undefined)input.width=actual.width;
     if(actual.height!==undefined)input.height=actual.height;
     if(actual.duration!==undefined){input.duration=actual.duration;input.durationMs=Math.round(actual.duration*1000);}
     if(nodes[index].clip){input.sourceRange={...nodes[index].clip};delete input.clip;delete input.trim;}
   }
-  // Public HTTPS references go directly to Tripo's URL contract; only local
+  // Public HTTPS references go directly to the native URI contract; only local
   // media becomes inline bytes, avoiding unnecessary browser CORS reads.
-  const transferred=await transport(prepared,{signal,baseUrl,validateSources:check,timeoutMs:120000});check();
+  const maxMediaBytes=marble?(prepared.inputs.some(input=>input.type==='video')?40:20)*1024*1024:Infinity;
+  const transferred=await transport(prepared,{signal,baseUrl,validateSources:check,timeoutMs:120000,maxMediaBytes});check();
   if(native)for(const [index,input]of transferred.inputs.entries()){
     if(!input.url.startsWith('data:'))continue;
-    if(!/^data:image\/(png|jpeg);base64,[A-Za-z0-9+/]+={0,2}$/.test(input.url))
-      throw failure('unsupported_generation','Tripo 本地图片上传支持 PNG/JPEG，请先将此图片转换为 PNG 或 JPG');
-    const actual=await resolveMedia({id:nodes[index].id,type:'image',image:input.url},{signal});check();
-    input.width=actual.width;input.height=actual.height;
+    const pattern=marble?/^data:(?:image\/(?:png|jpeg|webp)|video\/(?:mp4|webm|quicktime|x-msvideo));base64,([A-Za-z0-9+/]+={0,2})$/:/^data:image\/(png|jpeg);base64,[A-Za-z0-9+/]+={0,2}$/;
+    const match=pattern.exec(input.url);
+    if(!match)throw failure('unsupported_generation',marble?'Marble 本地素材支持 PNG/JPEG/WebP 图片或 MP4/WebM/MOV/AVI 视频，请先转换为支持的格式':'Tripo 本地图片上传支持 PNG/JPEG，请先将此图片转换为 PNG 或 JPG');
+    if(marble){
+      const encoded=match[1],bytes=encoded.length*3/4-(encoded.endsWith('==')?2:encoded.endsWith('=')?1:0);
+      if(bytes>maxMediaBytes)throw failure('media_request_too_large','Marble 本地'+(input.type==='video'?'视频限制为 40 MiB':'图片限制为 20 MiB')+'，请使用已公开的 HTTPS 素材地址');
+    }
+    if(input.type==='image'){
+      const actual=await resolveMedia({id:nodes[index].id,type:'image',image:input.url},{signal});check();
+      input.width=actual.width;input.height=actual.height;
+    }
   }
   assertWorkflowRequestBudget(transferred);check();return transferred;
 }

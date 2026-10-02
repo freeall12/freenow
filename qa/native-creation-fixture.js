@@ -1,8 +1,11 @@
 // QA-only fixed responses exercise native UI and materialization, never a model.
 (() => {
   'use strict';
-  const session = new URLSearchParams(location.search).get('session') || 'manual';
-  const prefix = 'qa-native-creation:' + session + ':' + crypto.randomUUID() + ':';
+  const params = new URLSearchParams(location.search), session = params.get('session') || 'manual';
+  // Explicit fixture-only persistence lets reload QA verify real IndexedDB
+  // commits; ordinary generation fixtures still receive a fresh namespace.
+  const persist = params.has('persistSession') && /^[A-Za-z0-9_-]{1,80}$/.test(session);
+  const prefix = 'qa-native-creation:' + session + ':' + (persist ? 'persistent' : crypto.randomUUID()) + ':';
   const storage = window.localStorage, nativeFetch = window.fetch.bind(window);
   const keys = () => Array.from({length: storage.length}, (_, index) => storage.key(index)).filter(key => key?.startsWith(prefix));
   Object.defineProperty(window, 'localStorage', {value: {

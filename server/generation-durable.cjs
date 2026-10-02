@@ -9,11 +9,58 @@ function rejectCredentials(value){if(!value||typeof value!=='object')return;for(
 function canonical(value){if(value===null||['string','boolean'].includes(typeof value))return JSON.stringify(value);if(typeof value==='number'&&Number.isFinite(value))return JSON.stringify(value);if(Array.isArray(value))return '['+value.map(canonical).join(',')+']';if(value&&typeof value==='object')return '{'+Object.keys(value).sort().map(key=>JSON.stringify(key)+':'+canonical(value[key])).join(',')+'}';throw failure('生成请求必须为 JSON 数据','invalid_request');}
 const digest=value=>createHash('sha256').update(typeof value==='string'?value:canonical(value)).digest('hex');
 function requestKey(key){if(typeof key!=='string'||!/^[A-Za-z0-9._:-]{8,180}$/.test(key))throw failure('提交需要有效的 Idempotency-Key','invalid_idempotency_key');return key;}
+const outputObject=value=>value&&typeof value==='object'&&!Array.isArray(value);
+const outputFailure=()=>failure('生成结果资源元数据无效','invalid_outputs');
+function outputShape(value,allowed,required=[]){
+ if(!outputObject(value)||Object.keys(value).some(key=>!allowed.includes(key))||required.some(key=>!Object.hasOwn(value,key)))throw outputFailure();
+}
+function outputResourceUrl(value,{http=false}={}){
+ if(typeof value!=='string'||!value||value.length>8192||/[\x00-\x20\x7f]/.test(value))throw outputFailure();
+ let url;try{url=new URL(value);}catch{throw outputFailure();}
+ const host=url.hostname.toLowerCase().replace(/\.$/,'');
+ if(!['https:',...(http?['http:']:[])].includes(url.protocol)||url.username||url.password||!host||host==='localhost'||host.endsWith('.localhost')||host.endsWith('.local')||host.includes(':')||/^(?:0|10|127|169\.254|192\.168|198\.(?:18|19))\./.test(host)||/^172\.(?:1[6-9]|2\d|3[01])\./.test(host)||/^100\.(?:6[4-9]|[7-9]\d|1[01]\d|12[0-7])\./.test(host)||/^(?:22[4-9]|23\d|24\d|25[0-5])\./.test(host))throw outputFailure();
+ return value;
+}
+function checkedWorld(output){
+ const world=output.world;
+ if(output.type!=='model'||output.format!=='spz'||output.representation!=='gaussianSplat')throw outputFailure();
+ outputShape(world,['worldId','model','marbleUrl','assets','coordinateSystem','splatResolution'],['worldId','model','marbleUrl','assets','coordinateSystem','splatResolution']);
+ if(typeof world.worldId!=='string'||!/^[A-Za-z0-9._:-]{1,200}$/.test(world.worldId)||['.','..'].includes(world.worldId)||world.worldId!==output.sourceFileId||!['marble-1.1','marble-1.1-plus','marble-1.0','marble-1.0-draft'].includes(world.model)||world.coordinateSystem!=='marble_raw_opencv'||!['100k','150k','500k','full_res'].includes(world.splatResolution))throw outputFailure();
+ outputResourceUrl(world.marbleUrl);outputResourceUrl(output.url);
+ if(output.poster!==undefined)outputResourceUrl(output.poster);
+ outputShape(world.assets,['splats','mesh','imagery'],['splats']);
+ const splats=world.assets.splats;
+ outputShape(splats,['spzUrls','semanticsMetadata'],['spzUrls','semanticsMetadata']);
+ outputShape(splats.spzUrls,['100k','150k','500k','full_res'],[world.splatResolution]);
+ if(!Object.keys(splats.spzUrls).length||splats.spzUrls[world.splatResolution]!==output.url)throw outputFailure();
+ for(const url of Object.values(splats.spzUrls)){outputResourceUrl(url);if(/\.(?:glb|gltf|ply|obj)$/i.test(new URL(url).pathname))throw outputFailure();}
+ outputShape(splats.semanticsMetadata,['metricScaleFactor','groundPlaneOffset'],['metricScaleFactor','groundPlaneOffset']);
+ if(!Number.isFinite(splats.semanticsMetadata.metricScaleFactor)||splats.semanticsMetadata.metricScaleFactor<=0||!Number.isFinite(splats.semanticsMetadata.groundPlaneOffset))throw outputFailure();
+ // Collider meshes are auxiliary assets. Only the selected SPZ is the world
+ // scene; retaining meshes here must never change its Gaussian representation.
+ if(world.assets.mesh!==undefined){outputShape(world.assets.mesh,['colliderMeshUrl','fullResMeshUrl','hqMeshUrl']);for(const url of Object.values(world.assets.mesh))outputResourceUrl(url);}
+ if(world.assets.imagery!==undefined){outputShape(world.assets.imagery,['panoUrl'],['panoUrl']);outputResourceUrl(world.assets.imagery.panoUrl);}
+ return structuredClone(world);
+}
+function checkedOutputMetadata(output){
+ const metadata={};
+ if(output.format!==undefined){if(output.type!=='model'||!['glb','spz'].includes(output.format))throw outputFailure();metadata.format=output.format;outputResourceUrl(output.url||output.model);}
+ if(output.representation!==undefined){if(output.type!=='model'||!['mesh','gaussianSplat'].includes(output.representation)||output.format==='glb'&&output.representation!=='mesh'||output.format==='spz'&&output.representation!=='gaussianSplat')throw outputFailure();metadata.representation=output.representation;}
+ if(output.filename!==undefined){if(typeof output.filename!=='string'||!output.filename.trim()||output.filename.length>255||/[\x00-\x1f\x7f/\\]/.test(output.filename)||['.','..'].includes(output.filename)||output.format&&!output.filename.toLowerCase().endsWith('.'+output.format))throw outputFailure();metadata.filename=output.filename;}
+ if(output.fullImage!==undefined){
+  if(output.type!=='image'||typeof output.fullImage!=='string')throw outputFailure();
+  if(output.fullImage.startsWith('data:')){if(output.fullImage.length>64*1024*1024||!/^data:image\/(?:png|jpeg|webp|gif|avif);base64,[A-Za-z0-9+/]+={0,2}$/.test(output.fullImage))throw outputFailure();}
+  else outputResourceUrl(output.fullImage,{http:true});
+  metadata.fullImage=output.fullImage;
+ }
+ if(output.world!==undefined)metadata.world=checkedWorld(output);
+ return metadata;
+}
 function checkedOutputs(outputs){
  if(!Array.isArray(outputs)||!outputs.length)throw failure('生成服务未返回实际结果','missing_outputs');
  rejectCredentials(outputs);const fields=['type','url','image','video','audio','model','text','title','width','height','duration','sourceFileId','poster','sourceUrl','sourceRange'];
  for(const output of outputs)if(output?.sourceRange!==undefined){const range=output.sourceRange;if(output.type!=='video'||!range||typeof range!=='object'||Array.isArray(range)||Object.keys(range).sort().join(',')!=='end,start'||!Number.isFinite(range.start)||!Number.isFinite(range.end)||range.start<0||range.end<=range.start)throw failure('分镜来源时间范围无效','invalid_outputs');}
- return outputs.map(output=>{const source=output?.url||output?.[output?.type];if(!['image','video','audio','text','model'].includes(output?.type)||(output.type==='text'?typeof output.text!=='string'||!output.text.trim():typeof source!=='string'||!source))throw failure('生成结果格式无效','invalid_outputs');if(output.type!=='text'&&!/^(https?:|data:(image|video|audio)\/|blob:)/.test(source))throw failure('生成结果地址无效','invalid_outputs');return Object.fromEntries(fields.filter(key=>output[key]!==undefined).map(key=>[key,structuredClone(output[key])]));});
+ return outputs.map(output=>{const source=output?.url||output?.[output?.type];if(!['image','video','audio','text','model'].includes(output?.type)||(output.type==='text'?typeof output.text!=='string'||!output.text.trim():typeof source!=='string'||!source))throw failure('生成结果格式无效','invalid_outputs');if(output.type!=='text'&&!/^(https?:|data:(image|video|audio)\/|blob:)/.test(source))throw failure('生成结果地址无效','invalid_outputs');return {...Object.fromEntries(fields.filter(key=>output[key]!==undefined).map(key=>[key,structuredClone(output[key])])),...checkedOutputMetadata(output)};});
 }
 
 function createDurableGenerationService({directory,store=null,baseUrl='',apiKey='',fetchImpl=fetch,provider=null,prepareRequest=async value=>value,now=Date.now,maxTasks=500,requestTimeout=30000}={}){

@@ -17,6 +17,54 @@ async function fixture(extra={}){
  return{host,iframe,document,window,sent,errors,sizes,prompts,saved,timers,intervals,nonce,emit,rpc,initialize,get ready(){return ready;},setCurrent(value){current=value;},response:id=>sent.findLast(item=>item.id===id),close(){host.dispose();Date.now=originalNow;}};
 }
 
+const actorParams=(progressToken)=>({name:'actor_emotion_save_expression_guide',arguments:{binding:'actor-binding',face:{valence:20,stance:-30,intensity:40}},_meta:{'tapnow/callId':'actor-emotion-guide-test',...(progressToken===undefined?{}:{progressToken})}});
+const actorReceipt=()=>({content:[],structuredContent:{node_ref:'node/real-guide',guide_sha256:'a'.repeat(64),binding:'actor-binding',face:{valence:20,stance:-30,intensity:40}}});
+const actorOptions=callbacks=>({resourceUri:'ui://tapnow/actor-emotion@v1',allowResource:()=>true,callbacks});
+
+test('actor expression guide sole tool delegates actual SDK parameters, returns supplied receipt and preserves request dedup',async()=>{
+ const pending=deferred();let calls=0,received;
+ const f=await fixture(actorOptions({onSaveExpressionGuide:(args,metadata,current)=>{calls++;received={args,metadata,current};return pending.promise;}}));
+ try{
+  f.initialize();assert.deepEqual(f.sent.find(item=>item.result?.protocolVersion).result.hostCapabilities,{message:{text:{}},serverTools:{}});
+  const params=actorParams(42);f.rpc(42,'tools/call',params,true);assert.equal(calls,1);assert.equal(received.current(),true);assert.deepEqual(received.metadata,{callId:'actor-emotion-guide-test'});assert.deepEqual(received.args,params.arguments);
+  f.rpc(42,'tools/call',params,true);assert.equal(calls,1);assert.equal(f.response(42),undefined);
+  const receipt=actorReceipt();pending.resolve(receipt);await tick();assert.deepEqual(f.response(42).result,receipt);
+  f.rpc(42,'tools/call',params,true);assert.equal(calls,1);assert.deepEqual(f.response(42).result,receipt);
+  // The original page immediately follows guide saving with its user message.
+  f.window.navigator.userActivation.isActive=true;f.emit({id:'after-guide',method:'ui/message',params:{content:[{type:'text',text:'confirmed actor direction'}]}});await tick();assert.deepEqual(f.response('after-guide').result,{});
+ }finally{f.close();}
+ for(const extra of [{callbacks:{onSaveExpressionGuide:()=>actorReceipt()}},actorOptions({})]){
+  const denied=await fixture(extra);try{denied.initialize();assert.equal(denied.sent.find(item=>item.result?.protocolVersion).result.hostCapabilities.serverTools,undefined);denied.rpc('denied','tools/call',actorParams(),true);assert.equal(denied.response('denied').error.code,-32601);}finally{denied.close();}
+ }
+});
+
+test('actor expression guide rejects extra authority, non-JSON or oversized data, passive actions and busy saves',async()=>{
+ let calls=0;const f=await fixture(actorOptions({onSaveExpressionGuide:()=>{calls++;return actorReceipt();}}));
+ try{
+  f.rpc('not-ready','tools/call',actorParams(),true);assert.equal(f.response('not-ready').error.code,-32000);f.initialize();
+  f.rpc('passive','tools/call',actorParams());assert.match(f.response('passive').error.message,/user action/);
+  f.window.navigator.userActivation.isActive=true;f.document.activeElement=null;f.rpc('unfocused','tools/call',actorParams());assert.match(f.response('unfocused').error.message,/user action/);
+  f.host.updateConversationRunActive(true);f.rpc('busy','tools/call',actorParams(),true);assert.match(f.response('busy').error.message,/busy/);f.host.updateConversationRunActive(false);
+  const circular={};circular.self=circular;
+  const invalid=[{...actorParams(),name:'canvas_delete'},{...actorParams(),extra:true},{...actorParams(),_meta:{'tapnow/callId':'actor-emotion-guide-test',hidden:true}},{...actorParams(),_meta:{'tapnow/callId':'short'}},{...actorParams(),arguments:{bad:NaN}},{...actorParams(),arguments:{bad:undefined}},{...actorParams(),arguments:{bad:new Date()}},{...actorParams(),arguments:circular},{...actorParams(),arguments:{large:'雨'.repeat(44000)}},{...actorParams(),_meta:{'tapnow/callId':'actor-emotion-guide-test',progressToken:999}},{...actorParams(),_meta:{'tapnow/callId':'actor-emotion-guide-test',progressToken:'42'}}];
+  invalid.forEach((params,index)=>{const id='invalid-'+index;f.rpc(id,'tools/call',params,true);assert.equal(f.response(id).error.code,index===0?-32601:-32602);});assert.equal(calls,0);
+ }finally{f.close();}
+ const pending=deferred(),concurrent=await fixture(actorOptions({onSaveExpressionGuide:()=>pending.promise}));
+ try{concurrent.initialize();concurrent.rpc('first','tools/call',actorParams(),true);concurrent.rpc('second','tools/call',actorParams(),true);assert.match(concurrent.response('second').error.message,/busy/);pending.resolve(undefined);await tick();assert.equal(concurrent.response('first').error.code,-32000);assert.equal(concurrent.response('first').result,undefined);}finally{concurrent.close();}
+});
+
+test('actor expression guide asynchronous source guard rejects busy, context, reload and disposed receipts',async()=>{
+ for(const mode of ['busy','context','reload','dispose']){
+  const pending=deferred();let current,calls=0;const f=await fixture(actorOptions({onSaveExpressionGuide:(args,metadata,guard)=>{calls++;current=guard;return pending.promise;}}));
+  try{
+   f.initialize();f.iframe.emit('load');f.rpc('pending','tools/call',actorParams(),true);assert.equal(current(),true);
+   if(mode==='busy')f.host.updateConversationRunActive(true);else if(mode==='context')f.setCurrent(false);else if(mode==='reload')f.iframe.emit('load');else f.host.dispose();
+   assert.equal(current(),false);pending.resolve(actorReceipt());await tick();assert.equal(calls,1);
+   if(mode==='busy'){assert.equal(f.response('pending').error.code,-32000);assert.equal(f.response('pending').result,undefined);}else assert.equal(f.response('pending'),undefined);
+  }finally{f.close();}
+ }
+});
+
 test('message commit source guard becomes stale on iframe reload before the queue receipt',async()=>{
  const pending=deferred();let current;const f=await fixture({callbacks:{onSendPrompt:(text,meta,guard)=>{current=guard;return pending.promise;}}});
  try{

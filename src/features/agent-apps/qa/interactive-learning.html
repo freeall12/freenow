@@ -1,0 +1,11 @@
+<!doctype html>
+<html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>互动学习 · 官方页面确定性验收</title>
+<style>body{background:#161616;color:#eee;font:14px system-ui;margin:24px;max-width:1000px}textarea{box-sizing:border-box;width:100%;min-height:180px;background:#252525;color:#eee;border:1px solid #555;padding:12px;font:13px monospace}button{padding:8px 14px;margin:8px 8px 16px 0}output{display:block;white-space:pre-wrap;margin:10px 0}#cards{margin:16px 0}label{display:block;margin:8px 0}</style>
+<h1>互动学习 · 官方页面确定性验收</h1><p>未修改的官方 Interactive Learning 与生产 controller/card/host/registry。下方为本地练习示例，可替换为实际课程来源。保存真实草稿、自评进度和交接队列；未调用模型或媒体生成。示例没有目标图片，请只验收交互与交接。</p>
+<button id="board" disabled>填写学习板示例</button><button id="syllabus" disabled>填写目录示例</button>
+<label for="input">实际课程或关卡输入（JSON）</label><textarea id="input"></textarea>
+<button id="open" disabled>打开官方学习页</button><button id="rerender" disabled>普通会话重绘</button>
+<label><input id="busy" type="checkbox" disabled>模拟会话运行中（拒绝提交）</label><label><input id="fail-save" type="checkbox" disabled>模拟存储提交失败（不返回保存成功）</label>
+<output id="status" aria-live="polite">正在读取专用 IndexedDB…</output><output id="saved-state"></output><section id="cards"></section>
+<h2>实际已排队结果</h2><p>填写草稿或自评后，请等待至少400ms实际保存再提交。目录跳转、反推点评、改编生成和过关都只交接到本页持久队列；本验收页不会模拟模型回答、生成媒体或宣称用户已经学会。</p><textarea id="reply" readonly aria-label="已排队的互动学习结果"></textarea>
+<script type="module" src="./interactive-learning.mjs"></script></html>

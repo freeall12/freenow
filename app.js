@@ -577,7 +577,9 @@
     insertAsset(asset,point){remember();const n=newNode(asset.type||'image',point,asset.image,asset.name);n.fullImage=asset.fullImage;n.video=asset.video||window.EDITOR_DATA?.nodes[asset.nodeId]?.video;n.audio=asset.audio;if(n.type==='text'){n.content=asset.content||'';n.color=asset.color||'';n.textMode='pure';delete n.generation;}if(n.type==='audio'){n.audioMode='upload';n.width=300;n.height=300;}nodes.push(n);selected=new Set([n.id]);rebuildAndPersist();return n;},
     addTypedNode(type){addNode(type);return nodes[nodes.length-1];},
     saveSelection(){const ids=window.CanvasGroups.descendants(nodes,selected),picked=nodes.filter(n=>ids.has(n.id)&&!['group','pile'].includes(n.type));document.dispatchEvent(new CustomEvent('canvas:save-assets',{detail:clone(picked)}));},
-    setRightPanel(width){cancelViewportAnimation();document.documentElement.style.setProperty('--agent-width',width+'px');canvas.style.right=width+'px';render();}
+    // Panel resizing changes screen bounds only; render still upgrades queued
+    // graph gestures to a full pass before notifying floating UI consumers.
+    setRightPanel(width){cancelViewportAnimation();document.documentElement.style.setProperty('--agent-width',width+'px');canvas.style.right=width+'px';render({viewportOnly:true});}
   };
   rebuild();
   import('./src/features/canvas-minimap/entry.mjs').then(module=>{window.CanvasMinimap=module.install(window.CanvasApp);render();}).catch(error=>{console.error('Canvas minimap:',error);notify('小地图加载失败，请刷新页面');});

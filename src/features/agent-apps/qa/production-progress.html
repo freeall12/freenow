@@ -1,0 +1,13 @@
+<!doctype html>
+<html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>制作进度 · 官方页面本地状态验收</title>
+<style>body{background:#161616;color:#eee;font:14px system-ui;margin:24px;max-width:1000px}button{padding:8px 14px;margin:8px 8px 8px 0}output{display:block;white-space:pre-wrap;margin:10px 0}#cards{margin:16px 0}label{display:block;margin:8px 0}pre{background:#252525;padding:12px;white-space:pre-wrap;overflow-wrap:anywhere}</style>
+<h1>制作进度 · 官方页面本地状态验收</h1>
+<p>使用未修改的官方 production-progress 和生产 controller/card/host。来源是专用 IndexedDB 的两个本地测试任务，状态切换由下方按钮明确模拟并实际提交。完成测试会读取并解码仓库已提交的公共 assets/tap-logo.webp 和 qa/trim-scenes.mp4，提交实际图片/视频Blob及解码信息；查询读取已提交字节，以data URI交给生产宿主和官方页面显示。未调用外部模型、媒体生成、付款、分享或真实项目接口；这里的完成不能证明真实媒体生成。</p>
+<button id="open" disabled>打开官方制作进度页</button><button id="rerender" disabled>普通会话重绘</button><button id="reload" disabled>重载页面并立即读取已提交状态</button>
+<p>官方页面首次立即查询；待处理图像每20秒、有视频每45秒查询。状态提交后可等待轮询，或点击重载。重载只读状态，不重新提交任务。</p>
+<button id="running" disabled>提交本地测试运行状态</button><button id="done" disabled>提交本地测试完成状态</button><button id="failed" disabled>提交本地测试失败状态</button>
+<label><input id="query-error" type="checkbox" disabled>本地模拟查询失败（保留最后真实测试状态，连续4次停止刷新）</label>
+<output id="status" aria-live="polite">正在读取专用 IndexedDB…</output><section id="cards"></section>
+<h2>实际已提交的本地测试来源</h2><pre id="source"></pre><h2>实际查询回执</h2><pre id="receipt">尚未查询</pre>
+<p>本页验证状态查询与真实本地素材预览；两个预览分别来自已提交的公共Logo图像和公共MP4；它们都是固定测试素材，不是生成产物。图片采用官方已支持的data来源；视频采用制作进度专用本地proxy的有界data来源，不放开网络或同源权限。真实生成模型质量未验证。制作进度页没有保存、采用或对话交接按钮，也不会排队用户消息。</p>
+<script type="module" src="./production-progress.mjs"></script></html>

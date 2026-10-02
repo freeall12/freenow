@@ -1,5 +1,6 @@
 import {inspectVideoThumbnail} from './video-thumbnail.mjs';
 import {mediaSource,resultProvenance} from '../media-preview/provenance.mjs';
+import {outputSnapshot} from './model.mjs';
 export function createArchiver({assets, fetch: fetcher, asDataUrl, validate, materializeWorld, localizeAudio,inspectVideo=inspectVideoThumbnail,createMediaUrl=blob=>URL.createObjectURL(blob),revokeMediaUrl=url=>URL.revokeObjectURL(url)}) {
   async function blob(source,{signal}={}) {
     if (!source) throw Error('原始媒体地址不可恢复，请查询原任务');
@@ -9,9 +10,17 @@ export function createArchiver({assets, fetch: fetcher, asDataUrl, validate, mat
   }
   async function archive(output, metadata) {
     if (output.type === 'model') {
+      if(output.format==='spz'||output.world!==undefined)outputSnapshot(output);
       const patch = await materializeWorld(output, metadata.parameters.outputType || 'asset');
-      if (!patch.worldResource?.url?.startsWith('asset:')) throw Error('3D 结果未保存真实模型');
-      return {mediaRef: patch.worldResource.url, thumbnailRef: patch.worldResource.thumbnail, worldPatch: patch, mime: 'model/gltf-binary'};
+      if (typeof patch.worldResource?.url!=='string'||!/^asset:[^\s]+$/.test(patch.worldResource.url)) throw Error('3D 结果未保存真实模型');
+      const format=patch.worldResource.format;
+      if(!['glb','spz'].includes(format)||output.format&&output.format!==format)throw Error('3D 历史格式与实际保存资源不一致');
+      if(format==='spz'){
+        const stored=outputSnapshot({...output,world:patch.worldResource.world});
+        const key=value=>JSON.stringify(value,(_,entry)=>entry&&typeof entry==='object'&&!Array.isArray(entry)?Object.fromEntries(Object.keys(entry).sort().map(name=>[name,entry[name]])):entry);
+        if(patch.worldResource.representation!=='gaussianSplat'||key(stored.world)!==key(output.world))throw Error('世界历史保存的原始元数据与任务结果不一致');
+      }
+      return {mediaRef: patch.worldResource.url, thumbnailRef: patch.worldResource.thumbnail, worldPatch: patch, mime: format==='spz'?'application/octet-stream':'model/gltf-binary'};
     }
     if (output.type === 'audio') {
       const mediaRef = await localizeAudio(output.url || output.audio);
@@ -46,7 +55,12 @@ export function createArchiver({assets, fetch: fetcher, asDataUrl, validate, mat
     if (row.archiveStatus !== 'ready') throw Error('历史素材尚未保存，请先重试归档');
     const base = {id: row.id, type: row.type === 'model' ? 'world' : row.type, title: row.title, x:0,y:0,width:375,height:250,
       generation: {...row.parameters, prompt: row.prompt, model: row.model}, createdAt:row.createdAt, sourceFileId: row.sourceFileId, generationHistory: {taskId:row.taskId,outputIndex:row.outputIndex,createdAt:row.createdAt}};
-    if (row.type === 'model') { await blob(row.worldPatch.worldResource.url); return {...base,...structuredClone(row.worldPatch),worldConfig:{...row.parameters,prompt:row.prompt,model:row.model}}; }
+    if (row.type === 'model') {
+      const resource=row.worldPatch?.worldResource;
+      if(typeof resource?.url!=='string'||!/^asset:[^\s]+$/.test(resource.url)||row.mediaRef&&resource.url!==row.mediaRef||!['glb','spz'].includes(resource.format))throw Error('3D 历史缺少有效的原始素材或格式');
+      if(resource.format==='spz')outputSnapshot({type:'model',format:'spz',representation:resource.representation,sourceFileId:resource.world?.worldId,world:resource.world,url:resource.world?.assets?.splats?.spzUrls?.[resource.world?.splatResolution]});
+      await blob(resource.url); return {...base,...structuredClone(row.worldPatch),worldConfig:{...row.parameters,prompt:row.prompt,model:row.model}};
+    }
     const value = await blob(row.mediaRef);
     if (row.type === 'audio') return {...base,audio:row.mediaRef,audioMode:'upload',durationMs:row.duration ? row.duration * 1000 : undefined};
     const source = await asDataUrl(value), dimensions = await validate(row.type,source);

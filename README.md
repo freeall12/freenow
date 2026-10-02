@@ -1,5 +1,9 @@
 # TapNow 无限画布本地复刻
 
+2026-10-03 继续接入官方个人素材选择器、互动学习与制作进度，现有10个可用版本URI。素材引用接真实媒体输入、入图后等待实际保存；课程草稿/进度与交接持久化；制作页绑定实际任务和已应用产物。浏览器验证及明确缺口见 [本批记录](docs/AGENT-LIBRARY-LEARNING-PROGRESS-20261003.md)。
+
+2026-10-03 新增官方表演节奏、剧本结构板、人物情绪三个 Agent 工作流；人物灰模真实导出并保存为画布参考图，刷新与重复确认已验。侧栏开合/调宽复用画布布局，Marble 原生接口及SPZ历史合同已准备、渲染与路由接线仍待完成。见 [本批验收与边界](docs/AGENT-STORY-ACTOR-AND-WORLD-20261003.md)。
+
 2026-10-03 新增 [MiniMax H3 原生视频](docs/MINIMAX-H3-SETUP.md)、独立的 [Tripo 原生 3D](docs/TRIPO-NATIVE-SETUP.md)、官方导演批注 Agent 页面与原图历史来源恢复；修复片场菜单焦点、历史启动时序和本地日期。实际浏览器操作与限制见 [本批验收](docs/NATIVE-CREATION-AND-AGENT-APPS-20261003.md)。真实供应商仍待配置 Key 和模型映射后联调。
 
 2026-10-03 新增 fal 官方队列原生接入：BiRefNet 抠图、Topaz 五种风格的 2x/4x 超分可配置 Key 与映射后使用，无需另建任务网关。图片读取改到具体操作配置检查之后，支持取消与有界传输。6x、Magnific、皮肤增强保留现有接口；真实效果待 Key 联调。见 [配置和本批验收](docs/FAL-NATIVE-SETUP.md)。

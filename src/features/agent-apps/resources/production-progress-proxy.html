@@ -1,0 +1,322 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="color-scheme" content="light dark" />
+  <meta name="viewport" content="initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Production Progress Local Transport</title>
+  <style>
+    html, body { margin: 0; height: 100%; width: 100%; overflow: hidden; background: #1f1f1f; }
+    body { display: flex; flex-direction: column; }
+    * { box-sizing: border-box; }
+    iframe { background-color: transparent; border: 0px none transparent; padding: 0px; overflow: hidden; flex-grow: 1; }
+  </style>
+</head>
+<body>
+  <!--
+    MCP Apps sandbox proxy (双 iframe 模型的中间层):
+    - 与宿主(父页)之间走 "ui/notifications/sandbox-*" JSON-RPC 控制面(握手/下发模板标识);
+    - 同源 fetch 预构建模板(./apps/<name>@<version>.html), 注入强制 CSP + 设计令牌后写入内层
+      sandbox iframe 的 srcdoc;
+    - 其余 JSON-RPC 帧在 View(内层) 与宿主之间双向透传, 本页不解析业务语义,
+      协议演进只需改宿主侧 mcp-app-host 包。
+    - 防串扰: 宿主下发帧必须带匹配 nonce(转发给 View 前剥离, 保持 View 侧纯标准 JSON-RPC);
+      View 上行帧由本页附加 nonce 后转发给宿主。
+  -->
+  <script>
+    (function () {
+      "use strict";
+
+      var inner = document.createElement("iframe");
+      inner.style = "width:100%; height:100%; border:none;";
+      // 只给 allow-scripts: 内层落入 opaque origin, 与本页跨源。
+      //
+      // 刻意不给 allow-same-origin(与 widget-proxy / artifact-proxy 的取舍不同):
+      // 两者叠加会让内层与本页同源, 模板脚本可经 parent.document 直接操作本页——而本页
+      // 自身没有 CSP, 注入的 CSP 只作用于内层, 于是模板能读走 currentNonce 并向宿主
+      // 伪造任意 JSON-RPC。MCP App 独有 tools/call(可触发后端副作用与计费), 宿主只能靠
+      // nonce 区分帧来源, 这条逃逸面必须封死。
+      //
+      // 代价: 内层不能用 localStorage / sessionStorage / indexedDB / document.cookie
+      // (opaque origin 下访问会抛)。协议链路不依赖它们——postMessage 与 event.source
+      // 比较跨源照常工作, 模板产物(含 MCP SDK)实测零引用。第三方模板需在接入文档里
+      // 明确这条约束: 状态持久化走 tapnow/setWidgetState, 不要用浏览器存储。
+      inner.setAttribute("sandbox", "allow-scripts");
+      document.body.appendChild(inner);
+
+      var parentOrigin = "*";
+      var currentNonce = null;
+      var resourceLoaded = false;
+      var proxyReadyTimer = null;
+      var proxyReadyAttempts = 0;
+      var PROXY_READY_INTERVAL_MS = 500;
+      var PROXY_READY_MAX_ATTEMPTS = 30;
+
+      function stopProxyReadyAnnouncements() {
+        if (proxyReadyTimer === null) return;
+        clearInterval(proxyReadyTimer);
+        proxyReadyTimer = null;
+      }
+
+      function announceProxyReady() {
+        if (currentNonce !== null || proxyReadyAttempts >= PROXY_READY_MAX_ATTEMPTS) {
+          stopProxyReadyAnnouncements();
+          return;
+        }
+        proxyReadyAttempts += 1;
+        window.parent.postMessage(
+          { jsonrpc: "2.0", method: "ui/notifications/sandbox-proxy-ready", params: {} },
+          "*"
+        );
+      }
+
+      function startProxyReadyAnnouncements() {
+        announceProxyReady();
+        if (currentNonce === null && proxyReadyAttempts < PROXY_READY_MAX_ATTEMPTS) {
+          proxyReadyTimer = setInterval(announceProxyReady, PROXY_READY_INTERVAL_MS);
+        }
+      }
+
+      // ENV_POLICY:BEGIN — 与 widget-proxy.html 保持一致; 两侧修改必须同步。
+      function getEnvPolicy() {
+        var selfHost = location.hostname;
+        // prod
+        if (selfHost === "usercontent.tapnow.art") {
+          return {
+            patterns: [
+              "https://app.tapnow.ai",
+              "https://app.tapnow.media",
+              "https://app.tapnow.zone",
+              "https://app.tapnow.plus",
+              "https://app.tapnow.tv"
+            ],
+            allowVercelPreview: false,
+            allowLocalhost: false,
+            allowSameOrigin: false
+          };
+        }
+        // test
+        if (selfHost === "usercontent-testing.tapnow.art") {
+          return {
+            patterns: [
+              "https://preview.tapnow.ai",
+              "https://preview.tapnow.media",
+              "https://preview.tapnow.top",
+              "https://tamaredge.top"
+            ],
+            allowVercelPreview: true,
+            allowLocalhost: false,
+            allowSameOrigin: false
+          };
+        }
+        // fallback。
+        return {
+          patterns: [],
+          allowVercelPreview: false,
+          allowLocalhost: true,
+          allowSameOrigin: true
+        };
+      }
+
+      var ENV_POLICY = getEnvPolicy();
+      var VERCEL_PREVIEW_HOST_REGEX = /^tapnow-(?:test|cn)-pr-\d+(?:-test-[1-5])?\.vercel\.app$/;
+
+      function isAllowedOrigin(origin) {
+        try {
+          if (ENV_POLICY.allowSameOrigin && origin === location.origin) {
+            return true;
+          }
+          var url = new URL(origin);
+          var host = url.hostname;
+          if (ENV_POLICY.allowVercelPreview && url.protocol === "https:" && VERCEL_PREVIEW_HOST_REGEX.test(host)) {
+            return true;
+          }
+          if (ENV_POLICY.allowLocalhost && (host === "localhost" || host === "127.0.0.1")) {
+            return true;
+          }
+          return ENV_POLICY.patterns.some(function (pattern) {
+            var patternUrl = new URL(pattern);
+            return host === patternUrl.hostname || host.endsWith("." + patternUrl.hostname);
+          });
+        } catch (e) {
+          return false;
+        }
+      }
+      // ENV_POLICY:END
+
+      // 模板标识白名单: 防路径穿越, 只允许 <name>@v<N>.<hash8> 形态的文件。
+      // hash 来自 manifest(受同源与 CI 守卫保护), 仍按对抗性输入做形态校验。
+      var RESOURCE_NAME_REGEX = /^[a-z0-9-]+$/;
+      var RESOURCE_VERSION_REGEX = /^v\d+$/;
+      var RESOURCE_HASH_REGEX = /^[a-f0-9]{8}$/;
+
+      // widget 目录的定位: 部署态 proxy 在 /<proxyHash>/ 下, 而 widget 与 manifest 部署在桶根
+      // /apps/(不参与 proxy hash, 见 usercontent-sandbox/scripts/hash.mjs); 本地同源态两者
+      // 同在 /usercontent-proxy/ 下。据 proxy 自身所在目录是否为 10 位 hash 目录来区分。
+      function resolveAppsBase() {
+        var segments = location.pathname.split("/").filter(Boolean);
+        var dir = segments.length >= 2 ? segments[segments.length - 2] : "";
+        return /^[a-f0-9]{10}$/.test(dir) ? "/apps/" : "./apps/";
+      }
+
+      var APPS_BASE = resolveAppsBase();
+
+      var manifestPromise = null;
+
+      function loadManifest() {
+        if (!manifestPromise) {
+          manifestPromise = fetch(APPS_BASE + "manifest.json").then(function (response) {
+            if (!response.ok) throw new Error("manifest fetch failed: " + response.status);
+            return response.json();
+          });
+          // 双重作用: 抑制预取时的 unhandled rejection; 失败后清空缓存, 使宿主重试装载时
+          // 重新拉取, 不被上一次的 rejected promise 永久粘住。
+          manifestPromise.catch(function () {
+            manifestPromise = null;
+          });
+        }
+        return manifestPromise;
+      }
+
+      // manifest 不依赖握手参数, 页面加载即预取——把这次 RTT 与宿主握手重叠, 不拖慢首屏。
+      loadManifest();
+
+      // 注意: 本 proxy 不注入任何样式——保持对模板中立(第三方模板自带样式, 强灌
+      // :root 变量会污染)。主题走标准通道: 宿主经 hostContext.styles.variables 下发,
+      // View 用 SDK 自行应用; TapNow 自有模板的产品令牌由构建期打进单文件产物
+      // (见 packages/mcp-app-widgets/src/shared/design-tokens.css)。proxy 只负责安全(CSP)。
+      // 仅接受严格 https origin 形态的域(防御纵深: 拒绝含引号/分号/空白的值,
+      // 杜绝经拼接注入额外 CSP 指令或破坏 meta content 属性)。
+      var CSP_IMG_DOMAIN_REGEX = /^https:\/\/[a-z0-9.-]+(:\d+)?$/;
+
+      // Local production transport: actual bounded media bytes only; no network domains.
+      function buildCspPolicy(csp) {
+        var imgSources = "data: blob:";
+        var mediaSources = "blob: data:";
+        // 默认近乎全禁: 无网络(connect-src 'none')、无外部脚本/样式(仅 inline, 适配单文件构建产物)、
+        // 无嵌套 iframe、无表单提交。img 仅放行 data/blob + 宿主声明的 https 白名单。
+        return "default-src 'none'; "
+          + "script-src 'unsafe-inline'; "
+          + "style-src 'unsafe-inline'; "
+          + "font-src data:; "
+          + "img-src " + imgSources + "; "
+          + "media-src " + mediaSources + "; "
+          + "connect-src 'none'; "
+          + "frame-src 'none'; "
+          + "form-action 'none'; "
+          + "base-uri 'none'";
+      }
+
+      // CSP 注入不用正则/字符串替换找 <head>——注释、<title>/<textarea> 等 raw-text 里的
+      // 假 <head> 都能骗过字符串匹配, 把 CSP 插进惰性上下文而失效(与 widget-proxy 同一
+      // 结论)。当前模板虽为一方构建产物, 但按对抗性输入标准处理, M3 第三方模板可直接复用。
+      // DOMParser 惰性解析不执行脚本, 拿真实 <head> 前置 CSP meta 后整体序列化,
+      // CSP 必然先于文档内任何脚本生效。
+      function buildSrcdocWithCsp(html, policy) {
+        var doc = new DOMParser().parseFromString(html, "text/html");
+        var head = doc.head;
+        var meta = doc.createElement("meta");
+        meta.setAttribute("http-equiv", "Content-Security-Policy");
+        meta.setAttribute("content", policy);
+        head.insertBefore(meta, head.firstChild);
+        return "<!doctype html>" + doc.documentElement.outerHTML;
+      }
+
+      function notifyParent(method, params) {
+        window.parent.postMessage(
+          { jsonrpc: "2.0", method: method, params: params || {}, nonce: (params && params.nonce) || currentNonce },
+          parentOrigin === "*" ? "*" : parentOrigin
+        );
+      }
+
+      function handleResourceReady(params, origin) {
+        if (resourceLoaded) return;
+        if (!params || typeof params.nonce !== "string" || !params.resource) return;
+        // This transport cannot be repurposed for other archived apps.
+        if (params.resource.name !== "production-progress" || params.resource.version !== "v1") {
+          notifyParent("ui/notifications/sandbox-resource-error", {nonce: params.nonce, message: "invalid_production_resource"});
+          return;
+        }
+        // 宿主已接住 ready 并返回 nonce，停止有上限的重发；后续由 nonce 控制面接管。
+        stopProxyReadyAnnouncements();
+        var name = params.resource.name;
+        var version = params.resource.version;
+        if (!RESOURCE_NAME_REGEX.test(String(name)) || !RESOURCE_VERSION_REGEX.test(String(version))) {
+          notifyParent("ui/notifications/sandbox-resource-error", {
+            nonce: params.nonce,
+            message: "invalid resource identifier"
+          });
+          return;
+        }
+        resourceLoaded = true;
+        currentNonce = params.nonce;
+        parentOrigin = origin;
+
+        loadManifest()
+          .then(function (manifest) {
+            var key = name + "@" + version;
+            var hash = manifest && manifest.widgets ? manifest.widgets[key] : null;
+            if (!RESOURCE_HASH_REGEX.test(String(hash))) {
+              throw new Error("widget not in manifest: " + key);
+            }
+            return fetch(APPS_BASE + key + "." + hash + ".html");
+          })
+          .then(function (response) {
+            if (!response.ok) throw new Error("template fetch failed: " + response.status);
+            return response.text();
+          })
+          .then(function (templateHtml) {
+            inner.srcdoc = buildSrcdocWithCsp(templateHtml, buildCspPolicy(params.csp));
+          })
+          .catch(function (error) {
+            resourceLoaded = false;
+            notifyParent("ui/notifications/sandbox-resource-error", {
+              nonce: currentNonce,
+              message: String((error && error.message) || "template load failed")
+            });
+          });
+      }
+
+      window.addEventListener("message", function (event) {
+        var data = event.data;
+        if (!data || typeof data !== "object" || data.jsonrpc !== "2.0") return;
+
+        if (event.source === window.parent && isAllowedOrigin(event.origin)) {
+          if (data.method === "ui/notifications/sandbox-resource-ready") {
+            handleResourceReady(data.params, event.origin);
+            return;
+          }
+          // 宿主 → View: 校验 nonce 后剥离, 保持 View 侧收到纯标准 JSON-RPC。
+          if (currentNonce === null || data.nonce !== currentNonce) return;
+          if (!inner.contentWindow) return;
+          var forwarded = {};
+          for (var key in data) {
+            if (Object.prototype.hasOwnProperty.call(data, key) && key !== "nonce") {
+              forwarded[key] = data[key];
+            }
+          }
+          inner.contentWindow.postMessage(forwarded, "*");
+          return;
+        }
+
+        if (event.source === inner.contentWindow) {
+          if (currentNonce === null) return;
+          // View → 宿主: 附加 nonce 转发, 宿主据此过滤串扰帧。
+          var outbound = {};
+          for (var innerKey in data) {
+            if (Object.prototype.hasOwnProperty.call(data, innerKey)) {
+              outbound[innerKey] = data[innerKey];
+            }
+          }
+          outbound.nonce = currentNonce;
+          window.parent.postMessage(outbound, parentOrigin);
+        }
+      });
+
+      // 内联脚本先挂监听再通知。ready 做有上限重发，覆盖父页 React effect 尚未挂载的竞态；
+      // 收到 sandbox-resource-ready 后立即停止，不在稳定态制造额外消息流量。
+      startProxyReadyAnnouncements();
+    })();
+  </script>
+</body>
+</html>

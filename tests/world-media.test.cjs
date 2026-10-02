@@ -35,14 +35,16 @@ test('native public HTTPS stays original; unsupported local WebP and model modes
  f.world.worldConfig.model='worldlabs-marble-1.1';await assert.rejects(media.prepareWorldMediaRequest(f.request(),{nativeConfiguration,resolveMedia:()=>assert.fail('wrong native route must not read reference')}),{code:'unsupported_generation'});
 });
 
-test('common tasks-v1 preserves text and exports actual selected video bytes with source range',async()=>{
+test('tasks-v1 and Marble preserve text and export actual selected video bytes with source range',async()=>{
  const [model,media,resolver,transport]=await ready,{createLocalClipResolver}=await import('../src/features/agent-workflows/local-clip-resolver.mjs');
  const url=URL.createObjectURL(new Blob(['whole video'],{type:'video/mp4'})),f=fixture(model,{id:'video',type:'video',video:url,clip:{start:2,end:4}});
  f.world.worldConfig={model:'worldlabs-marble-1.1',prompt:'camera moves through courtyard'};
  f.state.nodes.push({id:'text',type:'text',content:'preserve old brickwork'});f.state.edges.push({id:'text-reference',source:'text',target:'world'});
- const request=f.request();let reads=0,crops=0;
+ const request=f.request();
  try{
-  const result=await media.prepareWorldMediaRequest(request,{baseUrl,nativeConfiguration:{protocol:'tasks-v1'},resolveMedia:async(node,options)=>{
+  for(const protocol of ['tasks-v1','marble-native']){
+  let reads=0,crops=0;
+  const result=await media.prepareWorldMediaRequest(request,{baseUrl,nativeConfiguration:{protocol},resolveMedia:async(node,options)=>{
    const resolveClip=createLocalClipResolver({getNode:id=>id===node.id?node:undefined,serialize,fetchImpl:async(...args)=>{reads++;return fetch(...args);},localMedia:{process:async(operation,blob,options)=>{
     crops++;assert.equal(operation,'trim');assert.equal(await blob.text(),'whole video');assert.equal(options.start,2);assert.equal(options.end,4);return new Blob(['actual selected frames'],{type:'video/mp4'});
    }}});
@@ -50,6 +52,7 @@ test('common tasks-v1 preserves text and exports actual selected video bytes wit
   },transport:(value,options)=>transport.prepareWorkflowInputs(value,{...options,serialize})});
   assert.equal(reads,1);assert.equal(crops,1);assert.equal(Buffer.from(result.inputs[0].url.split(',')[1],'base64').toString(),'actual selected frames');assert.deepEqual(result.inputs[0].sourceRange,{start:2,end:4});assert.equal(result.inputs[0].clip,undefined);assert.equal(result.inputs[0].durationMs,2000);
   assert.equal(result.inputs[0].sourceUrl,url);assert.equal(result.prompt,'preserve old brickwork\n\ncamera moves through courtyard');assert.deepEqual(result.parameters,request.parameters);assert.deepEqual(request.inputs[0].clip,{start:2,end:4});
+  }
  }finally{URL.revokeObjectURL(url);}
 });
 
@@ -77,4 +80,50 @@ test('world source snapshots reject same-ID replacements, changed clips and empt
   assert.throws(guard,{code:'world_source_changed'});
  }
  const f=fixture(model,{id:'image',type:'image'});f.world.worldConfig.prompt='a vessel';assert.match(model.prepare(f.world,f.refs()).error,/实际媒体/);
+});
+
+const marbleRequest=(modelType,inputs=[],marbleParams={})=>({kind:'world.generate',prompt:'preserve the courtyard',inputs,parameters:{provider:'worldlabs',model:'worldlabs-marble-1.1',modelType,marbleParams}});
+test('Marble validates exact mode/count limits before reading and never invents reconstruction settings',async()=>{
+ const [,media,,transport,routing]=await ready,nativeConfiguration={protocol:'marble-native'};
+ const images=count=>Array.from({length:count},(_,index)=>({type:'image',url:'https://public.test/'+index+'.webp'})),video={type:'video',url:'https://public.test/world.mp4'};
+ const invalid=[marbleRequest('MULTI_IMAGE_TO_WORLD',images(5)),marbleRequest('MULTI_IMAGE_TO_WORLD',images(8),{reconstruct_images:'true'}),marbleRequest('MULTI_IMAGE_TO_WORLD',images(9),{reconstruct_images:true}),
+  marbleRequest('TEXT_TO_WORLD',images(1)),marbleRequest('IMAGE_TO_WORLD',images(2)),marbleRequest('PANORAMA_TO_WORLD',[]),marbleRequest('MULTI_IMAGE_TO_WORLD',images(1)),marbleRequest('VIDEO_TO_WORLD',[video,video]),
+  marbleRequest('VIDEO_TO_WORLD',[video,...images(1)]),marbleRequest('UNKNOWN',[]),marbleRequest('IMAGE_TO_WORLD',[{type:'audio',url:'asset:audio'}]),{...marbleRequest('TEXT_TO_WORLD'),parameters:{provider:'tripo',modelType:'TEXT_TO_WORLD'}}];
+ for(const request of invalid)await assert.rejects(media.prepareWorldMediaRequest(request,{nativeConfiguration,resolveMedia:()=>assert.fail('invalid modes must not read media'),transport:()=>assert.fail('invalid modes must not transfer')}),{code:'unsupported_generation'});
+ for(const request of [marbleRequest('TEXT_TO_WORLD'),marbleRequest('IMAGE_TO_WORLD',images(1)),marbleRequest('PANORAMA_TO_WORLD',images(1)),marbleRequest('MULTI_IMAGE_TO_WORLD',images(4)),marbleRequest('MULTI_IMAGE_TO_WORLD',images(8),{reconstruct_images:true}),marbleRequest('VIDEO_TO_WORLD',[video])]){
+  const before=structuredClone(request),result=await media.prepareWorldMediaRequest(request,{nativeConfiguration,baseUrl,resolveMedia:async node=>{assert.notEqual(node.type,'video','public Marble video must not be probed');return {url:node.fullImage};},transport:(value,options)=>transport.prepareWorkflowInputs(value,{...options,fetchImpl:()=>assert.fail('public HTTPS must remain direct')})});
+  assert.deepEqual(result.parameters,before.parameters);assert.deepEqual(request,before);assert.deepEqual(result.inputs.map(input=>input.url),before.inputs.map(input=>input.url));
+ }
+ let reads=0;const metadata={protocol:'routed',configured:true,routes:{'world.generate':'marble'},providers:{other:{protocol:'tripo-native',configured:true},marble:{...nativeConfiguration,configured:false}}};
+ const service=new TaskService({prepareInputs:request=>{reads++;return media.prepareWorldMediaRequest(request,{nativeConfiguration});}});
+ service.setProvider({isConfigured:async({request})=>routing.providerConfigured(metadata,request),generate:()=>assert.fail('missing Marble key must not dispatch')});
+ const job=service.submit(marbleRequest('IMAGE_TO_WORLD',images(1)));await terminal(service,job);assert.equal(job.status,'configuration_required');assert.equal(reads,0);
+});
+
+test('Marble transports local WebP and supported video bytes, rejecting unsupported formats and size before dispatch',async()=>{
+ const [,media,resolver,transport]=await ready,nativeConfiguration={protocol:'marble-native'},reads=[],probes=[];
+ const resolveMedia=resolver.createWorkflowMediaResolver({baseUrl,localAssets:{url:async id=>{reads.push(id);return 'blob:http://localhost:4173/'+id.slice(6);}},createImage:imageFactory(probes)});
+ const request=marbleRequest('IMAGE_TO_WORLD',[{type:'image',url:'asset:thumbnail',fullImage:'asset:full-webp'}],{reconstruct_images:false});
+ const result=await media.prepareWorldMediaRequest(request,{nativeConfiguration,baseUrl,resolveMedia,transport:(value,options)=>transport.prepareWorkflowInputs(value,{...options,serialize,fetchImpl:async()=>new Response('whole WebP bytes',{headers:{'content-type':'image/webp'}})})});
+ assert.deepEqual(reads,['asset:full-webp']);assert.deepEqual(probes,[result.inputs[0].url]);assert.equal(Buffer.from(result.inputs[0].url.split(',')[1],'base64').toString(),'whole WebP bytes');assert.deepEqual(result.parameters,request.parameters);
+ for(const mime of ['video/mp4','video/webm','video/quicktime','video/x-msvideo']){
+  const video='data:'+mime+';base64,'+Buffer.from('full '+mime+' bytes').toString('base64'),value=marbleRequest('VIDEO_TO_WORLD',[{type:'video',url:video}]);
+  const output=await media.prepareWorldMediaRequest(value,{nativeConfiguration,baseUrl,resolveMedia:async node=>({url:node.video,duration:2})});assert.equal(output.inputs[0].url,video);assert.deepEqual(output.parameters,value.parameters);
+ }
+ await assert.rejects(media.prepareWorldMediaRequest(marbleRequest('VIDEO_TO_WORLD',[{type:'video',url:'data:video/x-matroska;base64,AAAA'}]),{nativeConfiguration,baseUrl,resolveMedia:async node=>({url:node.video})}),{code:'unsupported_generation'});
+ await assert.rejects(media.prepareWorldMediaRequest(request,{nativeConfiguration,baseUrl,resolveMedia,transport:(value,options)=>transport.prepareWorkflowInputs(value,{...options,serialize,fetchImpl:async()=>new Response('small body',{headers:{'content-type':'image/webp','content-length':String(21*1024*1024)}})})}),{code:'media_request_too_large'});
+});
+
+test('uncut inline source consumes request budget once while clipped source range and guards retain provenance',async()=>{
+ const [model,media,,transport]=await ready,video='data:video/mp4;base64,'+Buffer.alloc(1024,'v').toString('base64');
+ const f=fixture(model,{id:'video',type:'video',video});f.world.worldConfig={model:'worldlabs-marble-1.1',prompt:'courtyard'};
+ const request=f.request(),guard=media.captureWorldSourceGuard(f.world,f.refs(),{getNode:f.getNode,resolveReferences:f.refs});
+ const budget=new TextEncoder().encode(JSON.stringify(request)).byteLength+128;
+ const result=await media.prepareWorldMediaRequest(request,{baseUrl,nativeConfiguration:{protocol:'marble-native'},validateSources:guard,
+  resolveMedia:async node=>({url:node.video,duration:2}),transport:(value,options)=>transport.prepareWorkflowInputs(value,{...options,maxRequestBytes:budget})});
+ assert.equal(result.inputs[0].url,video);assert.equal(result.inputs[0].sourceUrl,undefined);assert.equal(request.inputs[0].url,video);assert.ok(new TextEncoder().encode(JSON.stringify(result)).byteLength<=budget);
+ f.source.video='data:video/mp4;base64,AAAA';assert.throws(guard,{code:'world_source_changed'});
+ const derived='data:video/mp4;base64,'+Buffer.from('actual selected frames').toString('base64'),clipped=marbleRequest('VIDEO_TO_WORLD',[{type:'video',url:video,clip:{start:1,end:2}}]);
+ const output=await media.prepareWorldMediaRequest(clipped,{baseUrl,nativeConfiguration:{protocol:'marble-native'},resolveMedia:async()=>({url:derived,duration:1})});
+ assert.equal(output.inputs[0].url,derived);assert.equal(output.inputs[0].sourceUrl,video);assert.deepEqual(output.inputs[0].sourceRange,{start:1,end:2});assert.deepEqual(clipped.inputs[0].clip,{start:1,end:2});
 });
