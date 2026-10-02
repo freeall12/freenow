@@ -359,7 +359,7 @@ export const builtinSkillIndex=[
     "unknownReferenceCount": null,
     "captureHistory": [
       {
-        "captureFile": "reference/seedance-2-5-prompt-copilot.json",
+        "captureFile": "runtime-reference/seedance-2-5-prompt-copilot.json",
         "sourceUrl": "https://app.tapnow.media/",
         "files": [
           {
@@ -657,7 +657,7 @@ export const builtinSkillIndex=[
     "unknownReferenceCount": null,
     "captureHistory": [
       {
-        "captureFile": "reference/minimax-h3-prompt-copilot.json",
+        "captureFile": "runtime-reference/minimax-h3-prompt-copilot.json",
         "sourceUrl": "https://app.tapnow.media/",
         "files": [
           {
