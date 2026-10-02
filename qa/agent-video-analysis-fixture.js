@@ -20,7 +20,8 @@
   if(path==='/api/generation/tasks'||path.startsWith('/api/generation/tasks/')){
    if(options.method!=='POST')return json({status:'cancelled'});
    const request=JSON.parse(options.body),headers=new Headers(options.headers),id=headers.get('Idempotency-Key');
-   const chats=JSON.parse(localStorage.getItem('tapnow-agent-chats')||'[]');
+   const record=window.CanvasStore?.readRecord?await window.CanvasStore.readRecord('agent-conversations:'+(window.CanvasProjects?.id()||'canvas')):null;
+   const chats=window.CanvasStore?.readRecord?(record?.chats||[]):JSON.parse(localStorage.getItem('tapnow-agent-chats')||'[]');
    const acknowledged=chats.some(chat=>chat.messages?.some(trace=>trace.name==='video_analyze'&&trace.submittedTaskId===id));
    if(!state.configured||request.kind!=='video.analyze'||!request.inputs[0].url.startsWith('data:video/mp4;base64,')||!acknowledged)throw Error('验收失败：配置、视频或持久回执缺失');
    state.posts.push({id,acknowledged,kind:request.kind,source:request.nodeId});changed();

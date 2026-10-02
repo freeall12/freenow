@@ -53,7 +53,9 @@ host.dispose();
 
 ## 幂等、恢复与应用重试
 
-操作记录存入项目独立的 `tapnow.agent.video-analysis.operations.v1.<encoded-project-id>`。记录仅含原工具参数、请求指纹、状态、taskId和错误摘要，不含媒体、URL、Key或来源正文。最多500条，满时明确失败，不能淘汰未知任务来继续生成。存储不可用或损坏时，拒绝提交。
+操作记录存入现有 IndexedDB records 的 `agent-video-analysis-operations:<projectId>`。旧项目专属 `tapnow.agent.video-analysis.operations.v1.<encoded-project-id>` 仅在新记录缺失时读取、验证并等待迁移，原值保留；没有 record adapter 的独立宿主才继续使用 localStorage。记录仅含原工具参数、请求指纹、状态、taskId和错误摘要，不含媒体、URL、Key或来源正文。最多500条，满时明确失败，不能淘汰未知任务来继续生成。存储不可用或损坏时拒绝提交，详见 [持久化合同](AGENT-STORAGE.md)。
+
+`execute` 等待异步读取与关键写入，`get` 仅读取当前已加载缓存；`flush` 等待所有状态写入。异步读取期间来源变化也永久失效，保存失败会阻止项目切换。会话不再向 localStorage 完整镜像，夹具检查派发前回执应读取 IndexedDB 会话记录。
 
 - 同一 `operationId` 的相同调用在预检或准备中共享一个 Promise，提交后返回原任务回执；参数变化拒绝。明确缺配置的未提交预检不保存身份，可以在配置后显式重试相同调用。开始持久准备后，已失败、取消或带 taskId 的 configuration_required 不自动重发，需要明确的新操作身份。
 - 同一来源已有 queued/running/unknown 或 succeeded但未应用的手动/Agent解析任务时，拒绝建立第二个任务。先查询、应用或取消已有任务。

@@ -128,6 +128,15 @@ test('comments records use project-specific CAS without changing canvas or Agent
   const write=a.store.writeRecord(key,{comments:[{id:'new'}]});await tick();a.commit();await write;await assert.rejects(b.store.writeRecord(key,{comments:[{id:'stale'}]}),{name:'CanvasCommentsConflictError'});assert.equal(values.get(key).comments[0].id,'new');assert.equal(values.get('canvas').nodes[0].title,'Keep canvas');assert.equal((await a.store.listProjects()).length,1);
 });
 
+test('video operation journals reuse existing records and reject stale identities atomically',async()=>{
+ const key='agent-video-analysis-operations:a',request={operationId:'operation',nodeId:'source'},initial={version:1,projectId:'a',operations:[]},values=new Map([[key,initial]]),a=page({id:'a',values}),b=page({id:'a',values});
+ await Promise.all([a.store.readRecord(key),b.store.readRecord(key)]);
+ const record={...initial,operations:[{request,fingerprint:JSON.stringify(request),status:'queued',taskId:'original-task'}]},write=a.store.writeRecord(key,record);await tick();
+ let flushed=false;const flush=a.store.flush().then(()=>{flushed=true;});assert.equal(flushed,false);a.commit();await write;await flush;
+ await assert.rejects(b.store.writeRecord(key,{...initial,operations:[{...record.operations[0],taskId:'different-task'}]}),{name:'AgentConversationConflictError'});
+ assert.equal(values.get(key).operations[0].taskId,'original-task');assert.equal(b.transactions.length,0);assert.equal((await a.store.listProjects()).length,1);
+});
+
 test('opening a saved project with full localStorage is read-only and cannot stale another window',async()=>{
   const stored={...graph('node','Stored'),project:{id:'a',title:'Keep title'},view:{x:15.125,y:-23.625,scale:.7},history:[],future:[],storageRevision:3},values=new Map([['project:a',stored]]),originalWindow=page({id:'a',values}),openedWindow=page({id:'a',values});await originalWindow.store.load();
   let mirrorWrites=0,automaticSaves=0;

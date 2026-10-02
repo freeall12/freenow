@@ -30,7 +30,9 @@
     if(!store?.writeRecord){try{mirror();}catch(failure){error=failure;return false;}saved=serialized;error=null;return true;}
     // Capture each revision before yielding; a newer draft can queue during a write.
     pending++;saved=serialized;
-    latest=latest.catch(()=>{}).then(()=>store.writeRecord(recordKey,value)).then(()=>{error=null;try{mirror();}catch{/* IndexedDB is authoritative; leave the old localStorage data intact. */}},failure=>{error=failure;throw failure;}).finally(()=>{pending--;});
+    // IndexedDB owns new revisions. Preserve legacy snapshots as read-only
+    // migration sources instead of duplicating growing conversations there.
+    latest=latest.catch(()=>{}).then(()=>store.writeRecord(recordKey,value)).then(()=>{error=null;},failure=>{error=failure;throw failure;}).finally(()=>{pending--;});
     latest.catch(()=>{});return true;
    },
    get pending(){return pending;},

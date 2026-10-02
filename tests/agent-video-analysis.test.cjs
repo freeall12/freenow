@@ -110,7 +110,7 @@ test('explicitly unconfigured preflight reads no media, saves no operation and p
   const f=await fixture();f.setConfigured(false);
   const receipt=await f.host.execute(input,{authorize:f.authorize});
   assert.equal(receipt.status,'configuration_required');assert.equal(receipt.taskId,undefined);assert.equal(f.host.get(input.operationId),null);
-  assert.equal(f.calls.availability.length,1);assert.equal(f.calls.decode.length,0);assert.equal(f.calls.transport.length,0);assert.equal(f.calls.submit,0);assert.equal(f.calls.generate,0);assert.equal(f.storage.rows.size,0);assert.equal([...f.navigation][0](),null);
+  assert.equal(f.calls.availability.length,1);assert.equal(f.calls.decode.length,0);assert.equal(f.calls.transport.length,0);assert.equal(f.calls.submit,0);assert.equal(f.calls.generate,0);assert.equal(f.storage.rows.size,0);assert.equal(await [...f.navigation][0](),null);
   f.setConfigured(true);f.state.nodes[0].clip={start:1,end:6};f.state.nodes[0].x=45.5;
   const restored=f.newHost(),started=await restored.execute(input,{authorize:f.authorize});await settled(f,started.taskId);
   assert.equal(f.calls.availability.length,2);assert.equal(f.calls.submit,1);assert.deepEqual(f.service.jobs.get(started.taskId).request.inputs[0].clip,{start:1,end:6});assert.equal(f.service.jobs.get(started.taskId).request.parameters.nodePosition.x,45.5);
@@ -128,11 +128,11 @@ test('delayed preflight shares one lookup and source or project restoration cann
     const gate=deferred(),entered=deferred(),f=await fixture({availability:()=>{entered.resolve();return gate.promise;}});
     const pending=f.host.execute(input,{authorize:f.authorize});await entered.promise;
     const duplicate=f.host.execute(input,{authorize:f.authorize}),original=f.state.nodes[0],clip=structuredClone(original.clip);
-    const outcomes=Promise.allSettled([pending,duplicate]);assert.ok([...f.navigation][0]());
+    const outcomes=Promise.allSettled([pending,duplicate]);assert.ok(await [...f.navigation][0]());
     if(change==='video')original.video='asset:new';else if(change==='clip')original.clip.end=7;else if(change==='trim')original.trim={start:0};else if(change==='identity')f.state.nodes[0]={...original};else if(change==='delete')f.state.nodes.length=0;else f.setProject('project-b');
     f.render();f.state.nodes[0]=original;original.video='asset:source';original.clip=clip;delete original.trim;f.setProject('project-a');f.render();
     for(const outcome of await outcomes){assert.equal(outcome.status,'rejected');assert.equal(outcome.reason.code,'source_changed',change);}
-    assert.equal(f.calls.availability.length,1);assert.equal(f.calls.availability[0].signal.aborted,true);assert.equal(f.calls.decode.length,0);assert.equal(f.calls.submit,0);assert.equal(f.storage.rows.size,0);assert.equal([...f.navigation][0](),null);
+    assert.equal(f.calls.availability.length,1);assert.equal(f.calls.availability[0].signal.aborted,true);assert.equal(f.calls.decode.length,0);assert.equal(f.calls.submit,0);assert.equal(f.storage.rows.size,0);assert.equal(await [...f.navigation][0](),null);
     gate.resolve({configured:true});await tick();assert.equal(f.calls.submit,0);f.host.dispose();
   }
 });
@@ -178,7 +178,7 @@ test('coordinates may move during preparation but latest coordinates must remain
 
 test('pagehide cancels submitted jobs and pageshow cannot revive their original guards',async()=>{
   const gate=deferred(),running=deferred(),f=await fixture({generate:()=>{running.resolve();return gate.promise;}}),receipt=await f.host.execute(input,{authorize:f.authorize});await running.promise;
-  assert.equal([...f.navigation][0](),null);f.window.dispatchEvent(new Event('pagehide'));f.window.dispatchEvent(new Event('pageshow'));
+  assert.equal(await [...f.navigation][0](),null);f.window.dispatchEvent(new Event('pagehide'));f.window.dispatchEvent(new Event('pageshow'));
   assert.equal(f.host.get(input.operationId).status,'cancelled');assert.throws(()=>f.service.jobs.get(receipt.taskId).beforeDispatch(),error=>error.name==='AbortError');
   gate.resolve({outputs:[output]});await tick();assert.equal(f.calls.apply,0);const again=await f.host.execute(input,{authorize:f.authorize});assert.equal(again.taskId,receipt.taskId);assert.equal(f.calls.generate,1);f.host.dispose();
 });
@@ -202,4 +202,85 @@ test('global configuration does not bypass the existing native video profile val
   const f=await fixture({prepareInputs:(request,options)=>prepareVideoAnalysisMedia(request,{...options,nativeConfiguration:{protocol:'openai-native',capabilities:{videoAnalysis:{}}}})}),receipt=await f.host.execute(input,{authorize:f.authorize});await settled(f,receipt.taskId);
   const job=f.service.jobs.get(receipt.taskId);assert.equal(job.status,'configuration_required');assert.notEqual(job.providerDispatched,true);assert.equal(f.calls.generate,0);assert.match(f.host.get(input.operationId).error,/映射/);
   await f.host.execute(input,{authorize:f.authorize});assert.equal(f.calls.submit,1);f.host.dispose();
+});
+
+function recordStore({read,write}={}){
+ const rows=new Map(),calls=[];
+ return {rows,calls,async readRecord(key){calls.push(['read',key]);return read?read(key,rows):structuredClone(rows.get(key));},async writeRecord(key,value){calls.push(['write',key,structuredClone(value)]);if(write)await write(key,value,rows);rows.set(key,structuredClone(value));}};
+}
+const operationKey='agent-video-analysis-operations:project-a';
+const legacyKey='tapnow.agent.video-analysis.operations.v1.project-a';
+const operationRecord=(status='unknown',taskId='original-task')=>({version:1,operations:[{request:input,fingerprint:JSON.stringify(input),status,...taskId?{taskId}:{}}]});
+
+test('full localStorage does not gate IndexedDB operation receipts or duplicate dispatch',async()=>{
+ const store=recordStore();let legacyWrites=0;
+ const f=await fixture({options:{store,storage:{getItem:()=>null,setItem(){legacyWrites++;throw Error('localStorage quota');}}}});
+ const [a,b]=await Promise.all([f.host.execute(input,{authorize:f.authorize}),f.host.execute(input,{authorize:f.authorize})]);
+ assert.equal(a.taskId,b.taskId);await settled(f,a.taskId);await f.host.flush();
+ const saved=store.rows.get(operationKey);assert.equal(saved.projectId,'project-a');assert.equal(saved.operations[0].taskId,a.taskId);assert.equal(saved.operations[0].status,'succeeded');assert.equal(f.calls.generate,1);assert.equal(legacyWrites,0);
+ f.service.jobs.clear();const restored=f.newHost(),receipt=await restored.execute(input,{authorize:f.authorize});assert.equal(receipt.status,'unknown');assert.equal(receipt.taskId,a.taskId);assert.equal(f.calls.submit,1);restored.dispose();f.host.dispose();
+});
+
+test('legacy journal migration preserves original identity and leaves its localStorage value untouched',async()=>{
+ const store=recordStore(),storage=memoryStorage(),raw=JSON.stringify(operationRecord());storage.setItem(legacyKey,raw);
+ const f=await fixture({options:{store,storage}}),receipt=await f.host.execute(input,{authorize:f.authorize});
+ assert.equal(receipt.status,'unknown');assert.equal(receipt.taskId,'original-task');assert.equal(f.calls.decode.length,0);assert.equal(f.calls.submit,0);
+ assert.equal(storage.getItem(legacyKey),raw);assert.deepEqual(store.rows.get(operationKey).operations,JSON.parse(raw).operations);f.host.dispose();
+});
+
+test('read, migration and preparing writes fail closed without falling back or reading media',async()=>{
+ for(const stage of ['read','migration','preparing']){
+  const storage=memoryStorage();if(stage==='migration')storage.setItem(legacyKey,JSON.stringify(operationRecord()));
+  const before=storage.getItem(legacyKey),store=recordStore({read:stage==='read'?async()=>{throw Error('IDB read failed');}:undefined,write:stage!=='read'?async()=>{throw Error('IDB write failed');}:undefined});
+  const f=await fixture({options:{store,storage}});await assert.rejects(f.host.execute(input,{authorize:f.authorize}),/IDB|记录未能保存/);
+  assert.equal(f.calls.decode.length,0);assert.equal(f.calls.submit,0);assert.equal(storage.getItem(legacyKey),before);f.host.dispose();
+ }
+});
+
+test('an invalid or wrong-project IndexedDB journal never falls back to a legacy receipt',async()=>{
+ for(const value of [{version:2,operations:[]},{...operationRecord(),projectId:'project-b'}]){
+  const store=recordStore(),storage=memoryStorage();store.rows.set(operationKey,value);storage.setItem(legacyKey,JSON.stringify(operationRecord()));
+  const f=await fixture({options:{store,storage}});await assert.rejects(f.host.execute(input,{authorize:f.authorize}),error=>error.code==='operation_storage_invalid');
+  assert.equal(f.calls.submit,0);assert.equal(store.calls.filter(([kind])=>kind==='write').length,0);f.host.dispose();
+ }
+});
+
+test('slow preparing commit blocks media and navigation; cancellation cannot dispatch after the commit',async()=>{
+ const gate=deferred(),entered=deferred(),store=recordStore({write:async(key,value)=>{if(value.operations[0].status==='preparing'){entered.resolve();await gate.promise;}}});
+ const f=await fixture({options:{store}}),controller=new AbortController(),pending=f.host.execute(input,{authorize:f.authorize,signal:controller.signal});await entered.promise;
+ assert.equal(f.calls.decode.length,0);assert.equal(f.calls.submit,0);assert.match(await [...f.navigation][0](),/正在准备/);
+ const event=new Event('beforeunload',{cancelable:true});f.window.dispatchEvent(event);assert.equal(event.defaultPrevented,true);
+ controller.abort();gate.resolve();await assert.rejects(pending,error=>error.name==='AbortError');await f.host.flush();assert.equal(f.calls.submit,0);
+ const restored=f.newHost();await restored.execute(input,{authorize:f.authorize});assert.equal(f.calls.submit,0);restored.dispose();f.host.dispose();
+});
+
+test('task identity must commit before dispatch and a failed identity commit keeps the original preparing receipt',async()=>{
+ const store=recordStore({write:async(key,value)=>{if(value.operations[0].taskId)throw Error('identity write failed');}});
+ const f=await fixture({options:{store}});await assert.rejects(f.host.execute(input,{authorize:f.authorize}),error=>error.code==='operation_save_failed'||error.code==='dispatch_stopped');
+ await tick();assert.equal(f.calls.submit,1);assert.equal(f.calls.generate,0);assert.equal(store.rows.get(operationKey).operations[0].status,'preparing');assert.equal(store.rows.get(operationKey).operations[0].taskId,undefined);
+ await assert.rejects(f.host.flush(),error=>error.code==='operation_save_failed');assert.match(await [...f.navigation][0](),/记录未能保存/);
+ f.service.jobs.clear();const restored=f.newHost(),receipt=await restored.execute(input,{authorize:f.authorize});assert.equal(receipt.status,'unknown');assert.equal(receipt.recoveryRequired,true);assert.equal(f.calls.submit,1);restored.dispose();f.host.dispose();
+});
+
+test('flush and project navigation include journal writes queued while an older commit is pending',async()=>{
+ const gate=deferred(),entered=deferred();let slow=false;
+ const store=recordStore({write:async()=>{if(slow){entered.resolve();await gate.promise;}}}),f=await fixture({options:{store}}),receipt=await f.host.execute(input,{authorize:f.authorize});await settled(f,receipt.taskId);await f.host.flush();
+ slow=true;const job=f.service.jobs.get(receipt.taskId);f.service.emit({...job,status:'unknown'});await entered.promise;
+ let flushed=false,navigated=false;const flush=f.host.flush().then(()=>{flushed=true;}),navigation=[...f.navigation][0]().then(reason=>{navigated=true;return reason;});
+ f.service.emit({...job,status:'succeeded'});await tick();assert.equal(flushed,false);assert.equal(navigated,false);
+ gate.resolve();await flush;assert.equal(await navigation,null);assert.equal(store.rows.get(operationKey).operations[0].status,'succeeded');f.host.dispose();
+});
+
+test('project identity captured before a slow journal read cannot redirect a write to the destination',async()=>{
+ const gate=deferred(),entered=deferred(),store=recordStore({read:async()=>{entered.resolve();return gate.promise;}}),f=await fixture({options:{store}}),pending=f.host.execute(input,{authorize:f.authorize});
+ await entered.promise;f.setProject('project-b');gate.resolve(undefined);await assert.rejects(pending,error=>error.code==='source_changed');assert.equal(f.calls.decode.length,0);assert.equal(f.calls.submit,0);assert.equal(store.calls.filter(([kind])=>kind==='write').length,0);f.host.dispose();
+});
+test('source changes while loading a journal remain sticky even when the old source returns',async()=>{
+ const gate=deferred(),entered=deferred(),store=recordStore({read:async()=>{entered.resolve();return gate.promise;}}),f=await fixture({options:{store}}),pending=f.host.execute(input,{authorize:f.authorize});
+ await entered.promise;f.state.nodes[0].video='asset:replacement';f.render();f.state.nodes[0].video='asset:source';f.render();gate.resolve(undefined);
+ await assert.rejects(pending,error=>error.code==='source_changed');assert.equal(f.calls.decode.length,0);assert.equal(f.calls.submit,0);assert.equal(store.calls.filter(([kind])=>kind==='write').length,0);f.host.dispose();
+});
+test('a conflicting IndexedDB journal commit cannot dispatch or replace legacy identity',async()=>{
+ const store=recordStore({write:async()=>{throw Object.assign(Error('another window updated the journal'),{name:'AgentConversationConflictError'});}}),f=await fixture({options:{store}});
+ await assert.rejects(f.host.execute(input,{authorize:f.authorize}),error=>error.code==='operation_save_failed'&&error.cause.name==='AgentConversationConflictError');assert.equal(f.calls.decode.length,0);assert.equal(f.calls.submit,0);assert.equal(f.storage.rows.size,0);f.host.dispose();
 });

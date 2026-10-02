@@ -61,3 +61,15 @@ test('fixed Agent/config/task routes and same-origin fixture media remain availa
     ['http://127.0.0.1:4173/qa/trim-scenes.mp4', 'http://127.0.0.1:4173/style.css', '/qa/video-analysis-native-result.json']);
   assert.ok(f.values.has('qa-agent-video-analysis:network-test:tapnow-agent-chats'));
 });
+
+test('dispatch acknowledgment uses committed IndexedDB conversation rather than a stale localStorage mirror', async () => {
+  const f=fixture();let record=null;
+  f.window.localStorage.setItem('tapnow-agent-chats',JSON.stringify([{messages:[{name:'video_analyze',submittedTaskId:'task'}]}]));
+  f.window.CanvasProjects={id:()=> 'separate-project'};
+  f.window.CanvasStore={readRecord:async key=>{assert.equal(key,'agent-conversations:separate-project');return record;}};
+  const options={method:'POST',headers:{'Idempotency-Key':'task'},body:JSON.stringify({kind:'video.analyze',inputs:[{url:'data:video/mp4;base64,AA=='}]})};
+  await assert.rejects(f.window.fetch('/api/generation/tasks',options),/持久回执缺失/);
+  assert.equal(f.forwarded.length,0);
+  record={chats:[{messages:[{name:'video_analyze',submittedTaskId:'task'}]}]};
+  assert.equal((await (await f.window.fetch('/api/generation/tasks',options)).json()).status,'succeeded');
+});

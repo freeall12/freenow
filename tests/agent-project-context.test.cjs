@@ -81,3 +81,16 @@ test('native reload prompts while a captured conversation snapshot has not commi
  const event={preventDefault(){prevented=true;}};host.events.get('beforeunload')(event);assert.equal(prevented,true);assert.equal(event.returnValue,'');
  await host.persistence.flush();prevented=false;host.events.get('beforeunload')({preventDefault(){prevented=true;}});assert.equal(prevented,false);
 });
+test('IndexedDB conversation saves never mirror growing history into legacy localStorage',async()=>{
+ const project=resolve({projects:{id:()=> 'canvas'}}),legacy='[{"id":"legacy","text":"old snapshot"}]',storage=new Map([['tapnow-agent-chats',legacy],['tapnow-agent-active-chat','legacy']]);
+ let writes=0,snapshot;
+ const persistence=createConversations({project,storage:{setItem(){writes++;throw Error('must remain read-only');}},store:{writeRecord:async(key,value)=>{assert.equal(key,'agent-conversations:canvas');snapshot=structuredClone(value);}}});
+ persistence.save([{id:'chat',text:'x'.repeat(6*1024*1024),messages:[]}],'chat');await persistence.flush();
+ assert.equal(snapshot.chats[0].text.length,6*1024*1024);assert.equal(writes,0);assert.equal(storage.get('tapnow-agent-chats'),legacy);assert.equal(storage.get('tapnow-agent-active-chat'),'legacy');
+});
+test('conversation persistence retains a strict localStorage fallback when no IndexedDB adapter exists',async()=>{
+ const storage=new Map(),project=resolve({projects:{id:()=> 'fallback'}}),persistence=createConversations({project,storage:{setItem:(key,value)=>storage.set(key,value)}});
+ assert.equal(persistence.save([{id:'chat',text:'fallback',messages:[]}],'chat'),true);await persistence.flush();
+ assert.equal(JSON.parse(storage.get('tapnow-agent-chats:project:fallback'))[0].text,'fallback');
+ const broken=createConversations({project,storage:{setItem(){throw Error('quota');}}});assert.equal(broken.save([{id:'chat',text:'unsaved'}],'chat'),false);await assert.rejects(broken.flush(),/quota/);
+});
