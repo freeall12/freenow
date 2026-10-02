@@ -12,6 +12,9 @@ function appEdits(trace){
  if(trace.name!=='show_app'||trace.status!=='done'||trace.error||trace.result?.error||trace.result?.kind!=='mcp_app')return undefined;
  // These writes happen after show_app has returned. Keep committed receipts in
  // later turns without replaying previews or treating an old node as still live.
+ if(['ui://tapnow/animatic@v2','ui://tapnow/previs@v3','ui://tapnow/ecommerce-photoset@v2'].includes(trace.result.resource_uri)){
+  return project({acceptedHandoffs:trace.appHandoffs?.slice(-16)||[],...(trace.animaticJobs?{animaticJobs:trace.animaticJobs.slice(-16)}:{}),...(trace.animaticContext?{modelContext:trace.animaticContext}:{}),...(trace.previsReplies?{previsReplies:trace.previsReplies.slice(-16)}:{}),...(trace.appReplyReceipts?{appReplyRuns:trace.appReplyReceipts.slice(-16)}:{}),...(trace.previsJobs?{previsJobs:trace.previsJobs.slice(-16)}:{}),...(trace.ecommercePhotosetOperations?{photoSetOperations:trace.ecommercePhotosetOperations.slice(-16)}:{}),...(trace.ecommercePhotosetContext?{modelContext:trace.ecommercePhotosetContext}:{})});
+ }
  if(trace.result.resource_uri==='ui://tapnow/color-adjust@v2'&&trace.colorAdjustReceipt){
   return project({colorAdjustment:trace.colorAdjustReceipt,...(trace.colorAdjustContext?{modelContext:trace.colorAdjustContext}:{})});
  }

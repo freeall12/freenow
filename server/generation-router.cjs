@@ -5,7 +5,7 @@ const {createArkProvider}=require('./generation-ark.cjs');
 const {createFalProvider}=require('./generation-fal.cjs');
 const {createTripoProvider}=require('./generation-tripo.cjs');
 const {createMiniMaxProvider}=require('./generation-minimax.cjs');
-const {normalizeApiBaseUrl}=require('../generation-api.js');
+const {endpoint:tasksEndpoint,protectGenerationFetch}=require('./generation-endpoint-policy.cjs');
 const {rejectCredentials}=require('./generation-durable.cjs');
 const object=value=>value&&typeof value==='object'&&!Array.isArray(value);
 const own=(value,key)=>Object.hasOwn(value,key);
@@ -22,10 +22,10 @@ function requestAlias(request){
 
 // This task adapter makes one POST. Recovery only queries an accepted identity;
 // HTTP failures, redirects and malformed receipts never trigger another POST.
-function createTasksProvider({baseUrl='',apiKey='',modelMap,fetchImpl=fetch}={}){
+function createTasksProvider({baseUrl='',apiKey='',modelMap,fetchImpl=fetch,allowUnauthenticated=false,rejectCredentialEcho=false}={}){
  let endpoint='',configurationError=null;
- try{if(baseUrl)endpoint=normalizeApiBaseUrl(baseUrl);if(modelMap!==undefined&&!object(modelMap)&&typeof modelMap!=='string')throw Error();if(typeof modelMap==='string'&&!object(JSON.parse(modelMap)))throw Error();}catch{configurationError='configuration_invalid';}
- const missing=[...(!baseUrl?['GENERATION_API_BASE_URL']:[]),...(!apiKey?['GENERATION_API_KEY']:[])];
+ try{if(baseUrl)endpoint=tasksEndpoint(baseUrl);if(modelMap!==undefined&&!object(modelMap)&&typeof modelMap!=='string')throw Error();if(typeof modelMap==='string'&&!object(JSON.parse(modelMap)))throw Error();}catch{configurationError='configuration_invalid';}
+ const missing=[...(!baseUrl?['GENERATION_API_BASE_URL']:[]),...(!apiKey&&!allowUnauthenticated?['GENERATION_API_KEY']:[])];
  const configured=!configurationError&&!missing.length;
  const fingerprint=digest({protocol:'tasks-v1',endpoint,modelMap:modelMap||null});
  const metadata={configured,protocol:'tasks-v1',missing,configurationError,capabilities:{kinds:[],references:'gateway-defined',remoteRecovery:true,remoteCancellation:'receipt-required',verified:'local-contract-only'}};
@@ -43,13 +43,15 @@ function createTasksProvider({baseUrl='',apiKey='',modelMap,fetchImpl=fetch}={})
   const abort=()=>rejectAbort(combined.reason);combined.addEventListener('abort',abort,{once:true});if(combined.aborted)abort();
   const wait=fn=>Promise.race([Promise.resolve().then(()=>{if(combined.aborted)throw combined.reason;return fn();}),interrupted]);
   try{
-   const response=await wait(()=>fetchImpl(endpoint+'/tasks'+(id===undefined?'':'/'+encodeURIComponent(id)),{method,redirect:'error',headers:{'Content-Type':'application/json',Authorization:'Bearer '+apiKey},signal:combined,...(body?{body:JSON.stringify(body)}:{})}));
+   const response=await wait(()=>fetchImpl(endpoint+'/tasks'+(id===undefined?'':'/'+encodeURIComponent(id)),{method,redirect:'error',headers:{'Content-Type':'application/json',...(apiKey?{Authorization:'Bearer '+apiKey}:{})},signal:combined,...(body?{body:JSON.stringify(body)}:{})}));
    if(!response.ok||Number(response.headers?.get('content-length'))>1024*1024){response.body?.cancel().catch(()=>{});throw Error();}
    if(!response.body?.getReader)throw Error();
    const reader=response.body.getReader(),parts=[];let bytes=0,complete=false;
    try{for(;;){const chunk=await wait(()=>reader.read());if(chunk.done){complete=true;break;}bytes+=chunk.value.byteLength;if(bytes>1024*1024)throw Error();parts.push(Buffer.from(chunk.value));}}
    finally{if(!complete)reader.cancel().catch(()=>{});reader.releaseLock();}
-   const value=JSON.parse(Buffer.concat(parts).toString('utf8'));if(!object(value))throw Error();return value;
+   const value=JSON.parse(Buffer.concat(parts).toString('utf8'));
+   const echoes=item=>typeof item==='string'?item.includes(apiKey):item&&typeof item==='object'&&Object.entries(item).some(([key,entry])=>key.includes(apiKey)||echoes(entry));
+   if(!object(value)||rejectCredentialEcho&&apiKey&&echoes(value))throw Error();return value;
   }catch{if(signal?.aborted)throw signal.reason;throw failure('生成服务请求状态未确认，请查询原任务；未自动重试','unknown');}
   finally{combined.removeEventListener('abort',abort);}
  }
@@ -87,13 +89,15 @@ function createTasksProvider({baseUrl='',apiKey='',modelMap,fetchImpl=fetch}={})
  return {configured,fingerprint,metadata,prepare,submit,poll,cancel,generate};
 }
 
-function createGenerationRouter({providers={},routes={},fetchImpl=fetch}={}){
+function createGenerationRouter({providers={},routes={},fetchImpl=fetch,localPort}={}){
+ fetchImpl=protectGenerationFetch(fetchImpl);
  let instances={},normalized={},configurationError=null;
  try{
   if(typeof providers==='string')providers=JSON.parse(providers);if(typeof routes==='string')routes=JSON.parse(routes);
   if(!object(providers)||!object(routes)||Object.keys(providers).length>100||Object.keys(routes).length>100)throw Error();
   for(const [id,config]of Object.entries(providers)){
    if(!providerPattern.test(id)||!object(config)||!['tasks-v1','openai-native','ark-native','fal-native','tripo-native','minimax-native'].includes(config.protocol)||Object.keys(config).some(key=>!['protocol','baseUrl','apiKey','modelMap','client'].includes(key))||['baseUrl','apiKey'].some(key=>config[key]!==undefined&&typeof config[key]!=='string'))throw Error();
+   if(config.baseUrl)tasksEndpoint(config.baseUrl,{localPort});if(config.client?.baseURL)tasksEndpoint(config.client.baseURL,{localPort});
    const provider=(config.protocol==='openai-native'?createOpenAINativeProvider:config.protocol==='ark-native'?createArkProvider:config.protocol==='fal-native'?createFalProvider:config.protocol==='tripo-native'?createTripoProvider:config.protocol==='minimax-native'?createMiniMaxProvider:createTasksProvider)({...config,fetchImpl});
    if(config.protocol!=='tasks-v1'){
     const map=provider.metadata.configurationError?{}:typeof config.modelMap==='string'?JSON.parse(config.modelMap):config.modelMap||{};
@@ -155,4 +159,4 @@ function createGenerationRouter({providers={},routes={},fetchImpl=fetch}={}){
  function isPollable(request){try{return typeof select(request).provider.poll==='function';}catch{return false;}}
  return {configured,fingerprint,metadata,prepare,submit,generate,poll,cancel,protocolFor,isPollable,isConfigured:()=>configured};
 }
-module.exports={createGenerationRouter};
+module.exports={createGenerationRouter,createTasksProvider};

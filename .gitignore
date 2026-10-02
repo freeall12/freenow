@@ -120,3 +120,7 @@ reference/*
 # Public, self-contained generation-media browser fixture.
 !qa/generation-local-media.html
 !qa/generation-local-media.mjs
+
+# Machine-local exact resource mappings; hashes still describe private inputs.
+/assets/local-resource-index.json
+/assets/.local-resource-index-*

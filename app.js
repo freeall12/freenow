@@ -10,6 +10,7 @@
   const gestureQueue=window.CanvasNavigation.gestureQueue();
   let history = [], future = [], filter = 'all', graphLoaded = false, graphReadFailed = false, localChanges = 0, focusRevision = 0, viewportFrame = 0, saveRevision = 0;
   let generationPlanModule;
+  let resourceMigrationStatus=null;
   const generationRuns = new Map();
   let searchFocusTimer=0,searchFocusElement=null;
   const initial = !data.nodes.length||window.CanvasProjects&&!window.CanvasProjects.isDefault()?{x:0,y:0,scale:1}:{x: -11821.75458177424, y: 1093.1602809876204, scale: 0.22841067612171173};
@@ -417,6 +418,7 @@
     getState:()=>({nodes,edges,selected:[...selected],view:{...view}}),
     projectIdentity:()=>window.CanvasProjects?.current()||{id:'canvas',title:$('#project-title').textContent},
     projectSnapshot:()=>window.CanvasProjects?.snapshot({version:1,nodes,edges},view,history,future)||{version:1,nodes,edges},
+    resourceMigrationStatus:()=>resourceMigrationStatus?structuredClone(resourceMigrationStatus):null,
     async saveProject(){if(!graphLoaded||graphReadFailed)throw Error('画布尚未成功读取，已停止保存以保护已有数据');flushGesture();saveView();const saving=persist();if(!saving)throw Error('当前画布未能保存，请保留此页面并重试');await saving;await window.CanvasStore.flush();},
     async prepareProjectNavigation(){cancelViewportAnimation();await this.saveProject();},
     async renameProject(name){if(!graphLoaded||graphReadFailed)throw Error('画布尚未成功读取，请稍后重试');window.CanvasProjects.setTitle(name);await this.saveProject();return window.CanvasProjects.current();},
@@ -584,10 +586,22 @@
   rebuild();
   import('./src/features/canvas-minimap/entry.mjs').then(module=>{window.CanvasMinimap=module.install(window.CanvasApp);render();}).catch(error=>{console.error('Canvas minimap:',error);notify('小地图加载失败，请刷新页面');});
   import('./src/features/canvas-connections/entry.mjs').then(module=>{window.CanvasConnections=module.install(window.CanvasApp);render();}).catch(error=>{console.error('Canvas connections:',error);notify('连线控件加载失败，请刷新页面');});
-  window.CanvasStore.load().then(saved=>{
-    const valid=saved?.version===1&&Array.isArray(saved.nodes)&&Array.isArray(saved.edges)&&saved.nodes.every(n=>typeof n.id==='string'&&[n.x,n.y,n.width,n.height].every(Number.isFinite)&&n.width>0&&n.height>0)&&new Set(saved.nodes.map(n=>n.id)).size===saved.nodes.length&&saved.edges.every(e=>typeof e.id==='string'&&typeof e.source==='string'&&typeof e.target==='string');
+  window.CanvasStore.load().then(async saved=>{
+    let valid=saved?.version===1&&Array.isArray(saved.nodes)&&Array.isArray(saved.edges)&&saved.nodes.every(n=>typeof n.id==='string'&&[n.x,n.y,n.width,n.height].every(Number.isFinite)&&n.width>0&&n.height>0)&&new Set(saved.nodes.map(n=>n.id)).size===saved.nodes.length&&saved.edges.every(e=>typeof e.id==='string'&&typeof e.source==='string'&&typeof e.target==='string');
     if(saved!=null&&!valid)throw Error('本地画布数据格式无效');
     if(window.CanvasProjects&&!window.CanvasProjects.isDefault()&&saved==null)throw Error('未找到此本地画布，不能保存到不存在的项目');
+    if(valid&&window.CanvasProjects&&typeof window.fetch==='function'){
+      const migration=await import('./src/features/local-resource-migration/canvas-load.mjs');
+      const indexState=await migration.loadResourceIndex({fetchIndex:window.fetch.bind(window)});
+      const expectedChanges=localChanges;
+      let report;
+      try{report=await migration.migrateLoadedCanvas({saved,store:window.CanvasStore,id:window.CanvasProjects.id(),indexState,canCommit:()=>localChanges===expectedChanges&&expectedChanges===0&&!graphLoaded});}
+      catch(error){resourceMigrationStatus={status:'migration_failed',persisted:false,summary:null};migration.showMigrationNotice(resourceMigrationStatus);throw error;}
+      resourceMigrationStatus={status:report.status,persisted:report.persisted,summary:report.summary,diagnostics:report.diagnostics||[]};
+      migration.showMigrationNotice(resourceMigrationStatus);
+      if(report.status==='local_edits'){window.CanvasProjects.markDirty();throw Error('资源迁移期间画布已修改，已停止恢复以保护当前内容');}
+      saved=report.snapshot;valid=migration.validCanvasSnapshot(saved);
+    }
     window.CanvasProjects?.hydrate(saved);
     if(valid&&!localChanges&&window.CanvasProjects){
       const savedView=window.CanvasNavigation.parseView(JSON.stringify(saved.view));

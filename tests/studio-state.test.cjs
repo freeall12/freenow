@@ -19,3 +19,8 @@ test('deleted setup or malformed result cannot insert a model elsewhere',()=>{
  assert.throws(()=>applyModels(fixture(),{...job,outputs:[{type:'model',url:'javascript:alert(1)'}]}),/地址/);
  assert.throws(()=>applyModels(fixture(),{...job,request:{parameters:{position:[NaN,0,0]}}}),/坐标/);
 });
+test('locally materialized generated models retain their exact source through scene setup insertion',()=>{
+ const ref='/api/generation/media/528237bf-670a-462b-ae7c-d3301d39076e';
+ const result=applyModels(fixture(),{...job,outputs:[{type:'model',url:ref}]});assert.equal(result.data.setups[0].objects.find(o=>o.generationJobId===job.id).sourceUrl,ref);
+ for(const invalid of [ref+'?download=1','/api/generation/media/invalid','/private/model.glb','//evil.test/model.glb'])assert.throws(()=>applyModels(fixture(),{...job,outputs:[{type:'model',url:invalid}]}),/地址/);
+});

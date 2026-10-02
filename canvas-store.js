@@ -55,9 +55,9 @@
         tx.onabort=()=>reject(tx.error||new Error('本地画布读取中断'));
       });
     },
-    save(state,id=currentId()) {
+    save(state,id=currentId(),{preserveSnapshot=false,beforeCommit}={}) {
       // Capture synchronously; flush waits for the transaction, including writes queued during its wait.
-      const complete=window.CanvasProjects&&id===currentId()&&!state.project?window.CanvasApp?.projectSnapshot?.():null;
+      const complete=!preserveSnapshot&&window.CanvasProjects&&id===currentId()&&!state.project?window.CanvasApp?.projectSnapshot?.():null;
       const snapshot = structuredClone(complete?{...complete,...state}:state),key=keyFor(id);
       if(snapshot.project?.id&&snapshot.project.id!==id)throw Error('画布快照与保存项目不匹配');
       const previous=latestSave;
@@ -66,11 +66,18 @@
         const tx = db.transaction('documents', 'readwrite');
         let conflict=null,nextRevision=null;
         const store=tx.objectStore('documents');
+        const canCommit=()=>{
+          if(typeof beforeCommit!=='function')return true;
+          try{if(beforeCommit()===true)return true;conflict=new Error('画布快照已变化，已停止资源迁移以保护当前修改');conflict.name='CanvasSnapshotChangedError';}
+          catch(error){conflict=error;}
+          tx.abort();return false;
+        };
         // Compare inside the same read/write transaction. Another tab cannot
         // replace a newer graph with a stale whole-document snapshot.
         if(window.CanvasProjects){
           const request=store.get(key);
           request.onsuccess=()=>{
+            if(!canCommit())return;
             const expected=revisions.get(key),actual=revisionOf(request.result);
             if((expected===undefined&&request.result!==undefined)||(expected!==undefined&&expected!==actual)){
               conflict=new Error('另一窗口已更新此画布，当前修改尚未保存。请保留此页面并先处理版本冲突');conflict.name='CanvasProjectConflictError';tx.abort();return;
@@ -82,7 +89,7 @@
             nextRevision=actual+1;snapshot.storageRevision=nextRevision;store.put(snapshot,key);
           };
           request.onerror=()=>reject(request.error);
-        }else store.put(snapshot,key);
+        }else if(canCommit())store.put(snapshot,key);
         tx.oncomplete = () => {if(nextRevision!==null)revisions.set(key,nextRevision);resolve();};
         tx.onerror = () => reject(tx.error);
         tx.onabort = () => reject(conflict||tx.error || new Error('本地保存中断'));

@@ -26,10 +26,13 @@ function parseModelMap(value){
  return structuredClone(map);
 }
 function createOpenAINativeProvider({apiKey='',baseUrl='',modelMap,client,fetchImpl=fetch}={}){
+ const {endpoint:checkedEndpoint,protectGenerationFetch}=require('./generation-endpoint-policy.cjs');
+ fetchImpl=protectGenerationFetch(fetchImpl);
  let mapping={},configurationError=null,endpoint='';
  try{
   mapping=parseModelMap(modelMap);
-  if(baseUrl){const url=new URL(baseUrl);if(!['https:','http:'].includes(url.protocol)||url.username||url.password||url.search||url.hash)throw fail('生成API地址配置无效','configuration_invalid');endpoint=url.href.replace(/\/$/,'');}
+  if(baseUrl||client?.baseURL)endpoint=checkedEndpoint(baseUrl||client.baseURL);
+  if(baseUrl&&client?.baseURL&&endpoint!==checkedEndpoint(client.baseURL))throw fail('生成API地址配置不一致','configuration_invalid');
  }catch{configurationError='configuration_invalid';}
  const missing=[...(!apiKey&&!client?['GENERATION_API_KEY']:[]),...(!Object.keys(mapping).length?['GENERATION_MODEL_MAP']:[])];
  const configured=!configurationError&&!missing.length;
@@ -39,7 +42,9 @@ function createOpenAINativeProvider({apiKey='',baseUrl='',modelMap,client,fetchI
  const analysis=Object.fromEntries(Object.entries(mapping).filter(([,entry])=>entry.kind==='image.recognize').map(([alias,entry])=>[alias,Analysis.analysisCapabilities(entry)]));
  const videoAnalysis=Object.fromEntries(Object.entries(mapping).filter(([,entry])=>entry.kind==='video.analyze').map(([alias,entry])=>[alias,VideoAnalysis.videoAnalysisCapabilities(entry)]));
  const metadata={configured,protocol:'openai-native',missing,configurationError,capabilities:{kinds:[...new Set(Object.values(mapping).map(entry=>entry.kind))],references:!!Object.keys(imageReferences).length,imageReferences,speech,analysis,videoAnalysis,textReferences:true,remoteRecovery:false,remoteCancellation:false,verified:'local-contract-only'}};
- let sdk=client;
+ // Clone the installed SDK so injected clients also use the destination guard;
+ // changing this transport must not mutate a client shared by other features.
+ let sdk=client?.withOptions?client.withOptions({fetch:fetchImpl,maxRetries:0}):client;
  function resolve(request){
   if(!configured)throw fail(configurationError?'生成API配置无效，请检查服务端模型映射与地址':'生成API尚未配置','configuration_required');
   if(Buffer.byteLength(JSON.stringify(request))>64*1024*1024)throw fail('完整生成请求超过64 MiB，未提交模型');

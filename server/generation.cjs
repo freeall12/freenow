@@ -1,6 +1,8 @@
 'use strict';
-const {TaskService, httpProvider,normalizeApiBaseUrl} = require('../generation-api.js');
-const {randomUUID}=require('node:crypto');
+const {TaskService, httpProvider} = require('../generation-api.js');
+const {randomUUID,createHash}=require('node:crypto');
+const {createGenerationSessionConfiguration}=require('./generation-session-config.cjs');
+const {endpoint:tasksEndpoint,protectGenerationFetch}=require('./generation-endpoint-policy.cjs');
 const path=require('node:path');
 const {createGenerationMediaStore}=require('./generation-media-store.cjs');
 const {createGenerationMediaHttp}=require('./generation-media-http.cjs');
@@ -13,15 +15,19 @@ const {createMiniMaxProvider}=require('./generation-minimax.cjs');
 const {createGenerationRouter}=require('./generation-router.cjs');
 const {localVideoErrorMessage}=require('./video-analysis-errors.cjs');
 
-// Only the operator-selected task gateway receives requests. Browser payloads
-// cannot choose a destination or supply server credentials.
-function createGenerationGateway({baseUrl = '', apiKey = '', fetchImpl = fetch, now = Date.now, directory, protocol='tasks-v1',modelMap,client,providers,routes,mediaDirectory,mediaStore:injectedMediaStore,mediaMaterializer:injectedMaterializer} = {}) {
+// Task payloads cannot choose a destination or carry credentials. Local config
+// writes select an immutable server transport before any task is persisted.
+function createGenerationGateway({baseUrl = '', apiKey = '', fetchImpl = fetch, now = Date.now, directory, protocol='tasks-v1',modelMap,client,providers,routes,mediaDirectory,mediaStore:injectedMediaStore,mediaMaterializer:injectedMaterializer,localPort} = {}) {
   const routed=providers!==undefined||routes!==undefined;
-  const native=routed?createGenerationRouter({providers,routes,fetchImpl}):protocol==='openai-native'?createOpenAINativeProvider({baseUrl,apiKey,modelMap,client,fetchImpl}):protocol==='ark-native'?createArkProvider({baseUrl,apiKey,modelMap,fetchImpl}):protocol==='fal-native'?createFalProvider({baseUrl,apiKey,modelMap,fetchImpl}):protocol==='tripo-native'?createTripoProvider({baseUrl,apiKey,modelMap,fetchImpl}):protocol==='minimax-native'?createMiniMaxProvider({baseUrl,apiKey,modelMap,fetchImpl}):null;
-  const invalidProtocol=!routed&&!['tasks-v1','openai-native','ark-native','fal-native','tripo-native','minimax-native'].includes(protocol);
+  fetchImpl=protectGenerationFetch(fetchImpl);
   let invalidEndpoint=false;
-  if(!routed&&protocol==='tasks-v1'&&baseUrl){try{baseUrl=normalizeApiBaseUrl(baseUrl);}catch{invalidEndpoint=true;}}
-  const prepareRequest = async request => {
+  if(!routed){try{if(baseUrl)tasksEndpoint(baseUrl,{localPort});if(client?.baseURL)tasksEndpoint(client.baseURL,{localPort});}catch{invalidEndpoint=true;}}
+  const native=routed?createGenerationRouter({providers,routes,fetchImpl,localPort}):invalidEndpoint?null:protocol==='openai-native'?createOpenAINativeProvider({baseUrl,apiKey,modelMap,client,fetchImpl}):protocol==='ark-native'?createArkProvider({baseUrl,apiKey,modelMap,fetchImpl}):protocol==='fal-native'?createFalProvider({baseUrl,apiKey,modelMap,fetchImpl}):protocol==='tripo-native'?createTripoProvider({baseUrl,apiKey,modelMap,fetchImpl}):protocol==='minimax-native'?createMiniMaxProvider({baseUrl,apiKey,modelMap,fetchImpl}):null;
+  const invalidProtocol=!routed&&!['tasks-v1','openai-native','ark-native','fal-native','tripo-native','minimax-native'].includes(protocol);
+  if(!routed&&protocol==='tasks-v1'&&baseUrl){try{baseUrl=tasksEndpoint(baseUrl,{localPort});}catch{invalidEndpoint=true;}}
+  const prepareRequest = async (request,context={}) => {
+    const captured=context.provider===undefined?native:context.provider;
+    const capturedProtocol=context.protocol||protocol;
     if(request.kind==='video.depth'){const {prepareDepthTaskRequest}=await import('../src/features/agent-workflows/depth-video.mjs');return prepareDepthTaskRequest(request);}
     if (request.kind !== 'video.generate') return request;
     // Enforce the same draft/final wire contract for direct HTTP clients. The
@@ -30,10 +36,10 @@ function createGenerationGateway({baseUrl = '', apiKey = '', fetchImpl = fetch, 
     const prepared=prepareVideoRequest(request);
     // UI display labels may normalize, but explicit wire identities must never
     // select a different paid provider as a side effect of that normalization.
-    if(routed&&[request.parameters?.modelId,request.parameters?.providerParameters?.model].some(alias=>alias!==undefined&&alias!==(prepared.parameters?.providerParameters?.model??prepared.parameters?.modelId??prepared.parameters?.model)))throw Object.assign(Error('生成模型标识不一致，未更换供应商或提交模型'),{code:'unsupported_generation'});
+    if(captured?.metadata?.protocol==='routed'&&[request.parameters?.modelId,request.parameters?.providerParameters?.model].some(alias=>alias!==undefined&&alias!==(prepared.parameters?.providerParameters?.model??prepared.parameters?.modelId??prepared.parameters?.model)))throw Object.assign(Error('生成模型标识不一致，未更换供应商或提交模型'),{code:'unsupported_generation'});
     // The catalog may suggest UI defaults, but an explicit API request must not
     // silently turn unsupported native options into a different paid generation.
-    if(['ark-native','minimax-native'].includes(routed?native.protocolFor(prepared):protocol)&&!request.parameters?.draftVideoId){
+    if(['ark-native','minimax-native'].includes(captured?.protocolFor?captured.protocolFor(prepared):capturedProtocol)&&!request.parameters?.draftVideoId){
       const before=request.parameters||{},after=prepared.parameters||{};
       const fields={ratio:'ratio',aspectRatio:'ratio',aspect:'ratio',quality:'quality',resolution:'quality',duration:'duration',audio:'audio',generateAudio:'audio',generateMode:'generateMode',videoMode:'videoMode',variant:'variant',mode:'mode'};
       const changed=Object.entries(fields).some(([input,output])=>before[input]!==undefined&&before[input]!==after[output]);
@@ -46,9 +52,11 @@ function createGenerationGateway({baseUrl = '', apiKey = '', fetchImpl = fetch, 
   // legacy nonpersistent adapter contract, which does not localize media.
   const mediaStore=directory?(injectedMediaStore||(!injectedMaterializer?createGenerationMediaStore({directory:mediaDirectory||path.join(path.dirname(directory),path.basename(directory)+'-media'),maxBytes:256*1024*1024}):null)):null;
   const mediaMaterializer=directory?(injectedMaterializer||require('./generation-media-materializer.cjs').createGenerationMediaMaterializer({store:mediaStore})):null;
-  const service = directory ? createDurableGenerationService({directory,mediaMaterializer,baseUrl:native||invalidProtocol||invalidEndpoint?'':baseUrl,apiKey:invalidProtocol||invalidEndpoint?'':apiKey,fetchImpl,provider:native,now,prepareRequest}) : new TaskService({prepareRequest:async request=>{const prepared=await prepareRequest(request);if(native?.configured)native.prepare(prepared);return prepared;}});
   const configured=invalidProtocol||invalidEndpoint?false:native?native.configured:!!baseUrl&&!!apiKey;
   const configuration=native?native.metadata:{configured,protocol,missing:[...(!baseUrl?['GENERATION_API_BASE_URL']:[]),...(!apiKey?['GENERATION_API_KEY']:[])],configurationError:invalidProtocol||invalidEndpoint?'configuration_invalid':null,capabilities:{kinds:[],references:'gateway-defined',remoteRecovery:'gateway-defined',remoteCancellation:'gateway-defined',verified:'local-contract-only'}};
+  const environment={provider:native,configured,fingerprint:native?native.fingerprint:baseUrl&&!invalidEndpoint&&!invalidProtocol?createHash('sha256').update(baseUrl).digest('hex'):null,metadata:configuration};
+  const sessionConfiguration=directory?createGenerationSessionConfiguration({environment,fetchImpl,localPort}):null;
+  const service = directory ? createDurableGenerationService({directory,mediaMaterializer,baseUrl:native||invalidProtocol||invalidEndpoint?'':baseUrl,apiKey:invalidProtocol||invalidEndpoint?'':apiKey,fetchImpl,provider:native,now,prepareRequest,providerRegistry:sessionConfiguration}) : new TaskService({prepareRequest:async request=>{const prepared=await prepareRequest(request);if(native?.configured)native.prepare(prepared);return prepared;}});
   const mediaHttp=mediaStore?createGenerationMediaHttp({store:mediaStore,ownsResource:service.ownsResource}):null;
   const ready=Promise.all([service.ready||Promise.resolve(),mediaStore?.ready||Promise.resolve()]);
   ready.catch(()=>{});
@@ -72,18 +80,24 @@ function createGenerationGateway({baseUrl = '', apiKey = '', fetchImpl = fetch, 
       ...(job.error ? {error: job.code==='media_localization_failed'?(mediaRecoveryError||'生成已完成，素材保存失败；请重新取回素材'):job.status === 'unknown' ? '生成状态尚未确认，请查询恢复；不会自动重新生成' : job.status === 'configuration_required' ? '请检查服务端生成 API 协议、地址、Key 与真实模型映射后重启服务' : localError|| (job.code==='request_preparation_failed'?'当前生成参数或操作不受适配器支持，尚未提交模型':'生成服务请求失败，请检查供应商配置或重试')} : {})};
   }
   return {
-    configured,ready,close:async()=>{await service.close?.();await mediaHttp?.close();await mediaStore?.close();},
+    get configured(){return sessionConfiguration?sessionConfiguration.metadata().configured:configured;},ready,close:async()=>{await service.close?.();await mediaHttp?.close();await mediaStore?.close();},
     async handle(req, res, pathname, {json, body}) {
       await ready;
       prune();
       const media=pathname.match(/^\/api\/generation\/media\/([^/]+)$/);
       if(media)return mediaHttp?mediaHttp.handle(req,res,media[1],{json}):json(res,404,{code:'media_not_found',error:'本地媒体不存在'});
-      if (pathname === '/api/generation/config' && req.method === 'GET') return json(res, 200, {...configuration,recovery:!!directory});
+      if (pathname === '/api/generation/config') {
+        if(req.method==='GET')return json(res,200,{...(sessionConfiguration?sessionConfiguration.metadata():{...configuration,source:'environment'}),recovery:!!directory});
+        if(req.method==='POST'){if(!sessionConfiguration)return json(res,409,{code:'recovery_unavailable',error:'当前网关未启用本机持久生成服务'});return sessionConfiguration.handle(req,res,{json:(res,status,value)=>json(res,status,status===200?{...value,recovery:true}:value)});}
+        return json(res,405,{error:'Method not allowed'});
+      }
       if (pathname === '/api/generation/tasks' && req.method === 'POST') {
         const input = await body(req);
         if (typeof input.kind !== 'string' || !/^(image|video|audio|text|world|studio|model|panorama)\.[a-z][a-zA-Z.\-]*$/.test(input.kind) || (input.inputs !== undefined && !Array.isArray(input.inputs)) || (input.parameters !== undefined && (!input.parameters || typeof input.parameters !== 'object' || Array.isArray(input.parameters)))) return json(res, 400, {error: '生成任务参数无效'});
         if (!directory && service.jobs.size >= 500) return json(res, 429, {error: '任务记录已满，请稍后重试'});
-        const job = directory ? await service.submit(input,{idempotencyKey:req.headers?.['idempotency-key']||randomUUID()}) : service.submit(input);
+        let job;
+        try{job=directory?await service.submit(input,{idempotencyKey:req.headers?.['idempotency-key']||randomUUID(),configurationId:req.headers?.['x-generation-configuration-id']}):service.submit(input);}
+        catch(error){if(error.code==='configuration_changed')return json(res,409,{code:'configuration_changed',providerDispatched:false,error:'生成配置已变化，请刷新配置后重新确认提交；尚未提交供应商'});throw error;}
         return json(res, 202, publicJob(job));
       }
       const lookup=pathname.match(/^\/api\/generation\/tasks\/by-key\/([^/]+)$/);

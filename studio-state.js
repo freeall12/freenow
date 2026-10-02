@@ -2,6 +2,7 @@
 (function(root){
   'use strict';
   const copy=value=>structuredClone(value);
+  const isGenerationMediaRef=value=>(root.GenerationCore||(typeof module!=='undefined'?require('./generation-api.js'):null))?.isGenerationMediaRef?.(value)===true;
   function normalize(data){
     data.setups??=[{id:'example',name:'示例状态',objects:copy(data.objects),keyframes:copy(data.keyframes||[]),duration:data.duration??3}];
     data.activeSetup??='example';
@@ -37,7 +38,7 @@
     if(!Array.isArray(position)||position.length!==3||!position.every(Number.isFinite))throw Error('模型放置坐标无效');
     const objects=job.outputs.filter(o=>o.type==='model').map((output,index)=>{
       const sourceUrl=output.url||output.sourceUrl;
-      if(typeof sourceUrl!=='string'||!(/^(https?:|blob:|asset:)/.test(sourceUrl)))throw Error('模型地址无效');
+      if(typeof sourceUrl!=='string'||!(/^(https?:|blob:|asset:)/.test(sourceUrl)||isGenerationMediaRef(sourceUrl)))throw Error('模型地址无效');
       return {id:`generated-${job.id}-${index}`,kind:'model',name:output.title||job.request.prompt?.slice(0,40)||'3D 模型',sourceUrl,position:copy(position),rotation:[0,0,0],scale:[1,1,1],generationJobId:job.id};
     });
     if(!objects.length)throw Error('任务没有返回 3D 模型');

@@ -9,6 +9,8 @@
   const historyReadinessOriginals=new WeakMap();
   const providerConfigurationReady=import('./src/features/node-composer/provider-configuration.mjs');
   const taskNativeConfigurations=new WeakMap();
+  const taskConfigurationIds=new WeakMap();
+  const configurationClientReady=import('./src/features/generation-config/client.mjs');
   const provenanceReady=import('./src/features/media-preview/provenance.mjs');
   const applicationReady=import('./src/features/generation-results/application.mjs').then(module=>module.createApplicationRunner({getJob:id=>service.jobs.get(id),apply:applyResults,changed:applicationChanged}));
   const service=new GenerationCore.TaskService({prepareRequest:async(request,{jobId,signal})=>{
@@ -66,16 +68,21 @@
     media.assertWorkflowRequestBudget(request);validateSources();return request;
   }});
   const localProvider=GenerationCore.httpProvider({baseUrl:new URL('/api/generation',location.href).href,cancelRemote:true,recoverable:true});
+  localProvider.generate=async(request,options)=>{
+    const {configurationBoundProvider}=await configurationClientReady;
+    const transport=configurationBoundProvider(GenerationCore.httpProvider,{baseUrl:new URL('/api/generation',location.href).href,getConfigurationId:signal=>taskConfigurationIds.get(signal)});
+    return transport.generate(request,options);
+  };
   let serverConfigured=false;
   service.setProvider(localProvider);
   function refreshServerConfiguration(){return fetch('/api/generation/config',{signal:AbortSignal.timeout(5000)}).then(response=>response.ok?response.json():null).then(value=>{if(typeof value?.configured!=='boolean')return null;serverConfigured=value.configured;return value;}).catch(()=>null);}
   let serverConfiguration=refreshServerConfiguration();
   localProvider.isConfigured=async({request,signal}={})=>{
-    const configuration=serverConfiguration;
+    const configuration=serverConfiguration=refreshServerConfiguration();
     const [metadata,routing]=await Promise.all([configuration,providerConfigurationReady]);
     if(signal?.aborted)throw signal.reason;
     const selected=routing.resolveProviderConfiguration(metadata,request);
-    if(signal&&request?.kind)taskNativeConfigurations.set(signal,selected);
+    if(signal&&request?.kind){taskNativeConfigurations.set(signal,selected);if(typeof metadata?.configurationId==='string')taskConfigurationIds.set(signal,metadata.configurationId);}
     return routing.providerConfigured(metadata,request);
   };
   async function availability({signal,kind,request}={}){
@@ -227,25 +234,41 @@
     resultWorkflow?.clear(job.id);inPlace.get(job.id)?.reject(Error(job.error||'生成任务已取消'));}else if(job.status==='unknown'){inPlace.get(job.id)?.reject(Error(job.error||'生成状态待确认，请查询恢复'));}render();if(job.request.kind==='image.generate')app.render();});
   function configure(){
     const existing=document.querySelector('dialog.api-dialog');if(existing){existing.focus();return;}
-    const d=el('dialog','api-dialog'),header=el('div','dialog-heading');header.append(el('h2','','连接生成 API'),button('×',()=>d.close()));
+    const returnFocus=document.activeElement,d=el('dialog','api-dialog'),header=el('div','dialog-heading');
+    let saving=false,viewRevision=0;
+    const close=button('×',()=>{if(!saving)d.close();});close.setAttribute('aria-label','关闭 API 配置');
+    header.append(el('h2','','连接生成 API'),close);
     const status=el('p','','正在读取本机配置…'),readiness=el('div'),error=el('p','api-error');error.setAttribute('role','alert');
-    const showConfiguration=async metadata=>{
-      const routing=await providerConfigurationReady;if(!d.isConnected)return;
+    const showConfiguration=async(metadata,revision)=>{
+      const routing=await providerConfigurationReady;if(!d.isConnected||revision!==viewRevision)return;
       readiness.replaceChildren();
       if(metadata?.protocol==='routed'){
         const rows=routing.configurationReadiness(metadata);
         status.textContent=metadata.configurationError?'本机生成路由配置无效':metadata.configured?'本机生成服务已配置 · 按操作路由':'本机生成服务待配置 · 按操作路由';
         for(const row of rows)readiness.append(el('p','',row.operation+' · '+(row.provider||'未选择服务商')+' · '+(row.configurationError?'配置无效':row.configured?'已就绪':'待配置')+(row.missing.length?' · 缺少 '+row.missing.join('、'):'')));
         if(!rows.length&&metadata.missing?.length)readiness.append(el('p','','缺少 '+metadata.missing.join('、')));
-      }else status.textContent=metadata===null?'本机服务不可访问':metadata.configurationError?'本机生成配置无效':metadata.configured?'本机生成服务已配置 · '+metadata.protocol:'本机生成服务待配置 · '+(metadata.missing||[]).join('、');
+      }else status.textContent=metadata===null?'本机服务不可访问':metadata.configurationError?'本机生成配置无效':metadata.source==='session'?'本机任务网关已配置 · 当前服务进程内有效':metadata.configured?'本机生成服务已配置 · '+metadata.protocol:'本机生成服务待配置 · '+(metadata.missing||[]).join('、');
     };
-    d.append(header,status,readiness,button('使用本机服务',async()=>{serverConfiguration=refreshServerConfiguration();const metadata=await serverConfiguration;await showConfiguration(metadata);if(metadata===null){error.textContent='无法读取本机配置，请检查本地服务是否正在运行';return;}service.setProvider(localProvider);if(!metadata.configured){error.textContent=metadata.configurationError?'本机生成配置无效，请检查协议、地址与模型映射后重启服务':metadata.protocol==='routed'?'本机生成服务尚未就绪，请检查各操作的服务商配置':'本机尚未配置生成服务：'+(metadata.missing||[]).join('、');return;}d.close();}));
-    d.append(el('p','','直接连接仅支持 tasks-v1 网关（POST /tasks、GET /tasks/:id）。官方厂商 Key 需要对应适配器。服务端支持的原生协议请在本机配置；直接连接要求服务允许浏览器 CORS，Key 仅保留在当前页面内存。'));
     const url=el('input');url.type='url';url.placeholder='https://your-task-gateway.example/api';url.setAttribute('aria-label','API 基础地址');
     const key=el('input');key.type='password';key.autocomplete='off';key.placeholder='任务网关 API Key（可选）';key.setAttribute('aria-label','API Key');
-    d.append(url,key,error,button('保存配置',()=>{try{service.setProvider(GenerationCore.httpProvider({baseUrl:url.value.trim(),apiKey:key.value,cancelRemote:true}));key.value='';d.close();}catch(e){error.textContent=e.message;}}));
-    document.body.append(d);d.onclose=()=>{key.value='';d.remove();};d.showModal();
-    serverConfiguration=refreshServerConfiguration();serverConfiguration.then(showConfiguration);
+    const commit=async input=>{
+      if(saving)return;const revision=++viewRevision;saving=true;error.textContent='';for(const control of [close,environment,save,url,key])control.disabled=true;
+      try{
+        const [client,metadata]=await Promise.all([configurationClientReady,serverConfiguration=refreshServerConfiguration()]);
+        if(!metadata)throw Error('无法读取本机配置，请检查本地服务是否正在运行');
+        const result=await client.saveLocalGenerationConfiguration(input,{token:metadata.csrfToken,signal:AbortSignal.timeout(10000)});
+        serverConfigured=result.configured;serverConfiguration=Promise.resolve(result);service.setProvider(localProvider);key.value='';
+        await showConfiguration(result,revision);
+        if(!result.configured){error.textContent='已切换为本机环境配置，但仍缺少相应协议、模型或 Key；请配置后刷新。';return;}
+        d.close();
+      }catch(e){if(d.isConnected)error.textContent=e.message;}
+      finally{saving=false;for(const control of [close,environment,save,url,key])control.disabled=false;}
+    };
+    const environment=button('使用本机服务',()=>commit({mode:'environment'}));
+    const save=button('保存配置',()=>commit({baseUrl:url.value,apiKey:key.value}));
+    d.append(header,status,readiness,environment,el('p','','任务网关支持 tasks-v1（POST /tasks、GET /tasks/:id）。请求和结果保存由本机服务处理，无需浏览器 CORS。Key 仅保留在本机服务进程内存，重启后需重新输入；现有任务始终使用原配置。官方厂商 Key 请使用对应的本机原生适配器。'),url,key,error,save);
+    document.body.append(d);d.oncancel=event=>{if(saving)event.preventDefault();};d.onclose=()=>{key.value='';d.remove();if(returnFocus?.isConnected)returnFocus.focus?.();};d.showModal();
+    const revision=++viewRevision;serverConfiguration=refreshServerConfiguration();serverConfiguration.then(metadata=>showConfiguration(metadata,revision));
   }
   function runInPlace(request,{guard,type,didApply,patch,apply,applyBatch},{signal,onSubmitted}={}){
     let abort;const checkedGuard=()=>{if(signal?.aborted)throw new DOMException('Aborted','AbortError');guard();};
@@ -266,6 +289,8 @@
     let submission;
     if(['image.generate','video.generate','text.generate'].includes(request.kind)){
       let mode='variants';try{const saved=localStorage.getItem('tapnow.canvas.generation-result-mode');if(['pile','variants','spread'].includes(saved))mode=saved;}catch{}
+      // Host workflows own their result targets independently of the canvas menu preference.
+      if(options?.resultMode!==undefined){if(!['pile','variants','spread'].includes(options.resultMode))throw Error('生成结果布局无效');mode=options.resultMode;}
       request={...request,parameters:{...request.parameters,resultMode:mode}};
       const incoming=state.edges.filter(edge=>edge.target===request.nodeId),ids=new Set([request.nodeId,...incoming.map(edge=>edge.source)]);
       submission={mode,request:structuredClone(request),state:structuredClone({nodes:state.nodes.filter(node=>ids.has(node.id)||node.type==='pile'&&node.memberIds?.includes(request.nodeId)),edges:incoming})};

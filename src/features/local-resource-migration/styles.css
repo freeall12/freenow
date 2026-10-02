@@ -1,0 +1,2 @@
+.resource-migration-notice{position:fixed;left:16px;bottom:70px;z-index:45;max-width:min(440px,calc(100vw - 32px));padding:10px 12px;background:#262626;border:1px solid #554b3b;border-radius:8px;color:#e2d3b9;font-size:12px;line-height:1.5;overflow-wrap:anywhere;box-shadow:0 4px 16px #0004}
+.resource-migration-notice details{margin-top:6px}.resource-migration-notice summary{cursor:pointer}.resource-migration-notice ul{margin:6px 0 0;padding-left:18px;max-height:180px;overflow:auto;font-size:11px}

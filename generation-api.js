@@ -72,7 +72,7 @@
         if(job.controller.signal.aborted)return;
         this.validateResult(result);
         Object.assign(job,taskMediaState(result));job.outputs=result.outputs;job.progress=100;job.status='succeeded';
-      }catch(error){if(job.controller.signal.aborted)return;job.status=error.code==='configuration_required'?'configuration_required':error.code==='unknown'?'unknown':'failed';job.code=error.code;if(error.providerDispatched===false&&job.status==='failed')job.providerDispatched=false;job.recovery=error.recovery;Object.assign(job,taskMediaState(error));job.error=error.message||'生成失败';}finally{job.providerActive=false;}
+      }catch(error){if(job.controller.signal.aborted)return;job.status=error.code==='configuration_required'?'configuration_required':error.code==='unknown'?'unknown':'failed';job.code=error.code;if(error.providerDispatched===false&&['failed','configuration_required'].includes(job.status))job.providerDispatched=false;job.recovery=error.recovery;Object.assign(job,taskMediaState(error));job.error=error.message||'生成失败';}finally{job.providerActive=false;}
       this.emit(job);
     }
     validateResult(result){

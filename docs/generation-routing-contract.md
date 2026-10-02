@@ -1,6 +1,6 @@
 # 生成供应商路由契约
 
-`server/generation-router.cjs` 导出 `createGenerationRouter({providers,routes,fetchImpl})`，复用现有原生适配器，并提供有界的 `tasks-v1` 异步适配。它只选择运维配置中的供应商，不接收浏览器提供的目的地址或凭据。
+`server/generation-router.cjs` 导出 `createGenerationRouter({providers,routes,fetchImpl})`，复用现有原生适配器，并提供有界的 `tasks-v1` 异步适配。任务请求只选择服务端配置中的供应商，不接受目的地址或凭据字段。本机连接表单通过单独的同源受保护配置接口建立内存 tasks-v1 版本，详见 [本机连接合同](generation-session-configuration.md)。
 
 ```js
 providers = {

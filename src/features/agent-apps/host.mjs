@@ -88,7 +88,11 @@ export function createMcpAppHost(options) {
   const canResizePlatform = options.resourceUri === 'ui://tapnow/platform-resize@v1' && typeof callbacks.onPlatformResizeApply === 'function';
   const canMessage = !['ui://tapnow/production-progress@v1','ui://tapnow/platform-resize@v1'].includes(options.resourceUri) && typeof callbacks.onSendPrompt === 'function';
   const canState = !['ui://tapnow/production-progress@v1','ui://tapnow/platform-resize@v1'].includes(options.resourceUri) && typeof callbacks.onSetWidgetState === 'function';
-  const resourceDataLimit = options.resourceUri === 'ui://tapnow/layer-composer@v1' ? 4 * 1024 * 1024 : ['ui://tapnow/cutlist-review@v1','ui://tapnow/ad-review@v1'].includes(options.resourceUri) ? 16 * 1024 * 1024 : options.resourceUri === 'ui://tapnow/color-adjust@v2' ? 2 * 1024 * 1024 : 1000000;
+  const resourceDataLimit = ['ui://tapnow/layer-composer@v1','ui://tapnow/animatic@v2','ui://tapnow/previs@v3'].includes(options.resourceUri) ? 4 * 1024 * 1024 : ['ui://tapnow/cutlist-review@v1','ui://tapnow/ad-review@v1'].includes(options.resourceUri) ? 16 * 1024 * 1024 : options.resourceUri === 'ui://tapnow/color-adjust@v2' ? 2 * 1024 * 1024 : 1000000;
+  const generationTools = {'ui://tapnow/animatic@v2':['animatic_variants_submit','animatic_variants_lookup'],'ui://tapnow/previs@v3':['previs_variants_submit','previs_variants_lookup'],'ui://tapnow/ecommerce-photoset@v2':['ecommerce_photoset_generate']}[options.resourceUri];
+  const canGenerationTools = !!generationTools && typeof callbacks.onGenerationAppTool === 'function';
+  const canGenerationContext = ['ui://tapnow/animatic@v2','ui://tapnow/ecommerce-photoset@v2'].includes(options.resourceUri) && typeof callbacks.onGenerationAppContext === 'function';
+  const canPrevisReply = options.resourceUri === 'ui://tapnow/previs@v3' && typeof callbacks.onAppReply === 'function';
   const canSaveExpressionGuide = options.resourceUri === actorEmotionUri && typeof callbacks.onSaveExpressionGuide === 'function';
   const canQueryProduction = options.resourceUri === 'ui://tapnow/production-progress@v1' && typeof callbacks.onProductionProgressQuery === 'function';
   const canFindLibrary = options.resourceUri === 'ui://tapnow/library-picker@v1' && typeof callbacks.onLibraryFind === 'function';
@@ -101,8 +105,8 @@ export function createMcpAppHost(options) {
   let toolInput = dataCopy(options.toolInput ?? {}, 1000000, true), toolResult = options.toolResult == null ? null : dataCopy(options.toolResult, resourceDataLimit, true);
   let widgetState = options.initialWidgetState == null ? null : dataCopy(options.initialWidgetState, widgetStateLimit), projectionRevision = null;
   let hostContext = {theme: options.theme || 'dark', locale: options.locale || 'zh-CN', displayMode: 'inline', availableDisplayModes: ['inline', 'fullscreen'], platform: 'web', ...dataCopy(options.hostContext || {})};
-  let colorContextPermit = null, layerContextPermit = null;
-  let expanded = false, presentationTracked = false, conversationActive;
+  let colorContextPermit = null, layerContextPermit = null, generationContextPermit = null, appReplyPermit = null;
+  let expanded = false, presentationTracked = false, conversationActive, appReplyStatus=null;
   const requests = new Map(), csp = cspPolicy(options.csp);
   if (widgetState !== null && !object(widgetState)) throw fault(-32602, 'widget state must be an object');
   function live() {try {return !disposed && !failed && iframe.isConnected !== false && isCurrent() !== false;} catch {return false;}}
@@ -129,15 +133,48 @@ export function createMcpAppHost(options) {
   async function request(id, method, params) {
     const version = generation, token = nonce, needsCurrent = !['ui/initialize', 'ping'].includes(method);
     const complete = result => finishRequest(id, {result}, version, token, needsCurrent);
-    const reject = error => finishRequest(id, {error: {code: Number.isInteger(error.code) ? error.code : -32000, message: error.code ? error.message : 'host action failed'}}, version, token, needsCurrent);
+    const reject = error => finishRequest(id, {error: {code: Number.isInteger(error.code) ? error.code : -32000, message: error.code ? error.message : 'host action failed',...(error.code==='configuration_required'?{data:{code:'configuration_required',providerDispatched:false}}:{})}}, version, token, needsCurrent);
     try {
       if (!object(params)) throw fault(-32602, 'params must be an object');
       if (method === 'ui/initialize') {
         initialized = true;
-        complete({protocolVersion, hostInfo: {name: 'canvas-replica', version: '1.0.0'}, hostCapabilities: {...canMessage ? {message: {text: {}}} : {}, ...canSaveExpressionGuide || canQueryProduction || canFindLibrary || canApplyColor || canApplyLayer || canResizePlatform ? {serverTools: {}} : {}, ...canUpdateLibraryContext || canColorContext || canLayerContext ? {updateModelContext: {}} : {}}, hostContext: dataCopy(hostContext)});return;
+        complete({protocolVersion, hostInfo: {name: 'canvas-replica', version: '1.0.0'}, hostCapabilities: {...canMessage ? {message: {text: {}}} : {}, ...canSaveExpressionGuide || canQueryProduction || canFindLibrary || canApplyColor || canApplyLayer || canResizePlatform || canGenerationTools ? {serverTools: {}} : {}, ...canUpdateLibraryContext || canColorContext || canLayerContext || canGenerationContext ? {updateModelContext: {}} : {}}, hostContext: dataCopy(hostContext)});return;
       }
       if (method === 'ping') {complete({});return;}
       if (!ready || !live()) throw fault(-32000, 'app is not ready or current');
+      if (method === 'tapnow/estimateGenerationCost' && options.resourceUri === 'ui://tapnow/ecommerce-photoset@v2' && canGenerationTools) {
+        const input=strictDataCopy(params,65536);if(!Number.isSafeInteger(input.request_count)||input.request_count<1||input.request_count>32||!Number.isSafeInteger(input.times)||input.times<1||input.times>15)throw fault(-32602,'invalid generation estimate counts');complete({status:'unavailable',reason:'未提供费用估算；提交本地任务后由已配置供应商按实际用量计费',item_count:input.request_count,output_count:input.request_count*input.times});return;
+      }
+      if (canPrevisReply && method === 'tapnow/getAppReplyRunStatus') {
+        const input=strictDataCopy(params,65536);if(Object.keys(input).some(key=>key!=='run_id')||typeof input.run_id!=='string'||!input.run_id||input.run_id.length>180||typeof callbacks.onAppReplyRunStatus!=='function')throw fault(-32602,'invalid app reply run');
+        const receipt=await callbacks.onAppReplyRunStatus(input,()=>validGeneration(version,token));if(!validGeneration(version,token))return;
+        if(!object(receipt)||!['running','waiting','inactive','unknown'].includes(receipt.status))throw fault(-32000,'invalid actual app reply run status');complete({status:receipt.status});return;
+      }
+      if (canPrevisReply && method === 'tapnow/validateAppReply') {
+        if(typeof callbacks.onValidateAppReply!=='function')throw fault(-32601,'app reply validation is not configured');
+        const input=strictDataCopy(params,65536),userAction=iframe.ownerDocument?.activeElement===iframe&&window.navigator.userActivation?.isActive===true;
+        const receipt=await callbacks.onValidateAppReply(input,{userAction},()=>validGeneration(version,token));if(!validGeneration(version,token))return;
+        if(!object(receipt)||typeof receipt.manifest_revision!=='string')throw fault(-32000,'app reply has no actual manifest revision');
+        if(userAction)appReplyPermit={replyId:input.reply_id,payload:JSON.stringify(input.payload),revision:receipt.manifest_revision};complete(strictDataCopy(receipt,65536));return;
+      }
+      if (method === 'ui/message' && canPrevisReply && params.details !== undefined) {
+        const input=strictDataCopy(params,65536);if(input.role!=='user'||!Array.isArray(input.content)||input.content.length||Object.keys(input).some(key=>!['role','content','details'].includes(key)))throw fault(-32602,'invalid structured app reply');
+        const details=input.details,gesture=iframe.ownerDocument?.activeElement===iframe&&window.navigator.userActivation?.isActive===true,permit=appReplyPermit;
+        if(!object(details)||!gesture&&(!permit||permit.replyId!==details.reply_id||permit.payload!==JSON.stringify(details.payload)||permit.revision!==details.expected_manifest_revision))throw fault(-32000,'a current validated app reply user action is required');
+        if(conversationActive===true||sending)throw fault(-32000,'conversation or app action is busy');appReplyPermit=null;sending=true;
+        try{const receipt=await callbacks.onAppReply(details,{userAction:true},()=>validGeneration(version,token));if(!validGeneration(version,token))return;if(!object(receipt)||receipt.reply_id!==details.reply_id||typeof receipt.run_id!=='string'||!receipt.run_id||typeof receipt.deduped!=='boolean')throw fault(-32000,'app reply was not durably queued');complete(strictDataCopy(receipt,65536));}
+        finally{if(generation===version)sending=false;}return;
+      }
+      if (method === 'tools/call' && canGenerationTools) {
+        const input=strictDataCopy(params,65536);if(Object.keys(input).some(key=>!['name','arguments','_meta'].includes(key))||!generationTools.includes(input.name)||!object(input.arguments))throw fault(-32601,'tool is not supported for this app');
+        const lookup=input.name.endsWith('_lookup'),meta=input._meta||{},callId=meta['tapnow/callId'];
+        if(!object(meta)||Object.keys(meta).some(key=>!['tapnow/callId','progressToken'].includes(key))||(!lookup||callId!==undefined)&&(typeof callId!=='string'||!/^[A-Za-z0-9_-]{8,128}$/.test(callId))||Object.hasOwn(meta,'progressToken')&&(!Number.isSafeInteger(meta.progressToken)||meta.progressToken<0||meta.progressToken!==id))throw fault(-32602,'invalid scoped generation metadata');
+        const userAction=iframe.ownerDocument?.activeElement===iframe&&window.navigator.userActivation?.isActive===true;
+        if(!lookup&&(!userAction||conversationActive===true||sending))throw fault(-32000,'a current idle app generation user action is required');
+        const isSourceCurrent=()=>validGeneration(version,token)&&(lookup||conversationActive!==true);if(!lookup){sending=true;generationContextPermit=null;}
+        try{const receipt=await callbacks.onGenerationAppTool(input.name,input.arguments,{callId,userAction},isSourceCurrent);if(!validGeneration(version,token))return;if(!isSourceCurrent()||!object(receipt)||!Array.isArray(receipt.content)||!object(receipt.structuredContent))throw fault(-32000,'generation action returned no actual receipt');if(canGenerationContext&&userAction)generationContextPermit={callId};complete(strictDataCopy(receipt,resourceDataLimit));}
+        finally{if(!lookup&&generation===version)sending=false;}return;
+      }
       if (method === 'tools/call' && (canQueryProduction || canFindLibrary)) {
         const input = strictDataCopy(params, 65536), expected = canQueryProduction ? 'get_production_result' : 'find_library_assets';
         if (Object.keys(input).some(key => !['name', 'arguments', '_meta'].includes(key)) || !object(input.arguments)) throw fault(-32602, 'invalid scoped query parameters');
@@ -155,12 +192,12 @@ export function createMcpAppHost(options) {
         complete(strictDataCopy(receipt, canQueryProduction ? 16 * 1024 * 1024 : 2 * 1024 * 1024));return;
       }
       if (method === 'ui/update-model-context' || method === 'tapnow/addToCanvas') {
-        const callback = method === 'ui/update-model-context' ? canColorContext ? callbacks.onColorAdjustContext : canLayerContext ? callbacks.onLayerComposerContext : canUpdateLibraryContext && callbacks.onLibraryModelContext : canAddLibraryAsset && callbacks.onLibraryAddToCanvas;
+        const callback = method === 'ui/update-model-context' ? canColorContext ? callbacks.onColorAdjustContext : canLayerContext ? callbacks.onLayerComposerContext : canGenerationContext ? callbacks.onGenerationAppContext : canUpdateLibraryContext && callbacks.onLibraryModelContext : canAddLibraryAsset && callbacks.onLibraryAddToCanvas;
         if (!callback) throw fault(-32601, 'library action is not configured for this app');
         if (conversationActive === true || sending) throw fault(-32000, 'conversation or app action is busy');
-        const colorContext = method === 'ui/update-model-context' && canColorContext, layerContext = method === 'ui/update-model-context' && canLayerContext;
-        if (colorContext ? !colorContextPermit : layerContext ? !layerContextPermit : iframe.ownerDocument?.activeElement !== iframe || window.navigator.userActivation?.isActive !== true) throw fault(-32000, 'a current user action is required');
-        const permit = colorContext ? colorContextPermit : layerContext ? layerContextPermit : null;if (colorContext) colorContextPermit = null;if (layerContext) layerContextPermit = null;
+        const colorContext = method === 'ui/update-model-context' && canColorContext, layerContext = method === 'ui/update-model-context' && canLayerContext, generationContext = method === 'ui/update-model-context' && canGenerationContext;
+        if (colorContext ? !colorContextPermit : layerContext ? !layerContextPermit : generationContext ? !generationContextPermit && (iframe.ownerDocument?.activeElement !== iframe || window.navigator.userActivation?.isActive !== true) : iframe.ownerDocument?.activeElement !== iframe || window.navigator.userActivation?.isActive !== true) throw fault(-32000, 'a current user action is required');
+        const permit = colorContext ? colorContextPermit : layerContext ? layerContextPermit : generationContext ? generationContextPermit : null;if (colorContext) colorContextPermit = null;if (layerContext) layerContextPermit = null;if (generationContext) generationContextPermit = null;
         const input = strictDataCopy(params, 65536), isSourceCurrent = () => validGeneration(version, token) && conversationActive !== true;
         sending = true;
         try {
@@ -245,14 +282,14 @@ export function createMcpAppHost(options) {
     if (data.method === 'ui/notifications/initialized' && initialized && !ready) {
       ready = true;stopTimers();notify('ui/notifications/tool-input', {arguments: dataCopy(toolInput)});
       if (toolResult !== null) notify('ui/notifications/tool-result', toolResultParams());
-      sendPresentation();if (conversationActive !== undefined) notify('tapnow/updateData', {conversation_run_active: conversationActive});callbacks.onReady?.();return;
+      sendPresentation();if(appReplyStatus)notify('tapnow/updateData',appReplyStatus);if (conversationActive !== undefined) notify('tapnow/updateData', {conversation_run_active: conversationActive});callbacks.onReady?.();return;
     }
     if (data.method === 'ui/notifications/size-changed' && ready && Number.isFinite(data.params?.height) && data.params.height > 0) callbacks.onSizeChanged?.(data.params.height);
   }
   function loaded() {
     if (disposed || failed) return;
     if (loadSeen) {generation++;nonce = window.crypto.randomUUID();ready = initialized = false;sending = false;lastMessageAt = -Infinity;requests.clear();timers();}
-    colorContextPermit = layerContextPermit = null;loadSeen = true;sendResource();
+    colorContextPermit = layerContextPermit = generationContextPermit = appReplyPermit = null;loadSeen = true;sendResource();
   }
   function start() {
     if (disposed || started) return;started = true;
@@ -267,8 +304,11 @@ export function createMcpAppHost(options) {
       if (projectionRevision && (revision.message_sequence < projectionRevision.message_sequence || revision.message_sequence === projectionRevision.message_sequence && revision.part_index <= projectionRevision.part_index)) return false;
     }
     const nextInput = dataCopy(input ?? {}, 1000000, true), nextResult = result == null ? null : dataCopy(result, resourceDataLimit, true);
-    colorContextPermit = layerContextPermit = null;toolInput = nextInput;toolResult = nextResult;if (revision) projectionRevision = {...revision};
+    colorContextPermit = layerContextPermit = generationContextPermit = appReplyPermit = null;toolInput = nextInput;toolResult = nextResult;if (revision) projectionRevision = {...revision};
     if (ready) notify('tapnow/updateData', {toolInput, toolResult, ...(revision ? {revision: {...revision}} : {})});return true;
+  }
+  function updateAppReplyStatus(replyId,status){
+    if(options.resourceUri!=='ui://tapnow/previs@v3'||disposed||failed)return false;if(typeof replyId!=='string'||!replyId||!['running','completed','failed','waiting','unknown'].includes(status))throw fault(-32602,'invalid actual app reply status');const next={reply_id:replyId,reply_run_status:status};if(sameJsonValue(next,appReplyStatus))return false;appReplyStatus=next;if(ready)notify('tapnow/updateData',next);return true;
   }
   function updateHostContext(patch) {
     if (disposed || failed) return;if (!object(patch)) throw fault(-32602, 'host context must be an object');
@@ -278,6 +318,6 @@ export function createMcpAppHost(options) {
   function updatePresentationState(value) {if (disposed || failed) return;const changed = !presentationTracked || expanded !== !!value;presentationTracked = true;expanded = !!value;if (changed) sendPresentation();}
   function updateConversationRunActive(value) {if (disposed || failed) return;const next = !!value;if (conversationActive === next) return;conversationActive = next;if (ready) notify('tapnow/updateData', {conversation_run_active: conversationActive});}
   function sendPresentationShortcut(key) {if (!disposed && !failed && ready && expanded && typeof key === 'string' && key.length < 40) notify('tapnow/presentationShortcut', {key});}
-  function dispose() {if (disposed) return;disposed = true;colorContextPermit = layerContextPermit = null;generation++;stopTimers();requests.clear();window.removeEventListener('message', receive);iframe.removeEventListener('load', loaded);}
-  return {start, updateData, updateHostContext, updatePresentationState, updateConversationRunActive, sendPresentationShortcut, dispose};
+  function dispose() {if (disposed) return;disposed = true;colorContextPermit = layerContextPermit = generationContextPermit = appReplyPermit = null;generation++;stopTimers();requests.clear();window.removeEventListener('message', receive);iframe.removeEventListener('load', loaded);}
+  return {start, updateData, updateAppReplyStatus, updateHostContext, updatePresentationState, updateConversationRunActive, sendPresentationShortcut, dispose};
 }

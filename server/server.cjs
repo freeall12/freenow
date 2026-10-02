@@ -12,9 +12,10 @@ const {createHash}=require('node:crypto');
 const {wantsAgentStream,writeAgentStream}=require('./agent-stream.cjs');
 const {createGenerationGateway}=require('./generation.cjs');
 const {readGenerationRoutingConfig}=require('./generation-routing-config.cjs');
-const generation=createGenerationGateway({directory:path.join(__dirname,'.generation-tasks'),mediaDirectory:path.join(__dirname,'.generation-media'),baseUrl:process.env.GENERATION_API_BASE_URL,apiKey:process.env.GENERATION_API_KEY,protocol:process.env.GENERATION_API_PROTOCOL||'tasks-v1',modelMap:process.env.GENERATION_MODEL_MAP,...readGenerationRoutingConfig(process.env)});
+const generation=createGenerationGateway({localPort:Number(process.env.PORT||4173),directory:path.join(__dirname,'.generation-tasks'),mediaDirectory:path.join(__dirname,'.generation-media'),baseUrl:process.env.GENERATION_API_BASE_URL,apiKey:process.env.GENERATION_API_KEY,protocol:process.env.GENERATION_API_PROTOCOL||'tasks-v1',modelMap:process.env.GENERATION_MODEL_MAP,...readGenerationRoutingConfig(process.env)});
 const OpenAI=require('openai');const {AgentRuntime}=require('./agent.cjs');
 const root=path.resolve(__dirname,'..'),port=Number(process.env.PORT||4173);
+const localResourceIndexReady=require('../src/features/local-resource-migration/cli.cjs').writeLocalResourceIndex({root}).catch(()=>({published:false}));
 const configured=!!process.env.OPENAI_API_KEY&&!!process.env.OPENAI_MODEL;
 const client=process.env.OPENAI_API_KEY?new OpenAI({apiKey:process.env.OPENAI_API_KEY,...(process.env.OPENAI_BASE_URL?{baseURL:process.env.OPENAI_BASE_URL}:{})}):null;
 const webSearch=createWebSearch({client,model:process.env.OPENAI_WEB_SEARCH_MODEL||process.env.OPENAI_MODEL});
@@ -29,6 +30,11 @@ async function body(req,limit=1000000){let text='';for await(const chunk of req)
 const server=http.createServer(async(req,res)=>{try{
  const host=req.headers.host;if(!['localhost:'+port,'127.0.0.1:'+port].includes(host))return json(res,403,{error:'仅支持本机访问'});
  const url=new URL(req.url,'http://'+host),pathname=decodeURIComponent(url.pathname);
+ if(path.posix.normalize(pathname)==='/assets/local-resource-index.json'){
+  if(req.method!=='GET')return json(res,405,{error:'Method not allowed'});
+  const result=await localResourceIndexReady;
+  return result.published?json(res,200,result.index):json(res,503,{code:'local_resource_index_unavailable',error:'本地资源索引校验失败，请检查本地映射资料后重启服务'});
+ }
  if(pathname.startsWith('/api/')){
   if(req.headers.origin&&req.headers.origin!=='http://'+host)return json(res,403,{error:'跨域请求不允许'});
   if(pathname.startsWith('/api/video-segmentation/'))return await videoSegmentation.handle(req,res,pathname,{json,body});
@@ -72,7 +78,7 @@ const server=http.createServer(async(req,res)=>{try{
  // Generated result bytes are served by the private local media route.
  if(/^src\/features\/(?:agent-apps\/resources\/|agent-widgets\/widget-proxy\.html$)/.test(relative)&&path.extname(file)==='.html')headers['Content-Security-Policy']=`default-src 'self' http://${host} data: blob:; script-src 'self' http://${host} 'unsafe-inline' 'unsafe-eval' blob:; style-src 'self' http://${host} 'unsafe-inline'; connect-src 'self' http://${host} data: blob:; img-src 'self' http://${host} data: blob:; media-src 'self' http://${host} data: blob:; font-src 'self' http://${host} data:; frame-src 'self' http://${host} blob:; worker-src 'self' http://${host} blob:; object-src 'none'; base-uri 'self'; form-action 'self'`;
  // The opaque official app proxy may read only these bundled public templates.
- if(/^src\/features\/agent-apps\/resources\/apps\/(manifest\.json|[a-z0-9-]+@v[0-9]+\.[a-f0-9]{8}\.html)$/.test(relative))headers['Access-Control-Allow-Origin']='*';
+ if(/^src\/features\/agent-apps\/resources\/apps\/(manifest\.json|[a-z0-9-]+@v[0-9]+\.[a-f0-9]{8}\.html)$/.test(relative)||relative==='src/features/agent-apps/animatic-local-errors.mjs')headers['Access-Control-Allow-Origin']='*';
  const range=req.headers.range?.match(/^bytes=(\d+)-(\d*)$/);let start=0,end=stat.size-1,status=200;if(range){start=Number(range[1]);end=range[2]?Math.min(Number(range[2]),end):end;if(start>end||start>=stat.size){res.writeHead(416,{'Content-Range':`bytes */${stat.size}`});return res.end();}status=206;headers['Content-Range']=`bytes ${start}-${end}/${stat.size}`;}headers['Content-Length']=end-start+1;res.writeHead(status,headers);if(req.method==='HEAD')return res.end();fs.createReadStream(file,{start,end}).pipe(res);
  }catch(e){if(!res.headersSent)json(res,e.status===401?401:e.code==='configuration_required'?503:[400,404,409,429,503].includes(e.status)?e.status:400,{error:e.status===401?'模型服务认证失败，请检查服务端 KEY。':e.message||'请求失败',...(e.code?{code:e.code}:{})});else res.end();}});
 Promise.all([generation.ready,runtime.ready]).then(()=>server.listen(port,'127.0.0.1',()=>console.log(`Canvas replica: http://localhost:${port} | Agent ${configured?'configured':'requires OPENAI_API_KEY and OPENAI_MODEL'}`))).catch(async()=>{console.error('Local task stores unavailable; server was not started.');await Promise.allSettled([runtime.close(),agentSessionStore.close(),generation.close()]);process.exitCode=1;});

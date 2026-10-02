@@ -4,7 +4,7 @@
 
 ## 模块边界
 
-- `registry.mjs`：十六个已接通的版本 URI、模板 ID 范围、展示策略与状态校验。
+- `registry.mjs`：二十个已接通的版本 URI、模板 ID 范围、展示策略与状态校验。
 - `director-markup.mjs`：真实剧本文本输入、官方 DM1 批注解码、已保存正文/位置/批注核对与稳定交接 ID。
 - `performance-rhythm.mjs`：固定时长、实际驱动力曲线/节拍与PS1确认核对，合同见 [表演节奏](PERFORMANCE-RHYTHM.md)。
 - `story-room.mjs`：来源场景、按幕排列、新增/废弃与NS1确认核对，合同见 [剧本结构板](STORY-ROOM.md)。
@@ -18,6 +18,9 @@
 - `character-blocking.mjs`、`character-blocking-runtime.mjs`：真实人物引用与局部头像裁图、positions/facings保存、精确CB3与真实来源交接，见[人物站位合同](CHARACTER-BLOCKING.md)。
 - `product-kit.mjs`、`product-kit-runtime.mjs`：真实产品源图、配色/调性/禁令与规格确认、精确PK1及来源绑定，见[产品素材合同](product-kit.md)。
 - `ad-review.mjs`、`ad-review-runtime.mjs`：真实图片/视频与审核阶段、marks/notes保存、精确AR1及来源绑定，见[广告审核合同](AD-REVIEW.md)。
+- `animatic.mjs`、`animatic-runtime.mjs`：真实图板/图片、分镜编辑、AN1正常队列与真实九格变体任务。
+- `previs.mjs`、`previs-runtime.mjs`：已存镜头/选图与精确预验回复、真实Agent队列身份、缺图板正常生成及只读恢复，见[预演合同](PREVIS.md)。
+- `ecommerce-photoset.mjs`、`ecommerce-photoset-runtime.mjs`：真实产品来源与计划行，Amazon精确用户确认提交任务，freeform进入正常用户队列，见[商品组图合同](ecommerce-photoset.md)。
 - `integration.mjs`：会话/trace身份、卡片复用、保存与正常消息队列适配。
 - `host.mjs`：JSON-RPC握手、nonce/source、状态回执、运行状态与展示通知。相同host context/run不重发，避免官方模板清空暂停状态。
 - `card.mjs`、`styles.css`、`icons.mjs`：官方标题栏/图标、加载与失败、重载、展开和焦点恢复；重载不重提生成任务。
@@ -25,9 +28,9 @@
 
 ## show_app 合同
 
-Purpose：在Agent会话显示十六个已集成官方应用：三个选择器、导演批注、表演节奏、剧本结构、人物情绪、制作进度、互动学习、个人素材选择、调色、平台裁切、拼装审阅、人物站位、产品素材板和广告审核。可编辑应用保存实际状态并通过正常消息队列交接；制作进度只读取真实制作任务。
+Purpose：在Agent会话显示二十个已集成官方应用：三个选择器、导演批注、表演节奏、剧本结构、人物情绪、制作进度、互动学习、个人素材选择、调色、平台裁切、拼装审阅、人物站位、产品素材板、广告审核、图层合成、动态分镜、镜头预演和电商组图。可编辑应用保存实际状态并通过正常消息队列交接；制作进度只读取真实制作任务。
 
-Inputs：三个选择器 `resource_uri`（motion-picker@v1、creative-picker@v1、website-design-picker@v1），可选title、original_request、recommended_template_id。另外十三个工作流使用各自data（素材选择可省略data），拒绝混用模板选择参数及任意工具参数：
+Inputs：三个选择器 `resource_uri`（motion-picker@v1、creative-picker@v1、website-design-picker@v1），可选title、original_request、recommended_template_id。另外十七个工作流使用各自data（素材选择可省略data），拒绝混用模板选择参数及任意工具参数：
 
 - director-markup@v1：`data:{draft,locale?}`，正文非空且最多8000 UTF-16字符，支持中/英/日/韩/法。
 - performance-rhythm@v3：固定duration_ms、真实scene、曲线点curve和节拍beats，详见 [输入与状态合同](PERFORMANCE-RHYTHM.md)。
@@ -45,22 +48,26 @@ Inputs：三个选择器 `resource_uri`（motion-picker@v1、creative-picker@v1�
 - product-kit@v1：`data:{node_ref,version,locale,variant,product,kit_version,updated_at,palette,tones,look,bans,copy,hypotheses,plan_attached?,summary}`；模型product只含name/category/price_band，缩略图由宿主真实解码产生，详见[合同](product-kit.md)。
 - ad-review@v1：`data:{locale?,stage,batch,items}`；stage为frame_cull/pilot_review/final_review，items使用实际node_ref、combo、media和官方文本；不接受模型preview/poster/URL/字节，详见[合同](AD-REVIEW.md)。
 
+- animatic@v2：`version:2/3`、`sheets`实际镜头、可选真实sheet_node_ref/镜头node_ref、order与beats；宿主派生来源纹理，不接受模型URL。
+- previs@v3：实际sheets与shots、可选generation_spec；确认预验与正式已保存状态相符后，绑定真实submission.id的新用户回合；缺图板由单独正常确认的previs_generate_sheet生成。
+- ecommerce-photoset@v2：`mode:amazon/freeform`、真实product_context、requirements、params、可选param_options；Amazon按精确确认保存的行/参数提交，freeform沿正常权限继续。
+
 Outputs：本地`kind:mcp_app`展示回执；选择或已核对的编辑结果通过`ui/message`进入新的用户回合，保留原官方协议、可读结果、`widgetOrigin`与handoffId。打开应用、采用节奏/结构或确认人物情绪均不等于生成授权。
 
-Permissions：`sandbox=allow-scripts`双iframe；只对manifest与带版本hash的静态HTML开放匿名跨源读取。API继续拒绝Origin:null。消息与写入来源需当前会话、存活trace、对应iframe、nonce及真实当前用户动作；制作进度只读轮询不需用户动作，个人库被动查询仅允许恢复已实际保存的query/folder；它不是精确意图的密码学证明。应用消息不扩大工具权限，后续画布修改和生成仍经过正常流程。
+Permissions：`sandbox=allow-scripts`双iframe；只对manifest、带版本hash的静态HTML，以及animatic专用的公开本地展示派生模块开放匿名跨源读取。API继续拒绝Origin:null。消息与写入来源需当前会话、存活trace、对应iframe、nonce及真实当前用户动作；制作进度只读轮询不需用户动作，个人库被动查询仅允许恢复已实际保存的query/folder；它不是精确意图的密码学证明。应用消息不扩大工具权限，后续画布修改和生成仍经过正常流程。
 
 人物应用的`tools/call`仅接受actor-emotion@v1的`actor_emotion_save_expression_guide`，受该应用、当前人物绑定、真实来源节点、参考图片、已提交面部状态及调用ID约束。宿主核对并实际解码官方灰模捕获的512×512 PNG/WebP，保存本地素材、创建真实图节点、提交画布及会话后，才返回真实`node_ref/guide_sha256/binding/face`回执。确认时再次核对图片字节哈希、节点来源及当前保存状态；节点被删除、撤销或改动后旧回执失效。此接口不能调用任意工具，也不提交人物媒体生成。图片已入图但后续会话保存失败时，回执/队列明确失败，可见图节点可能保留，不能宣称整个画布操作已撤销。
 
 各应用的专属窄方法：
 
 - actor-emotion@v1：`tools/call` → `actor_emotion_save_expression_guide`，真实指导图片保存后才给回执。
-- production-progress@v1：`tools/call` → `get_production_result`。核对同顺序node_ids/project_id与真实生成trace，始终只读；官方SDK只带progressToken时合法，不强加人物写回专属callId。只有provider succeeded、应用已提交、实际结果节点仍存在且媒体与job.outputs/生成provenance一致时才能done。真实图片按有界字节或实际缩放像素转为data:image；视频先实际解码宽高/时长，再把完整有界字节转为data:video/mp4或webm，在官方video标签播放。仅此资源使用本地 `production-progress-proxy.html` 传输副本：只允许production-progress@v1，media-src增加data:，保留双opaque iframe、scripts-only和connect-src none，忽略网络域输入；官方页面原字节保留；共享 `mcp-app-proxy.html` 仅对product-kit执行下文所述SHA核验后的窄传输修正。单图读取上限8MiB、单视频8MiB、每次读取总量16MiB、缓存/整页媒体文本15MiB、host仅此专属查询回执上限16MiB，整次读取/解码30秒；流式核对声明与实际字节，超时、来源失效或关闭立即中止，重复轮询复用有界缓存。视频超限时有已证明属于该实际输出的poster才提供明确“首帧预览（非完整播放）”；否则保留真实已应用状态，注明“预览超限，未加载播放”，不能假称可播或改变原任务。读取失败或来源变化不给虚假完成预览。没有状态保存或ui/message。
+- production-progress@v1：`tools/call` → `get_production_result`。核对同顺序node_ids/project_id与真实生成trace，始终只读；官方SDK只带progressToken时合法，不强加人物写回专属callId。只有provider succeeded、应用已提交、实际结果节点仍存在且媒体与job.outputs/生成provenance一致时才能done。真实图片按有界字节或实际缩放像素转为data:image；视频先实际解码宽高/时长，再把完整有界字节转为data:video/mp4或webm，在官方video标签播放。仅此资源使用本地 `production-progress-proxy.html` 传输副本：只允许production-progress@v1，media-src增加data:，保留双opaque iframe、scripts-only和connect-src none，忽略网络域输入；官方页面原字节保留；共享 `mcp-app-proxy.html` 对product-kit执行下文所述SHA核验后的窄传输修正；另对三个新生成应用执行完整原SHA绑定的本地费用/未配置错误展示派生。单图读取上限8MiB、单视频8MiB、每次读取总量16MiB、缓存/整页媒体文本15MiB、host仅此专属查询回执上限16MiB，整次读取/解码30秒；流式核对声明与实际字节，超时、来源失效或关闭立即中止，重复轮询复用有界缓存。视频超限时有已证明属于该实际输出的poster才提供明确“首帧预览（非完整播放）”；否则保留真实已应用状态，注明“预览超限，未加载播放”，不能假称可播或改变原任务。读取失败或来源变化不给虚假完成预览。没有状态保存或ui/message。
 - library-picker@v1：`tools/call` → `find_library_assets`；`ui/update-model-context` 绑定当前可见真实资产；`tapnow/addToCanvas` 只能导入宿主选定资产的真实媒体，实际画布与会话保存后返回node_ref。普通搜索、上下文更新、入图检查当前iframe动作；被动搜索只可恢复已存浏览位置。所有异步阶段核对本次iframe代次/状态/项目，禁止工具泛化。
 - interactive-learning@v1：无专属tools/call；学习板通过 `tapnow/setWidgetState` 保存，精确IL1通过 `ui/message` 进入正常队列；目录无需编辑状态。
 
 个人库引用从runtime核验后的资产生成内部 `libraryReference`，client将其写成 `referenceMention` 到本次队列composerDoc。正常 `runSubmission` 经 `resolveReferenceData` 取真实个人库项目并由 `prepareMediaInputs` 读取图片/视频帧送入模型，不能把 `library://private/<id>` 当成可访问媒体。开始执行前以及实际媒体读取后再次核验原show_app来源绑定SHA256；排队后同ID换媒体会明确失败。此引用不扩大生成或其他写入权限。
 
-Failure modes：非法资源、初始化超时、保存失败、过期来源、不支持方法均明确失败。除本应用以上专属方法之外的tools/call、结构化appReply、任意model context等未实现方法返回JSON-RPC错误；真实图片、画布保存和会话回执必须分别成立。
+Failure modes：非法资源、初始化超时、保存失败、过期来源、不支持方法均明确失败。仅previs支持本文新合同的结构化appReply；除已列专属方法之外的tools/call、appReply与model context方法返回JSON-RPC错误；真实图片、画布保存和会话回执必须分别成立。
 
 Logging：会话保存show_app trace、appState、appHandoffs与widgetOrigin；handoff去重与队列同一次提交，失败回滚，不覆盖输入草稿。工作流保留原DM1/PS1/NS1/AE2/CB3/PK1/AR1及核对后的可读内容；稳定内容SHA256交接ID用于同来源页重复确认去重。人物应用另保留实际指导图片回执、来源快照与字节哈希。任意KEY只放服务端。
 
@@ -74,7 +81,7 @@ Tests：host/card/registry、各工作流协议/来源/保存、widget queue与s
 
 ## 尚未完成
 
-对照当前manifest与registry，版本URI已接17/22，功能族已接17/20。未接的三族为animatic、ecommerce-photoset、previs；另保留未接历史URI animatic@v1和character-blocking@v1，不算两个新增功能族。完整艺术/硬件模板逐项交互、精确模板文件获取/哈希校验/产物编辑链仍待补齐。计数仅证明接线存在，不能作为完整视觉、交互、真实生成或本地化验收。有KEY也不能自动补齐尚未实现的工作流。应用交接已按官方hidden标志隐藏聊天行，原文和widgetOrigin仍保留于历史，修改工具仍需正常确认；运行中不接受新的应用交接。验收见 `reference/agent-hidden-handoff-20260930.md`。
+对照当前manifest与registry，版本URI已接20/22，功能族已接20/20。剩余未接仅历史URI animatic@v1和character-blocking@v1；同族当前v2/v3已经接线，二者不算新增功能族。完整艺术/硬件模板逐项交互、精确模板文件获取/哈希校验/产物编辑链仍待补齐。计数仅证明接线存在，不能作为完整视觉、交互、真实生成或本地化验收。有KEY也不能自动补齐尚未实现的工作流。应用交接已按官方hidden标志隐藏聊天行，原文和widgetOrigin仍保留于历史，修改工具仍需正常确认；运行中不接受新的应用交接。验收见 `reference/agent-hidden-handoff-20260930.md`。
 
 ## 导演画线批注
 
@@ -132,3 +139,9 @@ character-blocking使用原官方HTML和默认本地图片CSP。product-kit磁�
 本批共同接线相关37项检查通过；其中新增7项覆盖严格输入、模型预览剥除、保存等待/失败拒绝、来源变化及真实queue补偿。Node媒体解码存在明确测试桩，不能替代浏览器或真实模型验收。根任务已在实际浏览器核验站位真实头像、video/9:16、X310/facing96、CB3一次交接、reload恢复及保存失败无新队列；产品素材以真实本地camera图片856×558核验砂岩配色、双调性、PK1一次交接、来源SHA和真实reload恢复。人物鼠标拖动、产品拖动尚未验收；广告审核实际浏览器已验证中文首帧keep/cull与备注净化、英文试拍win/pass_over、日语成片keep/rework/win，三阶段累计3条可信node_ref/SHA交接；重复确认、刷新恢复、运行中拒绝和真实替换PNG后旧来源拒绝均通过。真实本地视频解码为320×180/8秒，readyState4并实际原生播放；后续模型生成与投放效果未验。正式首页Agent已实际加载且本轮console无warn/error；QA使用生产接线与本地保存，不是实际模型联调。以上均为局部证据，不等于全部交互、媒体生成或投放效果通过。
 
 2026-10-03 layer-composer@v1已接真实本地PNG合成、持久回执和撤销后拒重建。官方HTML保持原字节，完整源像素合成，不调用模型；详见[LAYER-COMPOSER.md](LAYER-COMPOSER.md)。
+
+## 动态分镜、预演与商品组图 · 2026-10-03
+
+共享接线、previs_generate_sheet完整工具合同、真实队列/状态/投影边界和本地计费展示见[共享合同](../../../docs/agent-apps-local-generation-contract.md)。当前registry实际getApp导出对manifest逐项核对：20/22 URI、20/20功能族；只有animatic@v1与character-blocking@v1历史版本未接。原22份声明HTML继续保留。
+
+共享新增20项检查通过，旧共享59项检查通过（ProductKit一项短调度窗口失败后单独复跑通过），另4项旧输入/schema目标通过；脚本语法与diff检查通过。根任务实际浏览器核验：Animatic未配置明确未派发且0job、AN1精确参数队列一次；Previs生成与刷新只GET复原九格fixture，3.1秒/ELS/waiting同run_id保留且POST仍1；商品组图未配置0job、两行本机任务和刷新旧ref保留，切换配置后既有POST仍2。fixture是明确标注的本机测试供应商输出，不是实际商业模型生成质量证据。完整官方交互、全部语言/视觉组合、精确模板正文链和真实供应商质量仍未全面验收，不能据功能族20/20称整个产品完成。

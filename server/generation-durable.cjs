@@ -75,10 +75,13 @@ function checkedOutputs(outputs,{localOnly=false}={}){
  });
 }
 
-function createDurableGenerationService({directory,store=null,baseUrl='',apiKey='',fetchImpl=fetch,provider=null,prepareRequest=async value=>value,now=Date.now,maxTasks=500,requestTimeout=30000,mediaMaterializer=null}={}){
+function createDurableGenerationService({directory,store=null,baseUrl='',apiKey='',fetchImpl=fetch,provider=null,prepareRequest=async value=>value,now=Date.now,maxTasks=500,requestTimeout=30000,mediaMaterializer=null,providerRegistry=null}={}){
  let endpoint='';if(baseUrl){const url=new URL(baseUrl);if(!['http:','https:'].includes(url.protocol)||url.username||url.password||url.search||url.hash)throw failure('生成网关地址不能包含凭据或查询参数','invalid_provider');endpoint=url.href.replace(/\/$/,'');}
  if(!store){if(!directory)throw TypeError('Durable generation requires a private store directory');store=createGenerationStore({directory});}
  const providerFingerprint=provider?provider.fingerprint:endpoint?digest(endpoint):null,configured=provider?provider.configured:!!endpoint&&!!apiKey,headers={'Content-Type':'application/json',Authorization:'Bearer '+apiKey};
+ const environment={provider,configured,fingerprint:providerFingerprint,metadata:provider?.metadata||{protocol:'tasks-v1'}};
+ const selected=job=>job?.providerBinding?providerRegistry?.resolve(job.providerBinding)||null:environment;
+ const configuredFor=job=>!!selected(job)?.configured;
  const jobs=new Map(),keys=new Map(),active=new Map(),controllers=new Map();let mutations=Promise.resolve(),closing=false,closePromise;
  const serialize=fn=>{const operation=mutations.then(fn);mutations=operation.catch(()=>{});return operation;};
  const exposed=job=>job?structuredClone(job):null;
@@ -112,6 +115,7 @@ function createDurableGenerationService({directory,store=null,baseUrl='',apiKey=
  const ready=(async()=>{
   for(const saved of await store.readAll()){
    rejectCredentials(saved.request);if(saved.preparedRequest)rejectCredentials(saved.preparedRequest);
+   if(saved.providerBinding!==undefined&&!providerRegistry?.validBinding(saved.providerBinding))throw failure('生成任务供应商身份损坏','storage_corrupt',503);
    if(saved.version!==1||typeof saved.id!=='string'||!saved.request||typeof saved.requestHash!=='string'||digest(saved.request)!==saved.requestHash||keys.has(requestKey(saved.idempotencyKey))||jobs.has(saved.id))throw failure('生成任务记录损坏，已阻止创建新任务','storage_corrupt',503);
    let job=saved;
    if(saved.providerStatus==='succeeded'&&saved.providerResult?.outputs&&saved.status!=='cancelled'){
@@ -134,9 +138,14 @@ function createDurableGenerationService({directory,store=null,baseUrl='',apiKey=
  })();
  function storageFailure(id){const current=jobs.get(id);if(current&&!terminal.has(current.status))jobs.set(id,recover(current,'storage_error',false));}
  async function update(id,change){return serialize(async()=>{const current=jobs.get(id);if(!current||closing)return current||null;const next=change(structuredClone(current));if(!next)return current;try{return await persist({...next,updatedAt:now()});}catch(error){storageFailure(id);throw error;}});}
- async function remote(method,id,body,signal){if(provider){if(method==='POST')return provider.submit(body,{signal});if(typeof provider.poll!=='function')throw failure('此生成协议不支持远端任务恢复','remote_recovery_unavailable');return provider.poll(id,{signal});}const result=await fetchImpl(endpoint+'/tasks'+(id?'/'+encodeURIComponent(id):''),{method,headers,signal:AbortSignal.any([signal,AbortSignal.timeout(requestTimeout)]),...(body?{body:JSON.stringify(body)}:{})});if(!result.ok)throw failure('生成服务请求未确认','provider_http_error',502);return result.json();}
- function compatible(job){return (configured||provider?.metadata?.protocol==='routed')&&job.providerFingerprint===providerFingerprint;}
- const protocolFor=request=>provider?.protocolFor?provider.protocolFor(request):provider?.metadata?.protocol;
+ async function remote(method,id,body,signal,job){
+  const transport=selected(job);if(!transport)throw failure('原任务供应商尚未配置','configuration_required');
+  const captured=transport.provider;
+  if(captured){if(method==='POST')return captured.submit(body,{signal});if(typeof captured.poll!=='function')throw failure('此生成协议不支持远端任务恢复','remote_recovery_unavailable');return captured.poll(id,{signal});}
+  const result=await fetchImpl(endpoint+'/tasks'+(id?'/'+encodeURIComponent(id):''),{method,redirect:'error',headers,signal:AbortSignal.any([signal,AbortSignal.timeout(requestTimeout)]),...(body?{body:JSON.stringify(body)}:{})});if(!result.ok)throw failure('生成服务请求未确认','provider_http_error',502);return result.json();
+ }
+ function compatible(job){const transport=selected(job);return !!transport&&(transport.configured||transport.metadata?.protocol==='routed')&&job.providerFingerprint===transport.fingerprint;}
+ const protocolFor=job=>{const captured=selected(job)?.provider;return captured?.protocolFor?captured.protocolFor(job.preparedRequest||job.request):selected(job)?.metadata?.protocol;};
  async function applyRemote(id,value){
   const existing=jobs.get(id);if(!existing||closing||controllers.get(id)?.signal.aborted&&existing.status!=='cancelled')return;
   const remoteId=value&&typeof value.id==='string'&&value.id.trim()?value.id:null;
@@ -153,7 +162,7 @@ function createDurableGenerationService({directory,store=null,baseUrl='',apiKey=
    const outputs=checkedOutputs(value.outputs);await update(id,job=>job.status==='cancelled'?{...job,providerStatus:'succeeded',providerResult:{outputs},cancellation:{...job.cancellation,providerCancellation:'already_succeeded'}}:{...job,status:'running',providerStatus:'succeeded',providerResult:{outputs},outputs:undefined,localization:{state:'pending',revision:job.localization?.revision||0,resources:[],retryable:true},error:undefined,code:undefined,recovery:undefined});await localize(id);return;
   }
   // A remote tasks-v1 response cannot claim a trusted local preparation failure.
-  const localError=protocolFor(existing.preparedRequest||existing.request)==='openai-native'&&existing.request.kind==='video.analyze'&&value?.status==='failed'&&value.providerDispatched===false?localVideoErrorMessage(value.code):null;
+  const localError=protocolFor(existing)==='openai-native'&&existing.request.kind==='video.analyze'&&value?.status==='failed'&&value.providerDispatched===false?localVideoErrorMessage(value.code):null;
   if(localError){await update(id,job=>job.status==='cancelled'?null:{...job,status:'failed',code:value.code,error:localError,providerDispatched:false,recovery:{reason:value.code,retryableLookup:false}});return;}
   if(['failed','cancelled','configuration_required'].includes(value?.status)){await update(id,job=>job.status==='cancelled'?null:{...job,status:value.status,code:'provider_'+value.status,error:value.status==='cancelled'?'生成服务已取消任务':'生成服务未完成任务',recovery:{reason:'provider_'+value.status,retryableLookup:false}});return;}
   if(value?.status==='succeeded')throw failure('生成服务声称完成但缺少实际结果','missing_outputs');
@@ -166,37 +175,39 @@ function createDurableGenerationService({directory,store=null,baseUrl='',apiKey=
  async function dispatch(id){
   const controller=new AbortController();controllers.set(id,controller);let job=jobs.get(id);if(closing||job.status!=='queued')return;
   try{
-   const prepared=await prepareRequest(structuredClone(job.request));rejectCredentials(prepared);canonical(prepared);if(!prepared||prepared.kind!==job.request.kind)throw failure('生成请求准备失败','invalid_prepared_request');
-   if(provider?.configured)await provider.prepare?.(prepared);
+   const transport=selected(job),captured=transport?.provider;
+   const prepared=await prepareRequest(structuredClone(job.request),{provider:captured,protocol:transport?.metadata?.protocol});rejectCredentials(prepared);canonical(prepared);if(!prepared||prepared.kind!==job.request.kind)throw failure('生成请求准备失败','invalid_prepared_request');
+   if(captured?.configured)await captured.prepare?.(prepared);
    job=await update(id,current=>current.status==='cancelled'?null:{...current,preparedRequest:prepared});
-  }catch(error){if(error.code==='storage_error')throw error;const localError=protocolFor(job.request)==='openai-native'&&job.request.kind==='video.analyze'?localVideoErrorMessage(error.code):null;await update(id,current=>current.status==='cancelled'?null:{...current,status:error.code==='configuration_required'?'configuration_required':'failed',code:localError?error.code:error.code==='configuration_required'?'configuration_required':'request_preparation_failed',error:localError||'生成参数或模型映射未兼容，尚未提交远端',...(localError?{providerDispatched:false}:{})});return;}
+  }catch(error){if(error.code==='storage_error')throw error;const localError=protocolFor(job)==='openai-native'&&job.request.kind==='video.analyze'?localVideoErrorMessage(error.code):null;await update(id,current=>current.status==='cancelled'?null:{...current,status:error.code==='configuration_required'?'configuration_required':'failed',code:localError?error.code:error.code==='configuration_required'?'configuration_required':'request_preparation_failed',error:localError||'生成参数或模型映射未兼容，尚未提交远端',...(localError?{providerDispatched:false}:{})});return;}
   if(closing||job.status==='cancelled')return;
-  if(!configured){await update(id,current=>current.status==='cancelled'?null:{...current,status:'configuration_required',code:'configuration_required',error:'尚未配置生成服务，未提交远端'});return;}
+  if(!configuredFor(job)){await update(id,current=>current.status==='cancelled'?null:{...current,status:'configuration_required',code:'configuration_required',error:'尚未配置生成服务，未提交远端'});return;}
   // This durable intent precedes POST. A crash anywhere after this point without
   // a saved provider ID is ambiguous and must never trigger another POST.
-  job=await update(id,current=>current.status==='cancelled'?null:{...current,status:'running',submissionState:'dispatching',providerFingerprint});
+  job=await update(id,current=>current.status==='cancelled'?null:{...current,status:'running',submissionState:'dispatching',providerFingerprint:selected(current)?.fingerprint??null});
   if(closing||job.status==='cancelled'||controller.signal.aborted)return;
-  await applyRemote(id,await remote('POST',null,job.preparedRequest,controller.signal));
+  await applyRemote(id,await remote('POST',null,job.preparedRequest,controller.signal,job));
  }
- async function submit(request,{idempotencyKey}={}){
+ async function submit(request,{idempotencyKey,configurationId}={}){
   await ready;if(closing)throw failure('生成任务服务已关闭','service_closed',503);requestKey(idempotencyKey);rejectCredentials(request);if(!request||typeof request.kind!=='string')throw failure('生成任务参数无效','invalid_request');const hash=digest(request),fixed=structuredClone(request);let created=false;
   const job=await serialize(async()=>{
    const previous=keys.get(idempotencyKey);if(previous){const saved=jobs.get(previous);if(saved.requestHash!==hash)throw failure('此幂等键已用于不同生成请求','idempotency_conflict',409);return saved;}
    if(jobs.size>=maxTasks)throw failure('生成任务记录已满，请保留记录后清理','task_capacity',429);
-   const next={version:1,id:randomUUID(),idempotencyKey,requestHash:hash,request:fixed,status:'queued',submissionState:'queued',progress:0,createdAt:now(),updatedAt:now()};try{await persist(next);}catch(error){jobs.set(next.id,recover(next,'storage_error',false));keys.set(idempotencyKey,next.id);throw error;}created=true;return next;
+   const next={version:1,id:randomUUID(),idempotencyKey,requestHash:hash,request:fixed,...(providerRegistry?{providerBinding:providerRegistry.capture(configurationId)}:{}),status:'queued',submissionState:'queued',progress:0,createdAt:now(),updatedAt:now()};try{await persist(next);}catch(error){jobs.set(next.id,recover(next,'storage_error',false));keys.set(idempotencyKey,next.id);throw error;}created=true;return next;
   });
   if(created)launch(job.id,()=>dispatch(job.id));return exposed(job);
  }
  async function refreshAndLocalize(id){
   const current=jobs.get(id);if(!current||closing||current.status==='cancelled')return;
   const failedRefresh=async(code,retryable=true)=>update(id,job=>job.status==='cancelled'?null:localizationFailure(job,code,{sourceRefreshRequired:true,retryable}));
-  if(!current.providerTaskId||provider&&(typeof provider.poll!=='function'||provider.isPollable?.(current.preparedRequest||current.request)===false)){await failedRefresh('media_source_refresh_unavailable',false);return;}
-  if(!compatible(current)){await failedRefresh(configured?'media_source_provider_changed':'media_source_configuration_required');return;}
+  const captured=selected(current)?.provider;
+  if(!current.providerTaskId||captured&&(typeof captured.poll!=='function'||captured.isPollable?.(current.preparedRequest||current.request)===false)){await failedRefresh('media_source_refresh_unavailable',false);return;}
+  if(!compatible(current)){await failedRefresh(configuredFor(current)?'media_source_provider_changed':'media_source_configuration_required');return;}
   const controller=new AbortController();controllers.set(id,controller);
   try{
    // One read of the original task per explicit recovery. Never call submit or
    // reselect the model route to refresh an expired private download descriptor.
-   const value=await remote('GET',current.providerTaskId,null,controller.signal);
+   const value=await remote('GET',current.providerTaskId,null,controller.signal,current);
    if(closing||controller.signal.aborted||jobs.get(id)?.status==='cancelled')return;
    if(value?.id!==current.providerTaskId){await failedRefresh('media_source_identity_mismatch');return;}
    if(value.status!=='succeeded'||value.outputs===undefined){await failedRefresh('media_source_refresh_unconfirmed');return;}
@@ -211,7 +222,7 @@ function createDurableGenerationService({directory,store=null,baseUrl='',apiKey=
  }
  async function get(id){
   await ready;let job=jobs.get(id);if(!job)return null;if(closing||job.status==='cancelled')return exposed(job);
-  if(active.has(id)){if(job.providerStatus!=='succeeded'&&provider&&(!provider.poll||provider.isPollable?.(job.preparedRequest||job.request)===false))return exposed(job);await active.get(id);return exposed(jobs.get(id));}
+  if(active.has(id)){const captured=selected(job)?.provider;if(job.providerStatus!=='succeeded'&&captured&&(!captured.poll||captured.isPollable?.(job.preparedRequest||job.request)===false))return exposed(job);await active.get(id);return exposed(jobs.get(id));}
   if(job.code==='storage_error')return exposed(job);
   if(job.providerStatus==='succeeded'&&job.providerResult?.outputs){
    if(job.localization?.state==='ready'){
@@ -221,14 +232,14 @@ function createDurableGenerationService({directory,store=null,baseUrl='',apiKey=
    await launch(id,()=>job.localization?.sourceRefreshRequired||job.localization?.errorCode==='media_download_expired'?refreshAndLocalize(id):localize(id));return exposed(jobs.get(id));
   }
   if(terminal.has(job.status)||!job.providerTaskId)return exposed(job);
-  if(!compatible(job)){await update(id,current=>recover(current,configured?'provider_configuration_changed':'configuration_required',false));return exposed(jobs.get(id));}
-  await launch(id,async()=>{const controller=new AbortController();controllers.set(id,controller);await applyRemote(id,await remote('GET',job.providerTaskId,null,controller.signal));});return exposed(jobs.get(id));
+  if(!compatible(job)){await update(id,current=>recover(current,configuredFor(job)?'provider_configuration_changed':'configuration_required',false));return exposed(jobs.get(id));}
+  await launch(id,async()=>{const controller=new AbortController();controllers.set(id,controller);await applyRemote(id,await remote('GET',job.providerTaskId,null,controller.signal,job));});return exposed(jobs.get(id));
  }
  async function lookup(key){await ready;requestKey(key);const id=keys.get(key);return id?get(id):null;}
  async function deleteRemote(id){
   const job=jobs.get(id);if(job?.providerStatus==='succeeded'||!job?.providerTaskId||!compatible(job)||closing||job.cancellation?.providerCancellation==='confirmed')return;
-  if(provider&&!provider.cancel)return;
-  let confirmed=false;try{if(provider){confirmed=(await provider.cancel(job.providerTaskId,{signal:AbortSignal.timeout(5000)}))?.status==='cancelled';}else{const response=await fetchImpl(endpoint+'/tasks/'+encodeURIComponent(job.providerTaskId),{method:'DELETE',headers,signal:AbortSignal.timeout(5000)});if(response.ok){const value=await response.json();confirmed=value.status==='cancelled';}}}catch{}
+  const captured=selected(job)?.provider;if(captured&&!captured.cancel)return;
+  let confirmed=false;try{if(captured){confirmed=(await captured.cancel(job.providerTaskId,{signal:AbortSignal.timeout(5000)}))?.status==='cancelled';}else{const response=await fetchImpl(endpoint+'/tasks/'+encodeURIComponent(job.providerTaskId),{method:'DELETE',redirect:'error',headers,signal:AbortSignal.timeout(5000)});if(response.ok){const value=await response.json();confirmed=value.status==='cancelled';}}}catch{}
   if(confirmed)await update(id,current=>current.status==='cancelled'?{...current,cancellation:{...current.cancellation,providerCancellation:'confirmed'}}:null);
  }
  async function cancel(id){

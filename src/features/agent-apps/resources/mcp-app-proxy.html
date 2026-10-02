@@ -181,6 +181,36 @@
       }
       // PRODUCT_KIT_LOCAL_TRANSPORT:END
 
+      // ECOMMERCE_LOCAL_BILLING:BEGIN
+      // Captured bytes remain evidence; this display-only derivative describes the local provider.
+      async function localizeEcommerceBilling(html, name, version) {
+        if (name !== "ecommerce-photoset") return html;
+        if (version !== "v2") throw new Error("unsupported local ecommerce-photoset version");
+        var digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(html));
+        var hash = Array.from(new Uint8Array(digest), function (byte) {return byte.toString(16).padStart(2, "0");}).join("");
+        if (hash !== "a7b6a057ceeb55ec0cef26e35d33e18c42c53aec26b2c1d6032e04294b401861") throw new Error("ecommerce-photoset reference integrity mismatch");
+        var changes = [["estimatingCost:\"Estimating Tapies…\"", "estimatingCost:\"Checking generation cost…\""], ["estimateUnavailable:\"Cost is temporarily unavailable. Confirming will still charge actual generation usage.\"", "estimateUnavailable:\"No cost estimate is provided. The configured provider bills actual usage.\""], ["confirmBilling:\"Estimated cost\"", "confirmBilling:\"Local task submission\""], ["confirmBillingWarning:\"Confirming will submit these tasks and charge Tapies.\"", "confirmBillingWarning:\"Confirmation submits local generation tasks; the configured provider bills actual usage.\""], ["estimatingCost:\"正在估算 Tapies…\"", "estimatingCost:\"正在查询生成费用…\""], ["estimateUnavailable:\"暂时无法估价；确认后仍会按实际生成用量扣费。\"", "estimateUnavailable:\"未提供费用估算。已配置供应商按实际用量计费。\""], ["confirmBilling:\"预计费用\"", "confirmBilling:\"本地任务提交\""], ["confirmBillingWarning:\"确认后将提交这些任务并扣除 Tapies。\"", "confirmBillingWarning:\"确认后提交本地生成任务；已配置供应商按实际用量计费。\""], ["estimatingCost:\"Tapies を見積もっています…\"", "estimatingCost:\"生成コストを確認しています…\""], ["estimateUnavailable:\"現在コストを見積もれません。確定すると実際の生成量に応じて課金されます。\"", "estimateUnavailable:\"費用の見積もりは提供されていません。設定済みプロバイダーが実際の使用量に応じて請求します。\""], ["confirmBilling:\"見積もりコスト\"", "confirmBilling:\"ローカルタスクの送信\""], ["confirmBillingWarning:\"確定するとタスクが送信され、Tapies が請求されます。\"", "confirmBillingWarning:\"確定するとローカル生成タスクを送信します。設定済みプロバイダーが実際の使用量に応じて請求します。\""], ["estimatingCost:\"Tapies를 계산하는 중…\"", "estimatingCost:\"생성 비용을 확인하는 중…\""], ["estimateUnavailable:\"현재 비용을 계산할 수 없습니다. 확인하면 실제 생성 사용량에 따라 과금됩니다.\"", "estimateUnavailable:\"비용 견적이 제공되지 않습니다. 설정된 공급자가 실제 사용량에 따라 청구합니다.\""], ["confirmBilling:\"예상 비용\"", "confirmBilling:\"로컬 작업 제출\""], ["confirmBillingWarning:\"확인하면 작업이 제출되고 Tapies가 청구됩니다.\"", "confirmBillingWarning:\"확인하면 로컬 생성 작업이 제출됩니다. 설정된 공급자가 실제 사용량에 따라 청구합니다.\""], ["estimatingCost:\"Estimation des Tapies…\"", "estimatingCost:\"Vérification du coût de génération…\""], ["estimateUnavailable:\"Le coût est temporairement indisponible. La consommation réelle sera tout de même facturée après confirmation.\"", "estimateUnavailable:\"Aucune estimation de coût fournie. Le fournisseur configuré facture la consommation réelle.\""], ["confirmBilling:\"Coût estimé\"", "confirmBilling:\"Envoi de tâches locales\""], ["confirmBillingWarning:\"La confirmation enverra ces tâches et débitera des Tapies.\"", "confirmBillingWarning:\"La confirmation envoie des tâches de génération locales ; le fournisseur configuré facture la consommation réelle.\""]];
+        changes.forEach(function (change) {
+          if (html.split(change[0]).length !== 2) throw new Error("ecommerce-photoset billing text integrity mismatch");
+          html = html.replace(change[0], change[1]);
+        });
+        return html;
+      }
+      // ECOMMERCE_LOCAL_BILLING:END
+
+      // PREVIS_LOCAL_BILLING:BEGIN
+      async function localizePrevisBilling(html, name, version) {
+        if (name !== "previs") return html;
+        if (version !== "v3") throw new Error("unsupported local previs version");
+        var digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(html));
+        var hash = Array.from(new Uint8Array(digest), function (byte) {return byte.toString(16).padStart(2, "0");}).join("");
+        if (hash !== "584fd5b21ed83b53dfd0b55c2ab5edf36956b22a5b2ef0adae9dcad068b30394") throw new Error("previs reference integrity mismatch");
+        var changes = [["variantPrice:\"Generate 9 options · 26 credits\"", "variantPrice:\"Generate 9 options · provider pricing\""], ["variantPrice:\"生成 9 个选项 · 26 积分\"", "variantPrice:\"生成 9 个选项 · 费用由供应商决定\""], ["catch{if(!o())return!1;D={...D,[i]:{...n,status:\"failed\",error:\"submit_failed\"}}}", "catch(z){if(!o())return!1;D={...D,[i]:{...n,status:\"failed\",error:z?.data?.code===\"configuration_required\"||z?.code===\"configuration_required\"?\"configuration_required\":\"submit_failed\"}}}"], ["r.error===\"submit_failed\"?_.submitRetry:_.variantFailed", "r.error===\"configuration_required\"?_.configurationRequired:r.error===\"submit_failed\"?_.submitRetry:_.variantFailed"], ["function yo(e){_=Co[e??\"\"]??Co[\"en-US\"],document.documentElement.lang=e||\"en-US\"}", "const pvLocalConfiguration={\"zh-CN\":\"尚未配置图片生成服务，请连接API后重试。任务尚未派发。\",\"en-US\":\"Image generation is not configured. Connect the API and retry. No task was dispatched.\",\"ja-JP\":\"画像生成サービスが未設定です。APIを接続して再試行してください。タスクは送信されていません。\",\"ko-KR\":\"이미지 생성 서비스가 설정되지 않았습니다. API를 연결한 후 다시 시도하세요. 작업은 전송되지 않았습니다.\",\"fr-FR\":\"La génération d’images n’est pas configurée. Connectez l’API puis réessayez. Aucune tâche n’a été envoyée.\"};function yo(e){_={...(Co[e??\"\"]??Co[\"en-US\"]),configurationRequired:pvLocalConfiguration[e]??pvLocalConfiguration[\"en-US\"]},document.documentElement.lang=e||\"en-US\"}"]];
+        changes.forEach(function (change) {if (html.split(change[0]).length !== 2) throw new Error("previs billing text integrity mismatch");html = html.replace(change[0], change[1]);});
+        return html;
+      }
+      // PREVIS_LOCAL_BILLING:END
+
       function notifyParent(method, params) {
         window.parent.postMessage(
           { jsonrpc: "2.0", method: method, params: params || {}, nonce: (params && params.nonce) || currentNonce },
@@ -221,6 +251,17 @@
           })
           .then(function (templateHtml) {
             return localizeProductKitTransport(templateHtml, name, version);
+          })
+          .then(function (templateHtml) {
+            return localizeEcommerceBilling(templateHtml, name, version);
+          })
+          .then(function (templateHtml) {
+            return localizePrevisBilling(templateHtml, name, version);
+          })
+          .then(async function (templateHtml) {
+            if (name !== "animatic") return templateHtml;
+            var errors = await import("../animatic-local-errors.mjs");
+            return errors.localizeAnimaticErrors(templateHtml, name, version);
           })
           .then(function (templateHtml) {
             inner.srcdoc = buildSrcdocWithCsp(templateHtml, buildCspPolicy(params.csp));
