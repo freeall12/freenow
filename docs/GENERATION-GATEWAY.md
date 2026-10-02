@@ -8,7 +8,7 @@
 
 `GENERATION_API_PROTOCOL` 默认 `tasks-v1`，仍要求外部网关实现以下任务协议。`openai-native` 通过现有 OpenAI SDK 接入 `text.generate` 的 Responses API，以及 `image.generate` 的 Images generations / edits API，以及限定文字转语音的 audio/speech API 和焦点点选识别的 Responses 视觉输入。带图片参考的生成仅在模型映射显式开启后走 edits。两种协议共用现有本地任务记录与结果回填。`configured:true` 表示配置完整，不代表已联网验证账号权限、模型存在或服务可用。
 
-另可选 `ark-native`，直接适配火山方舟的 `/contents/generations/tasks`，无需自行实现 `/tasks` 网关。显式配置所选型号的生成方式、画幅、时长、分辨率和引用范围；原远端任务 ID 持久化，刷新/服务重启后仅 GET 查询，不重发未知 POST。单任务视频、首尾帧、参考与样片正式片的配置见 [Ark 视频适配](ARK-VIDEO.md)。当前一次只选择一个生成协议，未实现多个供应商按功能自动路由；Agent 的独立 OpenAI 配置不受影响。
+另可选 `ark-native`，直接适配火山方舟的 `/contents/generations/tasks`，无需自行实现 `/tasks` 网关。显式配置所选型号的生成方式、画幅、时长、分辨率和引用范围；原远端任务 ID 持久化，刷新/服务重启后仅 GET 查询，不重发未知 POST。单任务视频、首尾帧、参考与样片正式片的配置见 [Ark 视频适配](ARK-VIDEO.md)。可选 `GENERATION_PROVIDERS` / `GENERATION_ROUTES` 同时配置多个供应商，按功能和模型别名精确分流；不自动故障转移。见 [多供应商设置](MULTI-PROVIDER-SETUP.md)。Agent 的独立 OpenAI 配置不受影响。
 
 原生协议的 `GENERATION_API_KEY` 独立于 Agent Key；可选 `GENERATION_API_BASE_URL` 是 SDK 基础地址，留空使用 SDK 官方默认地址。自定义兼容服务必须实际实现 Responses 或 Images，Chat Completions 地址不能自动替代。必须配置 `GENERATION_MODEL_MAP` JSON，对每个展示别名指定 `kind`、真实 `model`，可选 `maxCount`（默认1，最大10）、`reasoningMap`、`sizeMap`、`qualityMap`。例如：
 

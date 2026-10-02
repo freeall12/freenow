@@ -105,3 +105,6 @@ reference/*
 
 !qa/agent-video-analysis-fixture.js
 !qa/agent-video-analysis-controls.mjs
+
+!qa/provider-routing-fixture.js
+!qa/provider-routing-controls.mjs
