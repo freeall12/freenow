@@ -4,7 +4,7 @@ const {validateVideoAnalysisProfile,videoAnalysisCapabilities,prepareVideoAnalys
 // This synthetic envelope checks provider plumbing. Real decoding/cuts are tested
 // independently by video-scene-media.test.cjs, never inferred from this fixture.
 const video=Buffer.from('000000186674797069736f6d0000020069736f6d69736f32','hex');
-const image=fs.readFileSync(path.join(__dirname,'../assets/bc4f3c062be44f8a.jpg'));
+const image=fs.readFileSync(path.join(__dirname,'fixtures/red.jpg'));
 const profile={kind:'video.analyze',model:'operator-selected-vision-model',detail:'high',maxOutputTokens:1500};
 const request={kind:'video.analyze',label:'分镜头解析',nodeId:'source',prompt:'',inputs:[{type:'video',url:'data:video/mp4;base64,'+video.toString('base64'),clip:null,width:320,height:180,duration:6}],parameters:{operation:'film_scene_breakdown',nodePosition:{x:10.25,y:-20.75},width:320,height:180,duration:6}};
 const scene=(start,end)=>({start,end,duration:end-start,width:320,height:180,video:Buffer.from(video),poster:Buffer.from(image),frames:[.1,.5,.9].map(f=>({time:start+(end-start)*f,image:Buffer.from(image)}))});

@@ -35,9 +35,9 @@ test('new live captures preserve exact dialog text and captured rich HTML across
  const read=createBuiltinSkillReader({loadCapture});
  for(const name of ['seedance-2-5-prompt-copilot','minimax-h3-prompt-copilot','opus55-motion-icon','html-beat-morph-video','commerce-ad-studio']){
   const entry=builtinSkillIndex.find(entry=>entry.name===name),detail=await readBuiltinSkillDetail(name,{readSkill:read});
-  const dialog=await read(name),htmlFile=entry.evidenceFiles.find(file=>file.endsWith('.html'));
-  assert.equal(dialog.content,await fs.readFile(path.join(root,entry.evidenceFiles[0]),'utf8'));
-  assert.equal(detail.content,await fs.readFile(path.join(root,htmlFile),'utf8'));
+  const dialog=await read(name),capture=await loadCapture(entry);
+  assert.equal(dialog.content,capture.text);
+  assert.equal(detail.content,capture.article);
   assert.deepEqual(detail.availablePaths,['capture/dialog.txt','capture/article.html']);
   assert.equal(dialog.sourceFormat,'captured-dialog-text');
   assert.equal(detail.sourceFormat,'captured-article-html');assert.equal(detail.originalMarkdown,false);

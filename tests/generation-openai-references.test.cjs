@@ -3,7 +3,7 @@ const {createOpenAINativeProvider}=require('../server/generation-openai.cjs');
 const {createGenerationGateway}=require('../server/generation.cjs');
 const {createDurableGenerationService}=require('../server/generation-durable.cjs');
 const png='iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jCn0AAAAASUVORK5CYII=';
-const fixtures=[['png',Buffer.from(png,'base64')],['jpeg',fs.readFileSync(path.join(__dirname,'../assets/bc4f3c062be44f8a.jpg'))],['webp',fs.readFileSync(path.join(__dirname,'../assets/e3150914a3d3ed79.webp'))]];
+const fixtures=[['png',Buffer.from(png,'base64')],['jpeg',fs.readFileSync(path.join(__dirname,'fixtures/red.jpg'))],['webp',fs.readFileSync(path.join(__dirname,'fixtures/blue.webp'))]];
 const inputs=fixtures.map(([format,bytes])=>({type:'image',url:'data:image/'+format+';base64,'+bytes.toString('base64')}));
 const profile={kind:'image.generate',model:'accessible-test-model',supportsImageReferences:true,maxImages:16,maxCount:2,sizeMap:{'1:1|1K':'1024x1024'},qualityMap:{high:'high'}};
 const modelMap={image:profile};
