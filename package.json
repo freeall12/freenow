@@ -1,0 +1,28 @@
+{
+  "name": "tapnow-canvas-replica",
+  "private": true,
+  "version": "0.1.0",
+  "type": "commonjs",
+  "scripts": {
+    "dev": "node server/server.cjs",
+    "test": "node --test tests/*.test.cjs",
+    "check": "node scripts/check.cjs",
+    "build:text": "node scripts/build-text-editor.cjs",
+    "build:image": "node scripts/build-image-editor.cjs",
+    "build:mask": "node scripts/build-image-mask.cjs",
+    "build:agent": "node scripts/build-agent-editor.cjs",
+    "setup": "node scripts/setup-local-data.cjs"
+  },
+  "dependencies": {
+    "@tabler/icons": "^3.47.0",
+    "@tiptap/core": "3.31.3",
+    "@tiptap/markdown": "3.31.3",
+    "@tiptap/starter-kit": "3.31.3",
+    "fabric": "6.7.0",
+    "openai": "^7.20.0",
+    "three": "^0.186.0"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2"
+  }
+}
