@@ -85,3 +85,15 @@ test('image result mapping retains thumbnail display and the separate full-size 
   node.generation.model='later-request';assert.equal(preview.resources(node)[0].model,output.model);assert.equal(preview.resources(node)[0].src,output.fullImage);
  }
 });
+
+
+test('same-origin image and video result mapping preserves local originals, poster and MIME/range metadata', async () => {
+ const ref=index=>'/api/generation/media/12345678-1234-4234-8234-'+String(index).padStart(12,'0');
+ for(const type of ['image','video']){
+  const f=await fixture({type,count:1});await f.prepare();
+  const output={type,url:ref(1),[type]:ref(1),sourceUrl:ref(2),mime:type+'/fixture',...(type==='image'?{fullImage:ref(2)}:{poster:ref(2),sourceRange:{start:2,end:4}})};
+  await f.workflow.apply(f.job([output]),async value=>assert.equal(value.url,ref(1)));
+  const patch=f.calls.apply[0].patches[0].patch;assert.equal(patch[type],ref(1));assert.equal(patch.sourceUrl,ref(2));assert.equal(patch.mime,output.mime);
+  if(type==='image')assert.equal(patch.fullImage,ref(2));else{assert.equal(patch.image,ref(2));assert.deepEqual(patch.sourceRange,output.sourceRange);}
+ }
+});

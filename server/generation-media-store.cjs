@@ -50,6 +50,10 @@ async function follow(promise,signal){
 // is an operator action: stop all writers, move .writer-lock out of this private
 // directory, then reopen. Never move an active writer's lock. Startup does not
 // reclaim locks or delete media, because read-owner/unlink is not atomic.
+// Startup indexes structural manifests without reading every media file. A
+// missing/corrupt payload keeps its ownership identity; info/open/reuse verify
+// the entire payload and fail with media_integrity_error. Recovery writes a new
+// descriptorRevision, retaining the old immutable resource for diagnosis.
 function createGenerationMediaStore({directory,maxBytes=100*1024*1024}={}){
  if(typeof directory!=='string'||!path.isAbsolute(directory)||!positive(maxBytes))throw invalid();
  const records=new Map(),keys=new Map(),active=new Map(),controllers=new Set(),token=randomUUID(),lease=path.join(directory,'.writer-lock');
@@ -75,7 +79,7 @@ function createGenerationMediaStore({directory,maxBytes=100*1024*1024}={}){
    const opened=await privateFile(filename(id,'json'));let record;try{if(opened.stat.size>4096)throw Error('manifest size');record=JSON.parse(await opened.handle.readFile('utf8'));}finally{await opened.handle.close();}
    if(!exact(record,['version','resourceId','taskId','outputIndex','role','mime','format','filename','descriptorRevision','bytes','sha256','createdAt'])||record.version!==1||record.resourceId!==id||!positive(record.bytes)||record.bytes>maxBytes||typeof record.sha256!=='string'||!/^[a-f0-9]{64}$/.test(record.sha256)||typeof record.createdAt!=='string'||!Number.isFinite(Date.parse(record.createdAt)))throw Error('manifest');
    const source=metadata(Object.fromEntries(['taskId','outputIndex','role','mime','format','filename','descriptorRevision'].filter(key=>record[key]!==undefined).map(key=>[key,record[key]]))),key=identity(source);
-   if(keys.has(key))throw Error('duplicate ownership');await (await verify(record)).close();records.set(id,record);keys.set(key,id);
+   if(keys.has(key))throw Error('duplicate ownership');records.set(id,record);keys.set(key,id);
   }
  })().catch(error=>{throw ['media_integrity_error','media_store_locked'].includes(error.code)?error:storage(error);});
  ready.catch(()=>{});

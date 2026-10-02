@@ -82,11 +82,13 @@ export function createMcpAppHost(options) {
   const window = iframe.ownerDocument?.defaultView || globalThis.window;
   const resource = resourcePattern.exec(options.resourceUri || '');
   const canApplyColor = options.resourceUri === 'ui://tapnow/color-adjust@v2' && typeof callbacks.onApplyColorAdjust === 'function';
+  const canApplyLayer = options.resourceUri === 'ui://tapnow/layer-composer@v1' && typeof callbacks.onApplyLayerComposer === 'function';
+  const canLayerContext = canApplyLayer && typeof callbacks.onLayerComposerContext === 'function';
   const canColorContext = canApplyColor && typeof callbacks.onColorAdjustContext === 'function';
   const canResizePlatform = options.resourceUri === 'ui://tapnow/platform-resize@v1' && typeof callbacks.onPlatformResizeApply === 'function';
   const canMessage = !['ui://tapnow/production-progress@v1','ui://tapnow/platform-resize@v1'].includes(options.resourceUri) && typeof callbacks.onSendPrompt === 'function';
   const canState = !['ui://tapnow/production-progress@v1','ui://tapnow/platform-resize@v1'].includes(options.resourceUri) && typeof callbacks.onSetWidgetState === 'function';
-  const resourceDataLimit = ['ui://tapnow/cutlist-review@v1','ui://tapnow/ad-review@v1'].includes(options.resourceUri) ? 16 * 1024 * 1024 : options.resourceUri === 'ui://tapnow/color-adjust@v2' ? 2 * 1024 * 1024 : 1000000;
+  const resourceDataLimit = options.resourceUri === 'ui://tapnow/layer-composer@v1' ? 4 * 1024 * 1024 : ['ui://tapnow/cutlist-review@v1','ui://tapnow/ad-review@v1'].includes(options.resourceUri) ? 16 * 1024 * 1024 : options.resourceUri === 'ui://tapnow/color-adjust@v2' ? 2 * 1024 * 1024 : 1000000;
   const canSaveExpressionGuide = options.resourceUri === actorEmotionUri && typeof callbacks.onSaveExpressionGuide === 'function';
   const canQueryProduction = options.resourceUri === 'ui://tapnow/production-progress@v1' && typeof callbacks.onProductionProgressQuery === 'function';
   const canFindLibrary = options.resourceUri === 'ui://tapnow/library-picker@v1' && typeof callbacks.onLibraryFind === 'function';
@@ -99,7 +101,7 @@ export function createMcpAppHost(options) {
   let toolInput = dataCopy(options.toolInput ?? {}, 1000000, true), toolResult = options.toolResult == null ? null : dataCopy(options.toolResult, resourceDataLimit, true);
   let widgetState = options.initialWidgetState == null ? null : dataCopy(options.initialWidgetState, widgetStateLimit), projectionRevision = null;
   let hostContext = {theme: options.theme || 'dark', locale: options.locale || 'zh-CN', displayMode: 'inline', availableDisplayModes: ['inline', 'fullscreen'], platform: 'web', ...dataCopy(options.hostContext || {})};
-  let colorContextPermit = null;
+  let colorContextPermit = null, layerContextPermit = null;
   let expanded = false, presentationTracked = false, conversationActive;
   const requests = new Map(), csp = cspPolicy(options.csp);
   if (widgetState !== null && !object(widgetState)) throw fault(-32602, 'widget state must be an object');
@@ -132,7 +134,7 @@ export function createMcpAppHost(options) {
       if (!object(params)) throw fault(-32602, 'params must be an object');
       if (method === 'ui/initialize') {
         initialized = true;
-        complete({protocolVersion, hostInfo: {name: 'canvas-replica', version: '1.0.0'}, hostCapabilities: {...canMessage ? {message: {text: {}}} : {}, ...canSaveExpressionGuide || canQueryProduction || canFindLibrary || canApplyColor || canResizePlatform ? {serverTools: {}} : {}, ...canUpdateLibraryContext || canColorContext ? {updateModelContext: {}} : {}}, hostContext: dataCopy(hostContext)});return;
+        complete({protocolVersion, hostInfo: {name: 'canvas-replica', version: '1.0.0'}, hostCapabilities: {...canMessage ? {message: {text: {}}} : {}, ...canSaveExpressionGuide || canQueryProduction || canFindLibrary || canApplyColor || canApplyLayer || canResizePlatform ? {serverTools: {}} : {}, ...canUpdateLibraryContext || canColorContext || canLayerContext ? {updateModelContext: {}} : {}}, hostContext: dataCopy(hostContext)});return;
       }
       if (method === 'ping') {complete({});return;}
       if (!ready || !live()) throw fault(-32000, 'app is not ready or current');
@@ -153,12 +155,12 @@ export function createMcpAppHost(options) {
         complete(strictDataCopy(receipt, canQueryProduction ? 16 * 1024 * 1024 : 2 * 1024 * 1024));return;
       }
       if (method === 'ui/update-model-context' || method === 'tapnow/addToCanvas') {
-        const callback = method === 'ui/update-model-context' ? canColorContext ? callbacks.onColorAdjustContext : canUpdateLibraryContext && callbacks.onLibraryModelContext : canAddLibraryAsset && callbacks.onLibraryAddToCanvas;
+        const callback = method === 'ui/update-model-context' ? canColorContext ? callbacks.onColorAdjustContext : canLayerContext ? callbacks.onLayerComposerContext : canUpdateLibraryContext && callbacks.onLibraryModelContext : canAddLibraryAsset && callbacks.onLibraryAddToCanvas;
         if (!callback) throw fault(-32601, 'library action is not configured for this app');
         if (conversationActive === true || sending) throw fault(-32000, 'conversation or app action is busy');
-        const colorContext = method === 'ui/update-model-context' && canColorContext;
-        if (colorContext ? !colorContextPermit : iframe.ownerDocument?.activeElement !== iframe || window.navigator.userActivation?.isActive !== true) throw fault(-32000, 'a current user action is required');
-        const permit = colorContext ? colorContextPermit : null;if (colorContext) colorContextPermit = null;
+        const colorContext = method === 'ui/update-model-context' && canColorContext, layerContext = method === 'ui/update-model-context' && canLayerContext;
+        if (colorContext ? !colorContextPermit : layerContext ? !layerContextPermit : iframe.ownerDocument?.activeElement !== iframe || window.navigator.userActivation?.isActive !== true) throw fault(-32000, 'a current user action is required');
+        const permit = colorContext ? colorContextPermit : layerContext ? layerContextPermit : null;if (colorContext) colorContextPermit = null;if (layerContext) layerContextPermit = null;
         const input = strictDataCopy(params, 65536), isSourceCurrent = () => validGeneration(version, token) && conversationActive !== true;
         sending = true;
         try {
@@ -170,11 +172,11 @@ export function createMcpAppHost(options) {
         return;
       }
       if (method === 'tools/call') {
-        if (!canSaveExpressionGuide && !canApplyColor && !canResizePlatform) throw fault(-32601, 'tool saving is not configured for this app');
+        if (!canSaveExpressionGuide && !canApplyColor && !canApplyLayer && !canResizePlatform) throw fault(-32601, 'tool saving is not configured for this app');
         let input;
         if (canSaveExpressionGuide) input = expressionGuideParams(params, id);
         else {
-          const value = strictDataCopy(params, 65536), expected = canApplyColor ? 'color_adjust_apply' : 'resize_for_platform_apply';
+          const value = strictDataCopy(params, 65536), expected = canApplyColor ? 'color_adjust_apply' : canApplyLayer ? 'layer_composer_apply' : 'resize_for_platform_apply';
           if (Object.keys(value).some(key => !['name','arguments','_meta'].includes(key)) || !object(value.arguments) || !object(value._meta)) throw fault(-32602, 'invalid scoped edit parameters');
           if (value.name !== expected) throw fault(-32601, 'tool is not supported for this app');
           const meta = value._meta, callId = meta['tapnow/callId'];
@@ -186,13 +188,13 @@ export function createMcpAppHost(options) {
         const isSourceCurrent = () => validGeneration(version, token) && conversationActive !== true;
         sending = true;
         try {
-          if (canApplyColor) colorContextPermit = null;
-          const receipt = await (canApplyColor ? callbacks.onApplyColorAdjust : canResizePlatform ? callbacks.onPlatformResizeApply : callbacks.onSaveExpressionGuide)(input.arguments, input.metadata, isSourceCurrent);
+          if (canApplyColor) colorContextPermit = null;if (canApplyLayer) layerContextPermit = null;
+          const receipt = await (canApplyColor ? callbacks.onApplyColorAdjust : canApplyLayer ? callbacks.onApplyLayerComposer : canResizePlatform ? callbacks.onPlatformResizeApply : callbacks.onSaveExpressionGuide)(input.arguments, input.metadata, isSourceCurrent);
           if (!validGeneration(version, token)) return;
           if (!isSourceCurrent()) throw fault(-32000, 'expression guide source is no longer current');
           if (!object(receipt) || !Array.isArray(receipt.content) || !object(receipt.structuredContent)) throw fault(-32000, 'expression guide was not saved');
           const savedReceipt = strictDataCopy(receipt, expressionGuideLimit);
-          if (canApplyColor) colorContextPermit = {callId:input.metadata.callId};
+          if (canApplyColor) colorContextPermit = {callId:input.metadata.callId};if (canApplyLayer) layerContextPermit = {callId:input.metadata.callId};
           complete(savedReceipt);
         } finally {if (generation === version) sending = false;}
         return;
@@ -250,7 +252,7 @@ export function createMcpAppHost(options) {
   function loaded() {
     if (disposed || failed) return;
     if (loadSeen) {generation++;nonce = window.crypto.randomUUID();ready = initialized = false;sending = false;lastMessageAt = -Infinity;requests.clear();timers();}
-    colorContextPermit = null;loadSeen = true;sendResource();
+    colorContextPermit = layerContextPermit = null;loadSeen = true;sendResource();
   }
   function start() {
     if (disposed || started) return;started = true;
@@ -265,7 +267,7 @@ export function createMcpAppHost(options) {
       if (projectionRevision && (revision.message_sequence < projectionRevision.message_sequence || revision.message_sequence === projectionRevision.message_sequence && revision.part_index <= projectionRevision.part_index)) return false;
     }
     const nextInput = dataCopy(input ?? {}, 1000000, true), nextResult = result == null ? null : dataCopy(result, resourceDataLimit, true);
-    colorContextPermit = null;toolInput = nextInput;toolResult = nextResult;if (revision) projectionRevision = {...revision};
+    colorContextPermit = layerContextPermit = null;toolInput = nextInput;toolResult = nextResult;if (revision) projectionRevision = {...revision};
     if (ready) notify('tapnow/updateData', {toolInput, toolResult, ...(revision ? {revision: {...revision}} : {})});return true;
   }
   function updateHostContext(patch) {
@@ -276,6 +278,6 @@ export function createMcpAppHost(options) {
   function updatePresentationState(value) {if (disposed || failed) return;const changed = !presentationTracked || expanded !== !!value;presentationTracked = true;expanded = !!value;if (changed) sendPresentation();}
   function updateConversationRunActive(value) {if (disposed || failed) return;const next = !!value;if (conversationActive === next) return;conversationActive = next;if (ready) notify('tapnow/updateData', {conversation_run_active: conversationActive});}
   function sendPresentationShortcut(key) {if (!disposed && !failed && ready && expanded && typeof key === 'string' && key.length < 40) notify('tapnow/presentationShortcut', {key});}
-  function dispose() {if (disposed) return;disposed = true;colorContextPermit = null;generation++;stopTimers();requests.clear();window.removeEventListener('message', receive);iframe.removeEventListener('load', loaded);}
+  function dispose() {if (disposed) return;disposed = true;colorContextPermit = layerContextPermit = null;generation++;stopTimers();requests.clear();window.removeEventListener('message', receive);iframe.removeEventListener('load', loaded);}
   return {start, updateData, updateHostContext, updatePresentationState, updateConversationRunActive, sendPresentationShortcut, dispose};
 }

@@ -74,7 +74,7 @@ Tests：host/card/registry、各工作流协议/来源/保存、widget queue与s
 
 ## 尚未完成
 
-对照当前manifest与registry，版本URI已接16/22，功能族已接16/20。未接的四族为animatic、ecommerce-photoset、layer-composer、previs；另保留未接历史URI animatic@v1和character-blocking@v1，不算两个新增功能族。完整艺术/硬件模板逐项交互、精确模板文件获取/哈希校验/产物编辑链仍待补齐。计数仅证明接线存在，不能作为完整视觉、交互、真实生成或本地化验收。有KEY也不能自动补齐尚未实现的工作流。应用交接已按官方hidden标志隐藏聊天行，原文和widgetOrigin仍保留于历史，修改工具仍需正常确认；运行中不接受新的应用交接。验收见 `reference/agent-hidden-handoff-20260930.md`。
+对照当前manifest与registry，版本URI已接17/22，功能族已接17/20。未接的三族为animatic、ecommerce-photoset、previs；另保留未接历史URI animatic@v1和character-blocking@v1，不算两个新增功能族。完整艺术/硬件模板逐项交互、精确模板文件获取/哈希校验/产物编辑链仍待补齐。计数仅证明接线存在，不能作为完整视觉、交互、真实生成或本地化验收。有KEY也不能自动补齐尚未实现的工作流。应用交接已按官方hidden标志隐藏聊天行，原文和widgetOrigin仍保留于历史，修改工具仍需正常确认；运行中不接受新的应用交接。验收见 `reference/agent-hidden-handoff-20260930.md`。
 
 ## 导演画线批注
 
@@ -130,3 +130,5 @@ Tests：集成测试涵盖正常mutation确认/拒绝、只接受三项identity�
 character-blocking使用原官方HTML和默认本地图片CSP。product-kit磁盘原HTML不变；共享proxy仅在完整源SHA匹配且校验目标唯一时，把thumbnail_url的HTTPS校验窄替换成有界本地data:image校验，保留其余UI和脚本。ad-review使用仅允许ad-review@v1的`ad-review-proxy.html`：本地data/blob图片与视频、connect-src none、opaque scripts-only双iframe；单项8MiB、总读取16MiB、整页15MiB、30秒，host响应16MiB。人物站位和产品素材仍使用默认1,000,000字节host限制，并各有更小的预览限额。
 
 本批共同接线相关37项检查通过；其中新增7项覆盖严格输入、模型预览剥除、保存等待/失败拒绝、来源变化及真实queue补偿。Node媒体解码存在明确测试桩，不能替代浏览器或真实模型验收。根任务已在实际浏览器核验站位真实头像、video/9:16、X310/facing96、CB3一次交接、reload恢复及保存失败无新队列；产品素材以真实本地camera图片856×558核验砂岩配色、双调性、PK1一次交接、来源SHA和真实reload恢复。人物鼠标拖动、产品拖动尚未验收；广告审核实际浏览器已验证中文首帧keep/cull与备注净化、英文试拍win/pass_over、日语成片keep/rework/win，三阶段累计3条可信node_ref/SHA交接；重复确认、刷新恢复、运行中拒绝和真实替换PNG后旧来源拒绝均通过。真实本地视频解码为320×180/8秒，readyState4并实际原生播放；后续模型生成与投放效果未验。正式首页Agent已实际加载且本轮console无warn/error；QA使用生产接线与本地保存，不是实际模型联调。以上均为局部证据，不等于全部交互、媒体生成或投放效果通过。
+
+2026-10-03 layer-composer@v1已接真实本地PNG合成、持久回执和撤销后拒重建。官方HTML保持原字节，完整源像素合成，不调用模型；详见[LAYER-COMPOSER.md](LAYER-COMPOSER.md)。

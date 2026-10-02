@@ -18,7 +18,7 @@ test('real bounded node bytes become local thumbnail with persisted source ident
 test('caller preview, remote input and resolved remote fallbacks are refused', async () => {
   const f = await fixture();await assert.rejects(f.runtime.prepareAppArgs({...f.args, data: {...f.args.data, product: {...f.args.data.product, thumbnail_url: png}}}), /不得提供/);
   f.graph.nodes[0].fullImage = 'https://files.tapnow.ai/demo/product-kit.webp';await assert.rejects(f.runtime.prepareAppArgs(f.args), /不能访问/);assert.equal(f.counts().calls, 0);
-  const g = await fixture({localAssets: {url: async () => 'https://fake.example/image.png'}});await assert.rejects(g.runtime.prepareAppArgs(g.args), /data\/blob/);assert.equal(g.counts().renders, 0);
+  const g = await fixture({localAssets: {url: async () => 'https://fake.example/image.png'}});await assert.rejects(g.runtime.prepareAppArgs(g.args), /可读取的本地图片/);assert.equal(g.counts().renders, 0);
 });
 test('same address byte replacement, node deletion, project change and response mutation invalidate bindings', async () => {
   const f = await fixture(), {trace, context} = await f.prepare();f.setBytes(Buffer.from('replaced bytes'));await assert.rejects(context.reply(f.m.productKitMessage(trace.result.response, trace.appState), trace.appState), /实际字节已变化/);

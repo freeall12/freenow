@@ -1,3 +1,4 @@
+import {isGenerationMediaRef, isLocalMediaSource} from '../generation-results/media-ref.mjs';
 import {mediaSource} from '../media-preview/provenance.mjs';
 const parameterKeys = ['model','modelId','provider','ratio','aspectRatio','aspect','resolution','quality','count','duration','durationMs','seed','negativePrompt','outputType','representation','modelType','isPano','material','tripoParams','voice','voiceId','language','speed','format','camera','lens','focal','aperture','cameraEnabled'];
 const unsafeKey = /token|secret|password|authorization|credential|api.?key/i;
@@ -11,14 +12,15 @@ export function safeValue(value, depth = 0) {
 export function parameters(value = {}) { return Object.fromEntries(parameterKeys.filter(key => value[key] !== undefined).map(key => [key, safeValue(value[key])]).filter(([,item]) => item !== undefined)); }
 export function safeSource(source) {
   if (typeof source !== 'string') return null;
-  if (/^(asset:|data:(image|video|audio)\/)/.test(source)) return source;
+  if (isLocalMediaSource(source)) return source;
   if (!/^https?:/.test(source)) return null;
   try { const url = new URL(source); if (url.username || url.password || [...url.searchParams.keys()].some(key => unsafeKey.test(key))) return null; return source; } catch { return null; }
 }
 function worldSnapshot(output) {
   const invalid=()=>{throw Error('历史世界结果元数据无效，未保存可恢复结果');};
   const shape=(value,allowed,required=[])=>{if(!value||Object.getPrototypeOf(value)!==Object.prototype||Object.keys(value).some(key=>!allowed.includes(key))||required.some(key=>!Object.hasOwn(value,key)))invalid();};
-  const resource=value=>{
+  const resource=(value,{information=false}={})=>{
+    if(!information&&isGenerationMediaRef(value))return;
     if(typeof value!=='string'||!value||value.length>8192||/[\x00-\x20\x7f]/.test(value))invalid();
     let url;try{url=new URL(value);}catch{invalid();}
     const host=url.hostname.toLowerCase().replace(/\.$/,'');
@@ -28,7 +30,7 @@ function worldSnapshot(output) {
   if(output.type!=='model'||output.format!=='spz'||output.representation!=='gaussianSplat')invalid();
   shape(world,['worldId','model','marbleUrl','assets','coordinateSystem','splatResolution'],['worldId','model','marbleUrl','assets','coordinateSystem','splatResolution']);
   if(typeof world.worldId!=='string'||!/^[A-Za-z0-9._:-]{1,200}$/.test(world.worldId)||['.','..'].includes(world.worldId)||world.worldId!==output.sourceFileId||!['marble-1.1','marble-1.1-plus','marble-1.0','marble-1.0-draft'].includes(world.model)||world.coordinateSystem!=='marble_raw_opencv'||!resolutions.includes(world.splatResolution))invalid();
-  resource(output.url);resource(world.marbleUrl);if(output.poster!==undefined)resource(output.poster);
+  resource(output.url);resource(world.marbleUrl,{information:true});if(output.poster!==undefined)resource(output.poster);
   shape(world.assets,['splats','mesh','imagery'],['splats']);
   const splats=world.assets.splats;shape(splats,['spzUrls','semanticsMetadata'],['spzUrls','semanticsMetadata']);shape(splats.spzUrls,resolutions,[world.splatResolution]);
   if(splats.spzUrls[world.splatResolution]!==output.url)invalid();for(const value of Object.values(splats.spzUrls))resource(value);
@@ -48,10 +50,10 @@ export function outputSnapshot(output) {
   const result = {type, ...(source ? {url: source} : {})};
   if(world)result.world=world;
   if (typeof output.model === 'string' && output.model.trim()) result.model = safeValue(output.model.trim());
-  for (const key of ['title','filename','format','sourceFileId','width','height','duration','representation']) if (output[key] !== undefined) result[key] = safeValue(output[key]);
+  for (const key of ['title','filename','format','sourceFileId','width','height','duration','representation','mime']) if (output[key] !== undefined) result[key] = safeValue(output[key]);
   if(type==='video'&&output.sourceRange){const {start,end}=output.sourceRange;if(Number.isFinite(start)&&Number.isFinite(end)&&start>=0&&end>start){result.sourceRange={start,end};if(typeof output.text==='string')result.text=output.text.slice(0,12000);}}
   if(output.asset_metadata){const metadata=output.asset_metadata;result.asset_metadata=Object.fromEntries(['format','representation','name','bytes','model','outputType'].filter(key=>metadata[key]!==undefined).map(key=>[key,safeValue(metadata[key])]));}
-  if (safeSource(output.poster)) result.poster = safeSource(output.poster);
+  for(const key of ['image','fullImage','video','audio','sourceUrl','poster']) {const source=safeSource(output[key]);if(source)result[key]=source;}
   return result;
 }
 export function receipt(job, projectId, recoverable = false) {

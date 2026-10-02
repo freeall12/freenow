@@ -2,7 +2,7 @@
 export function attachGenerationJob(trace,job){
  if(trace.batchItems){let changed=false;for(const item of trace.batchItems)if(attachGenerationJob(item,job))changed=true;return changed;}
  if(!['generation_submit','world_generate','depth_video_convert','depth_video_recast','video_analyze'].includes(trace.name)||!job||(trace.result?.taskId||trace.submittedTaskId)!==job.id)return false;
- const snapshot=Object.fromEntries(['id','status','progress','error','applied','applying','applicationError','applicationStatus','applicationAttempts','resultIds','recovered','recovery'].filter(key=>job[key]!==undefined).map(key=>[key,structuredClone(job[key])]));
+ const snapshot=Object.fromEntries(['id','status','progress','error','applied','applying','applicationError','applicationStatus','applicationAttempts','resultIds','recovered','recovery','providerStatus','localization'].filter(key=>job[key]!==undefined).map(key=>[key,structuredClone(job[key])]));
  snapshot.hasResultPlan=!!job.request?.parameters?.canvasResults;
  if(JSON.stringify(trace.generationJob)===JSON.stringify(snapshot))return false;
  trace.generationJob=snapshot;return true;

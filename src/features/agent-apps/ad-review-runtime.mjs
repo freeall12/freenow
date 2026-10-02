@@ -1,3 +1,4 @@
+import {isGenerationMediaRef} from '../generation-results/media-ref.mjs';
 import {adReviewUri,adReviewBudget as budget,adReviewFields,adReviewText,prepareAdReview,resolveAdReviewReply} from './ad-review.mjs';
 import {materializationScope} from '../world-node/materialization.mjs';
 import {openVideoFrames} from '../../../video-frames.mjs';
@@ -25,14 +26,16 @@ export function createAdReviewRuntime({app,localAssets,getProjectId,fetchImpl=(.
   function source(id,media) {const node=nodes().find(node=>node.id===id);if(node?.type!==media||typeof(media==='image'?node.fullImage||node.image:node.video)!=='string'||!(media==='image'?node.fullImage||node.image:node.video)||media==='video'&&(node.clip!=null||node.trim!=null))fail('广告审核node_ref必须对应当前真实完整图片或视频节点，虚拟裁剪请先导出');return node;}
   function localUrl(url) {
     if(typeof url!=='string')fail('广告审核来源地址无法解析');
+    if(isGenerationMediaRef(url))return url;
     if(/^data:(?:image\/(?:png|jpeg|webp)|video\/(?:mp4|webm));base64,/.test(url))return url;
     if(/^blob:/.test(url)){if(baseOrigin&&!url.startsWith(`blob:${baseOrigin}/`))fail('广告审核Blob不属于当前本地宿主');return url;}
     let parsed;try{parsed=new URL(url,baseOrigin);}catch{fail('广告审核媒体须先保存为本地素材');}
     if(!baseOrigin||parsed.origin!==baseOrigin||!['http:','https:'].includes(parsed.protocol)||parsed.username||parsed.password)fail('广告审核禁止请求原站或外部媒体，请先完成本地素材保存');return parsed.href;
   }
   async function read(node,media,scope,limit) {
-    const url=localUrl(await scope.wait(()=>localAssets.url(media==='image'?node.fullImage||node.image:node.video)));
-    const response=await scope.wait(()=>fetchImpl(url,{signal:scope.signal,redirect:'error'}),{disposeLate:value=>value?.body?.cancel?.().catch(()=>{})});let reader,complete=false;
+    const original=media==='image'?node.fullImage||node.image:node.video;
+    const url=localUrl(isGenerationMediaRef(original)?original:await scope.wait(()=>localAssets.url(original)));
+    const response=await scope.wait(()=>fetchImpl(url,{signal:scope.signal,redirect:'error',...(isGenerationMediaRef(url)?{mode:'same-origin',credentials:'same-origin'}:{})}),{disposeLate:value=>value?.body?.cancel?.().catch(()=>{})});let reader,complete=false;
     try {
       if(!response?.ok)fail('广告审核真实媒体读取失败');
       const type=response.headers?.get?.('content-type')?.split(';')[0]?.trim(),types=media==='image'?['image/png','image/jpeg','image/webp']:['video/mp4','video/webm'];

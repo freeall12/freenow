@@ -1,6 +1,6 @@
 # Agent 官方工作流清点 · 2026-10-03
 
-本次续批已完成下文曾建议的 Creative 无预选 art/hardware 入口与精确选择交接，见[增量验收](AGENT-CREATIVE-FAMILY-20261003.md)。随后本批新增人物站位v3、产品素材板v1、广告审核v1，当前16/22个版本URI、16/20个功能族已接；单个精确模板正文及后续下载/编辑链仍未完成。
+本次续批已完成下文曾建议的 Creative 无预选 art/hardware 入口与精确选择交接，见[增量验收](AGENT-CREATIVE-FAMILY-20261003.md)。随后本批新增人物站位v3、产品素材板v1、广告审核v1，当前17/22个版本URI、17/20个功能族已接；单个精确模板正文及后续下载/编辑链仍未完成。
 
 官方清点依据本机可追溯的 TapNow 0.4.81 安装包；“当前”指本次读到的官方安装包快照，不代表已核验线上最新发布。清点子任务为只读操作。主任务前批完成调色/裁切/粗剪接线，本批继续接人物站位/产品素材/广告审核，下面状态同步到当前registry；实际操作与测试另见[本地媒体编辑验收](AGENT-LOCAL-EDITING-20261003.md)。
 
@@ -8,17 +8,17 @@
 
 | 计数口径 | 总数 | registry 已接 | 未接 | 用途 |
 | --- | ---: | ---: | ---: | --- |
-| 官方 manifest 的带版本资源 URI | 22 | 16 | 6 | 静态资源与版本接线清单 |
-| manifest 按 `@` 前名称合并的功能族 | 20 | 16 | 4 | 本批功能接线进度；animatic 和 character-blocking 各有两个版本 |
+| 官方 manifest 的带版本资源 URI | 22 | 17 | 5 | 静态资源与版本接线清单 |
+| manifest 按 `@` 前名称合并的功能族 | 20 | 17 | 3 | 本批功能接线进度；animatic 和 character-blocking 各有两个版本 |
 | 官方 apps 目录中的 HTML 文件 | 24 | 不适用 | 不适用 | 额外保留 performance-rhythm v1、v2，但 manifest 仅声明 v3；不能把历史文件加成新增功能 |
 
-原“22个工作流/10已接/12未接”混合了版本与功能族口径。前批增加调色、裁切、粗剪，本批再接人物站位v3、产品素材板v1、广告审核v1；对照当前registry已核准为 **22个版本URI/16已接/6未接**，对应 **20族/16已接/4待接**。未接 URI 中的 animatic@v1 和 character-blocking@v1 是已有更新版本同族的历史项，不是另外两个产品功能。manifest 仍保留它们，本轮没有证据证明旧版已被官方撤销；后续新增功能默认研究 manifest 中该族最高版本，不凭此断言服务端只能调用最高版本。
+原“22个工作流/10已接/12未接”混合了版本与功能族口径。前批增加调色、裁切、粗剪，本批再接人物站位v3、产品素材板v1、广告审核v1及图层合成v1；对照当前registry已核准为 **22个版本URI/17已接/5未接**，对应 **20族/17已接/3待接**。未接 URI 中的 animatic@v1 和 character-blocking@v1 是已有更新版本同族的历史项，不是另外两个产品功能。manifest 仍保留它们，本轮没有证据证明旧版已被官方撤销；后续新增功能默认研究 manifest 中该族最高版本，不凭此断言服务端只能调用最高版本。
 
 这里的“已接”仅指 registry 有入口及专属处理代码，不能等同完整同态视觉验收、每一状态已验收或供应商生成链已完成。Creative 与 Website 是两个 URI 名称，但其 HTML 逐字节相同；按 HTML 实现合并又是另一个口径，不用于上表。Creative 内部 website / art / hardware 三类及 46 个模板引用，也不能作为新的 manifest URI 加入分母。
 
 ## 未接族与历史版本分列
 
-- 尚未接入四族：animatic（当前研究版本v2）、ecommerce-photoset@v2、layer-composer@v1、previs@v3。
+- 尚未接入三族：animatic（当前研究版本v2）、ecommerce-photoset@v2、previs@v3。
 - manifest保留的历史URI：animatic@v1尚未接，同族v2也未接；character-blocking@v1尚未接，同族v3已接。两项都仍属于22 URI分母，不作为额外功能族，也不宣称已被官方撤销。
 - manifest外历史HTML：performance-rhythm@v1、@v2只作归档参考，不属于当前22 URI分母。
 
@@ -50,7 +50,7 @@
 | director-markup / 导演批注 | v1 `4b53a29e` | 否 | 已接 v1 | 已有真实正文 / DM1 核对；完整语言、文本选择与视觉组合仍需分项验收 |
 | ecommerce-photoset / 电商组图 | v2 `a7b6a057` | 否，用户创作 | 未接 | 真实产品来源与计划行、状态恢复、`ecommerce_photoset_generate` 逐项真实任务 / 未知提交处理 |
 | interactive-learning / 互动学习 | v1 `cd0bb18c` | 否 | 已接 v1 | 已有目录 / 学习板 / IL1；课程全部内容与完整同态视觉不由接线计数证明 |
-| layer-composer / 图层合成 | v1 `067126cf` | 否 | 未接 | 真实图层来源 / 状态、`layer_composer_apply` 实际图像与节点回填、未知结果保护 |
+| layer-composer / 图层合成 | v1 `067126cf` | 否 | 已接 | 完整源像素本地PNG合成、实际保存/回执/撤销保护；浏览器局部通过，见[合同](../src/features/agent-apps/LAYER-COMPOSER.md) |
 | library-picker / 素材库 | v1 `3449ff83` | 否 | 已接 v1，仅个人库 | 个人库完整同态视觉；团队 scope 已明确排除，不计缺口 |
 | motion-picker / 动效库 | v1 `11addd0c` | 否 | 已接 v1 | 46 项逐项动画 / 交互、精确模板取得与修改；不把字体 / 图形动效写成摄像机运镜 |
 | performance-rhythm / 表演节奏 | v3 `9ead0d0b` | 否 | 已接 v3 | 固定时长 / 曲线 / PS1 已接；历史 v1 / v2 文件不纳入当前 manifest 分母 |
@@ -97,4 +97,4 @@ Creative catalog SHA256 为 `10421d5dedd820104b167d60af250e2a6657365226b0bc7a456
 3. 复用保存 / handoff / hidden message / 普通队列。下一批最小验收范围：art 可选16、hardware 8；无预选初始模式；A01 / A17 / H01 / H08 的修改、暂停、拖动、刷新恢复及一次交接；退役A05恢复清除；运行中禁交接；保存失败不入队。先看实际画面与消息 / 状态回执，再报告范围。
 4. 在用户提供内容后，把未知模板解析明确显示为未配置 / 未取得官方资源。模板下载器、已校验原始HTML、产物修订与真实预览另作一批；先取得官方下载合同和样本再实现，不写猜测域名。
 
-Creative子路径补齐不会增加URI或功能族数。前次建议研究的character-blocking@v3现已接真实来源/保存/CB3正常队列；站位确认仍不等于已制作视频。后续未接四族须分别核对真实任务、状态及写回合同，不能仅凭HTML文件存在计为完成。
+Creative子路径补齐不会增加URI或功能族数。前次建议研究的character-blocking@v3现已接真实来源/保存/CB3正常队列；站位确认仍不等于已制作视频。后续未接三族须分别核对真实任务、状态及写回合同，不能仅凭HTML文件存在计为完成。

@@ -1,4 +1,7 @@
+import {isGenerationMediaRef} from '../generation-results/media-ref.mjs';
 import {libraryPickerUri, libraryPickerTypes, prepareLibraryPicker, validateLibraryPickerFindRequest, validateLibraryPickerState, resolveLibraryPickerContext, resolveLibraryPickerReply, validateLibraryPickerCanvasRequest} from './library-picker.mjs';
+import {materializationScope} from '../world-node/materialization.mjs';
+import {prepareMediaInputs} from '../agent-attachments/media-inputs.mjs';
 import {libraryFolders, libraryScope} from '../agent-composer/reference-data.mjs';
 const failure = (code, message) => Object.assign(Error(message), {code});
 const clone = value => structuredClone(value);
@@ -8,13 +11,13 @@ const sourceUrl = item => item.type === 'image' ? item.fullImage || item.image :
 const token = id => 'library://private/' + encodeURIComponent(id);
 function safeMedia(url, type) {
   if (typeof url !== 'string' || !url) return false;
-  if (/^asset:[A-Za-z0-9_-]+$/.test(url)) return true;
+  if (/^asset:[A-Za-z0-9_-]+$/.test(url) || isGenerationMediaRef(url)) return true;
   if (new RegExp('^data:' + type + '/[a-z0-9.+-]+;base64,[A-Za-z0-9+/]+={0,2}$', 'i').test(url)) return true;
   return false;
 }
 // Host-owned library:// identities keep data URLs and asset bytes out of the
 // conversation. The iframe never supplies the media imported by insertAsset.
-export function createLibraryPickerRuntime({library, app, store, getProjectId, localAssets, persistConversation} = {}) {
+export function createLibraryPickerRuntime({library, app, store, getProjectId, localAssets, persistConversation, fetchImpl = (...args) => fetch(...args), preparePreviews = prepareMediaInputs, createObjectURL = blob => URL.createObjectURL(blob), revokeObjectURL = url => URL.revokeObjectURL(url)} = {}) {
   for (const [name, fn] of Object.entries({'app.getState': app?.getState, 'app.insertAsset': app?.insertAsset, 'store.save': store?.save, getProjectId, persistConversation})) if (typeof fn !== 'function') throw TypeError(name + ' adapter is required');
   if (!library) throw TypeError('CanvasLibrary adapter is required');
   const preparations = new WeakMap();
@@ -33,13 +36,34 @@ export function createLibraryPickerRuntime({library, app, store, getProjectId, l
     if (isCurrent() !== true || scope.projectId !== getProjectId()) throw failure('stale_library_app', '素材库应用所属画布或会话已切换');
     if (signature(read()) !== captured) throw failure('library_changed', '个人素材库已变化，请重新打开选择器');
   }
-  async function project(item, check) {
+  async function generatedPreview(ref, item, check, signal, budget) {
+    if (budget.used >= 16 * 1024 * 1024) return undefined;
+    const scope = materializationScope({signal, validateSources: check, timeoutMs: 30000});let reader, body, complete = false;
+    try {
+      const response = await scope.wait(() => fetchImpl(ref, {signal: scope.signal, redirect: 'error', mode: 'same-origin', credentials: 'same-origin'}), {disposeLate: value => value?.body?.cancel?.().catch(() => {})});
+      body = response?.body;if (!response?.ok) throw failure('preview_unavailable', '生成素材预览读取失败');
+      const type = response.headers?.get?.('content-type')?.split(';')[0], limit = 8 * 1024 * 1024;
+      if (Number(response.headers?.get?.('content-length')) > Math.min(limit, 16 * 1024 * 1024 - budget.used)) {await response.body?.cancel?.();return undefined;}
+      if (!['image/png', 'image/jpeg', 'image/webp', 'image/gif'].includes(type) || !response.body?.getReader) {await response.body?.cancel?.();throw failure('preview_unavailable', '生成素材预览格式或有界读取无效');}
+      reader = response.body.getReader();const chunks = [];let size = 0;
+      for (;;) {const chunk = await scope.wait(() => reader.read());if (chunk.done) {complete = true;break;}size += chunk.value.byteLength;budget.used += chunk.value.byteLength;if (size > limit || budget.used > 16 * 1024 * 1024) return undefined;chunks.push(chunk.value);}
+      if (!size) throw failure('preview_unavailable', '生成素材预览为空');
+      const url = createObjectURL(new Blob(chunks, {type}));
+      try {
+        const images = await scope.wait(() => preparePreviews([{name: item.id, type: 'image', asset: url}], {signal: scope.signal, resolveUrl: async () => {check();return url;}}));
+        const image = images?.[0];if (images?.length !== 1 || image.name !== item.id || typeof image.imageUrl !== 'string' || image.imageUrl.length > 1500000 || !/^data:image\/(?:png|jpeg|webp|gif);base64,[A-Za-z0-9+/]+={0,2}$/.test(image.imageUrl)) throw failure('preview_unavailable', '生成素材没有有效真实图片预览');
+        check();return image.imageUrl;
+      } finally {revokeObjectURL(url);}
+    } finally {if (!complete) {if (reader) reader.cancel().catch(() => {});else body?.cancel?.().catch(() => {});}reader?.releaseLock();scope.close();}
+  }
+  async function project(item, check, signal, budget) {
     check();const out = {asset_id: item.id, type: item.type, name: item.name || item.title || item.type}, media = sourceUrl(item);
     if (media && safeMedia(media, item.type)) out.source_url = token(item.id);
     if (['image', 'video'].includes(item.type) && item.image && safeMedia(item.image, 'image')) {
       let preview = item.image;
       if (preview.startsWith('asset:')) {if (typeof localAssets?.url !== 'function') throw failure('preview_unavailable', '缺少本地素材预览适配');preview = await localAssets.url(preview);check();}
-      out.preview_url = preview;
+      if (isGenerationMediaRef(preview)) preview = await generatedPreview(preview, item, check, signal, budget);
+      if (preview !== undefined) out.preview_url = preview;
     }
     return out;
   }
@@ -79,7 +103,8 @@ export function createLibraryPickerRuntime({library, app, store, getProjectId, l
       let rows = snapshot.items.filter(item => !source.applied || source.applied.types.includes(item.type));
       if (request.folder_id) {const folder = source.folders.find(folder => folder.folder_id === request.folder_id);rows = rows.filter(item => (item.folder || 'Others') === folder.path);}
       else {const query = request.query.toLocaleLowerCase();rows = rows.filter(item => [item.name || item.title || item.type, item.folder || 'Others'].some(value => value.toLocaleLowerCase().includes(query)));}
-      const projected = await Promise.all(rows.map(item => project(item, () => operationCheck(signal, operationCurrent))));await current(signal, operationCurrent);
+      const budget = {used: 0}, projected = [], projectionCheck = () => {operationCheck(signal, operationCurrent);if (generation !== epoch) throw failure('stale_query', '素材库查询已被更新的请求替换');};
+      for (const item of rows) projected.push(await project(item, projectionCheck, signal, budget));await current(signal, operationCurrent);
       if (generation !== epoch) throw failure('stale_query', '素材库查询已被更新的请求替换');
       visible = projected;return {items: clone(visible)};
     }

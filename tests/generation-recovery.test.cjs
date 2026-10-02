@@ -82,7 +82,7 @@ test('gateway rejects unsupported recovery methods before invoking durable looku
  require.cache[durablePath]={id:durablePath,filename:durablePath,loaded:true,exports:{createDurableGenerationService:()=>({ready:Promise.resolve(),get:async()=>{reads++;assert.fail('must not poll');},lookup:async()=>{reads++;assert.fail('must not lookup');}})}};
  delete require.cache[gatewayPath];
  try{
-  const gateway=require(gatewayPath).createGenerationGateway({directory:'/unused-recovery-fixture'});
+  const gateway=require(gatewayPath).createGenerationGateway({directory:'/unused-recovery-fixture',mediaMaterializer:{localize:async()=>assert.fail('must not localize'),verify:async()=>assert.fail('must not verify')}});
   for(const pathname of ['/api/generation/tasks/existing','/api/generation/tasks/by-key/stable-key'])for(const method of ['POST','PUT','PATCH']){
    let status;await gateway.handle({method},{},pathname,{json:(_,value)=>{status=value;},body:async()=>({})});assert.equal(status,405);
   }

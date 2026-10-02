@@ -1,3 +1,4 @@
+import {isGenerationMediaRef} from '../generation-results/media-ref.mjs';
 import {productionProgressUri,prepareProductionProgress,validateProductionProgressRequest,normalizeProductionProgressResult} from './production-progress.mjs';
 import {materializationScope} from '../world-node/materialization.mjs';
 export const productionPreviewBudget=Object.freeze({imageBytes:8*1024*1024,videoBytes:8*1024*1024,totalBytes:16*1024*1024,responseBytes:15*1024*1024,timeoutMs:30000});
@@ -105,8 +106,8 @@ export function createProductionProgressRuntime({app,generationAPI,getProjectId,
    const available=previewBudget.totalBytes-scope.downloadedBytes-reservedBytes,maxBytes=Math.min(node.type==='video'?previewBudget.videoBytes:previewBudget.imageBytes,available);
    if(maxBytes<1)overBudget('制作预览缓存超过总读取预算；原生成任务保持不变');reservedBytes+=maxBytes;
    try{
-    const resolved=typeof localAssets?.url==='function'?await scope.wait(()=>localAssets.url(source)):source;
-    const response=await scope.wait(()=>fetchImpl(resolved,{signal:scope.signal}),{disposeLate:response=>response?.body?.cancel?.().catch(()=>{})}),blob=await boundedPreviewBlob(response,scope,maxBytes,node.type);scope.downloadedBytes+=blob.size;
+    const resolved=isGenerationMediaRef(source)?source:typeof localAssets?.url==='function'?await scope.wait(()=>localAssets.url(source)):source;
+    const response=await scope.wait(()=>fetchImpl(resolved,{signal:scope.signal,...(isGenerationMediaRef(resolved)?{redirect:'error',mode:'same-origin',credentials:'same-origin'}:{})}),{disposeLate:response=>response?.body?.cancel?.().catch(()=>{})}),blob=await boundedPreviewBlob(response,scope,maxBytes,node.type);scope.downloadedBytes+=blob.size;
     const prepared=await visiblePreview(blob,node.type,scope,createObjectURL,revokeObjectURL,Math.min(node.type==='video'?previewBudget.videoBytes:inlineBytes,Math.floor((previewBudget.responseBytes-sources.length*1024)*.75/sources.length)));scope.check();
     const stored={source,...prepared,bytes:prepared.url.length};if(cachedBytes-(cached?.bytes||0)+stored.bytes>previewBudget.responseBytes)overBudget('实际制作预览超过本次有界显示预算；原生成任务保持不变');if(cached)cachedBytes-=cached.bytes;cachedBytes+=stored.bytes;urls.set(node.id,stored);return stored;
    }finally{reservedBytes-=maxBytes;}

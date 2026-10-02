@@ -1,7 +1,9 @@
+import {assertReadableMediaSource} from '../generation-results/media-ref.mjs';
 import * as THREE from 'three';
 
 // Official Gn: a camera at the origin viewing an equirectangular background.
 export async function panoramaStage(src, canvas) {
+  assertReadableMediaSource(src);
   const texture = await new THREE.TextureLoader().loadAsync(await window.LocalAssets.url(src));
   texture.mapping = THREE.EquirectangularReflectionMapping;
   texture.colorSpace = THREE.SRGBColorSpace;

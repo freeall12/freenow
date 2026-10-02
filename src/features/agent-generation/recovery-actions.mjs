@@ -11,7 +11,7 @@ export function appendRecoveryActions(root,trace,{onError=()=>{}}={}){
     if(entries.length>1){const label=document.createElement('span');label.textContent=`第 ${index+1} 项`;footer.append(label);}
     const add=(label,action)=>{const button=document.createElement('button');button.type='button';button.className='generation-small-button';button.textContent=label;button.onclick=async()=>{for(const b of footer.querySelectorAll('button'))b.disabled=true;try{await action();}catch(error){onError(error);}finally{for(const b of footer.querySelectorAll('button'))b.disabled=false;}};footer.append(button);};
     if(cleanup)add('清理原占位',()=>window.GenerationAPI.cancel(id));
-    if(query)add('查询恢复',()=>window.GenerationAPI.recover(id));
+    if(query)add(job.providerStatus==='succeeded'?'重新取回素材':'查询恢复',()=>window.GenerationAPI.recover(id));
     if(apply){if(job.hasResultPlan)add('恢复到原占位',()=>window.GenerationAPI.applyRecovered(id,'existing'));add('作为新节点取回',()=>window.GenerationAPI.applyRecovered(id,'new_nodes'));}
     root.append(footer);
   }

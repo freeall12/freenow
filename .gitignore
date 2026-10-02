@@ -116,3 +116,7 @@ reference/*
 
 !qa/native-creation-fixture.js
 !qa/native-creation-controls.mjs
+
+# Public, self-contained generation-media browser fixture.
+!qa/generation-local-media.html
+!qa/generation-local-media.mjs

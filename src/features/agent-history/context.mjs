@@ -15,6 +15,9 @@ function appEdits(trace){
  if(trace.result.resource_uri==='ui://tapnow/color-adjust@v2'&&trace.colorAdjustReceipt){
   return project({colorAdjustment:trace.colorAdjustReceipt,...(trace.colorAdjustContext?{modelContext:trace.colorAdjustContext}:{})});
  }
+ if(trace.result.resource_uri==='ui://tapnow/layer-composer@v1'&&trace.layerComposerReceipt){
+  return project({layerComposition:trace.layerComposerReceipt,...(trace.layerComposerContext?{modelContext:trace.layerComposerContext}:{})});
+ }
  if(trace.result.resource_uri==='ui://tapnow/platform-resize@v1'&&trace.platformResizePlacements?.length){
   return project({platformCrops:trace.platformResizePlacements});
  }

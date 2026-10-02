@@ -1,3 +1,4 @@
+import {isGenerationMediaRef} from '../generation-results/media-ref.mjs';
 import {captureResultSnapshot,assertResultSnapshot} from '../generation-results/plan.mjs';
 import {characterBlockingUri,characterBlockingLimits as limits,characterBlockingPortrait,prepareCharacterBlocking,validateCharacterBlockingState,resolveCharacterBlockingReply} from './character-blocking.mjs';
 const fail=(code,message)=>{throw Object.assign(Error(message),{code});},clone=value=>structuredClone(value);
@@ -28,11 +29,11 @@ export async function renderCharacterBlockingPortrait(blob,{crop:region=null,sig
 export function createCharacterBlockingRuntime({app,localAssets,getProjectId,fetchImpl=(...args)=>fetch(...args),renderPortrait=renderCharacterBlockingPortrait}={}){
   for(const [name,fn]of Object.entries({'app.getState':app?.getState,'localAssets.url':localAssets?.url,getProjectId,fetchImpl,renderPortrait}))if(typeof fn!=='function')throw TypeError(name+' adapter is required');
   const preparations=new WeakMap(),graph=()=>app.getState();
-  function node(ref){if(typeof ref!=='string'||!/^node\/[A-Za-z0-9_-]{1,180}$/.test(ref))fail('invalid_source','人物参考须为当前图片节点');const value=graph().nodes.find(n=>n.id===ref.slice(5));if(value?.type!=='image')fail('invalid_source','人物参考须为当前真实图片节点');const media=value.fullImage||value.image;if(typeof media!=='string'||!/^asset:[A-Za-z0-9_-]+$/.test(media))fail('local_import_required','人物图片须先导入本地素材；不读取原站或外域URL');return {value,media};}
+  function node(ref){if(typeof ref!=='string'||!/^node\/[A-Za-z0-9_-]{1,180}$/.test(ref))fail('invalid_source','人物参考须为当前图片节点');const value=graph().nodes.find(n=>n.id===ref.slice(5));if(value?.type!=='image')fail('invalid_source','人物参考须为当前真实图片节点');const media=value.fullImage||value.image;if(typeof media!=='string'||!(/^asset:[A-Za-z0-9_-]+$/.test(media)||isGenerationMediaRef(media)))fail('local_import_required','人物图片须先导入本地素材；不读取原站或外域URL');return {value,media};}
   async function read(media,signal,check,budget){
-    abort(signal);check();const url=await wait(localAssets.url(media),signal);check();abort(signal);
-    if(typeof url!=='string'||!/^blob:/.test(url))fail('local_asset_url','人物头像仅从本地素材blob地址读取');
-    const response=await wait(fetchImpl(url,{signal}),signal,value=>value?.body?.cancel?.());try{check();abort(signal);}catch(error){await response?.body?.cancel?.().catch(()=>{});throw error;}if(!response?.ok){await response?.body?.cancel?.();fail('media_unavailable','本地人物图片读取失败');}
+    abort(signal);check();const url=await wait(isGenerationMediaRef(media)?media:localAssets.url(media),signal);check();abort(signal);
+    if(typeof url!=='string'||!(/^blob:/.test(url)||isGenerationMediaRef(url)))fail('local_asset_url','人物头像须为可读取的本地图片');
+    const response=await wait(fetchImpl(url,{signal,...(isGenerationMediaRef(url)?{redirect:'error',mode:'same-origin',credentials:'same-origin'}:{})}),signal,value=>value?.body?.cancel?.());try{check();abort(signal);}catch(error){await response?.body?.cancel?.().catch(()=>{});throw error;}if(!response?.ok){await response?.body?.cancel?.();fail('media_unavailable','本地人物图片读取失败');}
     const size=response.headers?.get?.('content-length');if(size!==null&&size!==undefined&&(!/^\d+$/.test(size)||Number(size)>limits.sourceBytes)){await response.body?.cancel?.();fail('media_limit','人物图片超过本地读取限制');}
     if(!response.body?.getReader){await response.body?.cancel?.();fail('bounded_stream_required','人物图片读取必须支持有界流');}
     const reader=response.body.getReader(),chunks=[];let total=0;const cancel=()=>{reader.cancel(signal.reason).catch(()=>{});};signal.addEventListener('abort',cancel,{once:true});

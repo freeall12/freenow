@@ -12,7 +12,7 @@ const {createHash}=require('node:crypto');
 const {wantsAgentStream,writeAgentStream}=require('./agent-stream.cjs');
 const {createGenerationGateway}=require('./generation.cjs');
 const {readGenerationRoutingConfig}=require('./generation-routing-config.cjs');
-const generation=createGenerationGateway({directory:path.join(__dirname,'.generation-tasks'),baseUrl:process.env.GENERATION_API_BASE_URL,apiKey:process.env.GENERATION_API_KEY,protocol:process.env.GENERATION_API_PROTOCOL||'tasks-v1',modelMap:process.env.GENERATION_MODEL_MAP,...readGenerationRoutingConfig(process.env)});
+const generation=createGenerationGateway({directory:path.join(__dirname,'.generation-tasks'),mediaDirectory:path.join(__dirname,'.generation-media'),baseUrl:process.env.GENERATION_API_BASE_URL,apiKey:process.env.GENERATION_API_KEY,protocol:process.env.GENERATION_API_PROTOCOL||'tasks-v1',modelMap:process.env.GENERATION_MODEL_MAP,...readGenerationRoutingConfig(process.env)});
 const OpenAI=require('openai');const {AgentRuntime}=require('./agent.cjs');
 const root=path.resolve(__dirname,'..'),port=Number(process.env.PORT||4173);
 const configured=!!process.env.OPENAI_API_KEY&&!!process.env.OPENAI_MODEL;
@@ -69,7 +69,7 @@ const server=http.createServer(async(req,res)=>{try{
  let stat;try{stat=await fs.promises.stat(file);}catch{return json(res,404,{error:'Not found'});}if(!stat.isFile())return json(res,404,{error:'Not found'});
  const headers={'Content-Type':mime[path.extname(file)]||'application/octet-stream','Accept-Ranges':'bytes','Cache-Control':'no-cache','X-Content-Type-Options':'nosniff'};
  // Bundled app sandboxes use local code/media, including standalone demos.
- // The main canvas still imports configured providers' remote result URLs.
+ // Generated result bytes are served by the private local media route.
  if(/^src\/features\/(?:agent-apps\/resources\/|agent-widgets\/widget-proxy\.html$)/.test(relative)&&path.extname(file)==='.html')headers['Content-Security-Policy']=`default-src 'self' http://${host} data: blob:; script-src 'self' http://${host} 'unsafe-inline' 'unsafe-eval' blob:; style-src 'self' http://${host} 'unsafe-inline'; connect-src 'self' http://${host} data: blob:; img-src 'self' http://${host} data: blob:; media-src 'self' http://${host} data: blob:; font-src 'self' http://${host} data:; frame-src 'self' http://${host} blob:; worker-src 'self' http://${host} blob:; object-src 'none'; base-uri 'self'; form-action 'self'`;
  // The opaque official app proxy may read only these bundled public templates.
  if(/^src\/features\/agent-apps\/resources\/apps\/(manifest\.json|[a-z0-9-]+@v[0-9]+\.[a-f0-9]{8}\.html)$/.test(relative))headers['Access-Control-Allow-Origin']='*';

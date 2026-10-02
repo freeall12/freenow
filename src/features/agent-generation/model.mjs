@@ -108,6 +108,7 @@ export function generationStatus(trace){
  if(trace.status==='interrupted')return {label:'状态未恢复',state:'skipped',error:trace.result?.error};
  const job=trace.generationJob;
  if(job?.recovered&&job.status==='succeeded'&&!job.applied&&!job.applicationError)return {label:job.applying?'结果应用中':'结果待取回',state:'confirmed'};
+ if(job?.providerStatus==='succeeded'&&job.status!=='cancelled'&&['pending','downloading','failed'].includes(job.localization?.state))return {label:job.localization.state==='failed'?'素材保存失败':'正在保存素材',state:job.localization.state==='failed'?'skipped':'confirmed',error:job.error};
  if(job?.status==='unknown')return {label:'状态未恢复',state:'skipped',error:job.error};
  if(trace.status==='error'||job?.error||job?.applicationError||['configuration_required','failed'].includes(job?.status))return {label:'失败',state:'failed',error:job?.applicationError||job?.error||trace.result?.error};
  if(job?.status==='cancelled')return {label:'已取消',state:'cancelled'};

@@ -15,6 +15,7 @@ import {cutlistReviewUri,initialCutlistReviewState,validateCutlistReviewState,re
 import {characterBlockingUri,initialCharacterBlockingState,validateCharacterBlockingState} from './character-blocking.mjs';
 import {productKitUri,initialProductKitState,validateProductKitState} from './product-kit.mjs';
 import {adReviewUri,initialAdReviewState,validateAdReviewState} from './ad-review.mjs';
+import {layerComposerUri,initialLayerComposerState,validateLayerComposerState} from './layer-composer.mjs';
 const sourceWorkflowUris=[characterBlockingUri,productKitUri,adReviewUri];
 export {prepareApp};
 
@@ -77,12 +78,12 @@ export function createCutlistAssemblyRoute({getContext,getSourceContext,executor
  };
 }
 
-export function createAppController({getContext,onQueuePrompt,onSaveState,getActorSourceContext,onSaveExpressionGuide,getProductionSourceContext,onProductionProgressQuery,getLibrarySourceContext,onLibraryAddToCanvas,getColorAdjustSourceContext,onApplyColorAdjust,onColorAdjustContext,getPlatformResizeSourceContext,onPlatformResizeApply,getCutlistSourceContext,getCharacterBlockingSourceContext,getProductKitSourceContext,getAdReviewSourceContext,onError=()=>{}}){
+export function createAppController({getContext,onQueuePrompt,onSaveState,getActorSourceContext,onSaveExpressionGuide,getProductionSourceContext,onProductionProgressQuery,getLibrarySourceContext,onLibraryAddToCanvas,getColorAdjustSourceContext,onApplyColorAdjust,onColorAdjustContext,getPlatformResizeSourceContext,onPlatformResizeApply,getCutlistSourceContext,getCharacterBlockingSourceContext,getProductKitSourceContext,getAdReviewSourceContext,getLayerComposerSourceContext,onApplyLayerComposer,onLayerComposerContext,onError=()=>{}}){
  const records=new Map();
  async function validateWorkflowSource(record){const source=record.workflowContext;if(!source)throw Error('应用缺少真实来源绑定');if(record.resourceUri===productKitUri){await source.guard();await source.validateSourceCurrent();}else await source.guard(record.resourceUri===adReviewUri?{verifyBytes:true}:undefined);}
  const validTrace=trace=>trace?.name==='show_app'&&trace.status==='done'&&!trace.error&&!trace.result?.error&&trace.result?.kind==='mcp_app'&&trace.args?.resource_uri===trace.result.resource_uri&&!!getApp(trace.result.resource_uri);
  function current(record){const context=getContext();return !record.disposed&&records.get(record.trace.id)===record&&context.chat===record.chat&&context.panelActive&&!context.pageLeaving&&record.chat.messages.includes(record.trace)&&validTrace(record.trace)&&record.card?.element.isConnected;}
- function dispose(record){record.disposed=true;record.productionContext?.dispose?.();record.colorContext?.dispose?.();record.resizeContext?.dispose?.();record.cutlistContext?.dispose?.();record.workflowContext?.dispose?.();record.card.destroy();records.delete(record.trace.id);}
+ function dispose(record){record.disposed=true;record.productionContext?.dispose?.();record.colorContext?.dispose?.();record.resizeContext?.dispose?.();record.cutlistContext?.dispose?.();record.workflowContext?.dispose?.();record.layerContext?.dispose?.();record.card.destroy();records.delete(record.trace.id);}
  function persistState(record,value,{initialize=false,restore=false}={}){
   const {trace}=record,result=trace.result,response=result.response;
   // Official story/actor pages debounce state updates and do not flush on
@@ -95,11 +96,13 @@ export function createAppController({getContext,onQueuePrompt,onSaveState,getAct
    if(record.resourceUri===performanceRhythmUri)state=validatePerformanceRhythmState(state,response.duration_ms);
    if(record.resourceUri===storyRoomUri)state=validateStoryRoomState(state,response);
    if(record.resourceUri===actorEmotionUri)state=validateActorEmotionState(state,response);
+   if(record.resourceUri===layerComposerUri){if(!record.layerContext)throw Error('图层缺少真实来源绑定');await record.layerContext.guard();if(!current(record))throw Error('图层来源已切换');state=validateLayerComposerState(state,response);}
    if(record.resourceUri===colorAdjustUri)state=validateColorAdjustState(state,response);
    if(record.resourceUri===cutlistReviewUri){await record.cutlistContext?.guard();if(!current(record))throw Error('审片来源已切换');state=validateCutlistReviewState(state,response);}
    if(record.resourceUri===interactiveLearningUri)state=validateInteractiveLearningState(state,response);
    if(record.resourceUri===libraryPickerUri){await record.libraryContext?.guard();if(!current(record))throw Error('素材库所属会话已切换');state=record.libraryContext.validateState(state);}
    if(await onSaveState(record.chat,trace,state)===false)throw Error('应用状态未能保存');
+   if(record.resourceUri===layerComposerUri){await record.layerContext.guard();if(trace.appState!==state)throw Error('图层实际保存状态已被替换');}
    if(sourceWorkflowUris.includes(record.resourceUri)){await validateWorkflowSource(record);if(trace.appState!==state)throw Error('应用实际保存状态已被替换');}
    if(!current(record)||trace.result!==result||trace.result.response!==response)throw Error('应用所属会话已切换');
   });
@@ -112,7 +115,7 @@ export function createAppController({getContext,onQueuePrompt,onSaveState,getAct
  }
  function sourceGuard(record,isSourceCurrent=()=>true,{ignoreState=false}={}){
   const {trace}=record,savedState=trace.appState,appResult=trace.result,response=appResult.response,stateWork=record.stateWork;
-  return ()=>{try{return current(record)&&isSourceCurrent()&&(ignoreState||record.stateWork===stateWork&&!record.stateError&&trace.appState===savedState)&&trace.result===appResult&&trace.result.response===response&&trace.result.resource_uri===record.resourceUri&&(record.resourceUri!==actorEmotionUri||record.actorContext?.guard()===true)&&(record.resourceUri!==libraryPickerUri||record.libraryContext?.isCurrent()===true)&&(record.resourceUri!==productionProgressUri||record.productionContext?.guard()===true)&&(record.resourceUri!==colorAdjustUri||record.colorContext?.isCurrent()===true)&&(record.resourceUri!==platformResizeUri||record.resizeContext?.isCurrent()===true)&&(record.resourceUri!==cutlistReviewUri||record.cutlistContext?.isCurrent()===true)&&(!sourceWorkflowUris.includes(record.resourceUri)||record.workflowContext?.isCurrent()===true);}catch{return false;}};
+  return ()=>{try{return current(record)&&isSourceCurrent()&&(ignoreState||record.stateWork===stateWork&&!record.stateError&&trace.appState===savedState)&&trace.result===appResult&&trace.result.response===response&&trace.result.resource_uri===record.resourceUri&&(record.resourceUri!==actorEmotionUri||record.actorContext?.guard()===true)&&(record.resourceUri!==libraryPickerUri||record.libraryContext?.isCurrent()===true)&&(record.resourceUri!==productionProgressUri||record.productionContext?.guard()===true)&&(record.resourceUri!==colorAdjustUri||record.colorContext?.isCurrent()===true)&&(record.resourceUri!==layerComposerUri||record.layerContext?.isCurrent()===true)&&(record.resourceUri!==platformResizeUri||record.resizeContext?.isCurrent()===true)&&(record.resourceUri!==cutlistReviewUri||record.cutlistContext?.isCurrent()===true)&&(!sourceWorkflowUris.includes(record.resourceUri)||record.workflowContext?.isCurrent()===true);}catch{return false;}};
  }
  function render(trace){
   const context=getContext();if(trace.name!=='show_app')return null;
@@ -126,6 +129,7 @@ export function createAppController({getContext,onQueuePrompt,onSaveState,getAct
    if(record.resourceUri===productionProgressUri){try{record.productionContext=getProductionSourceContext?.(trace.result.response,trace,record.chat);}catch(error){onError(error.message);}}
    if(record.resourceUri===libraryPickerUri){try{record.libraryContext=getLibrarySourceContext?.(trace.result.response,trace,record.chat);}catch(error){onError(error.message);}}
    if(record.resourceUri===colorAdjustUri){try{record.colorContext=getColorAdjustSourceContext?.(trace.result.response,trace,record.chat);}catch(error){onError(error.message);}}
+   if(record.resourceUri===layerComposerUri){try{record.layerContext=getLayerComposerSourceContext?.(trace.result.response,trace,record.chat);}catch(error){onError(error.message);}}
    if(record.resourceUri===platformResizeUri){try{record.resizeContext=getPlatformResizeSourceContext?.(trace.result.response,trace,record.chat);}catch(error){onError(error.message);}}
    if(record.resourceUri===cutlistReviewUri){try{record.cutlistContext=getCutlistSourceContext?.(trace.result.response,trace,record.chat);}catch(error){onError(error.message);}}
    if(sourceWorkflowUris.includes(record.resourceUri)){try{const getSource=new Map([[characterBlockingUri,getCharacterBlockingSourceContext],[productKitUri,getProductKitSourceContext],[adReviewUri,getAdReviewSourceContext]]).get(record.resourceUri);record.workflowContext=getSource?.(trace.result.response,trace,record.chat);}catch(error){onError(error.message);}}
@@ -134,7 +138,7 @@ export function createAppController({getContext,onQueuePrompt,onSaveState,getAct
      // A reload restores the committed UI state. Retry its real save after a
      // failure, reading at execution time so newer queued edits are preserved.
      if(trace.appState!=null){if(record.stateError)void persistState(record,null,{restore:true}).catch(error=>{if(current(record))onError(error.message);});return;}
-     const initial=record.resourceUri===storyRoomUri?initialStoryRoomState:record.resourceUri===actorEmotionUri?initialActorEmotionState:record.resourceUri===interactiveLearningUri?initialInteractiveLearningState:record.resourceUri===libraryPickerUri?initialLibraryPickerState:record.resourceUri===colorAdjustUri?initialColorAdjustState:record.resourceUri===cutlistReviewUri?initialCutlistReviewState:record.resourceUri===characterBlockingUri?initialCharacterBlockingState:record.resourceUri===productKitUri?initialProductKitState:record.resourceUri===adReviewUri?initialAdReviewState:null;
+     const initial=record.resourceUri===storyRoomUri?initialStoryRoomState:record.resourceUri===actorEmotionUri?initialActorEmotionState:record.resourceUri===interactiveLearningUri?initialInteractiveLearningState:record.resourceUri===libraryPickerUri?initialLibraryPickerState:record.resourceUri===colorAdjustUri?initialColorAdjustState:record.resourceUri===cutlistReviewUri?initialCutlistReviewState:record.resourceUri===characterBlockingUri?initialCharacterBlockingState:record.resourceUri===productKitUri?initialProductKitState:record.resourceUri===adReviewUri?initialAdReviewState:record.resourceUri===layerComposerUri?initialLayerComposerState:null;
      const value=initial?.(trace.result.response);
      if(value)void persistState(record,value,{initialize:true}).catch(error=>{if(current(record))onError(error.message);});
     },
@@ -171,6 +175,18 @@ export function createAppController({getContext,onQueuePrompt,onSaveState,getAct
       if(!sourceCurrent()||getContext().streaming)throw Error('调色上下文保存期间来源已切换');return receipt;
      },
     }:{}),
+    ...(record.resourceUri===layerComposerUri?{
+     onApplyLayerComposer:async(args,{callId,userAction},isSourceCurrent=()=>true)=>{
+      await waitForState(record);await record.layerContext?.guard();const sourceCurrent=sourceGuard(record,isSourceCurrent);if(!sourceCurrent()||getContext().streaming)throw Error('图层来源已切换或会话正在运行');
+      const receipt=await onApplyLayerComposer(args,trace,record.chat,{callId,userAction,isCurrent:sourceCurrent,sourceContext:record.layerContext});
+      if(!sourceCurrent()||getContext().streaming)throw Error('图层合成保存期间来源或状态已切换');return {content:[],structuredContent:receipt};
+     },
+     onLayerComposerContext:async(params,options,isSourceCurrent=()=>true)=>{
+      await waitForState(record);await record.layerContext?.guard();const sourceCurrent=sourceGuard(record,isSourceCurrent);if(!sourceCurrent()||getContext().streaming)throw Error('图层来源已切换或会话正在运行');
+      const receipt=await onLayerComposerContext(params,trace,record.chat,{...options,isCurrent:sourceCurrent,sourceContext:record.layerContext});
+      if(!sourceCurrent()||getContext().streaming)throw Error('图层上下文保存期间来源或状态已切换');return receipt;
+     },
+    }:{}),
     ...(record.resourceUri===platformResizeUri?{onPlatformResizeApply:async(args,{callId,userAction},isSourceCurrent=()=>true)=>{
      await record.resizeContext?.guard();const sourceCurrent=sourceGuard(record,isSourceCurrent);if(!sourceCurrent()||getContext().streaming)throw Error('平台裁切来源已切换或会话正在运行');
      const receipt=await onPlatformResizeApply(args,trace,record.chat,{callId,userAction,isCurrent:sourceCurrent,sourceContext:record.resizeContext});
@@ -187,13 +203,14 @@ export function createAppController({getContext,onQueuePrompt,onSaveState,getAct
      await waitForState(record);
      if(sourceWorkflowUris.includes(record.resourceUri)){if(!record.workflowContext)throw Error('应用缺少真实来源绑定');await validateWorkflowSource(record);}
      if(record.resourceUri===libraryPickerUri)await record.libraryContext?.guard();
+     if(record.resourceUri===layerComposerUri)await record.layerContext?.guard();
      if(record.resourceUri===cutlistReviewUri)await record.cutlistContext?.guard({verifyBytes:true});
      const savedState=trace.appState,appResult=trace.result,response=appResult.response;
      const baseCurrent=sourceGuard(record,isSourceCurrent),savedGuide=record.resourceUri===actorEmotionUri?record.actorContext?.readGuide():null;
      const sourceCurrent=()=>baseCurrent()&&(record.resourceUri!==actorEmotionUri||record.actorContext.readGuide()===savedGuide);
      if(!sourceCurrent()||getContext().streaming)return false;
      if([creativePickerUri,websitePickerUri].includes(record.resourceUri)){const reply=resolveCreativePickerReply(text,response,savedState,metadata,record.resourceUri,getContext().locale||'zh-CN');text=reply.text;metadata=reply.metadata;}
-     if(['ui://tapnow/director-markup@v1',performanceRhythmUri,storyRoomUri,actorEmotionUri,interactiveLearningUri,libraryPickerUri,colorAdjustUri,cutlistReviewUri,...sourceWorkflowUris].includes(record.resourceUri)){
+     if(['ui://tapnow/director-markup@v1',performanceRhythmUri,storyRoomUri,actorEmotionUri,interactiveLearningUri,libraryPickerUri,colorAdjustUri,layerComposerUri,cutlistReviewUri,...sourceWorkflowUris].includes(record.resourceUri)){
       let reply;
       if(record.resourceUri===actorEmotionUri){
        const guide=savedGuide;
@@ -202,6 +219,7 @@ export function createAppController({getContext,onQueuePrompt,onSaveState,getAct
        reply=await resolveActorEmotionReply(text,response,savedState,guide);
        if(record.actorContext.readGuide()!==guide)return false;
       }else if(sourceWorkflowUris.includes(record.resourceUri))reply=await record.workflowContext.reply(text,savedState);
+      else if(record.resourceUri===layerComposerUri)reply=await record.layerContext.reply(text);
       else if(record.resourceUri===colorAdjustUri)reply=await resolveColorAdjustReply(text,response);
       else if(record.resourceUri===cutlistReviewUri)reply=await resolveCutlistReviewReply(text,response,savedState);
       else if(record.resourceUri===interactiveLearningUri)reply=await resolveInteractiveLearningReply(text,response,savedState);
@@ -214,7 +232,7 @@ export function createAppController({getContext,onQueuePrompt,onSaveState,getAct
       text=reply.text;metadata={...metadata,...reply.metadata};
       if(record.resourceUri===libraryPickerUri){const asset=reply.result.asset;metadata.libraryReference={kind:'library',id:asset.asset_id,scope:'personal',label:libraryPickerName(asset.name),mediaType:asset.type};}
      }
-     return await onQueuePrompt(text,trace,record.chat,metadata,sourceCurrent,sourceWorkflowUris.includes(record.resourceUri)?async()=>{await validateWorkflowSource(record);if(!sourceCurrent())throw Error('应用消息保存期间真实来源或状态已切换');}:undefined)!==false;
+     return await onQueuePrompt(text,trace,record.chat,metadata,sourceCurrent,sourceWorkflowUris.includes(record.resourceUri)?async()=>{await validateWorkflowSource(record);if(!sourceCurrent())throw Error('应用消息保存期间真实来源或状态已切换');}:record.resourceUri===layerComposerUri?async()=>{await record.layerContext.validateSourcesCurrent();if(!sourceCurrent())throw Error('图层跳过消息保存期间来源或状态已切换');}:undefined)!==false;
     }catch(error){if(current(record))onError(error.message);return false;}}}:{}),
    }}});
   }

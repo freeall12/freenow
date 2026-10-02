@@ -1,3 +1,4 @@
+import {isGenerationMediaRef} from '../generation-results/media-ref.mjs';
 import {captureResultSnapshot, assertResultSnapshot} from '../generation-results/plan.mjs';
 import {createWorkflowMediaResolver} from '../agent-workflows/media-resolver.mjs';
 import {prepareMediaInputs} from '../agent-attachments/media-inputs.mjs';
@@ -33,13 +34,13 @@ export function createProductKitRuntime({app, localAssets, getProjectId, fetchIm
   }
   async function read(ref, signal, guard) {
     guard();abort(signal);const node = source(ref), media = node.fullImage || node.image;
-    if (typeof media !== 'string' || !/^(?:asset:|blob:|data:image\/(?:png|jpeg|webp);base64,)/.test(media)) throw failure('nonlocal_source', '产品素材仅接受真实本地 asset/data/blob 图片，不能访问原站或远程示例');
+    if (typeof media !== 'string' || !(/^(?:asset:|blob:|data:image\/(?:png|jpeg|webp);base64,)/.test(media)||isGenerationMediaRef(media))) throw failure('nonlocal_source', '产品素材须为真实本地图片，不能访问原站或远程示例');
     const url = media.startsWith('asset:') ? await wait(localAssets.url(media), signal) : media;guard();abort(signal);
-    if (typeof url !== 'string' || !/^(?:blob:|data:image\/(?:png|jpeg|webp);base64,)/.test(url)) throw failure('nonlocal_source', '本地产品素材解析结果必须是 data/blob');
+    if (typeof url !== 'string' || !(/^(?:blob:|data:image\/(?:png|jpeg|webp);base64,)/.test(url)||isGenerationMediaRef(url))) throw failure('nonlocal_source', '本地产品素材须为可读取的本地图片');
     if (url.startsWith('data:') && url.length > Math.ceil(limits.sourceBytes * 4 / 3) + 64) throw failure('media_limit', '产品源图超过8MiB');
     let reader, body;
     try {
-      const response = await wait(fetchImpl(url, {signal}), signal, late => {Promise.resolve(late?.body?.cancel?.()).catch(() => {});});body = response?.body;if (body?.getReader) reader = body.getReader();guard();abort(signal);
+      const response = await wait(fetchImpl(url, {signal, ...(isGenerationMediaRef(url) ? {redirect: 'error', mode: 'same-origin', credentials: 'same-origin'} : {})}), signal, late => {Promise.resolve(late?.body?.cancel?.()).catch(() => {});});body = response?.body;if (body?.getReader) reader = body.getReader();guard();abort(signal);
       if (!response?.ok) throw failure('media_unavailable', '真实产品素材读取失败');
       const length = Number(response.headers?.get('content-length'));if (Number.isFinite(length) && length > limits.sourceBytes) throw failure('media_limit', '产品源图声明超过8MiB');
       const mime = response.headers?.get('content-type')?.split(';')[0];if (!['image/png', 'image/jpeg', 'image/webp'].includes(mime)) throw failure('media_type', '真实产品素材须为 PNG/JPEG/WebP');

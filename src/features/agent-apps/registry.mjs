@@ -11,6 +11,7 @@ import {prepareCutlistReview,cutlistReviewUri,cutlistReviewPolicy} from './cutli
 import {prepareCharacterBlocking,characterBlockingUri,characterBlockingPolicy} from './character-blocking.mjs';
 import {prepareProductKit,productKitUri,productKitPolicy} from './product-kit.mjs';
 import {prepareAdReview,adReviewUri,adReviewPolicy} from './ad-review.mjs';
+import {prepareLayerComposer,layerComposerUri,layerComposerPolicy} from './layer-composer.mjs';
 // Policies from official vendor-packages-CN3JnHbF Bue/wae. Other archived
 // templates do not imply support.
 const picker = Object.freeze({allowExpanded:true,autoExpandOnReady:false,maxInlineHeight:520});
@@ -31,6 +32,7 @@ const definitions = [
  {resourceUri:characterBlockingUri,title:'人物站位',policy:characterBlockingPolicy},
  {resourceUri:productKitUri,title:'Product Kit',policy:productKitPolicy},
  {resourceUri:adReviewUri,title:'广告创意审核',policy:adReviewPolicy},
+ {resourceUri:layerComposerUri,title:'多图层合成',policy:layerComposerPolicy},
 ];
 export function getApp(resourceUri){return definitions.find(item=>item.resourceUri===resourceUri)||null;}
 export function appPolicy(resourceUri){const entry=getApp(resourceUri);if(!entry)throw Error('应用尚未接入或版本不受支持');return {...entry.policy,proxyUrl:new URL(entry.resourceUri===productionProgressUri?'./resources/production-progress-proxy.html':entry.resourceUri===cutlistReviewUri?'./resources/cutlist-review-proxy.html':entry.resourceUri===adReviewUri?'./resources/ad-review-proxy.html':'./resources/mcp-app-proxy.html',import.meta.url).href};}
@@ -43,9 +45,9 @@ export function prepareApp(args){
   if(args.original_request!==undefined||args.recommended_template_id!==undefined)throw Error('导演批注不使用模板选择参数');
   return {kind:'mcp_app',resource_uri:entry.resourceUri,request:{title:args.title||entry.title},response:prepareDirectorMarkup(args.data,args.title||entry.title)};
  }
- if([performanceRhythmUri,storyRoomUri,actorEmotionUri,productionProgressUri,interactiveLearningUri,libraryPickerUri,colorAdjustUri,platformResizeUri,cutlistReviewUri,characterBlockingUri,productKitUri,adReviewUri].includes(entry.resourceUri)){
+ if([performanceRhythmUri,storyRoomUri,actorEmotionUri,productionProgressUri,interactiveLearningUri,libraryPickerUri,colorAdjustUri,platformResizeUri,cutlistReviewUri,characterBlockingUri,productKitUri,adReviewUri,layerComposerUri].includes(entry.resourceUri)){
   if(args.original_request!==undefined||args.recommended_template_id!==undefined)throw Error('工作流应用不使用模板选择参数');
-  const prepare=new Map([[performanceRhythmUri,preparePerformanceRhythm],[storyRoomUri,prepareStoryRoom],[actorEmotionUri,prepareActorEmotion],[productionProgressUri,prepareProductionProgress],[interactiveLearningUri,prepareInteractiveLearning],[libraryPickerUri,prepareLibraryPicker],[colorAdjustUri,prepareColorAdjust],[platformResizeUri,preparePlatformResize],[cutlistReviewUri,prepareCutlistReview],[characterBlockingUri,prepareCharacterBlocking],[productKitUri,prepareProductKit],[adReviewUri,prepareAdReview]]).get(entry.resourceUri);
+  const prepare=new Map([[performanceRhythmUri,preparePerformanceRhythm],[storyRoomUri,prepareStoryRoom],[actorEmotionUri,prepareActorEmotion],[productionProgressUri,prepareProductionProgress],[interactiveLearningUri,prepareInteractiveLearning],[libraryPickerUri,prepareLibraryPicker],[colorAdjustUri,prepareColorAdjust],[platformResizeUri,preparePlatformResize],[cutlistReviewUri,prepareCutlistReview],[characterBlockingUri,prepareCharacterBlocking],[productKitUri,prepareProductKit],[adReviewUri,prepareAdReview],[layerComposerUri,prepareLayerComposer]]).get(entry.resourceUri);
   return {kind:'mcp_app',resource_uri:entry.resourceUri,request:{title:args.title||entry.title},response:prepare(args.data,args.title||entry.title)};
  }
  if(args.data!==undefined)throw Error('模板选择器不接受批注正文');

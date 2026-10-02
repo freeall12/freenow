@@ -1,3 +1,4 @@
+import {assertReadableMediaSource, assertReadableResultMedia} from '../generation-results/media-ref.mjs';
 import * as THREE from 'three';
 import {inspectModel, loadSaved, disposeModel, disposeLoadedModel, maxBytes} from '../studio-v2/model-io.mjs';
 import {materializationScope, readModelBlob} from './materialization.mjs';
@@ -70,6 +71,7 @@ export async function materialize(output, outputType, options = {}) {
   const url = output?.url || output?.model;
   if (typeof url !== 'string' || !url) throw Error('3D 结果缺少实际模型地址');
   if (output.format && output.format !== 'glb') throw Error('此 3D 结果格式的渲染器尚未接入；请保留任务结果，或由适配器返回 GLB');
+  assertReadableResultMedia(output);
   const scope = materializationScope(options);
   try {
     const resolved = await scope.wait(() => window.LocalAssets.url(url));
@@ -77,14 +79,18 @@ export async function materialize(output, outputType, options = {}) {
     try {response = await scope.wait(() => fetch(resolved, {signal: scope.signal}), {disposeLate: value => value.body?.cancel?.().catch(() => {})});}
     catch (error) {scope.check(); throw Object.assign(Error('3D 结果读取失败，请检查网络、地址及跨域 CORS 后从原任务重试'), {code: 'world_download_failed', cause: error});}
     const blob = await readModelBlob(response, scope, maxBytes);
-    return await localize(new File([blob], output.filename || 'generated.glb', {type: 'model/gltf-binary'}), outputType, scope);
+    const patch = await localize(new File([blob], output.filename || 'generated.glb', {type: 'model/gltf-binary'}), outputType, scope);
+    for(const key of ['mime','sourceFileId','sourceUrl','representation','asset_metadata']) if(output[key]!==undefined)patch.worldResource[key]=structuredClone(output[key]);
+    return patch;
   } finally {scope.close();}
 }
 export async function download(node) {
+  assertReadableMediaSource(node.worldResource.url);
   const link = el('a'); link.href = await window.LocalAssets.url(node.worldResource.url); link.download = node.worldResource.name || node.title + '.glb'; link.click();
 }
 
 export async function preview(node, {panoramaUrl = null} = {}) {
+  assertReadableMediaSource(panoramaUrl || node.worldResource?.url);
   const returnFocus = current?.returnFocus || document.activeElement;
   current?.close();
   const scenePreview = !panoramaUrl && node.outputType === 'world';

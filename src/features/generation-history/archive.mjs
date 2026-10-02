@@ -1,16 +1,19 @@
+import {assertReadableMediaSource, assertReadableResultMedia} from '../generation-results/media-ref.mjs';
 import {inspectVideoThumbnail} from './video-thumbnail.mjs';
 import {mediaSource,resultProvenance} from '../media-preview/provenance.mjs';
 import {outputSnapshot} from './model.mjs';
 export function createArchiver({assets, fetch: fetcher, asDataUrl, validate, materializeWorld, localizeAudio,inspectVideo=inspectVideoThumbnail,createMediaUrl=blob=>URL.createObjectURL(blob),revokeMediaUrl=url=>URL.revokeObjectURL(url)}) {
   async function blob(source,{signal}={}) {
     if (!source) throw Error('原始媒体地址不可恢复，请查询原任务');
+    assertReadableMediaSource(source);
     const response = await fetcher(await assets.url(source),signal?{signal}:undefined);
     if (!response.ok) throw Error('历史媒体读取失败');
     const value = await response.blob(); if (!value.size) throw Error('历史媒体内容为空'); return value;
   }
   async function archive(output, metadata) {
+    if(output.type==='model'&&(output.format==='spz'||output.world!==undefined))outputSnapshot(output);
+    assertReadableResultMedia(output);
     if (output.type === 'model') {
-      if(output.format==='spz'||output.world!==undefined)outputSnapshot(output);
       const patch = await materializeWorld(output, metadata.parameters.outputType || 'asset');
       if (typeof patch.worldResource?.url!=='string'||!/^asset:[^\s]+$/.test(patch.worldResource.url)) throw Error('3D 结果未保存真实模型');
       const format=patch.worldResource.format;

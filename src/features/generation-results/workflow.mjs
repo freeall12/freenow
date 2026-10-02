@@ -93,6 +93,7 @@ export function createResultWorkflow(app) {
         else if (type === 'video') patch = {video: output.video || output.url, ...(output.poster ? {image: output.poster} : {}), videoMetadata: {width: output.width ?? null, height: output.height ?? null, duration: output.duration ?? null}};
         else patch = {image: output.image || output.url || output.fullImage, fullImage: output.fullImage || output.image || output.url};
         if (type !== 'text') Object.assign(patch, {pixelWidth: output.width, pixelHeight: output.height, currentSourceFileId: output.sourceFileId ?? null}, resultProvenance(job,output));
+        for(const key of ['mime','sourceUrl','sourceRange'])if(output[key]!==undefined)patch[key]=structuredClone(output[key]);
         return {id: run.plan.targetNodeIds[index], patch};
       });
       return app.applyGenerationResults(job.id, patches);

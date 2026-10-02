@@ -1,3 +1,4 @@
+import {isGenerationMediaRef} from '../generation-results/media-ref.mjs';
 import {cutlistReviewUri, cutlistReviewBudget, prepareCutlistReview} from './cutlist-review.mjs';
 import {materializationScope} from '../world-node/materialization.mjs';
 import {openVideoFrames} from '../../../video-frames.mjs';
@@ -46,9 +47,9 @@ export function createCutlistReviewRuntime({app, localAssets, getProjectId, fetc
     return node;
   }
   async function read(node, scope, maxBytes) {
-    const url = await scope.wait(() => localAssets.url(node.video));
+    const url = isGenerationMediaRef(node.video) ? node.video : await scope.wait(() => localAssets.url(node.video));
     if (typeof url !== 'string') fail('拼装来源视频地址无法解析');
-    const response = await scope.wait(() => fetchImpl(url, {signal: scope.signal}), {disposeLate: value => value?.body?.cancel?.().catch(() => {})});
+    const response = await scope.wait(() => fetchImpl(url, {signal: scope.signal, ...(isGenerationMediaRef(url) ? {redirect: 'error', mode: 'same-origin', credentials: 'same-origin'} : {})}), {disposeLate: value => value?.body?.cancel?.().catch(() => {})});
     return boundedBlob(response, scope, maxBytes);
   }
   async function prepareAppArgs(args, {signal, isCurrent = () => true} = {}) {
@@ -175,7 +176,7 @@ export function createCutlistReviewExecutor({app, localAssets, store, fetchImpl 
         if (p.handoffId !== reply.metadata.handoffId || p.requestFingerprint !== fingerprint || existing.video !== p.outputMedia || existing.type !== 'video' || existing.clip != null || existing.trim != null) fail('已存拼装结果与操作绑定不一致');
         record.node = existing;record.media = existing.video;record.duration = p.duration;record.width = p.width;record.height = p.height;record.sha256 = p.mediaSha256;record.provenanceFingerprint = JSON.stringify(p);outputGuard(record);
         const scope = materializationScope({signal, timeoutMs: 30000, validateSources: () => outputGuard(record)});
-        try {const url = await scope.wait(() => localAssets.url(record.media)), blob = await boundedBlob(await scope.wait(() => fetchImpl(url, {signal: scope.signal})), scope, 16 * 1024 * 1024), actualUrl = createObjectURL(blob);let actual;
+        try {const url = await scope.wait(() => localAssets.url(record.media)), blob = await boundedBlob(await scope.wait(() => fetchImpl(url, {signal: scope.signal, ...(isGenerationMediaRef(url) ? {redirect: 'error', mode: 'same-origin', credentials: 'same-origin'} : {})})), scope, 16 * 1024 * 1024), actualUrl = createObjectURL(blob);let actual;
           try {actual = await scope.wait(() => decode(actualUrl, {signal: scope.signal}));} finally {revokeObjectURL(actualUrl);}
           if (await scope.wait(async () => hash(await blob.arrayBuffer())) !== record.sha256 || Math.abs(actual.duration - record.duration) > .1 || actual.width !== record.width || actual.height !== record.height) fail('已有拼装产物实际字节或解码与回执不符');
         } finally {scope.close();}
@@ -213,7 +214,7 @@ export function createCutlistReviewExecutor({app, localAssets, store, fetchImpl 
     const check = () => {outputGuard(record);if (sourceContext && !sourceContext.isCurrent()) fail('拼装回执核验期间真实来源已切换');};
     const scope = materializationScope({signal, timeoutMs: 30000, validateSources: check});
     try {
-      const url = await scope.wait(() => localAssets.url(record.media)), storedBlob = await boundedBlob(await scope.wait(() => fetchImpl(url, {signal: scope.signal}), {disposeLate: value => value?.body?.cancel?.().catch(() => {})}), scope, 16 * 1024 * 1024);
+      const url = await scope.wait(() => localAssets.url(record.media)), storedBlob = await boundedBlob(await scope.wait(() => fetchImpl(url, {signal: scope.signal, ...(isGenerationMediaRef(url) ? {redirect: 'error', mode: 'same-origin', credentials: 'same-origin'} : {})}), {disposeLate: value => value?.body?.cancel?.().catch(() => {})}), scope, 16 * 1024 * 1024);
       if (await scope.wait(async () => hash(await storedBlob.arrayBuffer())) !== record.sha256) fail('画布保存后拼装产物实际字节已变化');
       if (sourceContext) await scope.wait(() => sourceContext.guard({verifyBytes: true}));check();return clone(receipt);
     } finally {scope.close();}

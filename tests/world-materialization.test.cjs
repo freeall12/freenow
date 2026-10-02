@@ -44,6 +44,7 @@ test('a late decoded model is disposed once when cancelled or guard rejects afte
 
 async function fixture({inspect, rendererFailure = false, setupFailure = false} = {}) {
   const THREE = await import('three'), {disposeLoadedModel, maxBytes} = await import('../src/features/studio-v2/model-io.mjs');
+  const {assertReadableMediaSource, assertReadableResultMedia} = await import('../src/features/generation-results/media-ref.mjs');
   const {materializationScope, readModelBlob} = await moduleReady, puts = [], disposed = [], geometry = new THREE.BoxGeometry(), material = new THREE.MeshStandardMaterial();
   geometry.addEventListener('dispose', () => disposed.push('geometry')); material.addEventListener('dispose', () => disposed.push('material'));
   const scene = new THREE.Scene(), other = new THREE.Scene(); scene.add(new THREE.Mesh(geometry, material)); other.add(new THREE.Mesh(geometry, material));
@@ -54,7 +55,7 @@ async function fixture({inspect, rendererFailure = false, setupFailure = false} 
     dispose() {disposed.push('renderer');} forceContextLoss() {disposed.push('context');}
   }
   const context = {THREE: {...THREE, WebGLRenderer: Renderer}, disposeLoadedModel, disposeModel() {assert.fail('must dispose all loaded scenes');}, maxBytes,
-    inspectModel: inspect || (async () => ({loaded})), materializationScope, readModelBlob, Blob, File, AbortController, DOMException, setTimeout, clearTimeout, setInterval, clearInterval, devicePixelRatio: 1,
+    assertReadableMediaSource, assertReadableResultMedia, inspectModel: inspect || (async () => ({loaded})), materializationScope, readModelBlob, structuredClone, Blob, File, AbortController, DOMException, setTimeout, clearTimeout, setInterval, clearInterval, devicePixelRatio: 1,
     previewLights() {if (setupFailure) throw Error('stage setup failed');}, DEFAULT_FOCAL: 35, viewportFov: () => 45,
     window: {CanvasApp: {}, LocalAssets: {url: async value => value, put: async value => {puts.push(value); return 'asset:' + puts.length;}}, LocalMedia: {asDataUrl: async () => 'data:image/png;base64,REAL'}},
     document: {createElement: () => ({toBlob: callback => callback(new Blob(['png'], {type: 'image/png'}))})}, fetch: async () => new Response(bytes)};
@@ -135,4 +136,21 @@ test('actual inspector cancellation releases decoded dependencies and Draco once
     await assert.rejects(pending, {name: 'AbortError'}); assert.equal(geometryDisposals, 1); assert.equal(decoderDisposals, 1);
     gate.resolve(); await tick(); assert.equal(geometryDisposals, 1); assert.equal(decoderDisposals, 1);
   } finally {gate.resolve(); GLTFLoader.prototype.parseAsync = originalParse; DRACOLoader.prototype.dispose = originalDispose;}
+});
+
+
+test('exact local GLB result preserves actual model bytes and complete source metadata without remote media reads', async () => {
+  const f = await fixture(), ref = '/api/generation/media/12345678-1234-4234-8234-000000000001', reads = [];
+  f.context.fetch = async source => {reads.push(source); return new Response(f.bytes);};
+  const metadata = {mime:'model/gltf-binary',sourceFileId:'original-model',sourceUrl:ref,representation:'mesh',asset_metadata:{format:'glb',name:'Original'}};
+  const result = await f.context.materialize({type:'model',url:ref,format:'glb',...metadata}, 'world');
+  assert.deepEqual(reads,[ref]);assert.deepEqual(new Uint8Array(await f.puts[0].arrayBuffer()),f.bytes);
+  for(const key of Object.keys(metadata))assert.deepEqual(result.worldResource[key],metadata[key]);
+});
+
+test('legacy TapNow GLB is rejected before fetch and a local SPZ never claims renderer readiness', async () => {
+  const f = await fixture();let reads = 0;f.context.fetch = async () => {reads++;assert.fail('must not read remote or unsupported format');};
+  await assert.rejects(f.context.materialize({type:'model',url:'https://files.tapnow.media/old.glb',format:'glb'}),{code:'media_localization_required'});
+  await assert.rejects(f.context.materialize({type:'model',url:'/api/generation/media/12345678-1234-4234-8234-000000000001',format:'spz',representation:'gaussianSplat'}),/渲染器尚未接入/);
+  assert.equal(reads,0);assert.equal(f.puts.length,0);
 });

@@ -13,7 +13,7 @@
 - 创意库艺术/硬件入口直接打开本地原页面且无预选，严格绑定已保存模板与交接；已修复会话切换、草稿和失败保存回滚。见[Creative验收](AGENT-CREATIVE-FAMILY-20261003.md)。
 - 视频分割已迁到本机后端，供应商地址/Key由服务端环境配置；浏览器只读本机状态和提交本机请求。禁止原站地址与HTTP跳转、约束RLE来源并校验实际蒙层。见[分割配置合同](VIDEO-SEGMENTATION-SETUP.md)。
 
-- 本批再接人物站位v3、产品素材板v1、广告审核v1，registry为16/22个版本URI、16/20个功能族。四族仍未接：animatic、ecommerce-photoset、layer-composer、previs；历史animatic@v1、character-blocking@v1单列保留，不扩充功能族计数。接线计数不证明完整验收。
+- 本批再接人物站位v3、产品素材板v1、广告审核v1，后续再接图层合成v1，registry为17/22个版本URI、17/20个功能族。三族仍未接：animatic、ecommerce-photoset、previs；历史animatic@v1、character-blocking@v1单列保留，不扩充功能族计数。接线计数不证明完整验收。
 - 三应用仅接真实本地node_ref/source，由宿主读取/裁图/封装预览；保存状态、来源SHA、会话和队列实际提交均校验。确认通过普通用户队列，生成使用正常已配置API工具；iframe不增tools/call权限。合同：[人物站位](../src/features/agent-apps/CHARACTER-BLOCKING.md)、[产品素材](../src/features/agent-apps/product-kit.md)、[广告审核](../src/features/agent-apps/AD-REVIEW.md)。
 - ad-review专属proxy只允许该资源的本地data/blob媒体与16MiB宿主响应，保留opaque双iframe和connect-src none。product-kit仅共享proxy的SHA核验缩略图兼容修正，不改磁盘原应用HTML；人物站位和产品素材沿用默认宿主容量并有独立小预览限额。
 
@@ -31,9 +31,11 @@
 
 ## 尚未关闭的完整本地化事项
 
-1. tasks-v1浏览器直连配置转本机适配，以及所有供应商返回媒体的本地落盘/有界下载/取消/来源回执；旧项目远程资源需可检查、可恢复的迁移流程。
+1. tasks-v1浏览器直连配置转本机适配；生产本机网关现已实现结果落盘/有界下载/取消/来源回执，真实供应商仍待Key联调。旧项目远程资源需可检查、可恢复的迁移流程。
 2. 通用用户内容导航与历史Widget远程资源的迁移；禁止原站运行依赖不等于删除用户历史数据。
-3. 四个尚未接入的Agent功能族（animatic、ecommerce-photoset、layer-composer、previs）、Creative单个精确模板正文和后续编辑链、Marble/SPZ实际渲染，以及全站菜单/hover/布局逐项验收。
+3. 三个尚未接入的Agent功能族（animatic、ecommerce-photoset、previs）、Creative单个精确模板正文和后续编辑链、Marble/SPZ实际渲染，以及全站菜单/hover/布局逐项验收。
 4. 完成上述目标功能后，统一替换产品可见名称、logo、水印、导出标识和favicon；保留开发证据真实来源并兼容旧项目数据。
 
 官方资源URI的“tapnow”字符串暂为本地协议标识，不产生HTTP/DNS请求；不能用字符串计数证明联网或完成迁移。
+
+本轮生成素材与图层合成的实际证据及保留边界见[本批记录](LOCAL-MEDIA-AND-LAYERS-20261003.md)。

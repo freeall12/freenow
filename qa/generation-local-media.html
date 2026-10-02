@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>本地生成媒体验收 fixture</title>
+<style>
+body{margin:0;font:15px/1.6 system-ui,sans-serif;color:#232420;background:#f6f5ef}main{max-width:1024px;margin:44px auto;padding:0 24px}h1{font-size:26px;margin:0 0 8px}.notice{border-left:4px solid #ad5b21;padding:10px 16px;background:#eee9dc}button{font:inherit;padding:9px 18px;background:#262821;color:white;border:1px solid #262821;border-radius:4px;cursor:pointer}button.secondary{background:transparent;color:#262821}button:disabled{opacity:.45;cursor:default}.actions{display:flex;gap:12px;flex-wrap:wrap;margin:24px 0}dl{display:grid;grid-template-columns:150px 1fr;gap:8px 16px}dt{font-weight:600}dd{margin:0;overflow-wrap:anywhere}pre{font:13px/1.6 ui-monospace,monospace;white-space:pre-wrap;overflow-wrap:anywhere;padding:16px;background:#ecebe3}figure{margin:24px 0}img{display:block;max-width:100%;max-height:480px;object-fit:contain;background:white}figcaption{margin-top:8px;color:#56594f}#error{color:#8c391c}#events{max-height:190px;overflow:auto}h2{font-size:18px;margin-top:28px}@media(max-width:600px){main{margin-top:24px}dl{grid-template-columns:110px 1fr}}
+</style></head>
+<body><main>
+<h1>本地生成媒体验收</h1><p class="notice">验收 fixture · 使用内置 QA 合成 PNG 或操作员通过 --source 显式指定的本机 PNG，不是 AI 生成结果。不读取真实 Key，不请求供应商网络。任务与图片通过真实持久网关及本机媒体接口处理。</p>
+<div class="actions"><button id="submit">提交验收任务</button><button id="recover" class="secondary" disabled>只取回原任务</button></div>
+<p id="message" role="status">首次提交将模拟素材保存失败；随后只用 GET 取回原任务。</p><p id="error" role="alert"></p>
+<dl><dt>素材来源</dt><dd id="source-kind">本机验收 PNG，非模型结果</dd><dt>任务标识</dt><dd id="task-id">尚未提交</dd><dt>任务状态</dt><dd id="status">idle</dd><dt>供应商状态</dt><dd id="provider-status">—</dd><dt>本地媒体 URL</dt><dd id="media-url">—</dd><dt>实际解码尺寸</dt><dd id="dimensions">—</dd><dt>任务 POST 数量</dt><dd id="task-posts">0</dd><dt>内存供应商 POST 数量</dt><dd id="provider-posts">0</dd><dt>媒体保存尝试</dt><dd id="attempts">0</dd></dl>
+<h2>localization</h2><pre id="localization">{}</pre><figure id="result" hidden><img id="image" alt="固定本地验收图片，非 AI 生成"><figcaption>实际解码后显示本机媒体地址；刷新页面仍保留原任务标识。</figcaption></figure>
+<h2>任务事件</h2><pre id="events">等待提交</pre>
+</main><script src="/generation-api.js"></script><script type="module" src="/qa/generation-local-media.mjs"></script></body></html>

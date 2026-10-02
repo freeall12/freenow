@@ -1,3 +1,4 @@
+import {isGenerationMediaRef} from '../generation-results/media-ref.mjs';
 import {captureResultSnapshot,assertResultSnapshot} from '../generation-results/plan.mjs';
 import {platformResizeUri,platformResizeNodeId,validatePlatformResizeSpecs,buildPlatformResizeFormats,preparePlatformResize,validatePlatformResizeApply,platformResizePixels} from './platform-resize.mjs';
 const failure = (code,message) => Object.assign(Error(message),{code});
@@ -61,14 +62,14 @@ export function createPlatformResizeRuntime({app,localAssets,store,getProjectId,
     if(node?.type!=='image')throw failure('invalid_source','官方平台裁切仅支持真实图片；视频需走视频处理流程');
     let url=sourceMedia(node);if(typeof url!=='string'||!url)throw failure('invalid_source','图片节点没有真实媒体');
     if(url.startsWith('asset:'))url=await localAssets.url(url);check();
-    let parsed;try{parsed=new URL(url,globalThis.document?.baseURI);}catch{throw failure('unsafe_source','真实图片地址无效');}
-    if(parsed.username||parsed.password||!['http:','https:','blob:','data:'].includes(parsed.protocol)||parsed.protocol==='data:'&&!/^data:image\/(png|jpeg|webp);base64,/.test(url))throw failure('unsafe_source','真实图片地址协议或类型不受支持');
+    let parsed;try{parsed=isGenerationMediaRef(url)?null:new URL(url,globalThis.document?.baseURI);}catch{throw failure('unsafe_source','真实图片地址无效');}
+    if(parsed&&(parsed.username||parsed.password||!['http:','https:','blob:','data:'].includes(parsed.protocol)||parsed.protocol==='data:'&&!/^data:image\/(png|jpeg|webp);base64,/.test(url)))throw failure('unsafe_source','真实图片地址协议或类型不受支持');
     const blob=await readBlob(url,check,signal);
     const hash=await digest(await blob.arrayBuffer());check();
     const image=await decodeImage(blob,{signal});try {check();if(!Number.isInteger(image.width)||!Number.isInteger(image.height)||image.width<1||image.height<1||image.width>16384||image.height>16384||image.width*image.height>maxPixels)throw failure('source_over_limit','源图解码像素无效或超过32MP');return {blob,width:image.width,height:image.height,hash};}finally{image.close?.();}
   }
   async function readBlob(url,check,signal,expectedType) {
-    const response=await fetchImpl(url,{signal});let reader,completed=false;
+    const response=await fetchImpl(url,{signal,...(isGenerationMediaRef(url)?{redirect:'error',mode:'same-origin',credentials:'same-origin'}:{})});let reader,completed=false;
     try {
       check();if(!response?.ok)throw failure('source_read_failed','真实图片读取失败');
       const type=response.headers?.get('content-type')?.split(';')[0]?.trim(),length=response.headers?.get('content-length');

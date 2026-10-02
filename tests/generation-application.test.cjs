@@ -56,3 +56,9 @@ test('custom single and batch applications receive recorded origin without modif
   await context.applyResults(job);assert.equal(received.provenance.model,'actual-edit-model');assert.equal(received.provenance.mediaSource,'result.mp4');assert.equal(output.provenance,undefined);
  }
 });
+test('generic output decode failure does not create a canvas node and application retry reuses the task',async()=>{
+ const {createApplicationRunner}=await modulePromise,{context,jobs,calls}=applicationHarness();let decoded=false;
+ context.validateOutputMedia=async()=>{if(!decoded)throw Error('生成媒体无法读取');};
+ const job={id:'decode-job',status:'succeeded',request:{kind:'image.generate',nodeId:'source'},outputs:[{type:'image',url:'/api/generation/media/528237bf-670a-462b-ae7c-d3301d39076e'}]};jobs.set(job.id,job);
+ const runner=createApplicationRunner({getJob:id=>jobs.get(id),apply:context.applyResults});await runner.run(job.id);assert.equal(calls.connected,0);assert.equal(job.applied,false);decoded=true;await runner.run(job.id);assert.equal(calls.connected,1);assert.equal(job.applied,true);assert.equal(jobs.size,1);
+});

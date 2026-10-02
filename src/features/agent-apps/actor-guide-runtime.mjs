@@ -1,3 +1,4 @@
+import {isGenerationMediaRef} from '../generation-results/media-ref.mjs';
 import {captureResultSnapshot, assertResultSnapshot} from '../generation-results/plan.mjs';
 import {createWorkflowMediaResolver} from '../agent-workflows/media-resolver.mjs';
 import {prepareMediaInputs} from '../agent-attachments/media-inputs.mjs';
@@ -121,8 +122,8 @@ export function createActorGuideRuntime({app, localAssets, store, getProjectId, 
     const guard = () => {checkAbort(signal);if (!isCurrent() || getProjectId() !== projectId) throw failure('stale_actor_app', '人物情绪预览所属画布或会话已切换');for (const snapshot of snapshots) assertResultSnapshot(snapshot, state().nodes, state().edges);};
     guard();
     const images = await preparePreviews(nodes.map(node => ({name: node.id, type: 'image', asset: node.fullImage || node.image})), {signal, resolveUrl: async asset => {
-      guard();const url = await localAssets.url(asset);guard();
-      if (typeof url !== 'string' || !/^(?:https?:|blob:|data:image\/(?:png|jpeg|webp);base64,)/.test(url)) throw failure('preview_unavailable', '人物参考素材没有可读取的真实图片地址');
+      guard();const url = isGenerationMediaRef(asset) ? asset : await localAssets.url(asset);guard();
+      if (typeof url !== 'string' || !(/^(?:https?:|blob:|data:image\/(?:png|jpeg|webp);base64,)/.test(url) || isGenerationMediaRef(url))) throw failure('preview_unavailable', '人物参考素材没有可读取的真实图片地址');
       return url;
     }});
     guard();

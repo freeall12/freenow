@@ -1,3 +1,4 @@
+import {isGenerationMediaRef} from '../generation-results/media-ref.mjs';
 import {captureResultSnapshot,assertResultSnapshot} from '../generation-results/plan.mjs';
 import {colorAdjustUri,colorAdjustTool,colorAdjustLimits as limits,colorAdjustNodeId,colorAdjustParams,colorAdjustPixels,prepareColorAdjust,validateColorAdjustApplyRequest,resolveColorAdjustContext,resolveColorAdjustReply,validateColorAdjustState} from './color-adjust.mjs';
 const fail=(code,message)=>{throw Object.assign(Error(message),{code});};
@@ -25,11 +26,11 @@ export function createColorAdjustRuntime({app,localAssets,store,getProjectId,per
   for(const [name,fn]of Object.entries({'app.getState':app?.getState,'app.createConnected':app?.createConnected,'localAssets.put':localAssets?.put,'localAssets.url':localAssets?.url,'store.save':store?.save,getProjectId,persistConversation,renderImage}))if(typeof fn!=='function')throw TypeError(name+' adapter is required');
   const preparations=new WeakMap(),operations=new Map(),graph=()=>app.getState();
   async function read(media,limit,signal,check=()=>{}) {
-    abort(signal);check();const url=await cancellable(localAssets.url(media),signal);abort(signal);check();if(typeof url!=='string'||!(/^(?:https?:|blob:|data:image\/(?:png|jpeg|webp);base64,)/).test(url))fail('media_unavailable','真实图片没有可读取地址');
+    abort(signal);check();const url=await cancellable(isGenerationMediaRef(media)?media:localAssets.url(media),signal);abort(signal);check();if(typeof url!=='string'||!(/^(?:https?:|blob:|data:image\/(?:png|jpeg|webp);base64,)/.test(url)||isGenerationMediaRef(url)))fail('media_unavailable','真实图片没有可读取地址');
     const controller=new AbortController(),cancel=()=>controller.abort(signal.reason),timer=setTimeout(()=>controller.abort(Error('真实图片读取超时')),limits.timeoutMs);signal?.addEventListener('abort',cancel,{once:true});
     let reader,responseBody;
     try {
-      const response=await cancellable(fetchImpl(url,{signal:controller.signal}),controller.signal);responseBody=response?.body;if(responseBody?.getReader)reader=responseBody.getReader();abort(signal);check();if(!response?.ok)fail('media_unavailable','真实图片读取失败');const declared=Number(response.headers?.get('content-length'));if(Number.isFinite(declared)&&declared>limit)fail('media_limit','图片字节超过允许容量');
+      const response=await cancellable(fetchImpl(url,{signal:controller.signal,...(isGenerationMediaRef(url)?{redirect:'error',mode:'same-origin',credentials:'same-origin'}:{})}),controller.signal);responseBody=response?.body;if(responseBody?.getReader)reader=responseBody.getReader();abort(signal);check();if(!response?.ok)fail('media_unavailable','真实图片读取失败');const declared=Number(response.headers?.get('content-length'));if(Number.isFinite(declared)&&declared>limit)fail('media_limit','图片字节超过允许容量');
       const mime=response.headers?.get('content-type')?.split(';')[0]||'application/octet-stream';let bytes;
       if(reader){let total=0;const chunks=[];for(;;){const item=await cancellable(reader.read(),controller.signal);abort(controller.signal);check();if(item.done)break;total+=item.value.byteLength;if(total>limit)fail('media_limit','真实图片字节超过允许容量');chunks.push(item.value);}bytes=new Uint8Array(total);let offset=0;for(const chunk of chunks){bytes.set(chunk,offset);offset+=chunk.length;}}
       else {bytes=new Uint8Array(await cancellable(response.arrayBuffer(),controller.signal));if(bytes.length>limit)fail('media_limit','图片字节超过允许容量');}

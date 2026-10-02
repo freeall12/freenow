@@ -15,7 +15,7 @@ test('stream bytes commit privately with random durable identity, SHA, immutable
  const f=await fixture(t),first=await f.store.put(metadata,stream(),{expectedBytes:bytes.length});
  assert.match(first.resourceId,/^[a-f0-9-]{36}$/);assert.equal(first.taskId,taskId);assert.equal(first.outputIndex,0);assert.equal(first.role,'main');assert.equal(first.bytes,bytes.length);assert.equal(first.sha256,createHash('sha256').update(bytes).digest('hex'));assert.equal(first.path,undefined);
  first.role='tampered';const info=await f.store.info(first.resourceId,{taskId,role:'main'});assert.equal(info.role,'main');
- const opened=await f.store.open(first.resourceId,{taskId,outputIndex:0});assert.deepEqual(await opened.handle.readFile(),bytes);await assert.rejects(()=>opened.handle.write(Buffer.from('overwrite')));await opened.handle.close();
+ const opened=await f.store.open(first.resourceId,{taskId,outputIndex:0});assert.deepEqual(await opened.handle.readFile(),bytes);await assert.rejects(()=>opened.handle.write(Buffer.from('overwrite')));const range=[];for await(const chunk of opened.handle.createReadStream({start:3,end:8,autoClose:false}))range.push(chunk);assert.deepEqual(Buffer.concat(range),bytes.subarray(3,9));await opened.handle.close();
  assert.equal((await fs.stat(f.directory)).mode&0o777,0o700);for(const name of await fs.readdir(f.directory))assert.equal((await fs.stat(path.join(f.directory,name))).mode&0o777,0o600);
  assert.deepEqual((await fs.readdir(f.directory)).filter(name=>name.endsWith('.part')),[]);
  await f.restart();assert.deepEqual(await f.store.info(first.resourceId),info);
@@ -60,15 +60,32 @@ test('Web stream saves actual bytes and does not remove committed resources when
  const cancelled=new AbortController();cancelled.abort();await assert.rejects(()=>f.store.put({...metadata,role:'poster'},stream(),{signal:cancelled.signal}),{code:'media_cancelled'});
  await f.store.close();assert.ok((await fs.readdir(f.directory)).includes(first.resourceId+'.bin'));assert.ok((await fs.readdir(f.directory)).includes(first.resourceId+'.json'));await f.restart();assert.equal((await f.store.info(first.resourceId)).bytes,bytes.length);
 });
-test('restart and readonly opens detect same-length tampering, missing bytes and malformed manifests',async t=>{
+test('restart retains damaged payload ownership while readonly access detects damage; malformed manifests fail closed',async t=>{
  for(const kind of ['tamper','missing','manifest']){
   const f=await fixture(t),record=await f.store.put(metadata,stream());await f.store.close();
   if(kind==='tamper')await fs.writeFile(path.join(f.directory,record.resourceId+'.bin'),Buffer.alloc(bytes.length));
   if(kind==='missing')await fs.unlink(path.join(f.directory,record.resourceId+'.bin'));
   if(kind==='manifest')await fs.writeFile(path.join(f.directory,record.resourceId+'.json'),'{broken');
-  await assert.rejects(()=>f.restart(),{code:kind==='manifest'?'media_storage_error':'media_integrity_error'});assert.ok((await fs.readdir(f.directory)).includes(record.resourceId+'.json'));
+  if(kind==='manifest')await assert.rejects(()=>f.restart(),{code:'media_storage_error'});
+  else{await f.restart();await assert.rejects(()=>f.store.info(record.resourceId),{code:'media_integrity_error'});await assert.rejects(()=>f.store.open(record.resourceId),{code:'media_integrity_error'});await assert.rejects(()=>f.store.put(metadata,stream()),{code:'media_integrity_error'});}
+  assert.ok((await fs.readdir(f.directory)).includes(record.resourceId+'.json'));
  }
  const f=await fixture(t),record=await f.store.put(metadata,stream());await fs.writeFile(path.join(f.directory,record.resourceId+'.bin'),Buffer.alloc(bytes.length));await assert.rejects(()=>f.store.open(record.resourceId),{code:'media_integrity_error'});
+});
+test('a damaged resource cannot block healthy media or be overwritten; recovery creates a distinct revision',async t=>{
+ const f=await fixture(t),damaged=await f.store.put(metadata,stream()),healthy=await f.store.put({...metadata,role:'poster'},stream());await f.store.close();
+ const file=path.join(f.directory,damaged.resourceId+'.bin'),corrupted=Buffer.alloc(bytes.length,42);await fs.writeFile(file,corrupted);await f.restart();
+ assert.equal((await f.store.info(healthy.resourceId)).sha256,healthy.sha256);await assert.rejects(()=>f.store.put(metadata,stream()),{code:'media_integrity_error'});
+ const recovered=await f.store.put({...metadata,descriptorRevision:1},stream());assert.notEqual(recovered.resourceId,damaged.resourceId);assert.equal((await f.store.info(recovered.resourceId)).sha256,healthy.sha256);assert.deepEqual(await fs.readFile(file),corrupted);assert.ok((await fs.readdir(f.directory)).includes(damaged.resourceId+'.json'));
+ await f.restart();assert.equal((await f.store.info(recovered.resourceId)).descriptorRevision,1);await assert.rejects(()=>f.store.info(damaged.resourceId),{code:'media_integrity_error'});
+});
+test('structural manifest identity and duplicate ownership remain fatal even when payloads are valid',async t=>{
+ for(const kind of ['identity','duplicate']){
+  const f=await fixture(t),record=await f.store.put(metadata,stream());await f.store.close();const manifest=path.join(f.directory,record.resourceId+'.json');
+  if(kind==='identity')await fs.writeFile(manifest,JSON.stringify({...record,resourceId:randomUUID()}));
+  else{const copy={...record,resourceId:randomUUID()};await fs.writeFile(path.join(f.directory,copy.resourceId+'.json'),JSON.stringify(copy),{mode:0o600});}
+  await assert.rejects(()=>f.restart(),{code:'media_storage_error'});assert.ok((await fs.readdir(f.directory)).includes(record.resourceId+'.json'));
+ }
 });
 test('store ownership is exclusive; rejects user paths, URLs, arbitrary fields and symlinked committed media',async t=>{
  const f=await fixture(t),rival=createGenerationMediaStore({directory:f.directory});await assert.rejects(rival.ready,{code:'media_store_locked'});await rival.close();

@@ -36,3 +36,20 @@ node scripts/build-generation-history-fixture.cjs
 ```sh
 node --test tests/generation-results-workflow.test.cjs tests/generation-recovery-integration.test.cjs
 ```
+
+
+## 本机生成资源合同（2026-10-03）
+
+新服务端公开结果的媒体引用仅为 `/api/generation/media/<UUIDv4>`。`generation-api.js` 的主来源与可读取别名、原图、封面、sourceUrl 和嵌套世界资源采用精确路径校验；任意 relative/file、query/hash、尾斜线或非 v4 ID不会因此得到支持。现有 `data:` / `asset:` 用户素材继续工作。
+
+历史 `model.mjs` 保存独立 `image/fullImage`、类型别名、`mime/sourceUrl/sourceRange`，Marble 各LOD、mesh、pano、本体尺度和坐标元数据均保留。`world.marbleUrl` 仍为 HTTPS 信息链接，不下载成媒体。`archive.mjs` 读取本机ref再写入已有本地素材库；GLB `resource.materialize` 仍真实解码并生成封面，SPZ仍明确提示渲染器未接入，字节本地化不代表可预览。
+
+实际入口包括 `TaskService.consume/recover/validateResult`，`generation-results/workflow.apply` 与 `recovery.importRecoveredOutputs`，历史 `outputSnapshot/archive/node/blob/thumbnail`，以及世界 `materialize/preview/download`、全景 `panoramaStage`。生成应用与恢复的赋值流程本身支持同源路径，无需转换为供应商地址。任务进度、成功和恢复仅透传公开的 `providerStatus` 与 `localization:{state,revision,errorCode,retryable}`，素材保存失败保留 unknown 与原任务恢复原因，不产生第二次生成请求。
+
+旧远程迁移尚未完成：保留历史源记录，不删除或假装已归档。已确认的 TapNow/tamaredge运行域在这些媒体读取入口先提示需要迁移，不自动下载；其他合法供应商远程来源保留既有读取能力，尚需后续迁移。旧合法地址重定向到 TapNow、画布中已有远程img/video、旧模型内嵌资源和其他旧素材入口仍需统一迁移审计，本轮没有借全局CSP封锁来声明整个应用已隔离。
+
+
+独立浏览器验收 fixture：运行 `node tests/fixtures/generation-local-media-server.cjs --port 4174`，打开 `http://127.0.0.1:4174/qa/generation-local-media.html`。默认先显示素材保存失败，再点击“只取回原任务”经 GET 本地保存、真实解码图片；两项 POST 计数均应为 1。刷新保留原任务标识。页面不调用真实供应商，不需要真实 Key；只有固定的非秘密配置哨兵用于满足现有 tasks-v1 配置门，实际 provider transport 全在内存执行。`--success` 可启动直接成功模式，新一轮验收使用不同端口避免旧浏览器任务记录串入。服务仅绑定127.0.0.1，任务与媒体保存在新建临时私有目录，静态服务仅开放专属页面和所需前端模块。默认失败闸门要由显式GET解除，避免自动轮询跳过失败画面；这是验收注入，不是生产恢复协议。
+
+
+fixture 默认使用脚本内置的 96 × 64 QA 合成棋盘格 PNG，克隆仓库后不需要私有示例素材。可通过 `--source /absolute/path/to/local.png` 显式选择本机 PNG；来源文件只读取，不导入或提交。页面显示素材来源且始终标注非模型结果。2026-10-03 已运行的相机图片验收使用显式选定的本机 `assets/696b1da59de7a308.png` 字节作为 fixture source；截图证明媒体本地保存与实际解码，不证明 AI 生成。此素材不作为默认依赖，也不随本次提交导入。

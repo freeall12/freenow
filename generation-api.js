@@ -1,6 +1,22 @@
 /* Provider-neutral task lifecycle. No credentials are persisted. */
 (function(root){
   'use strict';
+  const isGenerationMediaRef = value => typeof value === 'string' && /^\/api\/generation\/media\/[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+  const isLocalMediaSource = value => isGenerationMediaRef(value) || typeof value === 'string' && /^(?:asset:[^\s]+$|data:(?:image|video|audio)\/|data:(?:model\/gltf-binary|application\/octet-stream);base64,)/.test(value);
+  function taskMediaState(value){
+    const result={}, status=value?.providerStatus;
+    if(['queued','running','succeeded','failed','cancelled','unknown'].includes(status))result.providerStatus=status;
+    const source=value?.localization;
+    if(source&&typeof source==='object'&&!Array.isArray(source)){
+      const localization={};
+      if(['pending','downloading','ready','failed','cancelled'].includes(source.state))localization.state=source.state;
+      if(Number.isSafeInteger(source.revision)&&source.revision>=0)localization.revision=source.revision;
+      if(typeof source.errorCode==='string'&&/^[a-zA-Z0-9_]{1,80}$/.test(source.errorCode))localization.errorCode=source.errorCode;
+      if(typeof source.retryable==='boolean')localization.retryable=source.retryable;
+      if(Object.keys(localization).length)result.localization=localization;
+    }
+    return result;
+  }
   class TaskService {
     constructor({prepareRequest,prepareInputs}={}){this.provider=null;this.prepareRequest=prepareRequest;this.prepareInputs=prepareInputs;this.jobs=new Map();this.listeners=new Set();this.recoveries=new Map();}
     setProvider(provider){if(provider&&typeof provider.generate!=='function')throw new TypeError('Provider.generate is required');this.provider=provider;}
@@ -47,7 +63,7 @@
       job.status='running';this.emit(job);
       if(job.controller.signal.aborted)return;
       try{job.beforeDispatch?.();}catch(error){job.status='failed';job.error=error.message||'生成来源已变化';this.emit(job);return;}
-      return this.consume(job,()=>job.transport.generate(job.request,{jobId:job.id,signal:job.controller.signal,onTaskIdentity:id=>{job.remoteTaskId=id;},onProgress:value=>{if(job.status!=='running')return;job.progress=Math.max(job.progress,Math.min(99,Math.max(0,Number(value)||0)));this.emit(job);}}));
+      return this.consume(job,()=>job.transport.generate(job.request,{jobId:job.id,signal:job.controller.signal,onTaskIdentity:id=>{job.remoteTaskId=id;},onProgress:(value,metadata)=>{if(job.status!=='running')return;Object.assign(job,taskMediaState(metadata));job.progress=Math.max(job.progress,Math.min(99,Math.max(0,Number(value)||0)));this.emit(job);}}));
     }
     async consume(job,execute){
       try{
@@ -55,13 +71,21 @@
         const result=await execute();
         if(job.controller.signal.aborted)return;
         this.validateResult(result);
-        job.outputs=result.outputs;job.progress=100;job.status='succeeded';
-      }catch(error){if(job.controller.signal.aborted)return;job.status=error.code==='configuration_required'?'configuration_required':error.code==='unknown'?'unknown':'failed';job.code=error.code;if(error.providerDispatched===false&&job.status==='failed')job.providerDispatched=false;job.recovery=error.recovery;job.error=error.message||'生成失败';}finally{job.providerActive=false;}
+        Object.assign(job,taskMediaState(result));job.outputs=result.outputs;job.progress=100;job.status='succeeded';
+      }catch(error){if(job.controller.signal.aborted)return;job.status=error.code==='configuration_required'?'configuration_required':error.code==='unknown'?'unknown':'failed';job.code=error.code;if(error.providerDispatched===false&&job.status==='failed')job.providerDispatched=false;job.recovery=error.recovery;Object.assign(job,taskMediaState(error));job.error=error.message||'生成失败';}finally{job.providerActive=false;}
       this.emit(job);
     }
     validateResult(result){
         if(!Array.isArray(result?.outputs)||!result.outputs.length)throw new Error('服务未返回生成结果');
-        for(const output of result.outputs){const source=output.url||output[output.type];if(!['image','video','audio','text','model'].includes(output.type)||(output.type==='text'?!output.text?.trim():typeof source!=='string'||!source))throw new Error('生成结果格式错误');if(output.type!=='text'&&!/^(https?:|data:(image|video|audio)\/|blob:)/.test(source))throw new Error('生成结果地址无效');}
+        const valid = source => typeof source==='string' && (isLocalMediaSource(source) || /^(https?:|blob:)/.test(source));
+        for(const output of result.outputs){
+          const source=output.url||output[output.type]||(output.type==='image'?output.fullImage:null);
+          if(!['image','video','audio','text','model'].includes(output.type)||(output.type==='text'?!output.text?.trim():typeof source!=='string'||!source))throw new Error('生成结果格式错误');
+          if(output.type==='text')continue;
+          const resources=[source,...['url','image','fullImage','video','audio','poster','sourceUrl'].filter(key=>output[key]!=null).map(key=>output[key])];
+          if(output.world?.assets){const assets=output.world.assets;resources.push(...Object.values(assets.splats?.spzUrls||{}),...Object.values(assets.mesh||{}));if(assets.imagery?.panoUrl!=null)resources.push(assets.imagery.panoUrl);}
+          if(resources.some(value=>!valid(value)))throw new Error('生成结果地址无效');
+        }
     }
     recover(id,{beforeRestore,signal}={}){
       if(this.recoveries.has(id))return this.recoveries.get(id).promise;
@@ -77,13 +101,13 @@
         if(remote.status==='succeeded')this.validateResult(remote);
         let job=existing?{...existing}:{id,request:structuredClone(remote.request),createdAt:remote.createdAt,controller:new AbortController(),recovered:true};
         if(job.controller.signal.aborted)throw Object.assign(Error('任务已取消'),{name:'AbortError'});
-        Object.assign(job,{status:remote.status,progress:remote.progress||0,remoteTaskId:remote.id,recovery:remote.recovery,error:remote.error,outputs:remote.outputs,providerDispatched:true});
+        Object.assign(job,{status:remote.status,progress:remote.progress||0,remoteTaskId:remote.id,recovery:remote.recovery,error:remote.error,outputs:remote.outputs,providerDispatched:true},taskMediaState(remote));
         Object.defineProperty(job,'transport',{value:provider,writable:true,configurable:true});
         await beforeRestore?.(job);check();
         if(job.controller.signal.aborted)throw Object.assign(Error('任务已取消'),{name:'AbortError'});
         if(existing){Object.assign(existing,job);Object.defineProperty(existing,'transport',{value:provider,writable:true,configurable:true});job=existing;}
         this.jobs.set(id,job);this.emit(job);
-        if(['queued','running'].includes(job.status))queueMicrotask(()=>{if(job.controller.signal.aborted)return;void this.consume(job,()=>provider.resume(remote.id,{signal:job.controller.signal,onProgress:value=>{if(job.status==='cancelled')return;job.progress=Math.max(job.progress,Math.min(99,Number(value)||0));this.emit(job);}}));});
+        if(['queued','running'].includes(job.status))queueMicrotask(()=>{if(job.controller.signal.aborted)return;void this.consume(job,()=>provider.resume(remote.id,{signal:job.controller.signal,onProgress:(value,metadata)=>{if(job.status==='cancelled')return;Object.assign(job,taskMediaState(metadata));job.progress=Math.max(job.progress,Math.min(99,Number(value)||0));this.emit(job);}}));});
         return job;
       }).finally(()=>{signal?.removeEventListener('abort',abort);this.recoveries.delete(id);});
       this.recoveries.set(id,{promise,controller});return promise;
@@ -120,16 +144,16 @@
         let value=resumeId?await read(endpoint+'/tasks/'+encodeURIComponent(resumeId),{signal:controller.signal}):await read(endpoint+'/tasks',{method:'POST',body:JSON.stringify(request),signal:controller.signal,headers:{...headers,...(recoverable&&jobId?{'Idempotency-Key':jobId}:{})}});
         id=value.id||id;if(id)onTaskIdentity(id);
         while(true){
-          if(['failed','cancelled','configuration_required','unknown'].includes(value.status))throw Object.assign(new Error(value.error||'任务失败'),{code:value.status,recovery:value.recovery,terminal:true});
+          if(['failed','cancelled','configuration_required','unknown'].includes(value.status))throw Object.assign(new Error(value.error||'任务失败'),{code:value.status,recovery:value.recovery,...taskMediaState(value),terminal:true});
           if(value.outputs)return value;
           if(value.status==='succeeded')throw Object.assign(Error('生成服务声称完成但没有实际输出'),{code:'unknown',terminal:true});
-          if(!id)throw Error('API 未返回任务 ID');onProgress(value.progress||0);await pause();value=await read(endpoint+'/tasks/'+encodeURIComponent(id),{signal:controller.signal});
+          if(!id)throw Error('API 未返回任务 ID');onProgress(value.progress||0,taskMediaState(value));await pause();value=await read(endpoint+'/tasks/'+encodeURIComponent(id),{signal:controller.signal});
         }
       }catch(error){if(recoverable&&!error.terminal&&!signal?.aborted)throw Object.assign(Error('生成状态未确认，请查询恢复；未重新提交'),{code:'unknown',recovery:{reason:error.code||'transport_interrupted',pollable:!!id}});throw error;}
       finally{clearTimeout(timer);signal?.removeEventListener('abort',abort);if(cancelRemote&&id&&signal?.aborted){try{await cancel(id);}catch{/* A transport abort is not proof of remote cancellation. */}}}
     }
     return {generate:(request,options)=>execute(request,options),...(recoverable?{lookup:(key,{signal}={})=>read(endpoint+'/tasks/by-key/'+encodeURIComponent(key),{signal:signal?AbortSignal.any([signal,AbortSignal.timeout(45000)]):AbortSignal.timeout(45000)}),resume:(id,options)=>execute(null,{...options,resumeId:id}),cancel}:{} )};
   }
-  root.GenerationCore={TaskService,httpProvider,normalizeApiBaseUrl};
+  root.GenerationCore={TaskService,httpProvider,normalizeApiBaseUrl,isGenerationMediaRef,isLocalMediaSource};
   if(typeof module!=='undefined')module.exports=root.GenerationCore;
 })(typeof window!=='undefined'?window:globalThis);
