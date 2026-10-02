@@ -66,3 +66,15 @@ test('successful application recovery clears stale tool errors without changing 
   assert.equal(card.element.querySelector('.execution-error').textContent,'');assert.equal(card.element.querySelector('.execution-error').hidden,true);assert.ok(card.element.textContent.includes('已生成并应用'));assert.ok(card.element.textContent.includes('工具已停止等待'));assert.equal(JSON.stringify(recovered),snapshot);card.destroy();
  }finally{f.close();}
 });
+
+test('unsubmitted video analysis configuration state opens settings without inventing or retrying a task',async()=>{
+ const f=await fixture();try{
+  let configured=0;window.GenerationAPI={configure:()=>configured++};
+  const initial={id:'analysis',name:'video_analyze',status:'running',args:{operationId:'op',nodeId:'source'}},card=f.createDepthExecutionCard(initial);document.body.append(card.element);
+  const value={...initial,status:'done',result:{status:'configuration_required',operationId:'op'}};
+  card.update(value);const button=card.element.querySelector('.generation-small-button');assert.equal(button.textContent,'连接 API');
+  card.element.querySelector('.execution-line').click();button.focus();card.update(value);assert.equal(document.activeElement,button);button.click();assert.equal(configured,1);
+  assert.equal(card.element.querySelector('.execution-confirmation'),null);assert.ok(!card.element.textContent.includes('生成任务：'));
+  card.update({...initial,status:'running'});assert.equal(card.element.querySelector('.generation-small-button'),null);card.destroy();
+ }finally{f.close();}
+});

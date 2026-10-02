@@ -36,10 +36,11 @@ export async function prepareAgentVideoAnalysisRequest(node,{resolveMedia,signal
 // URLs, provider credentials or source contents. Do not evict uncertain records.
 export function createAgentVideoAnalysis({app=globalThis.CanvasApp,generationAPI=globalThis.GenerationAPI,localAssets=globalThis.LocalAssets,
   storage=globalThis.localStorage,getProjectId=()=>globalThis.CanvasProjects?.id?.()||'canvas',baseUrl=globalThis.document?.baseURI,
-  resolveMedia=createWorkflowMediaResolver({localAssets,baseUrl}),transport=prepareWorkflowInputs,timeoutMs=60000}={}){
-  for(const [name,fn]of Object.entries({'app.getState':app?.getState,'GenerationAPI.submitDerived':generationAPI?.submitDerived,'GenerationAPI.getJobs':generationAPI?.getJobs,'GenerationAPI.subscribe':generationAPI?.subscribe,'GenerationAPI.cancel':generationAPI?.cancel,'storage.getItem':storage?.getItem,'storage.setItem':storage?.setItem,getProjectId,resolveMedia,transport}))if(typeof fn!=='function')throw TypeError(name+' adapter is required');
+  resolveMedia=createWorkflowMediaResolver({localAssets,baseUrl}),transport=prepareWorkflowInputs,timeoutMs=60000,
+  document=globalThis.document,window=globalThis.window,projects=globalThis.CanvasProjects}={}){
+  for(const [name,fn]of Object.entries({'app.getState':app?.getState,'GenerationAPI.availability':generationAPI?.availability,'GenerationAPI.submitDerived':generationAPI?.submitDerived,'GenerationAPI.getJobs':generationAPI?.getJobs,'GenerationAPI.subscribe':generationAPI?.subscribe,'GenerationAPI.cancel':generationAPI?.cancel,'storage.getItem':storage?.getItem,'storage.setItem':storage?.setItem,getProjectId,resolveMedia,transport}))if(typeof fn!=='function')throw TypeError(name+' adapter is required');
   if(!Number.isFinite(timeoutMs)||timeoutMs<1||timeoutMs>120000)throw TypeError('timeoutMs must be between 1 and 120000');
-  const active=new Map();let disposed=false;
+  const active=new Map();let disposed=false,leaving=false;
   const project=()=>String(getProjectId()),slot=(p,id)=>JSON.stringify([p,id]);
   function read(p){
     let value;try{const raw=storage.getItem(keyPrefix+encodeURIComponent(p));value=raw?JSON.parse(raw):{version:1,operations:[]};}catch{throw failure('operation_storage_invalid','分镜操作记录不可读取，未重新提交');}
@@ -64,18 +65,27 @@ export function createAgentVideoAnalysis({app=globalThis.CanvasApp,generationAPI
       ...(job?.applicationError?{applicationError:job.applicationError}:{}),...(job?.error||op.error?{error:job?.error||op.error}:{}),
       ...(missing||job?.status==='unknown'?{recoveryRequired:true,next:'使用 generation_recover 查询原 taskId；未知状态不能重新提交。'}:{}),
       ...(interrupted?{recoveryRequired:true,next:'素材准备时中断且缺少任务身份，请先检查已有生成记录；相同 operationId 不自动重发。'}:{}),
+      ...(op.status==='configuration_required'&&!op.taskId?{next:'请连接分镜解析 API 后显式重试本次调用；尚未读取素材或创建任务。'}:{}),
       ...(missing?{previousStatus:op.status}:{}),...(job?.status==='succeeded'&&!job.applied?{next:job.applicationError?'使用 generation_retry_application 重试已有结果应用；不会再调用模型。':'等待结果应用；模型成功不代表画布已保存。'}:{})};
   }
   const unsubscribe=generationAPI.subscribe(job=>{
     for(const op of active.values())if(op.taskId===job.id){
       op.status=job.status;op.error=job.error;
       try{write(op.project,op);}catch(error){op.error=error.message;}
-      if(terminal(job)){op.detach?.();delete op.detach;}
+      if(terminal(job)){op.stopped?.(job);op.detach?.();delete op.detach;if(job.status!=='unknown'&&!(job.status==='succeeded'&&!job.applied))op.watching=false;}
     }
   });
+  const render=()=>{for(const op of active.values())if(op.watching&&!op.isCurrent())op.invalidate?.();};
+  const pagehide=()=>{leaving=true;for(const op of active.values())op.cancel?.();};
+  const pageshow=()=>{leaving=false;};
+  document?.addEventListener('canvas:render',render);
+  window?.addEventListener('pagehide',pagehide);window?.addEventListener('pageshow',pageshow);
+  const unregisterNavigation=projects?.registerNavigationGuard?.(()=>[...active.values()].some(op=>op.preparing)?'视频素材正在准备，请等待完成后再切换画布':null);
   async function start(op,{signal,authorize,onSubmitted}){
-    const controller=new AbortController(),abort=()=>controller.abort(signal?.reason||cancelled());op.cancel=abort;
-    const stopJob=()=>{if(op.taskId)generationAPI.cancel(op.taskId);};
+    const controller=new AbortController(),abort=()=>{if(controller.signal.aborted&&op.taskId)generationAPI.cancel(op.taskId);controller.abort(signal?.reason||cancelled());};op.cancel=abort;
+    // Source invalidation stops queued media work; running providers retain their
+    // real receipt while the sticky guard prevents any late local application.
+    const stopJob=()=>{if(op.taskId&&(!op.invalidated||live(op)?.status==='queued'))generationAPI.cancel(op.taskId);};
     signal?.addEventListener('abort',abort,{once:true});controller.signal.addEventListener('abort',stopJob,{once:true});if(signal?.aborted)abort();
     op.detach=()=>signal?.removeEventListener('abort',abort);
     let rejectAbort;const interrupted=new Promise((_,reject)=>{rejectAbort=reject;});interrupted.catch(()=>{});
@@ -83,14 +93,24 @@ export function createAgentVideoAnalysis({app=globalThis.CanvasApp,generationAPI
     const timer=setTimeout(()=>controller.abort(failure('media_timeout','分镜素材准备超时，未重新提交')),timeoutMs);
     const current=()=>app.getState().nodes.find(node=>node.id===op.request.nodeId);
     const node=current(),before=signature(node);
-    const guard=()=>{if(controller.signal.aborted)throw controller.signal.reason;if(disposed||project()!==op.project||current()!==node||signature(current())!==before)throw failure('source_changed','来源视频、裁切区间或当前画布已变化，未应用结果');};
+    op.watching=true;
+    op.isCurrent=()=>!disposed&&!leaving&&project()===op.project&&current()===node&&signature(current())===before;
+    op.invalidate=()=>{op.invalidated=true;controller.abort(failure('source_changed','来源视频、裁切区间或当前画布已变化，未应用结果'));};
+    const guard=()=>{if(op.invalidated||!op.isCurrent()){op.invalidate();throw controller.signal.reason;}if(controller.signal.aborted)throw controller.signal.reason;};
     const wait=async fn=>{guard();const value=await Promise.race([Promise.resolve().then(()=>{guard();return fn();}),interrupted]);guard();return value;};
     try{
       guard();await wait(()=>authorize('video_analyze',op.request));
+      // availability is provider-level {configured:boolean|null}; only explicit
+      // false proves no submission is needed. Native model maps are checked later.
+      const availability=await wait(()=>generationAPI.availability({signal:controller.signal}));
+      if(availability.configured===false){op.status='configuration_required';return receipt(op);}
+      op.status='preparing';write(op.project,op);op.committed=true;
       const request=await wait(()=>prepareAgentVideoAnalysisRequest(node,{resolveMedia,signal:controller.signal,validateSources:guard,baseUrl,transport}));
+      if(!Number.isFinite(node.x)||!Number.isFinite(node.y))throw failure('invalid_source','来源节点缺少有效世界坐标');
       request.parameters.nodePosition={x:node.x,y:node.y};
       request.agentVideoAnalysis={...op.request};
       let ready,failed;const acknowledged=new Promise((resolve,reject)=>{ready=resolve;failed=reject;});acknowledged.catch(()=>{});
+      let stopped;const taskStopped=new Promise(resolve=>{stopped=resolve;});op.stopped=stopped;
       const job=generationAPI.submitDerived(request,{guard,options:{gap:100},beforeDispatchReady:async context=>{
         try{
           guard();if(context.jobId!==op.taskId)throw failure('operation_conflict','分镜任务身份发生变化，禁止自动重试派发');
@@ -100,17 +120,20 @@ export function createAgentVideoAnalysis({app=globalThis.CanvasApp,generationAPI
       }});
       if(!job?.id)throw failure('submission_unknown','分镜提交没有返回任务身份，请核对现有生成任务');
       op.taskId=job.id;op.status=job.status;write(op.project,op);
-      await wait(()=>acknowledged);return receipt(op);
+      if(terminal(job))stopped(job);
+      const outcome=await wait(()=>Promise.race([acknowledged.then(()=>null),taskStopped]));
+      if(outcome&&outcome.status!=='configuration_required')throw failure('dispatch_stopped',outcome.error||'分镜任务在派发确认前已终止');
+      return receipt(op);
     }catch(error){
-      if(op.taskId)generationAPI.cancel(op.taskId);
+      if(op.taskId&&['queued','running'].includes(live(op)?.status))generationAPI.cancel(op.taskId);
       op.status=live(op)?.status||(controller.signal.aborted?'cancelled':'failed');op.error=error.message;
-      try{write(op.project,op);}catch{}
+      if(op.committed)try{write(op.project,op);}catch{}
       op.detach?.();delete op.detach;throw Object.assign(error,{receipt:receipt(op)});
-    }finally{clearTimeout(timer);controller.signal.removeEventListener('abort',onAbort);if(!op.taskId)op.detach?.();}
+    }finally{op.preparing=false;delete op.stopped;clearTimeout(timer);controller.signal.removeEventListener('abort',onAbort);if(!op.taskId)op.detach?.();if(!op.committed)active.delete(slot(op.project,op.request.operationId));}
   }
   async function execute(input,{signal,authorize,onSubmitted}={}){
     if(signal?.aborted)throw signal.reason||cancelled();
-    if(disposed)throw failure('host_closed','分镜工作流宿主已关闭');
+    if(disposed||leaving)throw failure('host_closed','分镜工作流宿主已关闭');
     if(typeof authorize!=='function')throw failure('authorization_required','分镜解析缺少本次工具执行的宿主确认');
     const request=videoAnalysisRequest(input),p=project(),id=slot(p,request.operationId),fingerprint=JSON.stringify(request);
     let op=active.get(id)||read(p).find(value=>value.request.operationId===request.operationId);
@@ -120,8 +143,8 @@ export function createAgentVideoAnalysis({app=globalThis.CanvasApp,generationAPI
     if(existing.length){await authorize('video_analyze',request);if(signal?.aborted)throw signal.reason||cancelled();const job=existing[0];if(JSON.stringify(videoAnalysisRequest(job.request.agentVideoAnalysis))!==fingerprint)throw failure('operation_conflict','已有分镜操作参数不同');op={request,fingerprint,project:p,taskId:job.id,status:job.status};write(p,op);active.set(id,op);return receipt(op);}
     const other=generationAPI.getJobs().find(job=>job.request?.kind==='video.analyze'&&job.request.nodeId===request.nodeId&&(['queued','running','unknown'].includes(job.status)||job.status==='succeeded'&&!job.applied));
     if(other)throw failure('source_busy','此来源已有分镜任务，请查询或应用原任务：'+other.id);
-    op={request,fingerprint,project:p,status:'preparing'};write(p,op);active.set(id,op);
+    op={request,fingerprint,project:p,status:'checking_configuration',preparing:true};active.set(id,op);
     op.pending=start(op,{signal,authorize,onSubmitted}).finally(()=>{delete op.pending;});return op.pending;
   }
-  return {execute,get(operationId){const p=project(),id=slot(p,operationId),op=active.get(id)||read(p).find(value=>value.request.operationId===operationId);if(op&&!active.has(id))op.restored=true;return op?receipt(op):null;},dispose(){disposed=true;unsubscribe();for(const op of active.values()){op.cancel?.();op.detach?.();}}};
+  return {execute,get(operationId){const p=project(),id=slot(p,operationId),op=active.get(id)||read(p).find(value=>value.request.operationId===operationId);if(op&&!active.has(id))op.restored=true;return op?receipt(op):null;},dispose(){disposed=true;unsubscribe();unregisterNavigation?.();document?.removeEventListener('canvas:render',render);window?.removeEventListener('pagehide',pagehide);window?.removeEventListener('pageshow',pageshow);for(const op of active.values()){op.cancel?.();op.detach?.();}}};
 }

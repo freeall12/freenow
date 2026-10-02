@@ -8,9 +8,10 @@ function memoryStorage(){const rows=new Map();return {getItem:key=>rows.get(key)
 const output={type:'video',url:'data:video/mp4;base64,AAAA',poster:'data:image/jpeg;base64,AAAA',title:'协议测试镜头',text:'协议替身描述',width:640,height:360,duration:2,sourceRange:{start:2.125,end:4.125}};
 async function fixture(overrides={}){
   const {createAgentVideoAnalysis}=await modulePromise,{createApplicationRunner}=await import('../src/features/generation-results/application.mjs');
-  const state={nodes:[{id:'source',type:'video',video:'asset:source',clip:{start:2.125,end:5.5},x:12.5,y:40.25}],edges:[]},calls={decode:[],transport:[],submit:0,generate:0,authorize:0,apply:0},storage=memoryStorage(),derivedTargets=new Map(),listeners=new Set();
-  let project='project-a',saveFails=false;
-  const service=new TaskService();service.setProvider({generate:async(request,options)=>{calls.generate++;return overrides.generate?overrides.generate(request,options):{outputs:[structuredClone(output)]};}});
+  const state={nodes:[{id:'source',type:'video',video:'asset:source',clip:{start:2.125,end:5.5},x:12.5,y:40.25}],edges:[]},calls={decode:[],transport:[],availability:[],submit:0,generate:0,authorize:0,apply:0},storage=memoryStorage(),derivedTargets=new Map(),listeners=new Set(),document=new EventTarget(),window=new EventTarget(),navigation=new Set();
+  let project='project-a',saveFails=false,configured=true;
+  const projects={registerNavigationGuard:fn=>{navigation.add(fn);return()=>navigation.delete(fn);}};
+  const service=new TaskService({prepareRequest:overrides.prepareRequest,prepareInputs:overrides.prepareInputs});service.setProvider({isConfigured:async()=>configured,generate:async(request,options)=>{calls.generate++;return overrides.generate?overrides.generate(request,options):{outputs:[structuredClone(output)]};}});
   const runner=createApplicationRunner({getJob:id=>service.jobs.get(id),apply:async job=>{
     const target=derivedTargets.get(job.id);target.guard();if(!job.resultIds){calls.apply++;state.nodes.push({id:'result-'+calls.apply,...job.outputs[0],video:job.outputs[0].url});job.resultIds=[state.nodes.at(-1).id];}
     if(saveFails)throw Error('disk full');
@@ -18,14 +19,15 @@ async function fixture(overrides={}){
   service.subscribe(job=>{for(const fn of listeners)fn(job);if(job.status==='succeeded')void runner.run(job.id);});
   // Read the actual UI adapter, so this test requires the dispatch receipt hook
   // to be wired through submitDerived rather than a separate test substitute.
-  const ui=fs.readFileSync(require.resolve('../generation-ui.js'),'utf8'),context={submitJob:(...args)=>{calls.submit++;return service.submit(...args);},derivedTargets};
+  const ui=fs.readFileSync(require.resolve('../generation-ui.js'),'utf8'),context={service,submitJob:(request,options)=>{calls.submit++;return service.submit(request,overrides.beforeDispatchReady?{...options,beforeDispatchReady:context=>overrides.beforeDispatchReady(context,options.beforeDispatchReady)}:options);},derivedTargets};
+  vm.runInNewContext(ui.slice(ui.indexOf('  async function availability('),ui.indexOf('  function submitJob(')),context);
   vm.runInNewContext(ui.slice(ui.indexOf('  function submitDerived('),ui.indexOf('  window.GenerationAPI=')),context);
-  const api={submitDerived:context.submitDerived,getJobs:()=>[...service.jobs.values()],cancel:id=>service.cancel(id),subscribe:fn=>{listeners.add(fn);return()=>listeners.delete(fn);},retryApplication:id=>runner.run(id)};
-  const options={app:{getState:()=>state},generationAPI:api,storage,getProjectId:()=>project,baseUrl:'http://localhost:4173/',
+  const api={availability:options=>{calls.availability.push(options);return overrides.availability?overrides.availability(options):context.availability(options);},submitDerived:context.submitDerived,getJobs:()=>[...service.jobs.values()],cancel:id=>service.cancel(id),subscribe:fn=>{listeners.add(fn);return()=>listeners.delete(fn);},retryApplication:id=>runner.run(id)};
+  const options={app:{getState:()=>state},generationAPI:api,storage,document,window,projects,getProjectId:()=>project,baseUrl:'http://localhost:4173/',
     resolveMedia:async(node,{signal})=>{calls.decode.push(structuredClone(node));return overrides.decode?overrides.decode(node,{signal}):{url:'blob:full-source',width:640,height:360,duration:8};},
-    transport:async(request,options)=>{calls.transport.push(structuredClone(request));options.validateSources();return {...request,inputs:request.inputs.map(value=>({...value,url:'data:video/mp4;base64,AAAA'}))};},...overrides.options};
+    transport:async(request,options)=>{calls.transport.push(structuredClone(request));options.validateSources();return overrides.transport?overrides.transport(request,options):{...request,inputs:request.inputs.map(value=>({...value,url:'data:video/mp4;base64,AAAA'}))};},...overrides.options};
   const host=createAgentVideoAnalysis(options),authorize=(name,args)=>{assert.equal(name,'video_analyze');assert.deepEqual(args,input);calls.authorize++;};
-  return {host,newHost:()=>createAgentVideoAnalysis(options),state,calls,storage,api,service,authorize,setProject:value=>{project=value;},setSaveFailure:value=>{saveFails=value;}};
+  return {host,newHost:()=>createAgentVideoAnalysis(options),state,calls,storage,api,service,authorize,document,window,navigation,render:()=>document.dispatchEvent(new Event('canvas:render')),setConfigured:value=>{configured=value;},setProject:value=>{project=value;},setSaveFailure:value=>{saveFails=value;}};
 }
 async function settled(f,id){for(let count=0;count<100;count++){const job=f.api.getJobs().find(job=>job.id===id);if(job&&(['failed','unknown','cancelled','configuration_required'].includes(job.status)||job.status==='succeeded'&&!job.applying&&job.applicationStatus))return job;await tick();}throw Error('task did not settle');}
 
@@ -102,4 +104,102 @@ test('request validation rejects extras/invalid clip and already aborted caller 
   const {videoAnalysisRequest}=await modulePromise;assert.throws(()=>videoAnalysisRequest({...input,model:'invented'}),error=>error.code==='invalid_request');
   const f=await fixture();f.state.nodes[0].clip.end=9;await assert.rejects(f.host.execute(input,{authorize:f.authorize}),error=>error.code==='invalid_clip');assert.equal(f.calls.submit,0);
   const g=await fixture(),receipt=await g.host.execute(input,{authorize:g.authorize});await settled(g,receipt.taskId);const controller=new AbortController();controller.abort();await assert.rejects(g.host.execute(input,{signal:controller.signal,authorize:g.authorize}),error=>error.name==='AbortError');assert.equal(g.calls.submit,1);
+});
+
+test('explicitly unconfigured preflight reads no media, saves no operation and permits the same operation after configuration',async()=>{
+  const f=await fixture();f.setConfigured(false);
+  const receipt=await f.host.execute(input,{authorize:f.authorize});
+  assert.equal(receipt.status,'configuration_required');assert.equal(receipt.taskId,undefined);assert.equal(f.host.get(input.operationId),null);
+  assert.equal(f.calls.availability.length,1);assert.equal(f.calls.decode.length,0);assert.equal(f.calls.transport.length,0);assert.equal(f.calls.submit,0);assert.equal(f.calls.generate,0);assert.equal(f.storage.rows.size,0);assert.equal([...f.navigation][0](),null);
+  f.setConfigured(true);f.state.nodes[0].clip={start:1,end:6};f.state.nodes[0].x=45.5;
+  const restored=f.newHost(),started=await restored.execute(input,{authorize:f.authorize});await settled(f,started.taskId);
+  assert.equal(f.calls.availability.length,2);assert.equal(f.calls.submit,1);assert.deepEqual(f.service.jobs.get(started.taskId).request.inputs[0].clip,{start:1,end:6});assert.equal(f.service.jobs.get(started.taskId).request.parameters.nodePosition.x,45.5);
+  restored.dispose();f.host.dispose();assert.equal(f.navigation.size,0);
+});
+
+test('availability errors do not burn the operation and null configuration retains the real API semantics',async()=>{
+  let first=true;const f=await fixture({availability:async()=>{if(first){first=false;throw Error('configuration lookup failed');}return {configured:null};}});
+  await assert.rejects(f.host.execute(input,{authorize:f.authorize}),/configuration lookup failed/);assert.equal(f.storage.rows.size,0);assert.equal(f.calls.decode.length,0);assert.equal(f.host.get(input.operationId),null);
+  const receipt=await f.host.execute(input,{authorize:f.authorize});await settled(f,receipt.taskId);assert.equal(f.calls.submit,1);f.host.dispose();
+});
+
+test('delayed preflight shares one lookup and source or project restoration cannot revive an invalidated call',async()=>{
+  for(const change of ['video','clip','trim','identity','delete','project']){
+    const gate=deferred(),entered=deferred(),f=await fixture({availability:()=>{entered.resolve();return gate.promise;}});
+    const pending=f.host.execute(input,{authorize:f.authorize});await entered.promise;
+    const duplicate=f.host.execute(input,{authorize:f.authorize}),original=f.state.nodes[0],clip=structuredClone(original.clip);
+    const outcomes=Promise.allSettled([pending,duplicate]);assert.ok([...f.navigation][0]());
+    if(change==='video')original.video='asset:new';else if(change==='clip')original.clip.end=7;else if(change==='trim')original.trim={start:0};else if(change==='identity')f.state.nodes[0]={...original};else if(change==='delete')f.state.nodes.length=0;else f.setProject('project-b');
+    f.render();f.state.nodes[0]=original;original.video='asset:source';original.clip=clip;delete original.trim;f.setProject('project-a');f.render();
+    for(const outcome of await outcomes){assert.equal(outcome.status,'rejected');assert.equal(outcome.reason.code,'source_changed',change);}
+    assert.equal(f.calls.availability.length,1);assert.equal(f.calls.availability[0].signal.aborted,true);assert.equal(f.calls.decode.length,0);assert.equal(f.calls.submit,0);assert.equal(f.storage.rows.size,0);assert.equal([...f.navigation][0](),null);
+    gate.resolve({configured:true});await tick();assert.equal(f.calls.submit,0);f.host.dispose();
+  }
+});
+
+test('caller cancellation, pagehide and disposal abort preflight without late reads and release navigation guards',async()=>{
+  for(const stop of ['signal','pagehide','dispose']){
+    const gate=deferred(),entered=deferred(),f=await fixture({availability:()=>{entered.resolve();return gate.promise;}}),controller=new AbortController();
+    const pending=f.host.execute(input,{authorize:f.authorize,signal:controller.signal});await entered.promise;
+    if(stop==='signal')controller.abort();else if(stop==='pagehide')f.window.dispatchEvent(new Event('pagehide'));else f.host.dispose();
+    await assert.rejects(pending,error=>error.name==='AbortError'||error.code==='source_changed');assert.equal(f.calls.availability[0].signal.aborted,true);assert.equal(f.storage.rows.size,0);assert.equal(f.calls.decode.length,0);
+    gate.resolve({configured:false});await tick();assert.equal(f.calls.submit,0);
+    if(stop==='pagehide')await assert.rejects(f.host.execute(input,{authorize:f.authorize}),error=>error.code==='host_closed');
+    f.host.dispose();assert.equal(f.navigation.size,0);
+  }
+});
+
+test('event invalidation during decode, transport or acknowledgement stays sticky after the original source returns',async()=>{
+  for(const stage of ['decode','transport','ack']){
+    const gate=deferred(),entered=deferred(),f=await fixture(stage==='decode'?{decode:()=>{entered.resolve();return gate.promise;}}:stage==='transport'?{transport:()=>{entered.resolve();return gate.promise;}}:{});
+    const pending=f.host.execute(input,{authorize:f.authorize,...stage==='ack'?{onSubmitted:()=>{entered.resolve();return gate.promise;}}:{}});await entered.promise;
+    f.state.nodes[0].clip.end=7;f.render();f.state.nodes[0].clip.end=5.5;f.render();
+    await assert.rejects(pending,error=>error.code==='source_changed');assert.equal(f.calls.generate,0);assert.equal(f.calls.submit,stage==='ack'?1:0);
+    gate.resolve({url:'blob:late',width:640,height:360,duration:8});await tick();assert.equal(f.calls.generate,0);f.host.dispose();
+  }
+});
+
+test('running source invalidation retains the real task but blocks application even after source restoration',async()=>{
+  const gate=deferred(),running=deferred(),f=await fixture({generate:()=>{running.resolve();return gate.promise;}}),receipt=await f.host.execute(input,{authorize:f.authorize});await running.promise;
+  f.state.nodes[0].video='asset:new';f.render();f.state.nodes[0].video='asset:source';f.render();assert.equal(f.service.jobs.get(receipt.taskId).status,'running');
+  gate.resolve({outputs:[output]});await settled(f,receipt.taskId);assert.equal(f.calls.apply,0);assert.match(f.host.get(input.operationId).applicationError,/来源/);
+  const retry=await f.api.retryApplication(receipt.taskId);assert.match(retry.applicationError,/来源/);assert.equal(retry.applied,false);assert.equal(f.calls.generate,1);f.host.dispose();
+});
+
+test('coordinates may move during preparation but latest coordinates must remain finite',async()=>{
+  for(const valid of [true,false]){
+    const gate=deferred(),entered=deferred(),f=await fixture({transport:async(request)=>{entered.resolve();await gate.promise;return request;}}),pending=f.host.execute(input,{authorize:f.authorize});await entered.promise;
+    f.state.nodes[0].x=valid?71.625:NaN;f.state.nodes[0].y=-12.375;f.render();gate.resolve();
+    if(valid){const receipt=await pending;await settled(f,receipt.taskId);assert.deepEqual(f.service.jobs.get(receipt.taskId).request.parameters.nodePosition,{x:71.625,y:-12.375});}
+    else{await assert.rejects(pending,error=>error.code==='invalid_source');assert.equal(f.calls.submit,0);}
+    f.host.dispose();
+  }
+});
+
+test('pagehide cancels submitted jobs and pageshow cannot revive their original guards',async()=>{
+  const gate=deferred(),running=deferred(),f=await fixture({generate:()=>{running.resolve();return gate.promise;}}),receipt=await f.host.execute(input,{authorize:f.authorize});await running.promise;
+  assert.equal([...f.navigation][0](),null);f.window.dispatchEvent(new Event('pagehide'));f.window.dispatchEvent(new Event('pageshow'));
+  assert.equal(f.host.get(input.operationId).status,'cancelled');assert.throws(()=>f.service.jobs.get(receipt.taskId).beforeDispatch(),error=>error.name==='AbortError');
+  gate.resolve({outputs:[output]});await tick();assert.equal(f.calls.apply,0);const again=await f.host.execute(input,{authorize:f.authorize});assert.equal(again.taskId,receipt.taskId);assert.equal(f.calls.generate,1);f.host.dispose();
+});
+
+test('failure before the Agent acknowledgement settles promptly with its real task receipt',async()=>{
+  const f=await fixture({beforeDispatchReady:async()=>{throw Error('history gate failed');},options:{timeoutMs:100}});
+  await assert.rejects(f.host.execute(input,{authorize:f.authorize}),error=>error.code==='dispatch_stopped'&&error.message==='history gate failed'&&error.receipt.status==='failed'&&!!error.receipt.taskId);
+  assert.equal(f.calls.generate,0);assert.equal(f.calls.submit,1);assert.equal(f.host.get(input.operationId).status,'failed');f.host.dispose();
+});
+
+test('an unavailable provider without an acknowledgement hook returns configuration_required and is never relabeled cancelled',async()=>{
+  const f=await fixture({availability:async()=>({configured:true}),options:{timeoutMs:100}});f.setConfigured(false);
+  // A host adapter which omits the dispatch hook still has a real TaskService
+  // terminal state; waiting only for its absent ack would time out incorrectly.
+  f.api.submitDerived=(request,target)=>{f.calls.submit++;return f.service.submit(request,{beforeDispatch:target.guard});};
+  const receipt=await f.host.execute(input,{authorize:f.authorize});assert.equal(receipt.status,'configuration_required');assert.ok(receipt.taskId);assert.equal(f.service.jobs.get(receipt.taskId).status,'configuration_required');assert.equal(f.calls.generate,0);f.host.dispose();
+});
+
+test('global configuration does not bypass the existing native video profile validation',async()=>{
+  const {prepareVideoAnalysisMedia}=await import('../src/features/node-composer/video-analysis-media.mjs');
+  const f=await fixture({prepareInputs:(request,options)=>prepareVideoAnalysisMedia(request,{...options,nativeConfiguration:{protocol:'openai-native',capabilities:{videoAnalysis:{}}}})}),receipt=await f.host.execute(input,{authorize:f.authorize});await settled(f,receipt.taskId);
+  const job=f.service.jobs.get(receipt.taskId);assert.equal(job.status,'configuration_required');assert.notEqual(job.providerDispatched,true);assert.equal(f.calls.generate,0);assert.match(f.host.get(input.operationId).error,/映射/);
+  await f.host.execute(input,{authorize:f.authorize});assert.equal(f.calls.submit,1);f.host.dispose();
 });

@@ -14,6 +14,10 @@
 
 `journal.mjs` 保存原提交快照及 SHA-256、当前来源 SHA-256、工具轮次、全部待办 ID/名称、已完成调用 ID、已见调用 ID，以及当前轮完整的 prepared transport receipts。普通 trace 仍只展示结果摘要；journal 直接保存 `withInspectionMedia` 与 `withDepthFormEvidence` 准备后的真实像素和真实表单证据，绝不从 trace 或 state 重造。每轮待办在工具执行前提交；每组真实完成后提交进度；完整回执和 `continue_requested` 在 `/continue` 前提交并等待 flush。画布保存、conversation 保存或来源核对失败，都阻断该请求；超过现有 1 MB 请求限额会保留任务并阻断，不会删除像素后装成视觉回执。
 
+`video_analyze` 的 bridge 仍返回原 taskId 的持久派发回执。Agent 下一轮前，`generation-settlement.mjs` 只等待本轮该工具的原任务结算：成功须结束实际画布应用，或已有明确应用错误；失败、取消、缺配置、unknown 和已取回但等待显式应用的结果不无限等待。预算为 660 秒（服务端分镜最长 600 秒，加本地应用余量）；取消、原 chat/project/run 失效或任务身份不可验证均阻止续轮，并清理订阅。等待不发起任务、不调用应用重试、不撤回已成功结果；原回执不替换成推断的最终结果。现有生成任务卡通过真实状态订阅显示解析/应用进度。普通 `generation_submit` 等其他异步生成合同保持原样。
+
+分镜结算后才保存画布并建立完整来源签名，避免合法异步结果落地恰好夹在签名与检查点之间。签名后的用户编辑仍严格阻止 `/continue`，没有重算 hash 后放行或忽略结果节点的例外。等待期间沿用原工具执行边界；来源视频修改仍由分镜 bridge 的持续 guard 阻止迟到回填，不新增全画布编辑锁。
+
 用户点击“继续中断任务”后先重新读 state，再校验原 session/binding、原提交 hash、来源版本和以下条件。继续期间不接受新的队列/Widget 需求、不自动 drain 已暂停队列；后续 `ask_question` 的真实用户回答仍按原入口提交。
 
 |服务端状态|前端继续条件与提交|
@@ -29,7 +33,7 @@
 
 限制：历史任务没有 journal 不能补造；部分工具已执行而完整回执未保存不能恢复执行；原始媒体结果只在 journal 成功持久化后可跨刷新补交。来源改变会保守拒绝，包括重新打开产生新 session 的片场或编辑器。子 Agent/DAG 中途尚未获得完整父调用回执时，前端仍仅核对其状态，不从子任务摘要续跑。深度工作流的内存准备缓存不重建；下一轮若引用旧准备身份，真实工具可能要求重新读取/准备。服务端、真实模型/供应商质量和整体验收由主线验证。
 
-追加聚焦验证：`node --test tests/agent-recovery.test.cjs tests/agent-recovery-journal.test.cjs tests/agent-recovery-fixture.test.cjs`。不使用模型、Key、浏览器 E2E，也不改用户存储。
+追加聚焦验证：`node --test tests/agent-recovery.test.cjs tests/agent-recovery-journal.test.cjs tests/agent-recovery-fixture.test.cjs tests/agent-generation-settlement.test.cjs`。结算测试执行真实 Agent 续轮边界及真实应用 runner，覆盖异步落图、签名后编辑拒绝、取消/切换、身份冲突、超时与订阅清理。不使用模型、Key、浏览器 E2E，也不改用户存储。
 
 ## 主 CUA 验证入口
 

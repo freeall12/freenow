@@ -8,7 +8,7 @@
  let panel=null,current=0,chats=[],skills=[],controller=null,busy=false,sessionId=null,pendingResolve=null,pendingTraceId=null;
  let messageRows=new WeakMap(),activeStream=null,streamSaveTimer=0,pageLeaving=false;
  let recoveryModule=null,recoveryController=null,recoveryEpoch=0,recoveryChatId=null,recoveryRunning=false,recoveryPreparing=false;
- const recoveryReady=Promise.all([import('./src/features/agent-recovery/model.mjs'),import('./src/features/agent-recovery/view.mjs'),import('./src/features/agent-recovery/journal.mjs')]).then(([model,view,journal])=>{recoveryModule={...model,...view,...journal};const style=el('link');style.rel='stylesheet';style.href='src/features/agent-recovery/styles.css';document.head.append(style);recoveryController=model.createRecoveryController({request:data=>request('state',data),isCurrent:(record,scope)=>!pageLeaving&&!!panel&&!busy&&recoveryEpoch===scope.epoch&&project.id===scope.projectId&&draft()===scope.chat&&chats.includes(scope.chat)&&scope.chat.interruptedRuns?.includes(record),persist:async()=>{if(!save())throw Error('核对记录未能保存');await flushConversation();},changed:()=>{if(panel)render();}});return recoveryModule;});
+ const recoveryReady=Promise.all([import('./src/features/agent-recovery/model.mjs'),import('./src/features/agent-recovery/view.mjs'),import('./src/features/agent-recovery/journal.mjs'),import('./src/features/agent-recovery/generation-settlement.mjs')]).then(([model,view,journal,settlement])=>{recoveryModule={...model,...view,...journal,...settlement};const style=el('link');style.rel='stylesheet';style.href='src/features/agent-recovery/styles.css';document.head.append(style);recoveryController=model.createRecoveryController({request:data=>request('state',data),isCurrent:(record,scope)=>!pageLeaving&&!!panel&&!busy&&recoveryEpoch===scope.epoch&&project.id===scope.projectId&&draft()===scope.chat&&chats.includes(scope.chat)&&scope.chat.interruptedRuns?.includes(record),persist:async()=>{if(!save())throw Error('核对记录未能保存');await flushConversation();},changed:()=>{if(panel)render();}});return recoveryModule;});
  recoveryReady.catch(error=>notice('中断任务核对加载失败：'+error.message));
  let artifactCards=null,reconcileMessages=null;
  let searchResultView=null;
@@ -698,6 +698,8 @@
     if(runController.signal.aborted)throw new DOMException('Aborted','AbortError');
     const {withInspectionMedia}=await import('./src/features/agent-vision/inspect.mjs');
     const {withDepthFormEvidence}=await import('./src/features/agent-workflows/depth-agent.mjs');
+    await recoveryModule.awaitVideoAnalysisSettlement({pending:run.journal.pending,results,generationAPI:window.GenerationAPI,signal:runController.signal,
+     assertCurrent:()=>{if(!ownsAgentRun(d,run))throw new DOMException('任务上下文已离开','AbortError');}});
     const sourceVersion=await recoverySourceVersion(d,{persistCanvas:true});
     await recoveryModule.prepareReceiptJournal(run,{results:results.map(withInspectionMedia).map(withDepthFormEvidence),sourceVersion});
     await persistRunCheckpoint(d,run);run.journal.phase='continue_requested';await persistRunCheckpoint(d,run);

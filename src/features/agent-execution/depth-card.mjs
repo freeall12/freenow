@@ -54,10 +54,13 @@ export function createDepthExecutionCard(initial,{key=initial.id||'depth',onConf
   note.textContent=[state.id&&['cancelled','interrupted'].includes(trace.status)?'工具已停止等待；生成任务状态以实际查询结果为准。':'',state.job?.status==='unknown'&&state.job.recovery?.pollable===false?'暂无可查询的供应商任务标识；查询仅核对本机记录，不会重新发起任务。':''].filter(Boolean).join(' ');note.hidden=!note.textContent;
   const applied=state.job?.status==='succeeded'&&state.job.applied===true;
   error.textContent=state.error||message(state.job?.error)||(applied?'':message(trace.error)||message(trace.result?.error));error.hidden=!error.textContent;
-  const signature=JSON.stringify([state.id,state.job?.status,state.job?.recovered,state.job?.applied,state.job?.applying,state.job?.hasResultPlan,!!state.job?.applicationError]);
+  const signature=JSON.stringify([state.id,state.state,state.job?.status,state.job?.recovered,state.job?.applied,state.job?.applying,state.job?.hasResultPlan,!!state.job?.applicationError]);
   if(signature!==recoverySignature){
    recoverySignature=signature;recovery.replaceChildren();
    if(state.id)appendRecoveryActions(recovery,{...trace,result:{...trace.result,taskId:state.id},generationJob:state.job},{onError:reason=>{error.textContent=message(reason);error.hidden=false;}});
+   if(!state.id&&state.state==='configuration_required'&&window.GenerationAPI?.configure){
+    const footer=el('footer','generation-confirm-footer'),configure=el('button','generation-small-button','连接 API');configure.type='button';configure.onclick=()=>window.GenerationAPI.configure();footer.append(configure);recovery.append(footer);
+   }
    if(state.id&&state.job?.applicationError&&!state.job.recovered&&window.GenerationAPI?.retryApplication){
     const footer=el('footer','generation-confirm-footer'),retry=el('button','generation-small-button','重试应用结果');retry.type='button';
     const id=state.id;retry.onclick=async()=>{retry.disabled=true;try{await window.GenerationAPI.retryApplication(id);}catch(reason){error.textContent=message(reason);error.hidden=false;}finally{retry.disabled=false;}};
