@@ -15,7 +15,9 @@ routes = {
 };
 ```
 
-模型别名取 `request.parameters.providerParameters.model ?? modelId ?? model`。操作 kind 与别名均精确匹配。别名没有单独路由时仅使用显式 default。已选择供应商缺少配置、别名、操作能力或请求失败时不切换供应商。原生 `image.recognize`、`video.analyze` 未提供别名时使用操作 kind 作为原生映射别名。
+模型别名取 `request.parameters.providerParameters.model ?? modelId ?? model`。没有显式别名时，`image.recognize`、`video.analyze`、`image.remove-background` 使用操作 kind；`image.upscale` 使用 `image.upscale:<parameters.provider>`，例如 `image.upscale:topazlabs`。这些别名同时参与路由和原生模型映射，前后端规则一致。操作 kind 与别名均精确匹配。别名没有单独路由时仅使用显式 default。已选择供应商缺少配置、别名、操作能力或请求失败时不切换供应商。
+
+`fal-native` 直接连接官方队列，目前支持 BiRefNet 抠图和 Topaz 2x/4x 超分，具体映射见 [配置说明](FAL-NATIVE-SETUP.md)。原 UI 的 6x、Magnific、皮肤增强继续保留任务网关接口，不会改成不等价模型。fal 取消只确认已请求取消，不声称正在运行的任务已停止。
 
 公开配置返回 `protocol: 'routed'`、`providers` 与规范化 `routes`。供应商保留现有能力元数据；原生供应商补充 `capabilities.models = {publicAlias: {kind}}`，供页面在媒体处理前验证请求。配置不返回 Key、供应商地址、真实模型 ID 或恢复身份指纹。结构无效时路由整体禁用，供应商原生配置不完整时仅禁用相应供应商。
 

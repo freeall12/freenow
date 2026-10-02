@@ -1,7 +1,7 @@
 (() => {
   'use strict';
   const app=window.CanvasApp;
-  let generationRequests,generationMedia,recognitionMedia,videoAnalysisMedia,extensionMedia,draftWorkflow,resultModules,resultWorkflow,failureBridge;
+  let generationRequests,generationMedia,recognitionMedia,videoAnalysisMedia,extensionMedia,imageToolMedia,draftWorkflow,resultModules,resultWorkflow,failureBridge;
   const failureSources=new Map();
   const resultSubmissions=new Map();
   const draftGuards=new Map();
@@ -22,6 +22,11 @@
     }
     return (await generationRequests).prepareGenerationRequestReady(request);
   },prepareInputs:async(request,{jobId,signal,validateSources,acceptSourceReplacements})=>{
+    if(['image.upscale','image.skin','image.remove-background'].includes(request.kind)){
+      imageToolMedia||=import('./src/features/image-editor/task-media.mjs');
+      const nativeConfiguration=service.jobs.get(jobId)?.transport===localProvider?taskNativeConfigurations.get(signal):null;
+      return (await imageToolMedia).prepareImageToolMedia(request,{signal,validateSources,localAssets:window.LocalAssets,baseUrl:document.baseURI,nativeConfiguration});
+    }
     if(request.kind==='video.extend'){
       extensionMedia||=import('./src/features/video-creation/media.mjs');
       return (await extensionMedia).prepareExtensionMedia(request,{signal,validateSources,localAssets:window.LocalAssets,localMedia:window.LocalMedia,baseUrl:document.baseURI});

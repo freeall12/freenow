@@ -4,6 +4,7 @@ const {randomUUID}=require('node:crypto');
 const {createDurableGenerationService}=require('./generation-durable.cjs');
 const {createOpenAINativeProvider}=require('./generation-openai.cjs');
 const {createArkProvider}=require('./generation-ark.cjs');
+const {createFalProvider}=require('./generation-fal.cjs');
 const {createGenerationRouter}=require('./generation-router.cjs');
 const {localVideoErrorMessage}=require('./video-analysis-errors.cjs');
 
@@ -11,8 +12,8 @@ const {localVideoErrorMessage}=require('./video-analysis-errors.cjs');
 // cannot choose a destination or supply server credentials.
 function createGenerationGateway({baseUrl = '', apiKey = '', fetchImpl = fetch, now = Date.now, directory, protocol='tasks-v1',modelMap,client,providers,routes} = {}) {
   const routed=providers!==undefined||routes!==undefined;
-  const native=routed?createGenerationRouter({providers,routes,fetchImpl}):protocol==='openai-native'?createOpenAINativeProvider({baseUrl,apiKey,modelMap,client,fetchImpl}):protocol==='ark-native'?createArkProvider({baseUrl,apiKey,modelMap,fetchImpl}):null;
-  const invalidProtocol=!routed&&!['tasks-v1','openai-native','ark-native'].includes(protocol);
+  const native=routed?createGenerationRouter({providers,routes,fetchImpl}):protocol==='openai-native'?createOpenAINativeProvider({baseUrl,apiKey,modelMap,client,fetchImpl}):protocol==='ark-native'?createArkProvider({baseUrl,apiKey,modelMap,fetchImpl}):protocol==='fal-native'?createFalProvider({baseUrl,apiKey,modelMap,fetchImpl}):null;
+  const invalidProtocol=!routed&&!['tasks-v1','openai-native','ark-native','fal-native'].includes(protocol);
   let invalidEndpoint=false;
   if(!routed&&protocol==='tasks-v1'&&baseUrl){try{baseUrl=normalizeApiBaseUrl(baseUrl);}catch{invalidEndpoint=true;}}
   const prepareRequest = async request => {

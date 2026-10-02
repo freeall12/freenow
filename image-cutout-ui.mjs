@@ -48,12 +48,12 @@ export async function submit(id,{inPlace=false}={}){
  try{
   window.NodeActions.close();window.NodeActions.closePop();render();
   // Only configured providers create a pending result. The missing-API state stays on the source.
-  if(window.GenerationAPI.isConfigured()){if(inPlace){app.updateNode(source.id,{pendingOperation:'image.remove-background'});target=source;}else target=app.createConnected(source.id,[{type:'image',title:'抠图',image:null,pendingOperation:'image.remove-background'}],{gap:100,nodeSize:{width:250,height:250}})[0];op.target=target.id;snapshot=JSON.stringify(target);render();}
-  let url=await window.LocalAssets.url(src);guard();const resolved=new URL(url,document.baseURI);if(resolved.protocol==='blob:'||resolved.origin===location.origin){const response=await fetch(resolved);if(!response.ok)throw Error('来源图片读取失败');url=await window.LocalMedia.asDataUrl(await response.blob());}else url=resolved.href;guard();
-  const req=request(source,target?.id||source.id,url);unsubscribe=window.GenerationAPI.subscribe(job=>{if(job.request.kind===req.kind&&job.request.nodeId===req.nodeId&&['queued','running'].includes(job.status))op.job=job.id;});
+  const readiness=window.GenerationAPI.availability?await window.GenerationAPI.availability({request:request(source,source.id,src)}):{configured:window.GenerationAPI.isConfigured()};guard();
+  if(readiness.configured===true){if(inPlace){app.updateNode(source.id,{pendingOperation:'image.remove-background'});target=source;}else target=app.createConnected(source.id,[{type:'image',title:'抠图',image:null,pendingOperation:'image.remove-background'}],{gap:100,nodeSize:{width:250,height:250}})[0];op.target=target.id;snapshot=JSON.stringify(target);render();}
+  guard();const req=request(source,target?.id||source.id,src);unsubscribe=window.GenerationAPI.subscribe(job=>{if(job.request.kind===req.kind&&job.request.nodeId===req.nodeId&&['queued','running'].includes(job.status))op.job=job.id;});
   await window.GenerationAPI.runInPlace(req,{type:'image',guard,apply:async output=>{
    const patch=imageResultPatch(output),decoded=new Image();decoded.src=patch.fullImage;await decoded.decode();guard();
-   // A provider may be attached while the source media is being read.
+   // A provider may be attached after the availability check.
    if(!target&&inPlace){target=source;app.updateNode(source.id,{...patch,cutoutResult:true,pixelWidth:decoded.naturalWidth,pixelHeight:decoded.naturalHeight,...nodeSize(decoded.naturalWidth,decoded.naturalHeight)});return [source];}
    if(!target){target=app.createConnected(source.id,[{type:'image',title:'抠图',...patch,cutoutResult:true,pixelWidth:decoded.naturalWidth,pixelHeight:decoded.naturalHeight}],{gap:100,nodeSize:nodeSize(decoded.naturalWidth,decoded.naturalHeight)})[0];return [target];}
    app.updateNode(target.id,{...patch,cutoutResult:true,pendingOperation:null,pixelWidth:decoded.naturalWidth,pixelHeight:decoded.naturalHeight,...nodeSize(decoded.naturalWidth,decoded.naturalHeight)});return [target];

@@ -4,7 +4,7 @@ const own=(value,key)=>value!=null&&Object.hasOwn(value,key);
 // move an unavailable selected route to a sibling provider.
 export function requestModelAlias(request){
   const p=request?.parameters||{};
-  return p.providerParameters?.model??p.modelId??p.model;
+  return p.providerParameters?.model??p.modelId??p.model??(request?.kind==='image.upscale'&&typeof p.provider==='string'?'image.upscale:'+p.provider:['image.recognize','video.analyze','image.remove-background'].includes(request?.kind)?request.kind:undefined);
 }
 
 export function selectedProviderId(metadata,request){
@@ -24,16 +24,16 @@ export function resolveProviderConfiguration(metadata,request){
 
 export function providerConfigured(metadata,request){
   const selected=resolveProviderConfiguration(metadata,request);
-  if(metadata?.protocol==='routed'&&request?.kind&&selected?.configured===true&&selected.protocol!=='tasks-v1'){
+  if((metadata?.protocol==='routed'||selected?.protocol==='fal-native')&&request?.kind&&selected?.configured===true&&selected.protocol!=='tasks-v1'){
     if(selected.capabilities?.kinds?.includes(request.kind)!==true)return false;
     const models=selected.capabilities?.models;
-    const alias=requestModelAlias(request)??(['image.recognize','video.analyze'].includes(request.kind)?request.kind:undefined);
+    const alias=requestModelAlias(request);
     return alias!==undefined&&own(models,alias)&&models[alias]?.kind===request.kind;
   }
   return typeof selected?.configured==='boolean'?selected.configured:null;
 }
 
-const operationLabels={'text.generate':'文本生成','image.generate':'图片生成','video.generate':'视频生成','audio.generate':'音频生成','image.recognize':'焦点识别','video.analyze':'分镜解析','model.generate':'3D 模型生成','world.generate':'3D 资源生成','panorama.edit':'全景编辑'};
+const operationLabels={'text.generate':'文本生成','image.generate':'图片生成','video.generate':'视频生成','audio.generate':'音频生成','image.recognize':'焦点识别','image.remove-background':'图片抠图','image.upscale':'图片超分','image.skin':'皮肤增强','video.analyze':'分镜解析','model.generate':'3D 模型生成','world.generate':'3D 资源生成','panorama.edit':'全景编辑'};
 export function configurationReadiness(metadata){
   if(metadata?.protocol!=='routed')return [];
   return Object.entries(metadata.routes||{}).flatMap(([kind,route])=>{

@@ -59,16 +59,16 @@ test('cutout renderer avoids ordinary-node DOM scans and preserves decoration li
   await t.test('registered menu state follows real pending operations without document scanning',async()=>{
    const source={id:'menu-source',type:'image',image:'asset.png'};state.nodes.push(source);shell(source);
    const button=new Element('button');button.innerHTML='<svg></svg>';body.append(button);ui.bindMenu(button,source.id);assert.equal(button.disabled,false);
-   let rejectMedia;window.LocalAssets={url:()=>new Promise((resolve,reject)=>{rejectMedia=reject;})};window.GenerationAPI={isConfigured:()=>false};
+   let resumeTask;window.LocalAssets={url:()=>assert.fail('submit must not read media before the task configuration gate')};window.GenerationAPI={isConfigured:()=>false,subscribe:()=>()=>{},runInPlace:(request,{guard})=>{assert.equal(request.inputs[0].url,source.image);return new Promise(resolve=>resumeTask=resolve).then(guard);}};
    const submitting=ui.submit(source.id);assert.equal(button.disabled,true);assert.equal(button.attributes['aria-busy'],'true');reset();render();assert.equal(counts.queries,0);assert.equal(counts.scans,0);
-   rejectMedia(Error('media unavailable'));await submitting;assert.equal(button.disabled,false);assert.equal(button.attributes['aria-busy'],'false');assert.deepEqual(notifications,['media unavailable']);
+   source.image='changed.png';resumeTask();await submitting;assert.equal(button.disabled,false);assert.equal(button.attributes['aria-busy'],'false');assert.deepEqual(notifications,['来源图片已变化，抠图结果未添加']);
    button.remove();render();reset();render();assert.equal(counts.queries,0);assert.equal(counts.scans,0);
   });
   await t.test('in-place active pending overlay and cancellation leave existing image intact',async()=>{
    const source={id:'active-source',type:'image',image:'original.png',cutoutResult:true,x:10.25,y:30.75};state.nodes.push(source);state.selected=[source.id];const element=shell(source);render();
-   let resolveMedia;window.LocalAssets={url:()=>new Promise(resolve=>{resolveMedia=resolve;})};window.GenerationAPI={isConfigured:()=>true};
+   let resumeTask;window.LocalAssets={url:()=>assert.fail('UI must defer media preparation to the task')};window.GenerationAPI={isConfigured:()=>true,subscribe:()=>()=>{},runInPlace:(request,{guard})=>{assert.equal(request.inputs[0].url,'original.png');return new Promise(resolve=>resumeTask=resolve).then(guard);}};
    const submitting=ui.submit(source.id,{inPlace:true});assert.equal(element.children.length,1);assert.equal(element.children[0].className,'cutout-pending-overlay');assert.equal(element.textContent,'正在抠图…');assert.equal(body.classList.contains('image-cutout-pending'),true);
-   ui.cancel(source.id);resolveMedia('https://example.test/source.png');await submitting;
+   ui.cancel(source.id);resumeTask();await submitting;
    assert.equal(source.image,'original.png');assert.equal(source.pendingOperation,null);assert.equal(source.x,10.25);assert.equal(source.y,30.75);assert.equal(element.children.length,1);assert.equal(element.children[0].className,'cutout-rerun');assert.equal(body.classList.contains('image-cutout-pending'),false);assert.equal(notifications.at(-1),'已取消抠图');
   });
  }finally{if(saved.window===undefined)delete global.window;else global.window=saved.window;if(saved.document===undefined)delete global.document;else global.document=saved.document;}

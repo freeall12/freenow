@@ -2,6 +2,7 @@
 const {createHash}=require('node:crypto');
 const {createOpenAINativeProvider}=require('./generation-openai.cjs');
 const {createArkProvider}=require('./generation-ark.cjs');
+const {createFalProvider}=require('./generation-fal.cjs');
 const {normalizeApiBaseUrl}=require('../generation-api.js');
 const {rejectCredentials}=require('./generation-durable.cjs');
 const object=value=>value&&typeof value==='object'&&!Array.isArray(value);
@@ -12,6 +13,10 @@ const digest=value=>createHash('sha256').update(canonical(value)).digest('hex');
 const validId=value=>typeof value==='string'&&value.length>0&&Buffer.byteLength(value)<=2048&&!/[\x00-\x1f\x7f]/.test(value);
 const kindPattern=/^(image|video|audio|text|world|studio|model|panorama)\.[a-z][a-zA-Z.\-]*$/;
 const providerPattern=/^[A-Za-z][A-Za-z0-9_-]{0,63}$/;
+function requestAlias(request){
+ const p=request.parameters||{};
+ return p.providerParameters?.model??p.modelId??p.model??(request.kind==='image.upscale'&&typeof p.provider==='string'?'image.upscale:'+p.provider:['image.recognize','video.analyze','image.remove-background'].includes(request.kind)?request.kind:undefined);
+}
 
 // This task adapter makes one POST. Recovery only queries an accepted identity;
 // HTTP failures, redirects and malformed receipts never trigger another POST.
@@ -86,8 +91,8 @@ function createGenerationRouter({providers={},routes={},fetchImpl=fetch}={}){
   if(typeof providers==='string')providers=JSON.parse(providers);if(typeof routes==='string')routes=JSON.parse(routes);
   if(!object(providers)||!object(routes)||Object.keys(providers).length>100||Object.keys(routes).length>100)throw Error();
   for(const [id,config]of Object.entries(providers)){
-   if(!providerPattern.test(id)||!object(config)||!['tasks-v1','openai-native','ark-native'].includes(config.protocol)||Object.keys(config).some(key=>!['protocol','baseUrl','apiKey','modelMap','client'].includes(key))||['baseUrl','apiKey'].some(key=>config[key]!==undefined&&typeof config[key]!=='string'))throw Error();
-   const provider=(config.protocol==='openai-native'?createOpenAINativeProvider:config.protocol==='ark-native'?createArkProvider:createTasksProvider)({...config,fetchImpl});
+   if(!providerPattern.test(id)||!object(config)||!['tasks-v1','openai-native','ark-native','fal-native'].includes(config.protocol)||Object.keys(config).some(key=>!['protocol','baseUrl','apiKey','modelMap','client'].includes(key))||['baseUrl','apiKey'].some(key=>config[key]!==undefined&&typeof config[key]!=='string'))throw Error();
+   const provider=(config.protocol==='openai-native'?createOpenAINativeProvider:config.protocol==='ark-native'?createArkProvider:config.protocol==='fal-native'?createFalProvider:createTasksProvider)({...config,fetchImpl});
    if(config.protocol!=='tasks-v1'){
     const map=provider.metadata.configurationError?{}:typeof config.modelMap==='string'?JSON.parse(config.modelMap):config.modelMap||{};
     provider.metadata={...provider.metadata,capabilities:{...provider.metadata.capabilities,models:Object.fromEntries(Object.entries(map).map(([alias,entry])=>[alias,{kind:entry.kind}]))}};
@@ -114,12 +119,12 @@ function createGenerationRouter({providers={},routes={},fetchImpl=fetch}={}){
  function select(request){
   if(configurationError)throw failure('供应商路由配置无效','configuration_required');
   if(!object(request)||!kindPattern.test(request.kind)||request.parameters!==undefined&&!object(request.parameters)||request.parameters?.providerParameters!==undefined&&!object(request.parameters.providerParameters))throw failure('生成任务参数无效');
-  const p=request.parameters||{},alias=p.providerParameters?.model??p.modelId??p.model;
+  const alias=requestAlias(request);
   if(alias!==undefined&&(typeof alias!=='string'||!alias.trim()))throw failure('生成模型标识无效');
   const route=own(normalized,request.kind)?normalized[request.kind]:null;
   const id=route&&(alias!==undefined&&own(route.models,alias)?route.models[alias]:route.default);
   const provider=id&&own(instances,id)?instances[id]:null;
-  const nativeAlias=alias??(['image.recognize','video.analyze'].includes(request.kind)?request.kind:undefined);
+  const nativeAlias=alias;
   if(!usable(provider,request.kind,nativeAlias)||provider?.metadata.protocol!=='tasks-v1'&&nativeAlias===undefined)throw failure('此操作或模型尚未配置供应商路由','configuration_required');
   return {id,provider};
  }

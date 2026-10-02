@@ -111,3 +111,5 @@ reference/*
 
 !qa/local-workflows-fixture.js
 !qa/local-workflows-controls.mjs
+!qa/fal-native-fixture.js
+!qa/fal-native-controls.mjs
