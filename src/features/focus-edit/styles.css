@@ -1,0 +1,44 @@
+.focus-mode-banner{position:fixed;z-index:105;top:10px;left:50%;transform:translateX(-50%);display:flex;align-items:center;min-width:320px;max-width:calc(100vw - 24px);box-sizing:border-box;padding:8px 10px 8px 18px;border-radius:8px;background:#1fa2dc;box-shadow:0 4px 16px #00000029,inset 0 .5px #ffffff29;backdrop-filter:blur(28px);color:white}
+.focus-mode-copy{display:flex;flex-direction:column;padding-right:12px;min-width:0}
+.focus-mode-actions{display:flex;align-items:center;gap:8px;margin-left:auto;flex:none}
+.focus-mode-banner strong{font-size:14px;line-height:20px;font-weight:600}
+.focus-mode-banner span{font-size:12px;line-height:16px;color:#ffffffb8}
+.focus-mode-banner button{padding:2px 8px;border:0;border-radius:6px;background:#0006;color:#ffffffe0;font-size:12px;line-height:20px;cursor:pointer;transition:transform .15s}
+.focus-mode-banner .focus-mode-return{display:flex;align-items:center;justify-content:center;padding:4px 6px}
+.focus-mode-return svg{width:16px;height:16px}
+.focus-mode-divider{width:1px;height:20px;background:#fff3;flex:none}
+.focus-mode-banner [hidden]{display:none!important}
+.focus-mode-banner button:active{transform:scale(.95)}
+.focus-overlay{position:absolute;inset:0;z-index:20;pointer-events:none;overflow:visible}
+.focus-hit,.focus-source-exit{position:absolute;inset:0;width:100%;height:100%;border:0;border-radius:12px;pointer-events:auto;background:transparent;color:white}
+.focus-hit{cursor:url('/assets/focus-edit-pointer.svg') 11 11,crosshair}
+.focus-source-exit{background:#0009;display:flex;align-items:center;justify-content:center;gap:6px;font-size:12px;cursor:pointer}
+.focus-source-exit kbd{font:inherit;padding:2px 4px;background:#ffffff1a;border-radius:3px}
+.focus-ineligible{filter:blur(2px);opacity:.4;pointer-events:none}
+.focus-edit-active .image-panorama-view,.focus-edit-active .connection-port,.focus-edit-active .image-history-controls{display:none!important}
+.focus-edit-active .focus-edit-trigger{background:#ffffff1f;box-shadow:inset 0 1px 3px #0003;color:white}
+.focus-edit-trigger svg{width:16px;height:16px}
+.focus-prompt-chip{display:inline-flex;align-items:center;border:1px solid #ffffff33;border-radius:5px;padding:0 5px;background:#ffffff14;color:#fff;font-size:12px;line-height:20px;vertical-align:baseline;white-space:nowrap}
+.focus-mark{position:absolute;z-index:30;border:2px solid #fffc;border-radius:2px;box-shadow:0 0 0 1px #0003,inset 0 0 0 1px #fff3;pointer-events:none;box-sizing:border-box}
+.focus-mark.is-loading{width:max-content;transform:translate(4px,-50%);border:1px solid #fff3;border-radius:999px;padding:6px 10px;background:#171717e6;color:#a3a3a3;font-size:12px;line-height:16px;animation:focus-recognizing 1.4s ease-in-out infinite}
+.focus-mark-actions{position:absolute;left:0;top:-32px;display:flex;align-items:center;gap:2px;pointer-events:auto}
+.focus-mark-label{display:flex;align-items:center;gap:4px;white-space:nowrap;background:#171717e6;backdrop-filter:blur(12px);color:#fafafa;border:1px solid #fff3;border-radius:999px;font-size:11px;line-height:16px;padding:4px 8px;box-shadow:0 5px 12px #0005}
+button.focus-mark-label{cursor:pointer;transition:background .15s,transform .15s}button.focus-mark-label:hover{background:#333}button.focus-mark-label:active{transform:scale(.95)}
+.focus-mark-label svg{width:16px;height:16px;flex:none}.focus-mark-label svg:last-child{width:12px;height:12px}
+.focus-mark-remove{display:flex;align-items:center;justify-content:center;width:20px;height:20px;padding:0;border:1px solid #fff3;border-radius:50%;background:#171717e6;color:#fff;opacity:0;cursor:pointer;transition:opacity .15s}
+.focus-mark-remove svg{width:12px;height:12px}.focus-mark-actions:hover .focus-mark-remove,.focus-mark-actions:focus-within .focus-mark-remove{opacity:1}
+.focus-candidates{position:fixed;z-index:160;min-width:140px;padding:4px;border:1px solid #fff3;border-radius:12px;background:#171717f2;backdrop-filter:blur(24px);box-shadow:0 20px 25px #0005}
+.focus-candidates button{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;padding:6px 8px;border:0;border-radius:8px;background:transparent;color:#fafafa;font-size:11px;cursor:pointer}
+.focus-candidates button:hover,.focus-candidates button:focus-visible,.focus-candidates button[aria-checked=true]{background:#ffffff0d;outline:none}.focus-candidates button[aria-checked=true]:after{content:'';width:6px;height:6px;border-radius:50%;background:#fff9}
+@keyframes focus-recognizing{50%{opacity:.5}}@media(prefers-reduced-motion:reduce){.focus-mark.is-loading{animation:none}}
+
+.focus-reference-divider{width:1px;height:16px;background:#ffffff1a;flex:none}
+.focus-edit-trigger.reference-add{width:38px;height:38px;border:1px solid #ffffff1a;border-radius:10px;background:#ffffff14;color:#ffffff99;transition:background .15s,color .15s}
+.focus-edit-trigger.reference-add:hover{background:#ffffff1f;color:#fff}
+
+.focus-edit-trigger.reference-add[aria-pressed=true]{background:#ffffff1f;color:#fff;box-shadow:inset 0 1px 3px #0003}
+.focus-edit-trigger.reference-add:disabled{opacity:.3;cursor:not-allowed}
+.focus-mark-remove{transform:scale(.75);transition:opacity .15s,transform .15s,color .15s,background .15s,border-color .15s}
+.focus-mark-actions:hover .focus-mark-remove,.focus-mark-actions:focus-within .focus-mark-remove{transform:scale(1)}
+.focus-mark-remove:hover{color:#ef4444;background:#ef44441a;border-color:#ef444433}
+.focus-mark-remove:active{transform:scale(.9)}

@@ -1,0 +1,26 @@
+/* bQ, reference/canvas-current-readable.js:12285–12291; badge/button primitives
+   in vendor-packages-CN3JnHbF.js, cl=P0 / b8=de. Values: original-index.css. */
+.node-body[data-generation-error] { position: relative; }
+.generation-error-overlay {
+  pointer-events: none; position: absolute; inset: 0; z-index: 30;
+  display: flex; align-items: flex-start; justify-content: center;
+  overflow: hidden; border-radius: inherit; background: rgb(15 15 15 / 90%);
+  padding-top: 24px; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+}
+.generation-error-content { margin: 0 16px; text-align: center; }
+.generation-error-content > * + * { margin-top: 12px; }
+.generation-error-badge {
+  display: inline-flex; align-items: center; border: 1px solid rgb(147 76 76 / 30%);
+  border-radius: 10px; padding: 2px 10px; font-size: 14px; line-height: 20px;
+  font-weight: 600; color: rgb(147 76 76 / 80%); transition: color .15s, background-color .15s, border-color .15s;
+}
+.generation-error-message { margin-bottom: 0; font-size: 14px; line-height: 20px; font-weight: 400; color: #7a7a7a; }
+.generation-error-confirm {
+  pointer-events: auto; display: inline-flex; align-items: center; justify-content: center;
+  gap: 8px; white-space: nowrap; height: 32px; padding: 0 12px; border: 0;
+  border-radius: 10px; font-size: 12px; line-height: 16px; font-weight: 500;
+  background: transparent; color: #f5f5f5; transition: color .15s, background-color .15s;
+}
+.generation-error-confirm:hover { background: #404040; color: #fafafa; }
+.generation-error-confirm:focus-visible { outline: none; box-shadow: 0 0 0 1px #7373731a; }
+.generation-error-confirm:disabled { pointer-events: none; opacity: .5; }

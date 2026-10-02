@@ -1,0 +1,50 @@
+#edges .connection-line,#edges .connection-flow,#edges .connection-preview{fill:none;stroke-width:var(--canvas-edge-stroke-width,2.5px);pointer-events:none}
+#edges .connection-line{stroke:#ffffff60;stroke-opacity:.6}
+#edges .canvas-edge[data-endpoint-selected=true] .connection-line{stroke:#ffffff90;stroke-opacity:1}
+#edges .canvas-edge[aria-selected=true] .connection-line{stroke:#fff;stroke-opacity:1}
+#edges .connection-hit{fill:none;stroke:transparent;stroke-width:20;stroke-opacity:0;pointer-events:stroke;cursor:pointer}
+#edges .connection-preview{stroke:#ffffff90;stroke-opacity:1}
+#edges .connection-flow{stroke-opacity:1}
+#edges .canvas-edge:focus{outline:none}
+#edges .canvas-edge:focus-visible .connection-line{stroke:#fff;stroke-opacity:1}
+#canvas .node .port.connection-port{width:80px;height:80px;top:50%;padding:0;border:0;border-radius:50%;background:transparent;transform:translateY(-50%);opacity:1;display:flex;align-items:center;justify-content:center;color:#a3a3a3;cursor:crosshair;transition:none;z-index:4}
+#canvas .node .port.connection-port.left{left:auto;right:100%}
+#canvas .node .port.connection-port.right{right:auto;left:100%}
+.connection-port .connection-plus{width:24px;height:24px;opacity:0;transition:transform .3s cubic-bezier(.34,1.56,.64,1),opacity .3s cubic-bezier(.34,1.56,.64,1);pointer-events:none}
+.connection-port.right .connection-plus{transform:translateX(-24px)}
+.connection-port.left .connection-plus{transform:translateX(24px)}
+.connection-plus svg{display:block;width:24px;height:24px;border:2px solid currentColor;border-radius:50%;box-sizing:border-box}
+.node:hover .connection-plus,.node.selected .connection-plus{opacity:1;transform:translateX(0)}
+.connection-port:hover{color:#fafafa!important}
+#canvas[data-connections-multiple=true] .connection-port,#canvas[data-connections-dragging=true] .connection-port{visibility:hidden;pointer-events:none}
+#canvas .connection-port[hidden]{display:none!important}
+.connection-menu{position:fixed;z-index:1000;width:288px;max-width:calc(100vw - 24px);padding:4px;box-sizing:border-box;overflow:auto;overscroll-behavior:contain;border:1px solid #ffffff1a;border-radius:16px;background:rgb(31 31 31 / 85%);backdrop-filter:blur(24px);color:#fafafa;animation:connection-menu-enter .15s ease-out}
+.connection-menu-heading{height:40px;padding:10px 8px;box-sizing:border-box;font-size:12px;line-height:20px;font-weight:500;color:#a3a3a3}
+.connection-menu-option{display:flex;align-items:center;gap:8px;width:100%;height:52px;margin:0 0 4px;padding:8px;border:0;border-radius:12px;color:inherit;background:transparent;text-align:left;cursor:pointer}
+.connection-menu-option:last-child{margin-bottom:0}
+.connection-menu-option[aria-selected=true]{background:rgb(64 64 64 / 50%)}
+.connection-menu-option:disabled{opacity:.4;cursor:default}
+.connection-menu-icon{width:36px;height:36px;display:flex;align-items:center;justify-content:center;flex-shrink:0;border-radius:6px;background:rgb(64 64 64 / 50%)}
+.connection-menu-icon svg{width:18px;height:18px}
+.connection-menu-copy{min-width:0;display:flex;flex-direction:column;gap:4px}
+.connection-menu-label{font-size:14px;font-weight:500;line-height:20px;transform:translateY(10px);transition:transform .2s}
+.connection-menu-description{font-size:12px;line-height:16px;color:#a3a3a3;opacity:0;transition:opacity .2s;white-space:nowrap}
+.connection-menu-option[aria-selected=true] .connection-menu-label{transform:translateY(0)}
+.connection-menu-option[aria-selected=true] .connection-menu-description{opacity:1}
+.connection-menu-option:focus{outline:none}
+@keyframes connection-menu-enter{from{opacity:0;transform:scale(.95)}to{opacity:1;transform:scale(1)}}
+@media(prefers-reduced-motion:reduce){.connection-menu{animation:none}.connection-plus,.connection-menu-label,.connection-menu-description{transition:none!important}}
+
+.selection-connection-handle{position:absolute;z-index:50;width:20px;height:20px;padding:2px;border:0;border-radius:50%;background:#a3a3a3;color:white;transform:translateY(-50%);cursor:crosshair;touch-action:none}
+.selection-connection-handle svg,.selection-connection-junction svg{width:16px;height:16px;stroke-width:2}
+.selection-connection-preview{position:absolute;inset:0;z-index:10;width:100%;height:100%;overflow:visible;pointer-events:none}
+.selection-connection-preview path{stroke:white;stroke-width:1.4;opacity:.4;fill:none}
+.selection-connection-junction{position:absolute;z-index:10;width:20px;height:20px;padding:2px;transform:translate(-50%,-50%);border-radius:50%;background:white;color:#52525b;pointer-events:none}
+.selection-connection-menu{width:260px;transform:translateX(-50%);animation:selection-connection-enter .15s ease-out}
+.selection-connection-menu .connection-menu-copy{height:36px;justify-content:space-between;overflow:hidden;gap:0}
+.selection-connection-menu .connection-menu-label{line-height:14px}
+.selection-connection-menu .connection-menu-description{line-height:12px;overflow:hidden;text-overflow:ellipsis}
+.selection-connection-separator{height:1px;background:#ffffff1a;margin:8px -4px}
+#canvas[data-selection-connection-active=true] .connection-port{visibility:hidden;pointer-events:none}
+@keyframes selection-connection-enter{from{opacity:0;transform:translateX(-50%) translateY(10px) scale(.9)}to{opacity:1;transform:translateX(-50%) translateY(0) scale(1)}}
+@media(prefers-reduced-motion:reduce){.selection-connection-menu{animation:none}}

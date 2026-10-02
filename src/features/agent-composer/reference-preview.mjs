@@ -1,0 +1,11 @@
+import {referenceIcons as icons} from './reference-icons.mjs';
+import {resolveReferenceData} from './reference-data.mjs';
+export function openReferencePreview(ref,{getData,onOpen}){
+ const returnFocus=document.activeElement;const dialog=document.createElement('dialog');dialog.className='agent-reference-preview';dialog.ariaLabel='画布素材预览';
+ const heading=document.createElement('h2');heading.textContent='画布素材预览';const title=document.createElement('p');title.textContent=ref.label;const content=document.createElement('div');content.className='agent-reference-preview-content';dialog.append(heading,title,content);
+ try{const materials=resolveReferenceData([ref],getData());if(!materials.length)content.textContent='暂无素材';for(const item of materials){const source=item.type==='video'?item.video:item.type==='audio'?item.audio:item.fullImage||item.image;
+  if(source){const media=document.createElement(item.type==='video'?'video':item.type==='audio'?'audio':'img');media.alt=item.name||item.title||'';if(media.tagName!=='IMG')media.controls=true;window.LocalAssets.url(source).then(url=>{if(dialog.isConnected)media.src=url;}).catch(error=>{content.textContent=error.message;});content.append(media);}else{const text=document.createElement('div');text.textContent=item.content||'在画布中查看此素材。';content.append(text);}}
+ }catch(error){content.textContent=error.message;}
+ if(ref.kind==='node'){const open=document.createElement('button');open.textContent='在画布中打开';open.className='agent-reference-open';open.onclick=async()=>{try{await onOpen(ref.id);dialog.close();}catch(error){content.textContent=error.message;}};dialog.append(open);}
+ const close=document.createElement('button');close.ariaLabel='Close';close.className='agent-reference-preview-close';close.innerHTML=icons.close;close.onclick=()=>dialog.close();dialog.append(close);dialog.onclose=()=>{dialog.querySelectorAll('video,audio').forEach(media=>{media.pause();media.removeAttribute('src');media.load();});dialog.remove();if(returnFocus?.isConnected)returnFocus.focus({preventScroll:true});};dialog.onkeydown=event=>{if(event.key==='Escape'){event.preventDefault();event.stopPropagation();dialog.close();}};document.body.append(dialog);dialog.showModal();return dialog;
+}

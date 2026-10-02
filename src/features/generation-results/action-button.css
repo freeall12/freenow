@@ -1,0 +1,9 @@
+/* Official H5e without its optional price child. */
+.generation-action-shell{display:flex;flex:none;align-items:center;gap:4px;padding:4px;box-sizing:border-box;border:1px solid #ffffff1a;border-radius:999px;backdrop-filter:blur(10px);background:radial-gradient(94.74% 157.5% at 50% 21.25%,#1a1a1a 0%,#656766 100%)}
+.node-editor .generation-action-shell>button.generation-action-button,.audio-editor .generation-action-shell>button.generation-action-button{display:flex;flex:none;align-items:center;justify-content:center;box-sizing:border-box;width:26px;height:26px;min-width:26px;min-height:26px;aspect-ratio:1;padding:0!important;margin:0;border:0;border-radius:999px;background:#fff;color:#000;opacity:1;font-size:14px;font-weight:500;cursor:pointer;transition:all 150ms cubic-bezier(.4,0,.2,1)}
+.node-editor .generation-action-shell>button.generation-action-button:hover,.audio-editor .generation-action-shell>button.generation-action-button:hover{background:#ffffff80}
+.node-editor .generation-action-shell>button.generation-action-button:disabled,.audio-editor .generation-action-shell>button.generation-action-button:disabled{opacity:.5;cursor:not-allowed}
+.node-editor .generation-action-shell>button.generation-action-button>svg,.audio-editor .generation-action-shell>button.generation-action-button>svg{width:16px;height:16px;flex:none}
+.generation-action-button[aria-busy=true]>svg{animation:generation-action-spin 1s linear infinite}
+.audio-footer>.generation-action-shell{margin-left:auto}
+@keyframes generation-action-spin{to{transform:rotate(360deg)}}

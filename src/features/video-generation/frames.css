@@ -1,0 +1,16 @@
+.video-frame-strip{gap:8px}
+.video-frame-strip>.focus-edit-trigger{width:38px;height:38px;border:1px solid #ffffff1a;border-radius:10px;background:#ffffff14}
+.video-frame-group{display:flex;align-items:center;gap:4px}
+.video-frame-slot{position:relative;flex-shrink:0;width:38px;height:38px;border:0;border-radius:10px;padding:0;background:transparent;color:#fff9;display:flex;align-items:center;justify-content:center}
+button.video-frame-slot{background:#ffffff14;transition:background .15s,color .15s;cursor:pointer}
+button.video-frame-slot:hover,button.video-frame-slot[aria-pressed=true]{background:#ffffff1f;color:white}
+.video-frame-slot>img,.video-frame-empty{width:38px;height:38px;box-sizing:border-box;object-fit:cover;border-radius:10px;border:1px solid #ffffff1a}
+.video-frame-empty{display:flex;align-items:center;justify-content:center;background:#ffffff0d}
+.video-frame-empty svg{width:16px;height:16px}
+.video-frame-remove{position:absolute;top:-4px;right:-4px;width:16px;height:16px;display:flex;align-items:center;justify-content:center;border:0;border-radius:50%;background:#000;color:white;opacity:0;padding:0;transition:opacity .15s;cursor:pointer}
+.video-frame-remove svg{width:12px;height:12px}
+.video-frame-slot:hover .video-frame-remove,.video-frame-slot:focus-within .video-frame-remove{opacity:1}
+.video-frame-swap{display:flex;align-items:center;justify-content:center;flex-shrink:0;padding:4px;border:0;border-radius:2px;background:transparent;color:#fff6;transition:background .15s;cursor:pointer}
+.video-frame-swap:hover{background:#ffffff1f}
+.video-frame-strip button:disabled{opacity:.3;cursor:not-allowed}
+.video-frame-strip button:focus-visible{outline:1px solid #fffc;outline-offset:2px}

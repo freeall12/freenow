@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Canvas Replica · 组件库</title>
+  <link rel="stylesheet" href="ui.css">
+  <link rel="stylesheet" href="library.css">
+</head>
+<body>
+  <aside class="rail">
+    <div class="brand"><span class="brand-mark">C<span>R</span></span><div><strong>Canvas Replica</strong><small>组件库 / 01</small></div></div>
+    <p class="rail-label">目录</p>
+    <nav id="categories" aria-label="组件分类"></nav>
+    <div class="rail-bottom"><a href="/">↗ 打开原画布</a><span>原生 JavaScript · 持续整理</span></div>
+  </aside>
+  <main>
+    <header class="topline"><span>COMPONENT SYSTEM</span><span>从现有 TapNow 画布复刻抽离</span></header>
+    <section class="intro"><div class="eyebrow">01 / LIBRARY</div><h1>可复用的画布组件<br><em>与交互模块</em></h1><p>把已实现能力按复用边界整理。基础交互可以单独挂载；画布、媒体和片场模块保留原项目所需的状态与服务依赖。</p><div class="counts"><div><b id="total-count">0</b><span>目录项</span></div><div><b id="direct-count">0</b><span>直接复用</span></div><div><b id="logic-count">0</b><span>逻辑入口</span></div></div></section>
+    <section class="workbench" aria-labelledby="demo-title"><div class="section-head"><div><span class="eyebrow">LIVE COMPONENTS</span><h2 id="demo-title">基础交互预览</h2></div><span>已接入原画布</span></div><div class="demo-surface"><div class="demo-grid"><div class="demo-block"><small>01 / CONTEXT MENU</small><h3>操作菜单</h3><p>点击查看焦点移动、禁用项和操作回调。</p><button id="menu-trigger" class="demo-primary" type="button" aria-haspopup="menu">打开菜单 <span>⌘ K</span></button></div><div class="demo-block"><small>02 / TOOLTIP</small><h3>悬浮提示</h3><p>鼠标悬停或键盘聚焦均可显示。</p><div class="demo-buttons"><button class="demo-icon" type="button" data-tip="添加一个新节点" aria-label="添加节点">＋</button><button class="demo-icon" type="button" data-tip="搜索画布内容" aria-label="搜索节点">⌕</button><button class="demo-icon" type="button" data-tip="重置当前视图" aria-label="重置视图">◎</button></div></div></div></div><div class="demo-note" id="demo-status" role="status">选择组件可查看来源文件和接入方式。</div></section>
+    <section class="catalog" aria-labelledby="catalog-title"><div class="section-head"><div><span class="eyebrow">CATALOG</span><h2 id="catalog-title">组件目录</h2></div><span id="visible-count"></span></div><div class="catalog-toolbar"><label><span>搜索</span><input id="catalog-search" type="search" placeholder="名称、能力或文件…" autocomplete="off"></label><div class="kind-filters" id="kind-filters" aria-label="复用方式"></div></div><div id="cards" class="cards"></div></section>
+    <footer>组件来源：当前本地复刻实现。具体覆盖以 <a href="/docs/REPLICA-COVERAGE.md">覆盖清单</a> 与 <a href="/VERIFIED.md">验收记录</a> 为准。</footer>
+  </main>
+  <div id="preview-menu" class="sample-menu" hidden></div>
+  <script src="ui.js"></script><script type="module" src="library.mjs"></script>
+</body>
+</html>

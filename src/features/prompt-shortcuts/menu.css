@@ -1,0 +1,15 @@
+.prompt-shortcuts{position:absolute;bottom:100%;left:0;right:0;margin-bottom:8px;z-index:50;max-height:384px;overflow-y:auto;border:1px solid #ffffff1a;border-radius:12px;padding:8px 0;background:#262626;box-shadow:0 2px 4px 0 #0000001a,0 4px 6px -1px #0000001a;color:#ccc}
+.prompt-shortcuts[hidden],.prompt-shortcuts-hint[hidden]{display:none}
+.prompt-shortcuts-list{padding:0 8px 4px}
+.prompt-shortcut-row{display:flex;align-items:center;gap:8px;width:100%;height:52px;margin-bottom:4px;padding:8px;border-radius:16px;cursor:pointer;transition:background .2s,opacity .2s}
+.prompt-shortcut-row[aria-selected=true],.prompt-shortcut-row:hover{background:#40404080}
+.prompt-shortcut-row[aria-disabled=true]{opacity:.5;cursor:not-allowed}
+.prompt-shortcut-icon{display:flex;align-items:center;justify-content:center;flex-shrink:0;height:100%;aspect-ratio:1;border-radius:10px;background:#40404066;color:#ccc;transition:background .2s}
+.prompt-shortcut-icon svg{width:18px;height:18px}
+.prompt-shortcut-content{display:flex;flex:1;flex-direction:column;justify-content:space-between;overflow:hidden;height:100%}
+.prompt-shortcut-title{font-size:14px;line-height:14px;font-weight:500;text-transform:capitalize;transform:translateY(10px);transition:transform .2s}
+.prompt-shortcut-description{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;line-height:12px;color:#7a7a7a;opacity:0;transition:opacity .2s}
+.prompt-shortcut-row[aria-selected=true] .prompt-shortcut-title,.prompt-shortcut-row:hover .prompt-shortcut-title{transform:translateY(0)}
+.prompt-shortcut-row[aria-selected=true] .prompt-shortcut-description,.prompt-shortcut-row:hover .prompt-shortcut-description{opacity:1}
+.prompt-shortcuts-hint{border-top:1px solid #ffffff1a;padding:8px 12px;font-size:14px;line-height:20px;color:#934c4c}
+@media(prefers-reduced-motion:reduce){.prompt-shortcut-row,.prompt-shortcut-title,.prompt-shortcut-description{transition:none}}

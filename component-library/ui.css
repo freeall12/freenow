@@ -1,0 +1,2 @@
+.replica-tooltip{position:fixed;z-index:160;pointer-events:none;padding:6px 12px;background:#333c;backdrop-filter:blur(28px);color:#fff;border:0;border-radius:12px;font-size:12px;line-height:16px;font-weight:500;white-space:nowrap;box-shadow:0 4px 16px #00000029,inset 0 .5px #ffffff29}
+[data-replica-phase="closing"],[data-replica-phase="closed"]{pointer-events:none}

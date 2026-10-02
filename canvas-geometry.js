@@ -1,0 +1,7 @@
+(function(root){
+ 'use strict';
+ const toWorld=(point,view,origin={x:0,y:0})=>({x:(point.x-origin.x-view.x)/view.scale,y:(point.y-origin.y-view.y)/view.scale});
+ const toScreen=(point,view,origin={x:0,y:0})=>({x:point.x*view.scale+view.x+origin.x,y:point.y*view.scale+view.y+origin.y});
+ function placeOutputs(source,outputs,existing,side="right",options={}){const occupied=existing.slice(),result=[];for(let i=0;i<outputs.length;i++){const o=outputs[i],gap=options.gap??160,size=options.nodeSize;if(size&&(!Number.isFinite(size.width)||!Number.isFinite(size.height)||size.width<=0||size.height<=0))throw Error('节点尺寸无效');const width=size?size.width:options.preserveSize?source.width:['audio','text'].includes(o.type)?300:446,height=size?size.height:options.preserveSize?source.height:o.type==='text'?200:o.type==='audio'?300:o.width&&o.height?446*o.height/o.width:250;const candidate={width,height,x:side==="left"?source.x-width-gap-(i%2)*(width+32):source.x+source.width+gap+(i%2)*(width+32),y:source.y};for(let attempts=0;attempts<10000;attempts++){const hits=occupied.filter(n=>candidate.x<n.x+n.width+24&&candidate.x+width+24>n.x&&candidate.y<n.y+n.height+56&&candidate.y+height+56>n.y);if(!hits.length)break;candidate.y=Math.max(...hits.map(n=>n.y+n.height+65));if(attempts===9999)throw Error('没有可用的节点放置空间');}occupied.push(candidate);result.push({...o,...candidate});}return result;}
+ const api={toWorld,toScreen,placeOutputs};if(typeof module!=='undefined')module.exports=api;else root.CanvasGeometry=api;
+})(typeof window!=='undefined'?window:globalThis);

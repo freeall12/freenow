@@ -1,0 +1,9 @@
+/* Official ImagePanoramaViewerButton: bottom/right 12, 28px control, 10px radius. */
+.image-panorama-view{position:absolute;bottom:12px;right:12px;z-index:10;display:flex;width:28px;height:28px;align-items:center;justify-content:center;padding:0;border:0;border-radius:10px;background:#0008;color:#f5f5f5;cursor:pointer;transition:background-color .15s}
+.image-panorama-view svg{width:16px;height:16px;flex:none}
+.image-panorama-view:hover{background:#000b}
+.image-panorama-view:focus-visible{outline:2px solid #ffffffb3;outline-offset:2px}
+.image-panorama-view[hidden],.node:not(.selected) .image-panorama-view,.media-editing .image-panorama-view{display:none}
+
+.image-panorama-tooltip{position:fixed;z-index:160;padding:6px 10px;border-radius:8px;background:#262626;color:#f5f5f5;font-size:12px;line-height:18px;pointer-events:none;box-shadow:0 2px 8px #0004}
+.image-panorama-tooltip[hidden],.image-history-owner .image-panorama-view,.image-versions-owner .image-panorama-view{display:none}

@@ -1,0 +1,11 @@
+(() => {
+ 'use strict';
+ const el=(tag,cls,text)=>{const n=document.createElement(tag);if(cls)n.className=cls;if(text!==undefined)n.textContent=text;return n;};
+ function render(node,root){
+  root.dataset.type='studio';root.querySelectorAll('.port').forEach(p=>p.remove());const title=root.querySelector('.node-title');title.innerHTML=window.CANVAS_SEARCH_ICONS.studio;
+  const input=el('input','studio-node-title');input.value=node.title;input.placeholder='请输入标题';input.setAttribute('aria-label','请输入标题');input.addEventListener('pointerdown',event=>event.stopPropagation());input.addEventListener('dblclick',event=>event.stopPropagation());input.addEventListener('keydown',event=>{event.stopPropagation();if(event.key==='Enter'){event.preventDefault();input.blur();}if(event.key==='Escape'){input.value=node.title;input.blur();}});input.onchange=()=>{const name=input.value.trim();if(name&&name!==node.title)window.CanvasApp.updateNode(node.id,{title:name});else input.value=node.title;};title.append(input);
+  const body=root.querySelector('.node-body');body.replaceChildren();const cover=el('div','studio-node-cover'),halo=el('div','studio-node-halo'),contents=el('div','studio-node-contents'),icon=el('span','studio-node-icon');icon.innerHTML=window.CANVAS_SEARCH_ICONS.studio;halo.setAttribute('aria-hidden','true');const enter=el('button','studio-node-enter-button','进入片场');enter.setAttribute('aria-busy','false');enter.onpointerdown=e=>e.stopPropagation();enter.ondblclick=e=>e.stopPropagation();enter.onclick=async()=>{if(enter.disabled)return;enter.disabled=true;enter.setAttribute('aria-busy','true');try{await window.StudioAPI.open(node.id);}catch(error){window.CanvasApp.notify(error.message);}finally{enter.disabled=false;enter.setAttribute('aria-busy','false');}};contents.append(icon,enter);cover.append(halo,contents);body.append(cover);
+ }
+ function refresh(node,root,scale){root.querySelector('.node-title').style.width=node.width+'px';root.style.setProperty('--studio-button-scale',Math.min(Math.max(12,Math.min(12/scale,60))/12,1.25));const input=root.querySelector('input');if(input&&document.activeElement!==input)input.value=node.title;}
+ window.StudioNode={render,refresh};
+})();

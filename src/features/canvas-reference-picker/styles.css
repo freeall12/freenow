@@ -1,0 +1,24 @@
+/* Official flowing-border CSS, scoped to reference selection. */
+.canvas-reference-candidate{position:relative;--flow-start: 100%;--flow-end: -100%}.canvas-reference-candidate.flow-reverse{--flow-start: 0%;--flow-end: 200%}.canvas-reference-candidate:before{content:"";position:absolute;inset:-2px;border-radius:18px;background:linear-gradient(90deg,transparent 0%,transparent 20%,rgba(255,255,255,.55) 40%,rgba(255,255,255,1) 50%,rgba(255,255,255,.55) 60%,transparent 80%,transparent 100%);background-size:200% 200%;z-index:-1;pointer-events:none;opacity:0;transition:opacity .2s}.canvas-reference-candidate:after{content:"";position:absolute;inset:-6px;border-radius:22px;background:linear-gradient(90deg,transparent 0%,transparent 20%,rgba(255,255,255,.24) 40%,rgba(255,255,255,.58) 50%,rgba(255,255,255,.24) 60%,transparent 80%,transparent 100%);background-size:200% 200%;filter:blur(8px);z-index:-2;pointer-events:none;opacity:0;transition:opacity .2s}.canvas-reference-candidate:hover:before,.canvas-reference-candidate:hover:after{opacity:1;animation:canvasReferenceFlow 1.5s linear infinite}@keyframes canvasReferenceFlow{0%{background-position:var(--flow-start) 50%}to{background-position:var(--flow-end) 50%}}
+/* Official oMe toolbar, Kj cursor label and sMe source cover. */
+.canvas-reference-banner{position:fixed;z-index:105;top:18px;left:50%;transform:translateX(-50%);display:inline-flex;align-items:center;gap:10px;border-radius:8px;padding:6px 6px 6px 16px;background:#1fa2dc;box-shadow:0 4px 16px #00000029,inset 0 .5px #ffffff29;backdrop-filter:blur(28px);color:white;white-space:nowrap}
+.canvas-reference-banner strong{font-family:inherit;font-size:14px;line-height:20px;font-weight:600}
+.canvas-reference-banner button{display:flex;align-items:center;justify-content:center;border:0;border-radius:6px;background:#0006;color:#ffffffe0;padding:2px 8px;font-size:12px;line-height:20px;transition:transform .15s}
+.canvas-reference-banner button:active{transform:scale(.95)}
+.canvas-reference-banner .canvas-reference-return{padding:4px 6px}
+.canvas-reference-return svg{width:16px;height:16px;stroke-width:2}
+.canvas-reference-divider{height:20px;width:1px;background:#fff3}
+.canvas-reference-hit{position:absolute;inset:0;z-index:30;width:100%;height:100%;padding:0;border:0;border-radius:16px;background:transparent;cursor:pointer}
+.canvas-reference-hit:focus-visible{outline:2px solid #e6e6e6;outline-offset:2px}
+.canvas-reference-source{position:absolute;inset:0;z-index:30;display:flex;align-items:center;justify-content:center;padding:20px;border-radius:12px;border:1px solid #ffffff1a;background:#000000b3;box-shadow:0 4px 4px #0004;color:#fff9;font-size:14px;cursor:grab}
+.canvas-reference-source>span{margin-top:8px}
+.canvas-reference-source kbd{font:12px/20px monospace;background:#ffffff1a;border-radius:4px;padding:0 4px;outline:1px solid #ffffff1a;outline-offset:-1px}
+.canvas-reference-hover{position:fixed;top:0;left:0;pointer-events:none;z-index:9999;white-space:nowrap;font-size:12px;line-height:20px;opacity:0;padding:4px 8px;background:#333c;border-radius:6px;backdrop-filter:blur(28px);box-shadow:0 4px 16px #00000029,inset 0 .5px #ffffff29;color:#fff9}
+.canvas-reference-hover>span:first-child{color:#ffffffe0}
+.canvas-reference-candidate{isolation:isolate}
+.canvas-reference-ineligible{filter:blur(3px);transition:filter .3s;cursor:not-allowed}
+.canvas-reference-ineligible:after{content:"";position:absolute;inset:0;border-radius:16px;background:#000000b3;pointer-events:none;z-index:20}
+.canvas-reference-ineligible .node-body{outline:none!important}
+.canvas-reference-picking .connection-port,.canvas-reference-picking .image-history-controls{visibility:hidden!important;pointer-events:none!important}
+.canvas-reference-picking .node{touch-action:none}
+@media(prefers-reduced-motion:reduce){.canvas-reference-candidate:before,.canvas-reference-candidate:after{animation:none!important}.canvas-reference-ineligible{transition:none}}

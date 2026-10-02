@@ -1,0 +1,66 @@
+[
+  {
+    "description": "Plan and make an organic YouTube long-form product video, a YouTube Short, or a paid YouTube product ad from one or more product images. Use for product explainers, launches, demonstrations, tutorials, shoppable videos, or sales videos that need a verified brief, viewer promise, script, shot plan, honest still-to-motion generation, result inspection, titles, thumbnail direction, disclosures, captions, and retention tests. Not for still-image-only product sets, fake reviews, or publishing to YouTube.",
+    "name": "youtube-product-video"
+  },
+  {
+    "description": "Turn low-fidelity 3D previs into natural, cinematic Seedance video. In TapNow, write whitebox scenes in raw WebGL, present them through show_widget, rehearse and record clean camera-view video, then guide reference roles, prompt writing and generation fixes. Suited to character action, complex camera moves, multi-space transitions, vehicles and effects shots.",
+    "name": "whitebox-to-film"
+  },
+  {
+    "description": "Create, update, and refine skills. Use when users want to capture a workflow as a reusable skill, create or edit SKILL.md and reference files, install a skill for immediate use, or optionally run evals, benchmarks, and description optimization for high-risk or quality-sensitive skills.",
+    "name": "skill-creator"
+  },
+  {
+    "description": "Use when the user names Seedance, Dreamina, or ByteDance video generation, or asks for a high-quality TapNow video prompt, storyboard, reference-aware video brief, dialogue-led clip, prompt rewrite, or failed-video diagnosis.",
+    "name": "seedance-2-prompt-copilot"
+  },
+  {
+    "description": "Use for every Seedance 2.5 video task: prompt creation or rewrite, large multimodal reference packs, R2V, storyboards and previss, first/last-frame interpolation, short drama, one-take and action previs, ads and ecommerce, fashion, music and performance, game cinematics, explainers, training, localization, digital humans, factual or regulated content, architecture, automotive, travel, source-video editing, local-region repair, and failed-output diagnosis. This is the single Seedance 2.5 skill; do not route to separate Seedance 2.5 specialist skills.",
+    "name": "seedance-2-5-prompt-copilot"
+  },
+  {
+    "description": "Explain TapNow plugins to users and guide them to install, connect, and use third-party tools such as Feishu, Lark, Notion, Slack, Linear, Asana, HubSpot, Airtable, Atlassian, Unsplash, and Frame.io. Use when the user asks what plugins exist, what a plugin can do, how to install or connect one, whether the Agent can access an external tool, or when a task would benefit from a third-party plugin that is not yet available.",
+    "name": "plugin-guide"
+  },
+  {
+    "description": "Use when a TapNow Agent user asks Opus 5.5 to create a small animated icon or looping icon video from a prompt or still, including UI, product, technology, brand, or data motifs, and the result must be deterministic, browser-rendered, FFmpeg-encoded, and no longer than 5 seconds.",
+    "name": "opus55-motion-icon"
+  },
+  {
+    "description": "Use for every MiniMax H3, Hailuo H3, or Hailuo 3 video task: prompt creation or rewrite, multimodal reference planning, first/last-frame interpolation, storyboards, ads, product and UI films, dialogue or music video, performance, camera or VFX transfer, source-video editing, flat-game visuals, trailers, and failed-output repair. This is the single H3 skill; do not route to separate H3 specialist skills.",
+    "name": "minimax-h3-prompt-copilot"
+  },
+  {
+    "description": "Use when the user names Kling or asks for a high-quality video generation prompt, storyboard, prompt rewrite, reference-aware video brief, dialogue-led video brief, or failed-video prompt diagnosis for TapNow.",
+    "name": "kling-prompt-copilot"
+  },
+  {
+    "description": "Use when creating a deterministic HTML/CSS/JavaScript motion video in which one visual subject morphs across beat-synced states for UI, product or commercial promotion, technology launches, brand/data explainers, or similar short-form visual communication, and must render as a bounded seamless loop of no more than 5.000 seconds.",
+    "name": "html-beat-morph-video"
+  },
+  {
+    "description": "Give a one-time, read-only explanation of how an existing TapNow Canvas or cloned TapTV project was made: its creative intent, workflow, key nodes, model choices, prompt and retry patterns, and transferable methods. Use whenever the user asks to explain how a canvas was made, interpret a creator's process, understand the creation logic, or invokes 'Explain How It’s Made' / '解读创作思路'. Do not use for an interactive course, exercises, progress recovery, canvas editing, generation, or writing a production prompt on the user's behalf.",
+    "name": "explain-how-it-made"
+  },
+  {
+    "description": "Use when creating a presenter-led digital-human video for a product, property, lesson, knowledge explainer, social message, course, market bulletin, or news bulletin, especially when it needs a consistent presenter, visual B-roll, HTML screen recordings, or Canvas export.",
+    "name": "digital-human-video"
+  },
+  {
+    "description": "The depth-video workflow skill. Reuse an existing clip's motion, staging and camera while replacing who is in it and where it happens. Convert the source clip into a depth-map video, confirm the new character and the new setting with the user, then generate a fresh video that follows the depth pass for movement and the new references for appearance. Use whenever the user asks for a depth video, a depth map or depth pass of a clip, for the same camera move or the same action performed by a different character, for swapping the person or the background of a video they already have, or for recasting or relocating an existing shot.",
+    "name": "depth-video-studio"
+  },
+  {
+    "description": "The e-commerce ad creative workflow skill. Starting from what the user already has — product photos, an approved ad, a reference video, customer reviews or campaign results — make or adapt ad creative for that product. Covers localizing a static ad for other countries with translated copy and local typography, resizing it for other placements, multiplying headline variants of one image or hook variants of one video for A/B tests, recreating a reference ad's structure and pacing as an original ad for the user's product, turning real customer feedback into a faceless voiced ad video, planning ad angles from product and competitor research, reading campaign results into scale, pause and test decisions, and animating product or brand material as illustration, paper collage, whiteboard, deck or app-screen motion. Use whenever the user wants ads or marketing creative made, adapted, varied, localized or planned for a product, even when they name only one of these jobs.",
+    "name": "commerce-ad-studio"
+  },
+  {
+    "description": "Route requests safely between TapNow Desktop local-computer capabilities and TapNow Web or cloud capabilities. Use whenever a request involves local files or folders, installed apps, the visible screen, shell or system tasks, downloads, browser-only behavior, or any choice between desktop_* tools and ordinary TapNow, Canvas, cloud, or plugin tools.",
+    "name": "client-surface-routing"
+  },
+  {
+    "description": "Present a 3D scene in the conversation or in an artifact only when the user explicitly asks for that surface. Use show_widget, HTML, or a written prompt or plan. A request to make a 3D scene without that explicit presentation is a 3D Studio node; use `update-3d-studio:update-3d-studio` instead.",
+    "name": "3d-scene-director"
+  }
+]

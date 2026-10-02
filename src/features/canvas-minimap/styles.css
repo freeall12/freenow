@@ -1,0 +1,7 @@
+#minimap{width:200px;height:150px;border:1px solid #ffffff14;border-radius:8px;background:rgba(24,24,27,.92);cursor:grab;touch-action:none;isolation:isolate}
+#minimap[data-dragging]{cursor:grabbing}
+#minimap .minimap-nodes{position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none}
+#minimap .minimap-node-transition{transition:fill .2s,stroke .2s;stroke-width:1;vector-effect:non-scaling-stroke;rx:min(var(--minimap-radius,4px),var(--minimap-half,4px));ry:min(var(--minimap-radius,4px),var(--minimap-half,4px))}
+#minimap .minimap-viewport{position:absolute;pointer-events:none;border:1.5px solid #fff;background:rgba(0,0,0,.1);box-shadow:0 0 0 9999px rgba(0,0,0,.22)}
+#toggle-map svg{transition:opacity .2s}
+@media(prefers-reduced-motion:reduce){#minimap .minimap-node-transition,#toggle-map svg{transition:none}}

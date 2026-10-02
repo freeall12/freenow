@@ -1,0 +1,10 @@
+import {el,button} from './dom.mjs';
+import {icons} from './icons.mjs';
+import {classes as c} from './classes.mjs';
+import {propertyControls} from './properties.mjs';
+
+export function objectInspector(runtime){
+  const selected=runtime.selected,animated=runtime.animatedCamera(selected),inspector=el('section',c.selectionToolbar);inspector.ariaLabel=selected.isCamera?'镜头对象':'对象';inspector.append(button('取消选择','关闭',()=>runtime.select(null),c.objectClose));const details=el('details',c.objectDetails);details.open=true;const summary=el('summary',c.objectSummary),chevron=el('span');chevron.innerHTML=icons['下拉'];const title=el('strong',c.objectTitle,selected.name||'对象');title.title=selected.name;summary.append(chevron.firstElementChild,title);details.append(summary);
+  if(animated){details.append(button('编辑关键帧',null,()=>{const time=runtime.playback.time,clip=runtime.playback.catalog().find(entry=>entry.index===runtime.motion.index&&entry.cameraIds.includes(selected.userData.studioId))||runtime.playback.catalog().find(entry=>entry.cameraIds.includes(selected.userData.studioId));if(!clip)return;runtime.motion.start(clip.index,selected.userData.studioId);const times=runtime.motion.times;runtime.motion.select(times.reduce((best,t,index)=>Math.abs(t-time)<Math.abs(times[best]-time)?index:best,0));},'','编辑关键帧'));}else details.append(propertyControls(runtime,selected));
+  const footer=el('div',c.objectFooter),actions=el('div',c.objectActions);actions.role='toolbar';actions.ariaLabel='对象操作';if(!animated)for(const [mode,label,key] of [['translate','移动','P'],['rotate','旋转','R'],['scale','缩放','T']]){const b=button(label,label,()=>runtime.setMode(mode),'',label);b.setAttribute('aria-pressed',String(runtime.mode===mode));b.setAttribute('aria-keyshortcuts',key);b.title=label+' ('+key+')';b.append(el('kbd',c.shortcutKey,key));actions.append(b);}const focus=button('聚焦选中物体','聚焦',()=>{runtime.focus(selected);runtime.focusView();},'','聚焦');focus.setAttribute('aria-keyshortcuts','F');focus.title='按 F 聚焦选中物体';focus.append(el('kbd',c.shortcutKey,'F'));actions.append(focus);footer.append(actions);details.append(footer);inspector.append(details);return inspector;
+}

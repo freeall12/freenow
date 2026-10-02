@@ -1,0 +1,10 @@
+/* Local inferred child-task layout; core disclosure motion and icons are shared. */
+.delegation-list{display:flex;flex-direction:column;gap:6px;margin-left:14px;border-left:1px solid #fafafa1a;padding-left:12px}
+.delegation-status{flex-shrink:0;font-size:12px;color:var(--execution-muted,#7a7a7a);font-variant-numeric:tabular-nums}
+.execution-delegation .execution-label{flex:1}.execution-delegation [data-status=failed]>.execution-line .delegation-status{color:#c78282}
+.execution-delegation .delegation-status[data-status=failed],.execution-delegation .delegation-status[data-status=partial_failure]{color:#c78282}
+.delegation-text{margin:4px 0;color:#ccc;white-space:pre-wrap;overflow-wrap:anywhere}
+.delegation-dependencies{margin:4px 0;color:var(--execution-muted,#7a7a7a);font-size:12px;line-height:1.65;overflow-wrap:anywhere}
+.delegation-calls{list-style:none;margin:6px 0;padding:0;display:flex;flex-direction:column;gap:4px}
+.delegation-call{display:flex;align-items:baseline;flex-wrap:wrap;gap:6px;font-size:12px;line-height:1.65}.delegation-call>.execution-icon{align-self:center}.delegation-call-label{min-width:0;overflow-wrap:anywhere}.delegation-call>.execution-error{flex-basis:100%;margin:0 0 0 22px}
+.delegation-text[hidden],.delegation-calls[hidden],.execution-delegation [hidden]{display:none}

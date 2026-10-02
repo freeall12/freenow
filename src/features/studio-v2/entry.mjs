@@ -1,0 +1,13 @@
+import {SceneRuntime} from './runtime.mjs';
+import {createUI} from './ui.mjs';
+import {el} from './dom.mjs';
+import {classes} from './classes.mjs';
+for(const name of ['official-layout.css','styles.css']){const link=document.createElement('link');link.rel='stylesheet';link.href=new URL(name,import.meta.url);document.head.append(link);}
+let active=null;
+export async function open(node){
+  if(active?.nodeId===node.id)return active;if(active)await active.close();
+  const root=el('main','studio-v2-root '+classes.viewer);root.ariaLabel='3D 片场';const canvas=el('canvas',classes.world);canvas.tabIndex=0;canvas.ariaLabel='自由查看场景：拖动鼠标转向，滚轮拉近或拉远，点击后可用 WASD 移动，选中物体后按 F 聚焦';root.append(canvas);document.body.append(root);document.body.classList.add('studio-active');
+  let ui;const runtime=new SceneRuntime(canvas,{node,onChange:reason=>{ui?.refresh(reason);if(['selection','scene','motion-select'].includes(reason))window.AgentUI?.refreshSceneContext?.();},onError:error=>ui?.notice(error.message)});
+  let closing=null;const instance={nodeId:node.id,runtime,async close(){if(active!==instance)return;if(closing)return closing;ui?.assertCanClose();closing=(async()=>{await runtime.close();ui.dispose();root.remove();document.body.classList.remove('studio-active');active=null;window.AgentUI?.refreshSceneContext?.();window.CanvasApp.select(node.id,false);})();try{await closing;}finally{closing=null;}},read:()=>runtime.read(),async execute(action,args,options={}){switch(action){case'read':return runtime.read();case'capture':return runtime.capture();case'keyframe':return runtime.keyframe(args);case'motion':return runtime.controlMotion(args);case'motion-export':return runtime.exportMotion(args,undefined,options);case'playback':return runtime.controlPlayback(args);case'add':return runtime.add(args.kind,args.properties);case'import':return runtime.importModel(args,options);case'redo':return runtime.redoScene(args,options);case'update':return runtime.updateSettings(args.id,args.patch);case'environment':return runtime.environmentSettings(args);case'delete':return runtime.remove(args.id);case'select':runtime.select(args.id);return {selected:args.id};case'undo':await runtime.undo();return {ok:true};case'camera':runtime.selectShot(args.id);return {camera:args.id};default:throw Error('此操作尚未接入 3D 片场 2.0：'+action);}}};active=instance;ui=createUI({root,runtime,onClose:()=>instance.close().catch(error=>ui.notice('场景保存失败，本地修改已保留：'+error.message))});try{await runtime.initialize();if(runtime.content.children.length)window.AgentUI?.beginStudio({nodeId:node.id});}catch(error){ui.notice(error.message);}return instance;
+}
+export const current=()=>active;

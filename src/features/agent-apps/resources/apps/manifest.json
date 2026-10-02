@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "widgets": {
+    "actor-emotion@v1": "63ee986b",
+    "ad-review@v1": "e990e21f",
+    "animatic@v1": "7f4d2fcb",
+    "animatic@v2": "bc00a3a5",
+    "character-blocking@v1": "596deb3b",
+    "character-blocking@v3": "f1fd0e23",
+    "color-adjust@v2": "285e6ccb",
+    "creative-picker@v1": "2a07bc2e",
+    "cutlist-review@v1": "a3b10365",
+    "director-markup@v1": "4b53a29e",
+    "ecommerce-photoset@v2": "a7b6a057",
+    "interactive-learning@v1": "cd0bb18c",
+    "layer-composer@v1": "067126cf",
+    "library-picker@v1": "3449ff83",
+    "motion-picker@v1": "11addd0c",
+    "performance-rhythm@v3": "9ead0d0b",
+    "platform-resize@v1": "897f4688",
+    "previs@v3": "584fd5b2",
+    "product-kit@v1": "758d09b3",
+    "production-progress@v1": "acd4e750",
+    "story-room@v1": "dae7d235",
+    "website-design-picker@v1": "2a07bc2e"
+  }
+}

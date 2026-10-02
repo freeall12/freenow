@@ -1,0 +1,26 @@
+/* Current official canvas footer: 8px left group, 6px right group, 4px actions. */
+.agent-panel{background:#141414;border-left:0;border-radius:16px 0 0 16px}
+.agent-composer{left:8px;right:8px;bottom:8px;padding:0;border:.5px solid #ffffff1a;border-radius:16px;box-shadow:0 5px 10px #0000000f;backdrop-filter:blur(50px)}
+.agent-composer>.agent-attachments{margin:12px 8px 0 16px}
+.agent-composer>.agent-skill-tags{margin:8px 16px 0}
+.agent-composer>.agent-input{padding:16px;margin:0}
+.agent-composer-footer{display:flex;align-items:center;justify-content:space-between;gap:0;min-width:0;height:40px;padding:0 8px 8px;flex-shrink:0}
+.agent-footer-left,.agent-footer-right,.agent-footer-actions{display:flex;align-items:center;flex-shrink:0}
+.agent-footer-left{gap:8px}
+.agent-footer-right{gap:6px}
+.agent-footer-actions{position:relative;gap:4px}
+.agent-composer-footer .agent-mode{margin-left:0}
+.agent-composer-footer .agent-add{width:26px;height:26px;padding:0;background:#ffffff1a;color:#f5f5f5;transition:background-color .15s}
+.agent-composer-footer .agent-add:hover{background:#ffffff26}
+.agent-composer-footer .agent-add svg{width:16px;height:16px}
+.agent-composer-footer .agent-voice,.agent-composer-footer .agent-send{width:32px;height:32px;padding:0;flex-shrink:0;border-radius:50%;transition:background-color .15s}
+.agent-composer-footer .agent-voice{background:transparent;color:#e6e6e6}
+.agent-composer-footer .agent-voice:hover{background:#ffffff0d}
+.agent-composer-footer .agent-voice:active{background:#ffffff1a}
+.agent-composer-footer .agent-send{background:white;color:black}
+.agent-composer-footer .agent-send:hover{background:#ffffffcc}
+.agent-composer-footer .agent-send:disabled{opacity:.5;cursor:not-allowed}
+.agent-composer-footer .agent-model-trigger{border-radius:6px}
+@media(max-width:749px){.agent-panel{width:var(--agent-panel-size, min(480px,100vw))!important}}
+@media(max-width:639px){.agent-composer-footer .agent-model-trigger{max-width:188px}}
+@media(prefers-reduced-motion:reduce){.agent-composer-footer .agent-add,.agent-composer-footer .agent-voice,.agent-composer-footer .agent-send{transition:none}}

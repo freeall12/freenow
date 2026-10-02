@@ -1,0 +1,6 @@
+.agent-panel[data-studio=true] .agent-studio-welcome{position:absolute;top:60px;bottom:190px;left:0;right:0;display:flex;flex-direction:column;justify-content:center;gap:20px;padding:24px;overflow:auto;align-items:stretch}
+.agent-studio-welcome>img{width:40px;height:40px;flex-shrink:0}.agent-studio-welcome>p{margin:0;font-size:14px;line-height:20px;color:#808080}.agent-studio-welcome>p:nth-of-type(2){line-height:22.75px}.agent-studio-welcome>h2{margin:0;font-size:24px;line-height:32px;font-weight:600}.agent-studio-welcome>button{border:1px solid #ffffff14;border-radius:12px;padding:16px;text-align:left;font-size:14px;line-height:22.75px;color:inherit;background:transparent;cursor:pointer}.agent-studio-welcome>button:hover{background:#ffffff0d}.agent-studio-welcome>button:focus-visible{outline:2px solid #90c4e5;outline-offset:2px}.agent-panel[data-studio=true] .agent-open-apps{display:none}
+
+.agent-studio-selection{margin:0 16px 8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;line-height:16px;color:#808080}
+
+body:has(#agent-panel) .studio-v2-root [aria-label="打开片场 Agent"]{display:none!important}

@@ -1,0 +1,16 @@
+import {referenceNodes} from './reference-data.mjs';
+// Store semantic nodes, never editable HTML. Plain text remains the API/search representation.
+export function mentionNames(doc){const names=[];const visit=node=>{if(node?.type==='skillMention'&&typeof node.attrs?.name==='string')names.push(node.attrs.name);for(const child of node?.content||[])visit(child);};visit(doc);return [...new Set(names)];}
+export function documentText(doc){const leaf=node=>node.type==='skillMention'?'@'+node.attrs.name:node.type==='referenceMention'?'@'+node.attrs.label:node.type==='hardBreak'?'\n':node.text||'',nodes=doc?.content||[];return nodes.map(node=>node.type==='paragraph'?(node.content||[]).map(leaf).join(''):leaf(node)).join(nodes.some(node=>node.type==='paragraph')?'\n':'');}
+export function textDocument(text='',names=[],refs=[]){
+ const skills=new Set(names);const pending=refs.map(ref=>({...ref}));names=[...new Set([...names,...refs.map(ref=>ref.label)])];
+ const escaped=names.filter(name=>typeof name==='string'&&name.length&&name.length<=240).sort((a,b)=>b.length-a.length).map(name=>name.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'));
+ const pattern=escaped.length?new RegExp('(^|\\s)@('+escaped.join('|')+')(?=\\s|$)','g'):null;
+ return {type:'doc',content:String(text).split('\n').map(line=>{const content=[];let offset=0;if(pattern){pattern.lastIndex=0;for(const match of line.matchAll(pattern)){const start=match.index+match[1].length;if(start>offset)content.push({type:'text',text:line.slice(offset,start)});const refIndex=pending.findIndex(ref=>ref.label===match[2]);if(refIndex>=0)content.push({type:'referenceMention',attrs:pending.splice(refIndex,1)[0]});else if(skills.has(match[2]))content.push({type:'skillMention',attrs:{name:match[2]}});else content.push({type:'text',text:'@'+match[2]});offset=start+match[2].length+1;}}if(offset<line.length)content.push({type:'text',text:line.slice(offset)});return {type:'paragraph',...(content.length?{content}:{})};})};
+}
+export function documentForDraft(draft){const doc=draft.composerDoc;if(doc?.type==='doc'&&documentText(doc)===draft.text)return doc;return textDocument(draft.text||'',doc?mentionNames(doc):draft.skills||[],referenceNodes(doc));}
+export function applyComposerSnapshot(draft,{doc,text=documentText(doc)}){
+ const previousRefs=referenceNodes(draft.composerDoc).filter(ref=>ref.kind==='node').map(ref=>ref.id),nextRefs=referenceNodes(doc).filter(ref=>ref.kind==='node').map(ref=>ref.id);draft.referencePins??=(draft.refs||[]).filter(id=>!previousRefs.includes(id)&&id!==draft.studioNodeId);draft.refs=[...new Set([...draft.referencePins,...nextRefs,...(draft.studioNodeId?[draft.studioNodeId]:[])])];
+ const previous=new Set(mentionNames(draft.composerDoc||documentForDraft(draft)));draft.skills=[...new Set([...(draft.skills||[]).filter(name=>!previous.has(name)),...mentionNames(doc),...(draft.studioNodeId?['3d-scene-director']:[])])];draft.text=text;draft.composerDoc=doc;
+}
+export function appendSkill(draft,name){const doc=structuredClone(documentForDraft(draft)),paragraph=doc.content.at(-1);paragraph.content??=[];paragraph.content.push({type:'skillMention',attrs:{name}},{type:'text',text:' '});return {doc,text:documentText(doc)};}

@@ -1,0 +1,13 @@
+.agent-recovery-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.agent-recovery-heading strong{font-size:12px;font-weight:500}
+.agent-recovery-heading button{margin:0;white-space:normal;line-height:1.4}
+.agent-recovery p{margin:8px 0;line-height:1.6;font-size:12px;color:#aaa}
+.agent-recovery small{font-size:11px;color:#888}
+.agent-recovery .agent-recovery-error{color:#dcc59f}
+.agent-recovery pre{overflow-wrap:anywhere;white-space:pre-wrap}
+.agent-recovery-tasks{margin:8px 0;padding-left:20px}
+.agent-recovery-task{padding:6px 0;overflow-wrap:anywhere}
+.agent-recovery-task-heading{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap;font-size:12px}
+.agent-recovery-task-heading strong{font-weight:500}
+.agent-recovery-task-heading span{color:#999}
+.agent-recovery-task p{margin:4px 0}
