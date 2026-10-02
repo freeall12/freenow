@@ -1,0 +1,10 @@
+'use strict';
+const fs=require('node:fs'),path=require('node:path'),{execFileSync}=require('node:child_process');
+const root=path.resolve(__dirname,'..');
+execFileSync(process.execPath,[path.join(__dirname,'build-video-analysis-fixture.cjs')],{stdio:'inherit'});
+let html=fs.readFileSync(path.join(root,'index.html'),'utf8').replace('<head>','<head><base href="/"><script src="qa/agent-video-analysis-fixture.js"></script>');
+for(const name of ['canvas-data','editor-data','sidebar-data','versions-data'])html=html.replace(new RegExp('src="'+name+'\\.js[^\"]*"'),'src="defaults/'+name+'.js"');
+html=html.replace('<script src="defaults/canvas-data.js"></script>','<script src="defaults/canvas-data.js"></script><script>window.CANVAS_DATA.nodes=[{id:"analysis-source",type:"video",title:"本地八秒三镜头测试片",video:"/qa/trim-scenes.mp4",x:40.25,y:240.75,width:320,height:180}];</script>');
+html=html.replace('</body>','<script type="module" src="qa/agent-video-analysis-controls.mjs"></script></body>');
+fs.writeFileSync(path.join(root,'qa/agent-video-analysis-app.html'),html);
+console.log('Open /qa/agent-video-analysis-app.html?session=unique&repeat; add &configured=false to test configuration.');

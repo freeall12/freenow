@@ -102,3 +102,6 @@ reference/*
 !qa/generation-history-legacy-fixture.mjs
 !qa/image-editor-fixture.js
 !qa/trim-scenes.mp4
+
+!qa/agent-video-analysis-fixture.js
+!qa/agent-video-analysis-controls.mjs
