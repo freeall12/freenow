@@ -42,7 +42,8 @@ function createDurableGenerationService({directory,store=null,baseUrl='',apiKey=
  function storageFailure(id){const current=jobs.get(id);if(current&&!terminal.has(current.status))jobs.set(id,recover(current,'storage_error',false));}
  async function update(id,change){return serialize(async()=>{const current=jobs.get(id);if(!current||closing)return current||null;const next=change(structuredClone(current));if(!next)return current;try{return await persist({...next,updatedAt:now()});}catch(error){storageFailure(id);throw error;}});}
  async function remote(method,id,body,signal){if(provider){if(method==='POST')return provider.submit(body,{signal});if(typeof provider.poll!=='function')throw failure('此生成协议不支持远端任务恢复','remote_recovery_unavailable');return provider.poll(id,{signal});}const result=await fetchImpl(endpoint+'/tasks'+(id?'/'+encodeURIComponent(id):''),{method,headers,signal:AbortSignal.any([signal,AbortSignal.timeout(requestTimeout)]),...(body?{body:JSON.stringify(body)}:{})});if(!result.ok)throw failure('生成服务请求未确认','provider_http_error',502);return result.json();}
- function compatible(job){return configured&&job.providerFingerprint===providerFingerprint;}
+ function compatible(job){return (configured||provider?.metadata?.protocol==='routed')&&job.providerFingerprint===providerFingerprint;}
+ const protocolFor=request=>provider?.protocolFor?provider.protocolFor(request):provider?.metadata?.protocol;
  async function applyRemote(id,value){
   const existing=jobs.get(id);if(!existing||closing||controllers.get(id)?.signal.aborted&&existing.status!=='cancelled')return;
   const remoteId=value&&typeof value.id==='string'&&value.id.trim()?value.id:null;
@@ -54,7 +55,7 @@ function createDurableGenerationService({directory,store=null,baseUrl='',apiKey=
    const outputs=checkedOutputs(value.outputs);await update(id,job=>job.status==='cancelled'?null:{...job,status:'succeeded',outputs,progress:100,error:undefined,code:undefined,recovery:undefined});return;
   }
   // A remote tasks-v1 response cannot claim a trusted local preparation failure.
-  const localError=provider?.metadata?.protocol==='openai-native'&&existing.request.kind==='video.analyze'&&value?.status==='failed'&&value.providerDispatched===false?localVideoErrorMessage(value.code):null;
+  const localError=protocolFor(existing.preparedRequest||existing.request)==='openai-native'&&existing.request.kind==='video.analyze'&&value?.status==='failed'&&value.providerDispatched===false?localVideoErrorMessage(value.code):null;
   if(localError){await update(id,job=>job.status==='cancelled'?null:{...job,status:'failed',code:value.code,error:localError,providerDispatched:false,recovery:{reason:value.code,retryableLookup:false}});return;}
   if(['failed','cancelled','configuration_required'].includes(value?.status)){await update(id,job=>job.status==='cancelled'?null:{...job,status:value.status,code:'provider_'+value.status,error:value.status==='cancelled'?'生成服务已取消任务':'生成服务未完成任务',recovery:{reason:'provider_'+value.status,retryableLookup:false}});return;}
   if(value?.status==='succeeded')throw failure('生成服务声称完成但缺少实际结果','missing_outputs');
@@ -70,7 +71,7 @@ function createDurableGenerationService({directory,store=null,baseUrl='',apiKey=
    const prepared=await prepareRequest(structuredClone(job.request));rejectCredentials(prepared);canonical(prepared);if(!prepared||prepared.kind!==job.request.kind)throw failure('生成请求准备失败','invalid_prepared_request');
    if(provider?.configured)await provider.prepare?.(prepared);
    job=await update(id,current=>current.status==='cancelled'?null:{...current,preparedRequest:prepared});
-  }catch(error){if(error.code==='storage_error')throw error;const localError=job.request.kind==='video.analyze'?localVideoErrorMessage(error.code):null;await update(id,current=>current.status==='cancelled'?null:{...current,status:error.code==='configuration_required'?'configuration_required':'failed',code:localError?error.code:error.code==='configuration_required'?'configuration_required':'request_preparation_failed',error:localError||'生成参数或模型映射未兼容，尚未提交远端',...(localError?{providerDispatched:false}:{})});return;}
+  }catch(error){if(error.code==='storage_error')throw error;const localError=protocolFor(job.request)==='openai-native'&&job.request.kind==='video.analyze'?localVideoErrorMessage(error.code):null;await update(id,current=>current.status==='cancelled'?null:{...current,status:error.code==='configuration_required'?'configuration_required':'failed',code:localError?error.code:error.code==='configuration_required'?'configuration_required':'request_preparation_failed',error:localError||'生成参数或模型映射未兼容，尚未提交远端',...(localError?{providerDispatched:false}:{})});return;}
   if(closing||job.status==='cancelled')return;
   if(!configured){await update(id,current=>current.status==='cancelled'?null:{...current,status:'configuration_required',code:'configuration_required',error:'尚未配置生成服务，未提交远端'});return;}
   // This durable intent precedes POST. A crash anywhere after this point without
@@ -90,7 +91,7 @@ function createDurableGenerationService({directory,store=null,baseUrl='',apiKey=
  }
  async function get(id){
   await ready;let job=jobs.get(id);if(!job)return null;if(closing||terminal.has(job.status))return exposed(job);
-  if(active.has(id)){if(provider&&!provider.poll)return exposed(job);await active.get(id);return exposed(jobs.get(id));}
+  if(active.has(id)){if(provider&&(!provider.poll||provider.isPollable?.(job.preparedRequest||job.request)===false))return exposed(job);await active.get(id);return exposed(jobs.get(id));}
   if(job.code==='storage_error'||!job.providerTaskId)return exposed(job);
   if(!compatible(job)){await update(id,current=>recover(current,configured?'provider_configuration_changed':'configuration_required',false));return exposed(jobs.get(id));}
   await launch(id,async()=>{const controller=new AbortController();controllers.set(id,controller);await applyRemote(id,await remote('GET',job.providerTaskId,null,controller.signal));});return exposed(jobs.get(id));

@@ -4,15 +4,17 @@ const {randomUUID}=require('node:crypto');
 const {createDurableGenerationService}=require('./generation-durable.cjs');
 const {createOpenAINativeProvider}=require('./generation-openai.cjs');
 const {createArkProvider}=require('./generation-ark.cjs');
+const {createGenerationRouter}=require('./generation-router.cjs');
 const {localVideoErrorMessage}=require('./video-analysis-errors.cjs');
 
 // Only the operator-selected task gateway receives requests. Browser payloads
 // cannot choose a destination or supply server credentials.
-function createGenerationGateway({baseUrl = '', apiKey = '', fetchImpl = fetch, now = Date.now, directory, protocol='tasks-v1',modelMap,client} = {}) {
-  const native=protocol==='openai-native'?createOpenAINativeProvider({baseUrl,apiKey,modelMap,client,fetchImpl}):protocol==='ark-native'?createArkProvider({baseUrl,apiKey,modelMap,fetchImpl}):null;
-  const invalidProtocol=!['tasks-v1','openai-native','ark-native'].includes(protocol);
+function createGenerationGateway({baseUrl = '', apiKey = '', fetchImpl = fetch, now = Date.now, directory, protocol='tasks-v1',modelMap,client,providers,routes} = {}) {
+  const routed=providers!==undefined||routes!==undefined;
+  const native=routed?createGenerationRouter({providers,routes,fetchImpl}):protocol==='openai-native'?createOpenAINativeProvider({baseUrl,apiKey,modelMap,client,fetchImpl}):protocol==='ark-native'?createArkProvider({baseUrl,apiKey,modelMap,fetchImpl}):null;
+  const invalidProtocol=!routed&&!['tasks-v1','openai-native','ark-native'].includes(protocol);
   let invalidEndpoint=false;
-  if(protocol==='tasks-v1'&&baseUrl){try{baseUrl=normalizeApiBaseUrl(baseUrl);}catch{invalidEndpoint=true;}}
+  if(!routed&&protocol==='tasks-v1'&&baseUrl){try{baseUrl=normalizeApiBaseUrl(baseUrl);}catch{invalidEndpoint=true;}}
   const prepareRequest = async request => {
     if(request.kind==='video.depth'){const {prepareDepthTaskRequest}=await import('../src/features/agent-workflows/depth-video.mjs');return prepareDepthTaskRequest(request);}
     if (request.kind !== 'video.generate') return request;
@@ -20,9 +22,12 @@ function createGenerationGateway({baseUrl = '', apiKey = '', fetchImpl = fetch, 
     // browser owns graph validation; the gateway never guesses an alternate job.
     const {prepareVideoRequest} = await import('../src/features/video-generation/settings.mjs');
     const prepared=prepareVideoRequest(request);
+    // UI display labels may normalize, but explicit wire identities must never
+    // select a different paid provider as a side effect of that normalization.
+    if(routed&&[request.parameters?.modelId,request.parameters?.providerParameters?.model].some(alias=>alias!==undefined&&alias!==(prepared.parameters?.providerParameters?.model??prepared.parameters?.modelId??prepared.parameters?.model)))throw Object.assign(Error('生成模型标识不一致，未更换供应商或提交模型'),{code:'unsupported_generation'});
     // The catalog may suggest UI defaults, but an explicit API request must not
     // silently turn unsupported Ark options into a different paid generation.
-    if(protocol==='ark-native'&&!request.parameters?.draftVideoId){
+    if((routed?native.protocolFor(prepared):protocol)==='ark-native'&&!request.parameters?.draftVideoId){
       const before=request.parameters||{},after=prepared.parameters||{};
       const fields={ratio:'ratio',aspectRatio:'ratio',aspect:'ratio',quality:'quality',resolution:'quality',duration:'duration',audio:'audio',generateAudio:'audio',generateMode:'generateMode',videoMode:'videoMode',variant:'variant',mode:'mode'};
       const changed=Object.entries(fields).some(([input,output])=>before[input]!==undefined&&before[input]!==after[output]);
