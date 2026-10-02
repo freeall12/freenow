@@ -26,22 +26,27 @@ export function inputError({image = 0, video = 0, audio = 0}) {
   return null;
 }
 
+export function sourceReference(node) {
+  return {nodeId: node.id, type: node.type, title: node.title,
+    ...(node.type === 'text' ? {text: node.content || ''} : {url: node.type === 'video' ? node.video : node.fullImage || node.image}),
+    ...(node.type === 'video' ? {...node.clip != null ? {clip: structuredClone(node.clip)} : {}, ...node.trim != null ? {trim: structuredClone(node.trim)} : {}} : {}),
+    isPano: node.generation?.isPanoramaPrompt === true || node.generation?.ratio === '2:1'};
+}
+
 export function references(id, state) {
   const byId = new Map(state.nodes.map(node => [node.id, node]));
   return state.edges.filter(edge => edge.target === id && (!edge.data?.purpose || edge.data.purpose === 'generation-input'))
     .map((edge, index) => ({edge, node: byId.get(edge.source), index}))
     .filter(item => item.node && ['text', 'image', 'video'].includes(item.node.type))
     .sort((a, b) => (a.edge.data?.order ?? a.index) - (b.edge.data?.order ?? b.index))
-    .map(({edge, node}) => ({edgeId: edge.id, nodeId: node.id, type: node.type, title: node.title,
-      ...(node.type === 'text' ? {text: node.content || ''} : {url: node.type === 'video' ? node.video : node.fullImage || node.image}),
-      isPano: node.generation?.isPanoramaPrompt === true || node.generation?.ratio === '2:1'}));
+    .map(({edge, node}) => ({edgeId: edge.id, ...sourceReference(node)}));
 }
 
 export function prepare(node, refs) {
   const settings = config(node), model = models.find(item => item.id === settings.model);
   const inputs = refs.filter(ref => ref.type === 'text' ? ref.text?.trim() : ref.url);
   const images = inputs.filter(ref => ref.type === 'image'), videos = inputs.filter(ref => ref.type === 'video');
-  let error = inputError({image: images.length, video: videos.length});
+  let error = refs.some(ref => ref.type !== 'text' && !ref.url) ? '参考节点尚无实际媒体，请补充或移除参考' : inputError({image: images.length, video: videos.length});
   const modelType = videos.length ? 'VIDEO_TO_WORLD' : images.length > 1 ? 'MULTI_IMAGE_TO_WORLD'
     : images.length ? settings.isPano ? 'PANORAMA_TO_WORLD' : 'IMAGE_TO_WORLD' : 'TEXT_TO_WORLD';
   if (!error && model.provider === 'tripo' && (images.length > 1 || videos.length)) error = '当前模型仅支持文字或单张图片输入';
@@ -59,7 +64,8 @@ export function prepare(node, refs) {
   };
   return {error, promptDisabled, model, imageCount: images.length, videoCount: videos.length,
     request: {kind: 'world.generate', nodeId: node.id, label: model.outputType === 'asset' ? '3D 资产生成' : '3D 世界生成',
-      prompt, inputs: inputs.filter(ref => ref.type !== 'text').map(({nodeId, type, url}) => ({nodeId, type, url})), parameters}};
+      prompt, inputs: inputs.filter(ref => ref.type !== 'text').map(({nodeId, type, url, clip, trim}) => ({nodeId, type, url,
+        ...clip != null ? {clip: structuredClone(clip)} : {}, ...trim != null ? {trim: structuredClone(trim)} : {}})), parameters}};
 }
 
 export function signature(node, refs) {

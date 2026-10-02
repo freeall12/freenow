@@ -48,10 +48,12 @@ export function createMcpAppHost(options) {
   const {iframe, callbacks = {}, isCurrent = () => true, allowResource = () => true} = options;
   const window = iframe.ownerDocument?.defaultView || globalThis.window;
   const resource = resourcePattern.exec(options.resourceUri || '');
+  const widgetStateLimit = options.widgetStateLimit ?? 65536;
+  if (![65536, 128 * 1024].includes(widgetStateLimit)) throw fault(-32602, 'invalid widget state limit');
   let nonce = window.crypto.randomUUID(), started = false, disposed = false, ready = false, initialized = false, failed = false, loadSeen = false;
   let generation = 0, initTimer = null, retryTimer = null, lastMessageAt = -Infinity, sending = false;
   let toolInput = dataCopy(options.toolInput ?? {}, 1000000, true), toolResult = options.toolResult == null ? null : dataCopy(options.toolResult, 1000000, true);
-  let widgetState = options.initialWidgetState == null ? null : dataCopy(options.initialWidgetState, 65536), projectionRevision = null;
+  let widgetState = options.initialWidgetState == null ? null : dataCopy(options.initialWidgetState, widgetStateLimit), projectionRevision = null;
   let hostContext = {theme: options.theme || 'dark', locale: options.locale || 'zh-CN', displayMode: 'inline', availableDisplayModes: ['inline', 'fullscreen'], platform: 'web', ...dataCopy(options.hostContext || {})};
   let expanded = false, presentationTracked = false, conversationActive;
   const requests = new Map(), csp = cspPolicy(options.csp);
@@ -69,7 +71,7 @@ export function createMcpAppHost(options) {
     retryTimer = window.setInterval(sendResource, 800);
   }
   function toolResultParams() {
-    return {content: [{type: 'text', text: typeof toolResult?.summary === 'string' ? toolResult.summary : ''}], structuredContent: dataCopy(toolResult), ...(widgetState ? {_meta: {'tapnow/widgetState': dataCopy(widgetState, 65536)}} : {})};
+    return {content: [{type: 'text', text: typeof toolResult?.summary === 'string' ? toolResult.summary : ''}], structuredContent: dataCopy(toolResult), ...(widgetState ? {_meta: {'tapnow/widgetState': dataCopy(widgetState, widgetStateLimit)}} : {})};
   }
   function sendPresentation() {if (ready && presentationTracked) notify('tapnow/presentationState', {expanded});}
   function validGeneration(version, token) {return generation === version && nonce === token && live();}
@@ -92,7 +94,7 @@ export function createMcpAppHost(options) {
       if (method === 'tapnow/setWidgetState') {
         if (!callbacks.onSetWidgetState) throw fault(-32601, 'widget state persistence is not configured');
         if (!object(params.state)) throw fault(-32602, 'state must be an object');
-        const state = dataCopy(params.state, 65536);
+        const state = dataCopy(params.state, widgetStateLimit);
         const saved = await callbacks.onSetWidgetState(state);
         if (!validGeneration(version, token)) return;
         if (saved === false) throw fault(-32000, 'widget state was not saved');
@@ -108,7 +110,7 @@ export function createMcpAppHost(options) {
         const now = Date.now();if (sending || now - lastMessageAt < 1000) throw fault(-32000, 'busy or rate limited');
         sending = true;lastMessageAt = now;
         try {
-          const accepted = await callbacks.onSendPrompt(text, meta);
+          const accepted = await callbacks.onSendPrompt(text, meta, () => validGeneration(version, token));
           if (!validGeneration(version, token)) return;
           if (accepted === false) throw fault(-32000, 'message was not queued');
           complete({});

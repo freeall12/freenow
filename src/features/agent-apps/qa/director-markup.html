@@ -1,0 +1,8 @@
+<!doctype html>
+<html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>导演批注 · 确定性接线验收</title>
+<style>body{background:#161616;color:#eee;font:14px system-ui;margin:24px;max-width:920px}textarea{box-sizing:border-box;width:100%;min-height:120px;background:#252525;color:#eee;border:1px solid #555;padding:12px}button{padding:8px 14px;margin:8px 8px 16px 0}output{display:block;white-space:pre-wrap;margin:10px 0}#cards{margin:16px 0}label{display:block;margin:8px 0}</style>
+<h1>导演批注 · 确定性接线验收</h1><p>使用原始官方页面和生产 registry、controller、host；本页保存真实批注并记录已排队正文。未调用模型，不生成视频。</p>
+<label for="draft">用于打开批注页的实际正文</label><textarea id="draft">林岚推开木门，停在雨里。她低头看见桌上的钥匙，慢慢走近，却没有伸手。窗外闪电掠过，屋内的人影在墙上晃了一下。</textarea>
+<button id="open" disabled>打开新批注页</button><button id="rerender" disabled>普通会话重绘</button><label><input id="busy" type="checkbox" disabled>模拟会话运行中（拒绝确认交接）</label><output id="status" aria-live="polite">正在读取本页专用 IndexedDB…</output><section id="cards"></section>
+<h2>实际已排队的批注交接</h2><p>相同已保存内容再次确认按 handoffId 去重；刷新恢复本页专用草稿和队列。</p><textarea id="reply" readonly aria-label="已排队的批注交接"></textarea>
+<script type="module" src="./director-markup.mjs"></script></html>

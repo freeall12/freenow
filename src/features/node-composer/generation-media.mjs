@@ -3,6 +3,7 @@ import {prepareGenerationRequest} from './generation-request.mjs';
 import {createWorkflowMediaResolver} from '../agent-workflows/media-resolver.mjs';
 import {prepareWorkflowInputs,assertWorkflowRequestBudget} from '../agent-workflows/media-transport.mjs';
 import {resolveProviderConfiguration,requestModelAlias} from './provider-configuration.mjs';
+import {prepareMinimaxNativeInputs,assertMinimaxNativeMedia} from '../video-generation/minimax-native.mjs';
 
 // Subject/library IDs name immutable submitted assets, not live canvas nodes. Canvas
 // identity checks belong to the submit-time host guard, never synthetic subject IDs.
@@ -16,6 +17,15 @@ export async function prepareGenerationMediaRequest(request,{
   const check=()=>{if(signal?.aborted)throw signal.reason??new DOMException('素材准备已取消','AbortError');validateSources();};
   check();
   let prepared=prepareGenerationRequest(structuredClone(request));
+  const minimaxNative=prepared.kind==='video.generate'&&nativeConfiguration?.protocol==='minimax-native';
+  const minimaxProfile=minimaxNative?nativeConfiguration.capabilities?.video?.[requestModelAlias(prepared)]:undefined;
+  if(minimaxNative){
+    prepared=prepareMinimaxNativeInputs(prepared,nativeConfiguration);
+    assertWorkflowRequestBudget(prepared);
+    // Asset identity is resolved without probing. Check other submitted URLs
+    // before a browser media element can contact them.
+    assertMinimaxNativeMedia((prepared.inputs||[]).filter(input=>!input.url?.startsWith('asset:')),{baseUrl,profile:minimaxProfile});
+  }
   const inlineImages=prepared.kind==='image.generate'&&nativeConfiguration?.protocol==='openai-native';
   if(inlineImages){
     const images=(prepared.inputs||[]).filter(input=>input.type==='image');
@@ -36,6 +46,7 @@ export async function prepareGenerationMediaRequest(request,{
     const value={...input,url:actual.url,...input.type==='image'||input.type==='video'?{width:actual.width,height:actual.height}:{},...input.type!=='image'?{duration:actual.duration,durationMs:Math.round(actual.duration*1000)}:{}};
     delete value.sourceUrl;resolved.push(value);
   }
+  if(minimaxNative)assertMinimaxNativeMedia(resolved,{baseUrl,decoded:true,profile:minimaxProfile});
   if(prepared.kind==='video.generate'){
     const variant=configuration(prepared.parameters||{},resolved)?.variant;
     for(const type of ['video','audio']){
@@ -57,7 +68,8 @@ export async function prepareGenerationMediaRequest(request,{
   }
   // Transport sees the complete request, including subject snapshots, for the 64 MiB limit.
   prepared={...prepared,inputs:resolved,parameters:alignSnapshots(resolved)};
-  const transferred=await transport(prepared,{signal,baseUrl,...inlineImages?{inlineImages:true,validateSources}:{}});check();
+  const transferred=await transport(prepared,{signal,baseUrl,...inlineImages||minimaxNative?{validateSources}:{},...inlineImages?{inlineImages:true}:{}});check();
+  if(minimaxNative)assertMinimaxNativeMedia(transferred.inputs,{baseUrl,decoded:true,transported:true,profile:minimaxProfile});
   // Native references were only resolved, never probed over the network. Decode
   // exactly the bytes produced by the constrained transport before dispatch.
   if(inlineImages)for(const [index,input]of transferred.inputs.entries()){

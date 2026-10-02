@@ -1,5 +1,7 @@
 # TapNow 复刻循环与覆盖清单
 
+2026-10-03 追加 [MiniMax H3 视频](MINIMAX-H3-SETUP.md)、[Tripo 3D](TRIPO-NATIVE-SETUP.md) 两条独立原生链路、导演批注 Agent 页面、原图历史来源恢复与片场浮层焦点。共享素材准备、GLB 真实字节本地保存及实际浏览器结果见 [本批验收](NATIVE-CREATION-AND-AGENT-APPS-20261003.md)。专项证据不代表真实生成质量或全站视觉验收；Marble/高斯泼溅保持未完成。
+
 2026-10-03 追加 [主体存储、视频延长素材准备与图片编辑来源](LOCAL-WORKFLOWS-20261003.md)。本批已做对应实际操作，全局功能与视觉范围仍保持开放。
 
 2026-10-03 原生Ark视频接口、IndexedDB会话/分镜持久化及媒体来源修复，见 [最新增量](LOCALIZATION-INCREMENT-20261003.md)。同日追加 [多供应商路由](MULTI-PROVIDER-SETUP.md)。视频上传、其他存储路径及全站视觉仍有明确未完成项；下面历史覆盖记录不是当前全量完成证明。

@@ -3,6 +3,8 @@ const {createHash}=require('node:crypto');
 const {createOpenAINativeProvider}=require('./generation-openai.cjs');
 const {createArkProvider}=require('./generation-ark.cjs');
 const {createFalProvider}=require('./generation-fal.cjs');
+const {createTripoProvider}=require('./generation-tripo.cjs');
+const {createMiniMaxProvider}=require('./generation-minimax.cjs');
 const {normalizeApiBaseUrl}=require('../generation-api.js');
 const {rejectCredentials}=require('./generation-durable.cjs');
 const object=value=>value&&typeof value==='object'&&!Array.isArray(value);
@@ -91,11 +93,14 @@ function createGenerationRouter({providers={},routes={},fetchImpl=fetch}={}){
   if(typeof providers==='string')providers=JSON.parse(providers);if(typeof routes==='string')routes=JSON.parse(routes);
   if(!object(providers)||!object(routes)||Object.keys(providers).length>100||Object.keys(routes).length>100)throw Error();
   for(const [id,config]of Object.entries(providers)){
-   if(!providerPattern.test(id)||!object(config)||!['tasks-v1','openai-native','ark-native','fal-native'].includes(config.protocol)||Object.keys(config).some(key=>!['protocol','baseUrl','apiKey','modelMap','client'].includes(key))||['baseUrl','apiKey'].some(key=>config[key]!==undefined&&typeof config[key]!=='string'))throw Error();
-   const provider=(config.protocol==='openai-native'?createOpenAINativeProvider:config.protocol==='ark-native'?createArkProvider:config.protocol==='fal-native'?createFalProvider:createTasksProvider)({...config,fetchImpl});
+   if(!providerPattern.test(id)||!object(config)||!['tasks-v1','openai-native','ark-native','fal-native','tripo-native','minimax-native'].includes(config.protocol)||Object.keys(config).some(key=>!['protocol','baseUrl','apiKey','modelMap','client'].includes(key))||['baseUrl','apiKey'].some(key=>config[key]!==undefined&&typeof config[key]!=='string'))throw Error();
+   const provider=(config.protocol==='openai-native'?createOpenAINativeProvider:config.protocol==='ark-native'?createArkProvider:config.protocol==='fal-native'?createFalProvider:config.protocol==='tripo-native'?createTripoProvider:config.protocol==='minimax-native'?createMiniMaxProvider:createTasksProvider)({...config,fetchImpl});
    if(config.protocol!=='tasks-v1'){
     const map=provider.metadata.configurationError?{}:typeof config.modelMap==='string'?JSON.parse(config.modelMap):config.modelMap||{};
-    provider.metadata={...provider.metadata,capabilities:{...provider.metadata.capabilities,models:Object.fromEntries(Object.entries(map).map(([alias,entry])=>[alias,{kind:entry.kind}]))}};
+    provider.metadata={...provider.metadata,capabilities:{...provider.metadata.capabilities,models:Object.fromEntries(Object.entries(map).map(([alias,entry])=>{
+     const label=provider.metadata.capabilities?.models?.[alias]?.label;
+     return [alias,{kind:entry.kind,...typeof label==='string'&&label.trim()&&label.length<=80?{label}:{}}];
+    }))}};
    }
    instances[id]=provider;
   }

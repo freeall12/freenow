@@ -18,7 +18,12 @@ export function install(options = {}) {
   if (installation) return installation;
   installation=(async()=>{
     const root=options.root || window, project=options.project || root.CanvasProjectContext.resolve(), app=options.app || root.CanvasApp;
+    // generation-ui starts this dynamic import before later classic asset
+    // scripts have necessarily loaded. Bind dependencies only after parsing,
+    // rather than retaining an undefined asset service for the whole project.
+    if(!options.assets&&!root.LocalAssets&&root.document?.readyState==='loading')await new Promise(resolve=>root.document.addEventListener('DOMContentLoaded',resolve,{once:true}));
     const store=options.store || root.CanvasStore, assets=options.assets || root.LocalAssets, fetcher=options.fetch || root.fetch.bind(root);
+    if(typeof assets?.url!=='function'||typeof assets?.put!=='function')throw Error('生成历史的本地素材服务尚未加载，请重试读取');
     const asDataUrl=options.asDataUrl || (blob=>root.LocalMedia.asDataUrl(blob));
     const archive=createArchiver({assets,fetch:fetcher,asDataUrl,validate:options.validate || validateMedia,
       inspectVideo:options.inspectVideo,

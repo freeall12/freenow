@@ -1,3 +1,4 @@
+import {mediaSource} from '../media-preview/provenance.mjs';
 const parameterKeys = ['model','modelId','provider','ratio','aspectRatio','aspect','resolution','quality','count','duration','durationMs','seed','negativePrompt','outputType','representation','modelType','isPano','material','tripoParams','voice','voiceId','language','speed','format','camera','lens','focal','aperture','cameraEnabled'];
 const unsafeKey = /token|secret|password|authorization|credential|api.?key/i;
 export function safeValue(value, depth = 0) {
@@ -17,8 +18,9 @@ export function safeSource(source) {
 export function outputSnapshot(output) {
   const type = output?.type;
   if (!['image','video','audio','model'].includes(type)) return null;
-  const source = safeSource(output.url || output[type]);
+  const source = safeSource(['image','video'].includes(type) ? mediaSource(output) : output.url || output[type]);
   const result = {type, ...(source ? {url: source} : {})};
+  if (typeof output.model === 'string' && output.model.trim()) result.model = safeValue(output.model.trim());
   for (const key of ['title','filename','format','sourceFileId','width','height','duration','representation']) if (output[key] !== undefined) result[key] = safeValue(output[key]);
   if(type==='video'&&output.sourceRange){const {start,end}=output.sourceRange;if(Number.isFinite(start)&&Number.isFinite(end)&&start>=0&&end>start){result.sourceRange={start,end};if(typeof output.text==='string')result.text=output.text.slice(0,12000);}}
   if(output.asset_metadata){const metadata=output.asset_metadata;result.asset_metadata=Object.fromEntries(['format','representation','name','bytes','model','outputType'].filter(key=>metadata[key]!==undefined).map(key=>[key,safeValue(metadata[key])]));}
@@ -35,4 +37,16 @@ export function listRows(rows, {type, search = ''} = {}) {
   return rows.filter(row => (!type || row.type === type) && (!query || [row.prompt,row.title,row.model,row.taskId].filter(Boolean).join(' ').toLocaleLowerCase().includes(query)))
     .sort((a,b) => b.createdAt.localeCompare(a.createdAt) || a.outputIndex - b.outputIndex || a.id.localeCompare(b.id));
 }
-export function groupRows(rows) { const groups = new Map(); for (const row of rows) { const date = row.createdAt.slice(0,10); if (!groups.has(date)) groups.set(date,[]); groups.get(date).push(row); } return [...groups]; }
+export function groupRows(rows) {
+  const groups = new Map();
+  for (const row of rows) {
+    // Receipts keep their UTC instant; group by the same local calendar day
+    // shown in the media preview rather than slicing the persisted ISO string.
+    const local = new Date(row.createdAt), date = Number.isFinite(local.getTime())
+      ? [local.getFullYear(),String(local.getMonth()+1).padStart(2,'0'),String(local.getDate()).padStart(2,'0')].join('-')
+      : '日期未知';
+    if (!groups.has(date)) groups.set(date,[]);
+    groups.get(date).push(row);
+  }
+  return [...groups];
+}

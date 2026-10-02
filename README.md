@@ -1,5 +1,7 @@
 # TapNow 无限画布本地复刻
 
+2026-10-03 新增 [MiniMax H3 原生视频](docs/MINIMAX-H3-SETUP.md)、独立的 [Tripo 原生 3D](docs/TRIPO-NATIVE-SETUP.md)、官方导演批注 Agent 页面与原图历史来源恢复；修复片场菜单焦点、历史启动时序和本地日期。实际浏览器操作与限制见 [本批验收](docs/NATIVE-CREATION-AND-AGENT-APPS-20261003.md)。真实供应商仍待配置 Key 和模型映射后联调。
+
 2026-10-03 新增 fal 官方队列原生接入：BiRefNet 抠图、Topaz 五种风格的 2x/4x 超分可配置 Key 与映射后使用，无需另建任务网关。图片读取改到具体操作配置检查之后，支持取消与有界传输。6x、Magnific、皮肤增强保留现有接口；真实效果待 Key 联调。见 [配置和本批验收](docs/FAL-NATIVE-SETUP.md)。
 
 2026-10-03 主体库已迁移至 IndexedDB 并保持跨画布共享；视频延长提交真实选区裁片，图片编辑及版本切换保留实际生成来源。只做相关检查，浏览器保存/刷新/裁片播放通过，见 [本地工作流补齐](docs/LOCAL-WORKFLOWS-20261003.md)。

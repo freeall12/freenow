@@ -75,3 +75,13 @@ test('planned generation stamps dispatched metadata rather than inheriting sourc
   assert.equal(target.provenance.kind,'generation-result');assert.equal(target.provenance.taskId,'run');assert.equal(target.provenance.mediaSource,output.url);assert.equal(preview.resources(JSON.parse(JSON.stringify(target)),{model:'default-model'})[0].model,'nano-banana-flash');
  }
 });
+
+test('image result mapping retains thumbnail display and the separate full-size source with matching provenance',async()=>{
+ const preview=await import('../media-preview-core.mjs');
+ for(const thumbnail of ['https://example.test/thumbnail.png',undefined]){
+  const f=await fixture({count:1});await f.prepare();const output={type:'image',image:thumbnail,fullImage:'https://example.test/full.png',model:'returned-model',width:1200,height:800};
+  await f.workflow.apply(f.job([output]),async()=>{});const node=f.state().nodes.find(n=>n.id===f.calls.apply[0].patches[0].id);
+  assert.equal(node.image,thumbnail||output.fullImage);assert.equal(node.fullImage,output.fullImage);assert.equal(node.provenance.mediaSource,output.fullImage);assert.equal(node.pixelWidth,1200);assert.equal(node.pixelHeight,800);
+  node.generation.model='later-request';assert.equal(preview.resources(node)[0].model,output.model);assert.equal(preview.resources(node)[0].src,output.fullImage);
+ }
+});

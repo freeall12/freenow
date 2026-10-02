@@ -1,4 +1,6 @@
-import {models, config, draft, references, prepare, signature} from './model.mjs';
+import {models, config, draft, references, prepare} from './model.mjs';
+import {captureWorldSourceGuard} from './media.mjs';
+import {worldProviderPresentation} from './provider-labels.mjs';
 import {icons} from '../canvas-connections/icons.mjs';
 import {controls} from './icons.mjs';
 import '../image-panorama/entry.mjs';
@@ -48,20 +50,23 @@ function openPopover(anchor, title, items, width = 280) {
 
 async function generate() {
   if (activeId && panel.querySelector('textarea')) update({});
+  const id = activeId;
   const {worldGenerationBusy} = await import('../agent-generation/world.mjs');
-  const node = get(activeId); if (!node || pending.has(node.id)) return;
+  const node = get(id); if (!node || pending.has(node.id)) return;
   if (worldGenerationBusy(app, node.id, window.GenerationAPI)) {app.notify('此世界节点已有生成任务，请查询已有任务'); return;}
   const refs = references(node.id, app.getState()), plan = prepare(node, refs);
   if (plan.error) {app.notify(plan.error); return;}
-  const expected = signature(node, refs), id = node.id;
-  const guard = () => {const current = get(id); if (!current || signature(current, references(id, app.getState())) !== expected) throw Error('3D 节点或参考素材已变化，请重新生成');};
+  const sourceGuard = captureWorldSourceGuard(node, refs, {getNode: get, resolveReferences: () => references(id, app.getState())});
+  let taskSignal;
+  const guard = () => {if (taskSignal?.aborted) throw new DOMException('世界生成已取消', 'AbortError'); sourceGuard();};
   pending.add(id); panelKey = null; refresh();
   try {
     await window.GenerationAPI.runInPlace(plan.request, {type: 'model', guard, apply: async output => {
+      guard();
       const resource = await import('./resource.mjs');
-      const patch = await resource.materialize(output, plan.model.outputType); guard();
+      guard();const patch = await resource.materialize(output, plan.model.outputType, {signal: taskSignal, validateSources: guard}); guard();
       app.updateNode(id, patch);
-    }});
+    }}, {onSubmitted: job => {taskSignal = job.controller?.signal;}});
   } catch (error) {app.notify(error.message);}
   finally {pending.delete(id); panelKey = null; refresh();}
 }
@@ -99,9 +104,15 @@ function build(node, refs, plan) {
     input.onkeydown = event => {if ((event.metaKey || event.ctrlKey) && event.key === 'Enter' && !composing) {event.preventDefault(); update({prompt: input.value}); void generate();}};
     panel.append(input);
   }
-  const footer = el('footer'), select = button(plan.model.label, () => openPopover(select, '选择模型', models.map(model => ({label: model.label, selected: model.id === settings.model, icon: model.icon,
+  let providerMetadata;
+  const presentation=model=>worldProviderPresentation(model,providerMetadata,{image:plan.imageCount>0});
+  const footer = el('footer'), select = button(plan.model.label, () => openPopover(select, '选择模型', models.map(model => ({label: presentation(model).label, selected: model.id === settings.model, icon: model.icon,
     detail: model.outputType === 'asset' ? '3D 物品 · 网格' : '3D 场景 · 高斯泼溅', run: () => update({model: model.id})}))));
   const logo = el('img'); logo.src = plan.model.icon; logo.alt = ''; select.prepend(logo); select.disabled = busy; footer.append(select);
+  Promise.resolve(window.GenerationAPI.configuration?.()).then(metadata=>{
+    if(!select.isConnected)return;providerMetadata=metadata;
+    const {label}=presentation(plan.model);select.lastChild.textContent=label;select.ariaLabel=label;select.title=label;
+  }).catch(()=>{});
   if (plan.model.provider === 'tripo') {
     const names = {geometry: '几何', texture: '纹理', pbr: 'PBR'};
     const material = button('3D 资产设置', () => openPopover(material, '材质', Object.entries(names).map(([key, label]) => ({label, selected: key === settings.material,

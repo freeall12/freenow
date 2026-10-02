@@ -26,7 +26,7 @@
   let videoMenus=null, videoFrames=null, referencePicker=null, framePicker=null, tailFrameKey=null;
   import('./src/features/canvas-reference-picker/entry.mjs').then(module=>{referencePicker=module;}).catch(error=>console.error('Canvas reference selection:',error));
   import('./src/features/video-generation/frames.mjs').then(module=>{videoFrames=module;if(node)draw();}).catch(error=>console.error('Video frames:',error));
-  const videoMenusReady=import('./src/features/video-generation/menus.mjs').then(module=>{videoMenus=module;if(node)draw();return module;}).catch(error=>{console.error('Video generation menus:',error);return null;});
+  const videoMenusReady=import('./src/features/video-generation/menus.mjs').then(module=>{videoMenus=module;if(node){if(['MiniMax-H3','MiniMax-H3-Max'].includes(module.modelFor(config.model)?.id))config=structuredClone(getConfig(node));draw();}return module;}).catch(error=>{console.error('Video generation menus:',error);return null;});
   let imageMenus=null, cameraControls=null, shortcutModule=null, shortcutController=null, popCleanup=null, menuRevision=0;
   import('./src/features/prompt-shortcuts/menu.mjs').then(module=>{shortcutModule=module;bindShortcuts();}).catch(error=>console.error('Prompt shortcuts:',error));
   const cameraReady=import('./src/features/camera-control/controls.mjs').then(module=>{cameraControls=module;if(node){config=structuredClone(getConfig(node));refreshFooter();position();}return module;}).catch(error=>{console.error('Camera controls:',error);return null;});
@@ -49,7 +49,27 @@
     if(previous.count!==config.count||previous.times!==config.times||previous.resultMode!==config.resultMode)save();
     refreshFooter();position();
   }
-  function getConfig(n){const saved=n.generation||n.params||drafts[n.id]||window.EDITOR_DATA?.nodes[n.id]||{};const value={...defaults(n),...cameraControls?.initialSettings(n,saved),...saved};if(saved.count===undefined&&saved.times!==undefined)value.count=saved.times;value.audioLabel=value.audioLabel||(value.audio?'开启':'关闭');return normalizeCountConfig(value,n);}
+  function getConfig(n){
+    const saved=n.generation||n.params||drafts[n.id]||window.EDITOR_DATA?.nodes[n.id]||{};
+    let value={...defaults(n),...cameraControls?.initialSettings(n,saved),...saved};
+    if(saved.count===undefined&&saved.times!==undefined)value.count=saved.times;
+    if(n.type==='video'&&['MiniMax-H3','MiniMax-H3-Max'].includes(videoMenus?.modelFor(value.model)?.id)){
+      const state=app.getState();
+      let inputs=composerLayout?.referencesFor(n,value,state,window.CanvasLibrary?.items||[],window.EDITOR_DATA?.nodes)||[
+        ...(value.refs||[]).map(url=>({type:'image',url})),
+        ...state.edges.filter(edge=>edge.target===n.id).map(edge=>state.nodes.find(source=>source.id===edge.source)).filter(Boolean)
+      ];
+      inputs=inputs.filter(input=>!input.empty);
+      if(composerLayout)inputs.push(...(composerLayout.assetReferences(value.prompt)||[]));
+      if(subjects&&subjects.subjectsEnabled(n.type,value))try{inputs=subjects.projectSubjects({kind:'video.generate',prompt:value.prompt,inputs,parameters:value},subjects.listSubjects()).inputs;}catch{}
+      // H3 has native audio and no audio switch. Reopening must not reintroduce
+      // the generic node defaults after JSON storage removes undefined fields.
+      value=videoMenus.configuration(value,inputs).settings;
+      delete value.audio;delete value.generateAudio;
+    }
+    value.audioLabel=value.audioLabel||(value.audio?'开启':'关闭');
+    return normalizeCountConfig(value,n);
+  }
   function save(patch={}){if(composerLayout)config=composerLayout.reconcilePrompt(config,references());if(!node.generation)node.generation=structuredClone(getConfig(node));drafts[node.id]=structuredClone(config);try{localStorage.setItem(nodeSettingsKey,JSON.stringify(drafts));}catch{}app.updateNode(node.id,{...patch,generation:structuredClone(config)});}
   function update(key,value){config[key]=value;save();draw();}
   function closePopover(restoreFocus=false){pendingAnchor=null;const anchor=popAnchor;popCleanup?.();popCleanup=null;menuRevision++;pop.hidden=true;anchor?.setAttribute('aria-expanded','false');popAnchor=null;pop.onkeydown=null;if(restoreFocus&&!panel.hidden&&anchor?.isConnected&&!anchor.disabled)anchor.focus({preventScroll:true});}

@@ -17,6 +17,23 @@ async function fixture(extra={}){
  return{host,iframe,document,window,sent,errors,sizes,prompts,saved,timers,intervals,nonce,emit,rpc,initialize,get ready(){return ready;},setCurrent(value){current=value;},response:id=>sent.findLast(item=>item.id===id),close(){host.dispose();Date.now=originalNow;}};
 }
 
+test('message commit source guard becomes stale on iframe reload before the queue receipt',async()=>{
+ const pending=deferred();let current;const f=await fixture({callbacks:{onSendPrompt:(text,meta,guard)=>{current=guard;return pending.promise;}}});
+ try{
+  f.initialize();f.rpc('pending-reload','ui/message',{content:[{type:'text',text:'confirmed app content'}]},true);
+  assert.equal(current(),true);f.iframe.emit('load');f.iframe.emit('load');assert.equal(current(),false);
+  pending.resolve(false);await tick();assert.equal(f.response('pending-reload'),undefined);
+ }finally{f.close();}
+});
+
+test('director markup explicit state budget persists and restores UTF-8 content up to 128KiB',async()=>{
+ const state={draft:'雨'.repeat(24000)},f=await fixture({widgetStateLimit:128*1024,initialWidgetState:state});try{
+  f.initialize();assert.deepEqual(f.sent.find(item=>item.method==='ui/notifications/tool-result').params._meta['tapnow/widgetState'],state);
+  f.rpc('large-state','tapnow/setWidgetState',{state});await tick();assert.deepEqual(f.response('large-state').result,{});assert.deepEqual(f.saved,[state]);
+  f.rpc('too-large-state','tapnow/setWidgetState',{state:{draft:'雨'.repeat(44000)}});assert.equal(f.response('too-large-state').error.code,-32602);assert.equal(f.saved.length,1);
+ }finally{f.close();}
+});
+
 test('official proxy handshake requires frame identity then nonce and initializes actual input/result/widgetState',async()=>{
  const f=await fixture();try{
   const ready=f.sent[0];assert.equal(ready.method,'ui/notifications/sandbox-resource-ready');assert.equal(ready.params.nonce,ready.nonce);assert.deepEqual(ready.params.resource,{name:'motion-picker',version:'v1'});

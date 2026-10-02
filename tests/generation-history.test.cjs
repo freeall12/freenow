@@ -102,3 +102,51 @@ test('scene source range and description survive archive refresh/import without 
  const archiver=createArchiver({assets:{url:async x=>x},fetch:async()=>new Response(new Blob(['actual'],{type:'video/mp4'})),validate:async()=>({width:320,height:240,duration:2}),asDataUrl:async()=> 'data:video/mp4;base64,YWN0dWFs'});
  const node=await archiver.node(row);assert.deepEqual(node.sourceRange,output.sourceRange);assert.equal(node.content,output.text);assert.equal(node.clip,undefined);assert.equal(node.durationMs,2000);
 });
+
+test('full-size result and provider model survive failed archive, refresh and original-output retry into preview',async()=>{
+ const [,,{createArchiver}]=await modules,{resources}=await import('../media-preview-core.mjs');
+ const output={type:'image',url:'https://example.test/preview.png',image:'https://example.test/preview.png',fullImage:'https://example.test/full.png',model:'provider-resolved-model'};
+ const original=structuredClone(output),job=task('full-result',{outputs:[output]}),first=await fixture({failArchive:()=>true});
+ await first.history.captureSubmission(job);await first.history.observe(job);
+ const saved=[...first.records.values()][0].receipts[0].outputs[0];assert.equal(saved.url,output.fullImage);assert.equal(saved.model,output.model);
+ const reopened=await fixture({records:first.records});await reopened.history.retry(job.id);const row=reopened.history.list()[0];
+ assert.equal(row.model,output.model);assert.equal(row.source,output.fullImage);assert.equal(row.parameters.model,'test-model');
+ const reads=[],blob=new Blob(['full resolution pixels'],{type:'image/png'}),source='data:image/png;base64,ZnVsbA==';
+ const archiver=createArchiver({assets:{url:async x=>x,put:async()=> 'asset:full-result'},fetch:async url=>{reads.push(url);return new Response(blob);},validate:async()=>({width:2400,height:1800}),asDataUrl:async()=>source,createMediaUrl:()=> 'blob:full-result',revokeMediaUrl(){}});
+ const archive=await archiver.archive(output,row);assert.equal(reads[0],output.fullImage);assert.deepEqual(output,original);
+ const node=await archiver.node({...row,...archive});node.generation={model:'next-request-model',prompt:'next request'};
+ const resource=resources(JSON.parse(JSON.stringify(node)),node.generation)[0];assert.equal(resource.src,source);assert.equal(resource.width,2400);assert.equal(resource.model,output.model);assert.equal(resource.prompt,job.request.prompt);assert.equal(resource.createdAt,row.createdAt);
+ node.fullImage='replacement-media';node.image='replacement-media';assert.equal(resources(node,node.generation)[0].model,null);
+});
+
+test('video history restores source-bound submitted metadata and analysis history omits generation model without a range',async()=>{
+ const [,,{createArchiver}]=await modules,{resources}=await import('../media-preview-core.mjs'),source='data:video/mp4;base64,YWN0dWFs';
+ const archiver=createArchiver({assets:{url:async x=>x},fetch:async()=>new Response(new Blob(['actual'],{type:'video/mp4'})),validate:async()=>({width:320,height:240,duration:2}),asDataUrl:async()=>source});
+ for(const kind of ['video.generate','video.analyze']){
+  const f=await fixture(),job=task(kind,{request:{kind,nodeId:'source',prompt:'original description',parameters:{model:'request-model'}},outputs:[{type:'video',url:'https://example.test/video.mp4',model:'output-model'}]});
+  await f.history.captureSubmission(job);await f.history.observe(job);const reopened=await fixture({records:f.records}),row=reopened.history.list()[0],node=await archiver.node(row);
+  node.generation.model='next-model';node.generation.prompt='next prompt';const resource=resources(node,node.generation)[0];
+  assert.equal(node.provenance.mediaSource,source);assert.equal(node.provenance.taskId,job.id);assert.equal(node.provenance.requestKind,kind);assert.equal(resource.createdAt,row.createdAt);
+  assert.equal(resource.model,kind==='video.generate'?'output-model':null);assert.equal(resource.prompt,kind==='video.generate'?'original description':'');assert.equal(node.provenance.kind,kind==='video.generate'?'generation-result':'video-analysis');
+ }
+});
+
+test('install waits for later asset script readiness instead of capturing an undefined service',async()=>{
+ const {install}=await import('../src/features/generation-history/entry.mjs');let domReady,reads=0,subscribed=false,assetReads=0;
+ const root={document:{readyState:'loading',addEventListener(type,callback,options){assert.equal(type,'DOMContentLoaded');assert.equal(options.once,true);domReady=callback;}},addEventListener(){},removeEventListener(){}};
+ const operation=install({root,project:{id:'asset-startup'},app:{notify(){}},store:{readRecord:async()=>{reads++;return null;},writeRecord:async()=>{}},generation:{subscribe(){subscribed=true;return()=>{};}},fetch:async()=>new Response(new Blob(['real pixels'],{type:'image/png'})),asDataUrl:async()=> 'data:image/png;base64,YWN0dWFs',validate:async()=>({width:1200,height:800})});
+ assert.equal(reads,0);assert.equal(subscribed,false);assert.equal(typeof domReady,'function');
+ root.LocalAssets={url:async value=>{assetReads++;return value;},put:async()=> 'asset:startup-image'};root.document.readyState='interactive';domReady();
+ const history=await operation;assert.equal(reads,1);assert.equal(subscribed,true);await history.captureSubmission(task('startup'));await history.observe(task('startup'));assert.equal(history.list()[0].archiveStatus,'ready');assert.equal(assetReads,1);history.dispose();
+});
+
+test('history dates group by the preview local day across eastern and western midnight without changing UTC records or sorting',()=>{
+ const {execFileSync}=require('node:child_process'),{pathToFileURL}=require('node:url'),path=require('node:path');
+ const source=pathToFileURL(path.resolve(__dirname,'../src/features/generation-history/model.mjs')).href;
+ const rows=[{id:'early',type:'image',outputIndex:0,createdAt:'2026-10-02T17:30:00.000Z'},{id:'latest',type:'image',outputIndex:0,createdAt:'2026-10-03T03:30:00.000Z'},{id:'previous-day',type:'image',outputIndex:0,createdAt:'2026-10-02T06:00:00.000Z'}];
+ const script=`import {groupRows,listRows} from ${JSON.stringify(source)}; const rows=${JSON.stringify(rows)}; const groups=groupRows(listRows(rows,{type:'image'})); process.stdout.write(JSON.stringify({groups:groups.map(([date,items])=>[date,items.map(item=>item.id)]),rows}));`;
+ for(const [timezone,dates]of [['Asia/Shanghai',['2026-10-03','2026-10-02']],['America/Los_Angeles',['2026-10-02','2026-10-01']]]){
+  const value=JSON.parse(execFileSync(process.execPath,['--input-type=module','-e',script],{env:{...process.env,TZ:timezone},encoding:'utf8'}));
+  assert.deepEqual(value.groups,[[dates[0],['latest','early']],[dates[1],['previous-day']]],timezone);assert.deepEqual(value.rows,rows);
+ }
+});

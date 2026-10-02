@@ -1,7 +1,7 @@
 (() => {
   'use strict';
   const app=window.CanvasApp;
-  let generationRequests,generationMedia,recognitionMedia,videoAnalysisMedia,extensionMedia,imageToolMedia,draftWorkflow,resultModules,resultWorkflow,failureBridge;
+  let generationRequests,generationMedia,recognitionMedia,videoAnalysisMedia,extensionMedia,imageToolMedia,worldMedia,draftWorkflow,resultModules,resultWorkflow,failureBridge;
   const failureSources=new Map();
   const resultSubmissions=new Map();
   const draftGuards=new Map();
@@ -22,6 +22,11 @@
     }
     return (await generationRequests).prepareGenerationRequestReady(request);
   },prepareInputs:async(request,{jobId,signal,validateSources,acceptSourceReplacements})=>{
+    if(request.kind==='world.generate'){
+      worldMedia||=import('./src/features/world-node/media.mjs');
+      const nativeConfiguration=service.jobs.get(jobId)?.transport===localProvider?taskNativeConfigurations.get(signal):null;
+      return (await worldMedia).prepareWorldMediaRequest(request,{signal,validateSources,localAssets:window.LocalAssets,localMedia:window.LocalMedia,baseUrl:document.baseURI,nativeConfiguration});
+    }
     if(['image.upscale','image.skin','image.remove-background'].includes(request.kind)){
       imageToolMedia||=import('./src/features/image-editor/task-media.mjs');
       const nativeConfiguration=service.jobs.get(jobId)?.transport===localProvider?taskNativeConfigurations.get(signal):null;
@@ -85,6 +90,14 @@
       if(provider===service.provider)return {configured:typeof configured==='boolean'?configured:null};
     }
   }
+  async function configuration(){
+    for(;;){
+      const provider=service.provider;
+      if(provider!==localProvider)return null;
+      const value=await serverConfiguration;
+      if(provider===service.provider)return value?structuredClone(value):null;
+    }
+  }
   function submitJob(request,options){
     if(request.kind==='image.generate'){
       const node=app.getState().nodes.find(node=>node.id===request.nodeId);
@@ -118,7 +131,8 @@
   function render(){tray.classList.toggle('is-collapsed',collapsed);tray.replaceChildren();if(!service.jobs.size)return;tray.hidden=false;const header=el('header');header.append(el('span','','生成任务'),button(collapsed?'展开':'收起',()=>{collapsed=!collapsed;render();}));tray.append(header);if(collapsed)return;for(const job of [...service.jobs.values()].reverse().slice(0,8)){const row=el('div','task-item');row.dataset.status=job.status;row.append(el('strong','',job.request.label||job.request.kind),el('span','task-status',(job.applicationError?'结果应用失败':job.applying?'正在应用结果…':(job.request.kind==='image.recognize'?recognitionLabels:job.request.kind==='video.analyze'?analysisLabels:labels)[job.status])+(job.status==='running'?' '+Math.round(job.progress)+'%':'')));if(job.error)row.append(el('p','',job.error));if(job.recovered&&job.status==='succeeded'&&!job.applied&&job.request.kind==='image.recognize')row.append(el('p','','识别记录已取回；原焦点会话已结束，请重新进入焦点编辑选择目标。'));if(job.recovered&&job.status==='succeeded'&&!job.applied&&job.request.kind!=='image.recognize'){if(job.request.parameters?.canvasResults)row.append(button('恢复到原占位',()=>applyRecovered(job.id,'existing').catch(error=>app.notify(error.message))));row.append(button('作为新节点取回',()=>applyRecovered(job.id,'new_nodes').catch(error=>app.notify(error.message))));}if(job.recovered&&['failed','cancelled','configuration_required'].includes(job.status)&&job.request.parameters?.canvasResults)row.append(button('清理原占位',()=>cancel(job.id)));if(job.status==='unknown'){row.append(button('查询恢复',()=>recover(job.id).catch(error=>app.notify(error.message))));if(job.recovery?.pollable===false)row.append(el('p','','暂无可查询的供应商任务标识；查询仅核对本机记录，不会重新发起任务。'));}if(job.applicationError){row.append(el('p','',job.applicationError));if(!job.recovered)row.append(button('重试应用结果',()=>retryApplication(job.id).catch(error=>app.notify(error.message))));}if(job.applying)row.append(el('p','','正在应用结果…'));const progress=el('progress');progress.max=100;progress.value=job.progress;row.append(progress);if(['running','queued','unknown'].includes(job.status))row.append(button('取消',()=>cancel(job.id)));if(!inPlace.has(job.id)&&['failed','cancelled','configuration_required'].includes(job.status))row.append(button('重试',()=>retry(job.id)));if(job.status==='configuration_required')row.append(button('连接 API',configure));tray.append(row);}}
   async function validateOutputMedia(output){
     if(!['image','video'].includes(output.type))return;
-    const source=output.url||output[output.type],media=output.type==='image'?new Image():document.createElement('video');
+    const {mediaSource}=await provenanceReady;
+    const source=mediaSource(output),media=output.type==='image'?new Image():document.createElement('video');
     try{await new Promise((resolve,reject)=>{const timer=setTimeout(()=>reject(Error('生成媒体读取超时')),20000),finish=fn=>()=>{clearTimeout(timer);fn();};media.onerror=finish(()=>reject(Error('生成媒体无法读取')));if(output.type==='image')media.onload=finish(()=>media.naturalWidth>0?resolve():reject(Error('图片内容为空')));else{media.preload='metadata';media.onloadedmetadata=finish(()=>media.videoWidth>0&&Number.isFinite(media.duration)?resolve():reject(Error('视频内容无效')));}Promise.resolve(window.LocalAssets?.url(source)||source).then(url=>{media.src=url;},reject);});if(output.type==='video')Object.assign(output,{width:media.videoWidth,height:media.videoHeight,duration:media.duration});else Object.assign(output,{width:media.naturalWidth,height:media.naturalHeight});}
     finally{media.onload=null;media.onerror=null;media.onloadedmetadata=null;if(output.type==='video'){media.removeAttribute('src');media.load();}}
   }
@@ -142,7 +156,7 @@
         if(o.type==='audio')patch={audio:await window.AudioAPI.localize(o.audio||o.url)};
         else if(o.type==='text')patch={content:o.text};
         else if(o.type==='video')patch={video:o.video||o.url,...(o.poster?{image:o.poster}:{} )};
-        else patch={image:o.image||o.url,fullImage:o.image||o.url};
+        else patch={image:o.image||o.url||o.fullImage,fullImage:o.fullImage||o.image||o.url};
         target.guard();
         if(o.type==='video'&&!target.apply){const history=await import('./video-history-core.mjs'),n=app.getState().nodes.find(n=>n.id===job.request.nodeId);target.guard();patch=history.record({...n,video:n.video||window.EDITOR_DATA?.nodes[n.id]?.video},job,window.NodeEditor.getConfig(n));window.NodeEditor.invalidate();}
         if(o.type==='image'&&!target.apply){const history=await import('./image-history-core.mjs'),n=app.getState().nodes.find(n=>n.id===job.request.nodeId);target.guard();patch=history.record(n,job,window.NodeEditor.getConfig(n),window.VERSION_DATA?.[n.id]);window.NodeEditor.invalidate();}
@@ -270,7 +284,7 @@
   }
   function retry(id){if(inPlace.has(id))throw Error('请通过整组执行重新启动工作流');const old=service.jobs.get(id);if(!old)return null;if(['unknown','queued','running'].includes(old.status))throw Error('请查询已有任务，不能重复生成');if(old.status==='succeeded'&&!old.applied)throw Error('生成已完成，请使用重试应用结果，避免重复调用生成服务');const target=derivedTargets.get(id);if(target){try{return submitDerived(old.request,target);}catch(error){app.notify(error.message);return null;}}return submit(old.request,{beforeDispatch:old.beforeDispatch,beforeDispatchReady:old.beforeDispatchReady});}
   function submitDerived(request,target){target.guard();const job=submitJob(request,{beforeDispatch:target.guard,beforeDispatchReady:target.beforeDispatchReady});derivedTargets.set(job.id,target);return job;}
-  window.GenerationAPI={submitDerived,runInPlace,availability,isConfigured:()=>service.provider===localProvider?serverConfigured:!!service.provider,submit,setProvider:p=>service.setProvider(p),configure,cancel,retry,retryApplication,recover,applyRecovered,subscribe:fn=>{const unsubscribe=service.subscribe(fn);applicationListeners.add(fn);return()=>{unsubscribe();applicationListeners.delete(fn);};},getJobs:()=>[...service.jobs.values()].map(({controller,...job})=>job)};
+  window.GenerationAPI={submitDerived,runInPlace,availability,configuration,isConfigured:()=>service.provider===localProvider?serverConfigured:!!service.provider,submit,setProvider:p=>service.setProvider(p),configure,cancel,retry,retryApplication,recover,applyRecovered,subscribe:fn=>{const unsubscribe=service.subscribe(fn);applicationListeners.add(fn);return()=>{unsubscribe();applicationListeners.delete(fn);};},getJobs:()=>[...service.jobs.values()].map(({controller,...job})=>job)};
   const generationHistoryReady=import('./src/features/generation-history/entry.mjs').then(module=>module.install());
   const historyDispatchReady=import('./src/features/generation-history/dispatch.mjs').then(({createHistoryDispatchGate})=>createHistoryDispatchGate({
     ready:()=>generationHistoryReady,getJob:id=>service.jobs.get(id),captureOptions:job=>({recoverable:job.transport===localProvider})

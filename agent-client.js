@@ -6,7 +6,7 @@
  const app=window.CanvasApp,clone=v=>structuredClone(v),el=(tag,cls,text)=>{const n=document.createElement(tag);if(cls)n.className=cls;if(text!==undefined)n.textContent=text;return n;};
  const btn=(icon,label,fn,cls='',text='')=>{const b=el('button',cls,text);b.type='button';if(icon)b.insertAdjacentHTML('afterbegin',window.STAGE_ICONS[label]||window.UI_ICONS[icon]||'');b.setAttribute('aria-label',label);b.title=label;b.onclick=fn;return b;};
  let panel=null,current=0,chats=[],skills=[],controller=null,busy=false,sessionId=null,pendingResolve=null,pendingTraceId=null;
- let messageRows=new WeakMap(),activeStream=null,streamSaveTimer=0,pageLeaving=false;
+ let messageRows=new WeakMap(),activeStream=null,streamSaveTimer=0,pageLeaving=false,appQueueSaving=false;
  let recoveryModule=null,recoveryController=null,recoveryEpoch=0,recoveryChatId=null,recoveryRunning=false,recoveryPreparing=false;
  const recoveryReady=Promise.all([import('./src/features/agent-recovery/model.mjs'),import('./src/features/agent-recovery/view.mjs'),import('./src/features/agent-recovery/journal.mjs'),import('./src/features/agent-recovery/generation-settlement.mjs')]).then(([model,view,journal,settlement])=>{recoveryModule={...model,...view,...journal,...settlement};const style=el('link');style.rel='stylesheet';style.href='src/features/agent-recovery/styles.css';document.head.append(style);recoveryController=model.createRecoveryController({request:data=>request('state',data),isCurrent:(record,scope)=>!pageLeaving&&!!panel&&!busy&&recoveryEpoch===scope.epoch&&project.id===scope.projectId&&draft()===scope.chat&&chats.includes(scope.chat)&&scope.chat.interruptedRuns?.includes(record),persist:async()=>{if(!save())throw Error('核对记录未能保存');await flushConversation();},changed:()=>{if(panel)render();}});return recoveryModule;});
  recoveryReady.catch(error=>notice('中断任务核对加载失败：'+error.message));
@@ -294,11 +294,11 @@
    return result;
   }
   case 'skills_save':{const {commitSkill}=await import('./src/features/agent-manager/skill-commit.mjs');const result=await commitSkill(a,{builtinNames:(await catalog()).map(skill=>skill.name)});return result;}
-  case 'world_read':return (await import('./src/features/agent-generation/world.mjs')).readWorld(a,{app});
+  case 'world_read':return (await import('./src/features/agent-generation/world.mjs')).readWorld(a,{app,metadata:await window.GenerationAPI.configuration?.()});
   case 'world_generate':{
    const {startWorldGeneration}=await import('./src/features/agent-generation/world.mjs');
-   const result=await startWorldGeneration(a,{app,api:window.GenerationAPI,signal,onSubmitted:onDepthSubmitted,materialize:async(output,type)=>(await import('./src/features/world-node/resource.mjs')).materialize(output,type)});
-   if(result.configurationRequired)return {nodeId:a.nodeId,status:'configuration_required',error:'3D 生成服务尚未配置，请连接支持 world.generate 的任务网关'};
+   const result=await startWorldGeneration(a,{app,api:window.GenerationAPI,signal,onSubmitted:onDepthSubmitted,materialize:async(output,type,options)=>(await import('./src/features/world-node/resource.mjs')).materialize(output,type,options)});
+   if(result.configurationRequired)return {nodeId:a.nodeId,status:'configuration_required',error:'3D 生成服务尚未配置，请配置 Tripo 原生接口或支持 world.generate 的任务网关'};
    return {nodeId:a.nodeId,taskId:result.job.id,status:result.job.status,applied:!!result.job.applied};
   }
   case 'generation_submit':{
@@ -488,6 +488,7 @@
  }
  function persistQueue(){if(!save())throw Error('队列未能写入本地存储');}
  function validateSubmission(d,item){
+  if(appQueueSaving)throw Error('应用消息正在保存，请稍后重试。');
   if(pageLeaving)throw Error('页面已离开，排队任务已暂停。');
   if(!modelModule)throw Error('模型控件正在加载，请稍后再试。');
   if(item.studioNodeId!== (d.studioNodeId||null))throw Error('排队任务所属片场已改变');
@@ -510,7 +511,7 @@
   if(apps)apps.style.bottom=(composeTop+12)+'px';
   if(list){const follow=list.scrollHeight-list.clientHeight-list.scrollTop<48;list.style.bottom=(appsVisible?composeTop+12+apps.offsetHeight+12:composeTop+(question?questionHeight:queueHeight)+20)+'px';if(follow)list.scrollTop=list.scrollHeight;}
  }
- function changeQueue(action){if(recoveryRunning){notice('中断任务恢复期间队列已锁定，请等待本次恢复结束');return;}const d=draft(),before=clone(d);try{action(d);persistQueue();queueView?.update(d.queuedMessages);render();}catch(error){Object.assign(d,before);notice(error.message);}}
+ function changeQueue(action){if(appQueueSaving){notice('应用消息正在保存，请稍后重试。');return;}if(recoveryRunning){notice('中断任务恢复期间队列已锁定，请等待本次恢复结束');return;}const d=draft(),before=clone(d);try{action(d);persistQueue();queueView?.update(d.queuedMessages);render();}catch(error){Object.assign(d,before);notice(error.message);}}
  function editQueued(id){changeQueue(d=>{const item=d.queuedMessages?.find(item=>item.id===id);if(!item)return;queueModule.restoreSubmission(d,item);d.queuedMessages=d.queuedMessages.filter(item=>item.id!==id);});focusComposer();}
  async function submitQuestionText(d){
   const trace=pendingQuestion(),view=questionView,original=d.text;if(!trace||!view)return;
@@ -521,12 +522,15 @@
    save();render();
   }
  }
- function saveAppState(chat,trace,state){
+ async function saveAppState(chat,trace,state){
   if(pageLeaving||!panel||draft()!==chat||!chat.messages.includes(trace)||trace.name!=='show_app'||trace.status!=='done'||trace.error||trace.result?.error)throw Error('应用所属会话已结束或切换');
-  const previous=trace.appState;trace.appState=state;if(!save()){if(previous===undefined)delete trace.appState;else trace.appState=previous;throw Error('应用状态未能保存');}
+  const previous=trace.appState;trace.appState=state;
+  try{if(!save())throw Error('应用状态未能保存');await flushConversation();}
+  catch(error){if(trace.appState===state){if(previous===undefined)delete trace.appState;else trace.appState=previous;}throw error;}
  }
- function queueWidgetPrompt(text,trace,chat,metadata){
+ function queueWidgetPrompt(text,trace,chat,metadata,isSourceCurrent=()=>true){
   if(recoveryRunning)return false;
+  if(appQueueSaving)return false;
   if(pageLeaving||!panel||draft()!==chat||!chat.messages.includes(trace)||!['show_widget','show_app'].includes(trace.name)||trace.status!=='done'||trace.error||trace.result?.error)throw Error('互动组件所在对话已结束或切换');
   const handoffId=trace.name==='show_app'?metadata?.handoffId:null;if(handoffId&&trace.appHandoffs?.includes(handoffId))return true;
   // Official app prompts are unavailable while a conversation is running.
@@ -539,12 +543,34 @@
   // Hidden changes presentation only; preserve the raw prompt and provenance.
   if(trace.name==='show_app'&&metadata?.hidden===true)submission.hidden=true;
   validateSubmission(chat,submission);const previousQueue=chat.queuedMessages,previousPause=chat.queuePauseReason,previousHandoffs=trace.appHandoffs;
-  chat.queuedMessages=[...(chat.queuedMessages||[]),submission];chat.queuePauseReason=null;
-  if(handoffId)trace.appHandoffs=[...(trace.appHandoffs||[]),handoffId];
-  try{persistQueue();}catch(error){chat.queuedMessages=previousQueue;chat.queuePauseReason=previousPause;if(previousHandoffs===undefined)delete trace.appHandoffs;else trace.appHandoffs=previousHandoffs;throw error;}
+  const nextQueue=[...(chat.queuedMessages||[]),submission],nextHandoffs=handoffId?[...(trace.appHandoffs||[]),handoffId]:previousHandoffs,resourceUri=trace.result?.resource_uri,appResult=trace.result,appState=trace.appState;
+  chat.queuedMessages=nextQueue;chat.queuePauseReason=null;
+  if(handoffId)trace.appHandoffs=nextHandoffs;
+  const rollback=()=>{
+   chat.queuedMessages=chat.queuedMessages===nextQueue?previousQueue:chat.queuedMessages.filter(item=>item!==submission);
+   if(chat.queuePauseReason===null)chat.queuePauseReason=previousPause;
+   if(handoffId){if(trace.appHandoffs===nextHandoffs){if(previousHandoffs===undefined)delete trace.appHandoffs;else trace.appHandoffs=previousHandoffs;}else if(trace.appHandoffs)trace.appHandoffs=trace.appHandoffs.filter(id=>id!==handoffId);}
+  };
+  if(trace.name==='show_app')appQueueSaving=true;
+  try{persistQueue();}catch(error){rollback();appQueueSaving=false;throw error;}
+  if(trace.name==='show_app')return track(async()=>{
+   let committed=false;
+   try{
+    // A successful app receipt owns a committed queue item and handoff ID.
+    // Keep the runner locked until persistence and source checks both finish.
+    await flushConversation();committed=true;
+    if(!isSourceCurrent()||pageLeaving||!panel||draft()!==chat||!chat.messages.includes(trace)||trace.name!=='show_app'||trace.status!=='done'||trace.error||trace.result?.error||trace.result!==appResult||trace.appState!==appState||trace.result?.resource_uri!==resourceUri||busy||recoveryRunning)throw Error('应用消息保存期间来源已切换或会话已开始');
+    appQueueSaving=false;render();void queueRunner.drain();return true;
+   }catch(error){
+    rollback();
+    if(committed){try{persistQueue();await flushConversation();}catch(failure){throw Error('应用消息撤销未能保存，请保留本页并重试：'+failure.message);}}
+    throw error;
+   }finally{appQueueSaving=false;}
+  });
   render();void queueRunner.drain();return true;
  }
  function send(){
+  if(appQueueSaving){notice('应用消息正在保存，请稍后重试。');return;}
   if(!conversationsLoaded){notice('会话仍在加载，请稍后重试');return;}
   const d=draft();if(pendingQuestion()){void submitQuestionText(d).catch(error=>notice(error.message));return;}if(!d.text.trim())return;
   if(!queueModule||!queueRunner){notice('队列模块正在加载，请稍后再试。');return;}

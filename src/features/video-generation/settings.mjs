@@ -1,5 +1,6 @@
 import {videoModels} from '../agent-generation/video-catalog.mjs';
 import {isDraftConfig,isFinalConfig} from './draft-final.mjs';
+import {assertMinimaxVideoChoices,isMinimaxH3} from './minimax-native.mjs';
 export const modelFor=value=>videoModels.find(m=>m.id===value||m.name===value||m.aliases.includes(value));
 export function shapeOf(inputs=[]){return Object.fromEntries(['image','video','audio'].map(type=>[type,new Set(inputs.filter(i=>i.type===type).map(i=>i.id||i.nodeId||i.key||i.url)).size]));}
 export function supports(variant,shape){
@@ -29,7 +30,8 @@ export function configuration(config,inputs=[]){
   const draft=isDraftConfig(config);
   const shape=shapeOf(inputs),modes=['首尾帧','全能参考','视频编辑'].filter(mode=>model.variants.some(v=>family(v.modelType)===mode));
   const requested=config.videoMode?family(config.videoMode):config.mode;
-  const mode=modes.includes(requested)?requested:(modes.includes('全能参考')?'全能参考':modes[0]);
+  const emptyMinimax=isMinimaxH3(model)&&!shape.image&&!shape.video&&!shape.audio;
+  const mode=emptyMinimax&&(!requested||requested==='全能参考')?'首尾帧':modes.includes(requested)?requested:(modes.includes('全能参考')?'全能参考':modes[0]);
   const candidates=variantsFor(model,mode,shape);
   const variant=candidates.find(v=>v.modelType===config.videoMode&&supports(v,shape))||candidates.find(v=>supports(v,shape))||candidates[0];
   const options=draft?{...variant.options,resolutions:['480p']}:variant.options,defaults=variant.defaults;
@@ -42,7 +44,7 @@ export function configuration(config,inputs=[]){
     audio:options.supportsAudio?(config.audio??config.generateAudio??defaults.generateAudio??false):undefined};
   settings.audioLabel=settings.audio?'开启':'关闭';
   if(draft)Object.assign(settings,{draft:true,quality:'480p',resolution:'480p'});
-  const modeOptions=modes.map(label=>({label,disabled:!variantsFor(model,label,shape).some(v=>supports(v,shape))}));
+  const modeOptions=modes.map(label=>({label,disabled:emptyMinimax&&label==='全能参考'||!variantsFor(model,label,shape).some(v=>supports(v,shape))}));
   const hints=[...new Set(model.variants.filter(v=>family(v.modelType)==='全能参考').map(v=>['image','video','audio'].map(type=>{const r=v['reference'+type[0].toUpperCase()+type.slice(1)+'Range'];return r?.max?`最多${r.max}${{image:'张图',video:'个视频',audio:'段音频'}[type]}`:null;}).filter(Boolean).join(' + ')).filter(Boolean))];
   const hint=hints.length>1?'支持以下任一种模式：\n'+hints.map(value=>'• '+value).join('\n'):hints[0]||'';
   return {model,variant,options,settings,modeOptions,hint,error:supports(variant,shape)?'':'所选生成方式不支持当前参考素材'};
@@ -51,6 +53,7 @@ export function prepareVideoRequest(request){
   if(request.kind!=='video.generate')return request;
   if((Object.hasOwn(request.parameters||{},'draftVideoId')||Object.hasOwn(request.parameters?.providerParameters||{},'draft_video_id'))&&!isFinalConfig(request.parameters))throw Object.assign(new Error('正式片需要有效的 Seedance 2.5 样片引用'),{code:'draft_reference_unavailable'});
   const data=configuration(request.parameters||{},request.inputs||[]);if(!data)return request;
+  assertMinimaxVideoChoices(request.parameters||{},data);
   if(data.error)throw Error(data.error);
   const s=data.settings;
   if(isFinalConfig(s)){

@@ -1,5 +1,6 @@
 import * as THREE from 'three';
-import {inspectModel, loadSaved, disposeModel} from '../studio-v2/model-io.mjs';
+import {inspectModel, loadSaved, disposeModel, disposeLoadedModel, maxBytes} from '../studio-v2/model-io.mjs';
+import {materializationScope, readModelBlob} from './materialization.mjs';
 import {previewChrome} from './preview-chrome.mjs';
 import {DEFAULT_FOCAL, viewportFov, captureSize} from './preview-optics.mjs';
 import {previewEnvironment, previewLights} from './preview-environment.mjs';
@@ -9,10 +10,11 @@ import {previewNavigation} from './preview-navigation.mjs';
 const app = window.CanvasApp;
 const el = (tag, cls, text) => {const node = document.createElement(tag); node.className = cls || ''; if (text !== undefined) node.textContent = text; return node;};
 let current;
-function stage(model, canvas) {
+function stage(model, canvas, loaded) {
   const bounds = new THREE.Box3().setFromObject(model), center = bounds.getCenter(new THREE.Vector3());
   if (bounds.isEmpty()) throw Error('模型没有可显示的几何体');
   const renderer = new THREE.WebGLRenderer({canvas, antialias: true, preserveDrawingBuffer: true, alpha: false});
+  try {
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2)); renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   const scene = new THREE.Scene(); scene.background = new THREE.Color('#050505'); scene.add(model);
@@ -38,32 +40,45 @@ function stage(model, canvas) {
     if (width !== renderedWidth || height !== renderedHeight) {renderer.setSize(width, height, false); renderedWidth = width; renderedHeight = height;}
     camera.aspect = width / height; camera.updateProjectionMatrix(); renderer.render(scene, camera);
   }
-  function dispose() {disposeModel(model); renderer.dispose(); renderer.forceContextLoss();}
+  let disposed = false;
+  function dispose() {if (disposed) return; disposed = true; if (loaded) disposeLoadedModel(loaded); else disposeModel(model); renderer.dispose(); renderer.forceContextLoss();}
   return {renderer, scene, camera, center, minDistance, maxDistance, render, dispose};
+  } catch (error) {renderer.dispose(); renderer.forceContextLoss(); throw error;}
 }
 function png(canvas) {return new Promise((resolve, reject) => canvas.toBlob(blob => blob ? resolve(blob) : reject(Error('预览图片编码失败')), 'image/png'));}
 
-async function localize(file, outputType = 'asset') {
-  const {loaded} = await inspectModel(file), canvas = document.createElement('canvas'); let view;
+async function localize(file, outputType = 'asset', scope) {
+  const canvas = document.createElement('canvas'); let view, prepared;
   try {
-    view = stage(loaded.scene, canvas); view.render(600, 400);
-    const thumbnail = await png(canvas), url = await window.LocalAssets.put(file), image = await window.LocalAssets.put(thumbnail);
+    prepared = await scope.wait(() => inspectModel(file, [], {signal: scope.signal}), {disposeLate: value => disposeLoadedModel(value.loaded)});
+    view = stage(prepared.loaded.scene, canvas, prepared.loaded); view.render(600, 400); scope.check();
+    const thumbnail = await scope.wait(() => png(canvas));
     // Covers use a durable data URL because legacy canvas renderers read img.src
     // directly; the source model remains a blob in the workspace asset store.
-    const cover = await new Promise((resolve, reject) => {const reader = new FileReader(); reader.onload = () => resolve(reader.result); reader.onerror = reject; reader.readAsDataURL(thumbnail);});
+    const cover = await scope.wait(() => window.LocalMedia.asDataUrl(thumbnail));
+    const url = await scope.wait(() => window.LocalAssets.put(file)), image = await scope.wait(() => window.LocalAssets.put(thumbnail));
+    scope.check();
     return {image: cover, outputType, worldResource: {format: 'glb', url, thumbnail: image, name: file.name, bytes: file.size}};
-  } finally {if (view) view.dispose(); else disposeModel(loaded.scene);}
+  } finally {if (view) view.dispose(); else if (prepared) disposeLoadedModel(prepared.loaded);}
 }
 export async function importFile(file) {
   if (!/\.glb$/i.test(file.name)) throw Error('请选择 .glb 文件');
-  return localize(file);
+  const scope = materializationScope();
+  try {return await localize(file, 'asset', scope);} finally {scope.close();}
 }
-export async function materialize(output, outputType) {
-  const url = output.url || output.model;
+export async function materialize(output, outputType, options = {}) {
+  const url = output?.url || output?.model;
+  if (typeof url !== 'string' || !url) throw Error('3D 结果缺少实际模型地址');
   if (output.format && output.format !== 'glb') throw Error('此 3D 结果格式的渲染器尚未接入；请保留任务结果，或由适配器返回 GLB');
-  const response = await fetch(await window.LocalAssets.url(url));
-  if (!response.ok) throw Error('3D 结果读取失败');
-  return localize(new File([await response.blob()], output.filename || 'generated.glb', {type: 'model/gltf-binary'}), outputType);
+  const scope = materializationScope(options);
+  try {
+    const resolved = await scope.wait(() => window.LocalAssets.url(url));
+    let response;
+    try {response = await scope.wait(() => fetch(resolved, {signal: scope.signal}), {disposeLate: value => value.body?.cancel?.().catch(() => {})});}
+    catch (error) {scope.check(); throw Object.assign(Error('3D 结果读取失败，请检查网络、地址及跨域 CORS 后从原任务重试'), {code: 'world_download_failed', cause: error});}
+    const blob = await readModelBlob(response, scope, maxBytes);
+    return await localize(new File([blob], output.filename || 'generated.glb', {type: 'model/gltf-binary'}), outputType, scope);
+  } finally {scope.close();}
 }
 export async function download(node) {
   const link = el('a'); link.href = await window.LocalAssets.url(node.worldResource.url); link.download = node.worldResource.name || node.title + '.glb'; link.click();
@@ -87,8 +102,8 @@ export async function preview(node, {panoramaUrl = null} = {}) {
     if (panoramaUrl) view = await (await import('./panorama-stage.mjs')).panoramaStage(panoramaUrl, canvas);
     else {
       const loaded = await loadSaved(node.worldResource.url);
-      if (!alive) {disposeModel(loaded.scene); return;}
-      view = stage(loaded.scene, canvas);
+      if (!alive) {disposeLoadedModel(loaded); return;}
+      try {view = stage(loaded.scene, canvas, loaded);} catch (error) {disposeLoadedModel(loaded); throw error;}
     }
     if (!alive) {view.dispose(); return;}
     status.hidden = true;

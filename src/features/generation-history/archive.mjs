@@ -1,4 +1,5 @@
 import {inspectVideoThumbnail} from './video-thumbnail.mjs';
+import {mediaSource,resultProvenance} from '../media-preview/provenance.mjs';
 export function createArchiver({assets, fetch: fetcher, asDataUrl, validate, materializeWorld, localizeAudio,inspectVideo=inspectVideoThumbnail,createMediaUrl=blob=>URL.createObjectURL(blob),revokeMediaUrl=url=>URL.revokeObjectURL(url)}) {
   async function blob(source,{signal}={}) {
     if (!source) throw Error('原始媒体地址不可恢复，请查询原任务');
@@ -16,7 +17,7 @@ export function createArchiver({assets, fetch: fetcher, asDataUrl, validate, mat
       const mediaRef = await localizeAudio(output.url || output.audio);
       const value = await blob(mediaRef); return {mediaRef, mime: value.type, bytes: value.size};
     }
-    const value = await blob(output.url || output[output.type]);
+    const value = await blob(mediaSource(output));
     if (value.size > 100 * 1024 * 1024) throw Error('历史媒体超过本地归档的 100MB 上限');
     if (value.type && !value.type.startsWith(output.type + '/')) throw Error('历史媒体类型与生成结果不一致');
     const previewUrl = createMediaUrl(value); let dimensions,thumbnailRef=null,thumbnailError=null,thumbnailBlob;
@@ -44,17 +45,20 @@ export function createArchiver({assets, fetch: fetcher, asDataUrl, validate, mat
   async function node(row) {
     if (row.archiveStatus !== 'ready') throw Error('历史素材尚未保存，请先重试归档');
     const base = {id: row.id, type: row.type === 'model' ? 'world' : row.type, title: row.title, x:0,y:0,width:375,height:250,
-      generation: {...row.parameters, prompt: row.prompt, model: row.model}, sourceFileId: row.sourceFileId, generationHistory: {taskId:row.taskId,outputIndex:row.outputIndex,createdAt:row.createdAt}};
+      generation: {...row.parameters, prompt: row.prompt, model: row.model}, createdAt:row.createdAt, sourceFileId: row.sourceFileId, generationHistory: {taskId:row.taskId,outputIndex:row.outputIndex,createdAt:row.createdAt}};
     if (row.type === 'model') { await blob(row.worldPatch.worldResource.url); return {...base,...structuredClone(row.worldPatch),worldConfig:{...row.parameters,prompt:row.prompt,model:row.model}}; }
     const value = await blob(row.mediaRef);
     if (row.type === 'audio') return {...base,audio:row.mediaRef,audioMode:'upload',durationMs:row.duration ? row.duration * 1000 : undefined};
     const source = await asDataUrl(value), dimensions = await validate(row.type,source);
+    // Bind the saved task metadata to the materialized full-size file, so
+    // changing the next composer request cannot relabel a historical result.
+    const provenance=resultProvenance({id:row.taskId,request:{kind:row.kind,prompt:row.prompt,parameters:{model:row.model}}},{type:row.type,url:source,sourceRange:row.sourceRange});
     const ratio = dimensions.width / dimensions.height;
     if (Number.isFinite(ratio) && ratio > 0) base.height = 375 / ratio;
-    if (row.type === 'image') return {...base,image:source,fullImage:source,pixelWidth:dimensions.width,pixelHeight:dimensions.height};
+    if (row.type === 'image') return {...base,...provenance,image:source,fullImage:source,pixelWidth:dimensions.width,pixelHeight:dimensions.height};
     let image=null;if(row.thumbnailRef)try{image=await asDataUrl(await blob(row.thumbnailRef));}catch{/* A missing optional cover must not invalidate the archived video. */}
     const range=row.sourceRange,sourceRange=range&&Number.isFinite(range.start)&&Number.isFinite(range.end)&&range.start>=0&&range.end>range.start?{start:range.start,end:range.end}:undefined;
-    return {...base,video:source,image,durationMs:dimensions.duration * 1000,...(sourceRange?{sourceRange,content:row.text||''}:{})};
+    return {...base,...provenance,video:source,image,durationMs:dimensions.duration * 1000,...(sourceRange?{sourceRange,content:row.text||''}:{})};
   }
   return {archive,node,blob,thumbnail};
 }

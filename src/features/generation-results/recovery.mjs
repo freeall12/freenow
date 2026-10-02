@@ -15,8 +15,8 @@ export async function importRecoveredOutputs(job,{app,validateMedia,localizeAudi
   if(job.resultIds?.length)throw Error('上次已创建的恢复节点不再完整，未重复创建');
   await Promise.all(outputs.map(validateMedia));
   const materialized=await Promise.all(outputs.map(async(output,index)=>({...output,...resultProvenance(job,output),
-    image:output.image||(output.type==='image'?output.url:output.poster),
-    fullImage:output.type==='image'?(output.image||output.url):undefined,
+    image:output.image||(output.type==='image'?output.url||output.fullImage:output.poster),
+    fullImage:output.type==='image'?(output.fullImage||output.image||output.url):undefined,
     video:output.video||(output.type==='video'?output.url:undefined),
     audio:output.type==='audio'?await localizeAudio(output.audio||output.url):undefined,
     content:output.text,...(output.type==='text'?{textMode:'pure'}:{}),

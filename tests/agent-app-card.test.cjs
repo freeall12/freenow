@@ -21,6 +21,15 @@ test('local trace adapter passes registry resource, request, response and saved 
  }finally{f.close();}
 });
 
+test('card forwards the live iframe message guard throughout an asynchronous commit',async()=>{
+ let current,release;const pending=new Promise(resolve=>{release=resolve;});
+ const f=await fixture({hostOptions:{callbacks:{onSendPrompt:(text,meta,guard)=>{current=guard;return pending;}}}});
+ try{
+  let iframeCurrent=true;const sent=f.hosts[0].options.callbacks.onSendPrompt('confirmed',undefined,()=>iframeCurrent);
+  assert.equal(current(),true);iframeCurrent=false;assert.equal(current(),false);release(true);assert.equal(await sent,false);
+ }finally{f.close();}
+});
+
 test('inline size clamps, expansion preserves frame, Escape/backdrop collapse and focus restores',async()=>{
  const f=await fixture();try{
   const host=f.hosts[0],iframe=f.card.element.querySelector('iframe'),context=iframe.contentWindow,dialog=f.card.element.querySelector('[role=dialog]'),button=f.document.querySelector('#before');host.options.callbacks.onReady();host.options.callbacks.onSizeChanged(800);assert.equal(iframe.style.height,'520px');host.options.callbacks.onSizeChanged(20);assert.equal(iframe.style.height,'100px');host.options.callbacks.onSizeChanged(320);button.focus();f.card.setExpanded(true);

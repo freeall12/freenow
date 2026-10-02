@@ -107,7 +107,7 @@ test('new composer and widget submissions cannot start a queue during recovery p
   const fs = require('node:fs'), vm = require('node:vm'), sourceCode = fs.readFileSync(require.resolve('../agent-client.js'), 'utf8');
   const chat = {text: '新的排队任务', interruptedRuns: [{submissionId: 'original'}], queuedMessages: []}, notices = [];
   let drains = 0;
-  const context = vm.createContext({recoveryRunning: true, conversationsLoaded: true, draft: () => chat, pendingQuestion: () => null,
+  const context = vm.createContext({recoveryRunning: true, appQueueSaving: false, conversationsLoaded: true, draft: () => chat, pendingQuestion: () => null,
     notice: text => notices.push(text), queueModule: {}, queueRunner: {drain: () => drains++}, clone: () => {throw Error('must not replace existing task identity');}});
   const sendStart = sourceCode.indexOf(' function send(){'), sendEnd = sourceCode.indexOf(' async function runSubmission', sendStart);
   const widgetStart = sourceCode.indexOf(' function queueWidgetPrompt('), widgetEnd = sourceCode.indexOf(' function send(){', widgetStart);

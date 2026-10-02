@@ -55,3 +55,12 @@ test('recovering media persists original request provenance and keeps analyzed c
   const restored=JSON.parse(JSON.stringify(nodes[1]));assert.equal(restored.provenance.taskId,'original-task');assert.equal(preview.resources(restored,{model:'Seedance 2.0'})[0].model,kind==='video.generate'?'dispatched-model':null);
  }
 });
+
+test('recovered images preserve distinct full-size media and thumbnail through saved-node recovery',async()=>{
+ const {importRecoveredOutputs}=await import('../src/features/generation-results/recovery.mjs'),preview=await import('../media-preview-core.mjs');
+ const nodes=[{id:'source',type:'image'}],output={type:'image',image:'https://example.test/thumb.png',fullImage:'https://example.test/full.png',width:1200,height:800,model:'returned-model'},job={id:'full-image-task',status:'succeeded',request:{kind:'image.generate',nodeId:'source',prompt:'original prompt',parameters:{model:'request-model'}},outputs:[output]};let creates=0;
+ const options={app:{getState:()=>({nodes}),createConnected:(_,values)=>{creates++;const added=values.map((value,index)=>({...value,id:'output-'+index}));nodes.push(...added);return added;}},validateMedia:async()=>{},localizeAudio:async value=>value,persist:async()=>{}};
+ await importRecoveredOutputs(job,options);assert.equal(nodes[1].image,output.image);assert.equal(nodes[1].fullImage,output.fullImage);assert.equal(nodes[1].provenance.mediaSource,output.fullImage);
+ nodes[1].generation={model:'later-request'};const resource=preview.resources(nodes[1])[0];assert.equal(resource.model,output.model);assert.equal(resource.src,output.fullImage);assert.equal(resource.prompt,job.request.prompt);
+ await importRecoveredOutputs({...job,resultIds:undefined},options);assert.equal(creates,1);
+});

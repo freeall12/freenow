@@ -36,7 +36,7 @@ export function createHistory({projectId,store,archive,lookup,changed = () => {}
       const id = job.id + ':' + index, existing = state.rows.find(row=>row.id===id);
       const metadata = {...original,...receipt(job,projectId,original.recoverable)};
       const row = {...existing,id,taskId:job.id,outputIndex:index,projectId,type:outputs[index].type,kind:metadata.kind,sourceNodeId:metadata.sourceNodeId,createdAt:metadata.createdAt,
-        prompt:metadata.prompt,parameters:metadata.parameters,model:metadata.parameters.model || metadata.parameters.modelId || '',title:outputs[index].title || metadata.prompt || metadata.kind,
+        prompt:metadata.prompt,parameters:metadata.parameters,model:outputs[index].model || existing?.model || metadata.parameters.model || metadata.parameters.modelId || '',title:outputs[index].title || metadata.prompt || metadata.kind,
         sourceFileId:outputs[index].sourceFileId || null,source:outputs[index].url || null,width:outputs[index].width,height:outputs[index].height,duration:outputs[index].duration,format:outputs[index].format,filename:outputs[index].filename,sourceRange:outputs[index].sourceRange,text:outputs[index].text,application,updatedAt:stamp()};
       if (existing?.archiveStatus === 'ready') { upsert('rows',id,row); continue; }
       upsert('rows',id,{...row,archiveStatus:'pending',archiveError:null});

@@ -43,6 +43,17 @@ test('cancellation or failed durable receipt cannot become acknowledged world su
  await assert.rejects(other.start({nodeId:'world'}),{name:'AbortError'});assert.equal(other.calls,0);
 });
 
+test('Agent probes the selected world alias and leaves full media preparation to TaskService',async()=>{
+ const f=await fixture();f.state.nodes.push({id:'image',type:'image',image:'asset:thumbnail',fullImage:'asset:full-source'});
+ f.defaults.prepareMedia=()=>assert.fail('Agent must not read media before shared TaskService');
+ f.defaults.api.availability=async({request})=>{assert.equal(request.kind,'world.generate');assert.equal(request.parameters.model,'tripo-image-to-model-h3');assert.equal(request.inputs[0].url,'asset:full-source');return {configured:true};};
+ const result=await f.start({nodeId:'world',referenceIds:['image'],prompt:''});
+ assert.equal(f.request.inputs[0].url,'asset:full-source');f.finish();await result.completion;
+ const changed=await fixture();changed.state.nodes.push({id:'image',type:'image',fullImage:'asset:full-source'});
+ changed.defaults.api.availability=async()=>{changed.state.nodes[1]={...changed.state.nodes[1]};return {configured:true};};
+ await assert.rejects(changed.start({nodeId:'world',referenceIds:['image'],prompt:''}),{code:'world_source_changed'});assert.equal(changed.calls,0);
+});
+
 function canvasAddFixture(){
  const fs=require('node:fs'),source=fs.readFileSync(require.resolve('../agent-client.js'),'utf8');
  const prefix="case 'canvas_add':{",start=source.indexOf(prefix),end=source.indexOf("case 'canvas_update':",start);

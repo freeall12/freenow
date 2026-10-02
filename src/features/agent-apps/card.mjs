@@ -60,7 +60,7 @@ export function createMcpAppCard({trace,policy={},createHost,hostOptions={},auto
    onReady(){if(!live())return;state='ready';failure=null;wasReady=true;stopRetry();retryRemaining=null;sync();host?.updateConversationRunActive?.(!!options.runActive);if(wantsAutoExpand&&currentPolicy.autoExpandOnReady&&!autoExpanded&&!suspended){autoExpanded=true;setExpanded(true);}else if(expanded&&dialog.isConnected)dialog.focus({preventScroll:true});callbacks.onReady?.();},
    onError(value){if(!live())return;fail(value,version);callbacks.onError?.(value);},
    onSizeChanged(height){if(!live()||ignoreResize||typeof height!=='number'||!Number.isFinite(height))return;const max=currentPolicy.maxInlineHeight;inlineHeight=Math.max(height,100);if(Number.isFinite(max))inlineHeight=Math.min(inlineHeight,Math.max(max,100));sync();callbacks.onSizeChanged?.(height);},
-   async onSendPrompt(text,meta){if(!live()||!actionCurrent()||!callbacks.onSendPrompt)return false;const accepted=await callbacks.onSendPrompt(text,meta);if(!live()||!actionCurrent())return false;if(accepted!==false&&currentPolicy.collapseOnSendMessage)setExpanded(false);return accepted;}
+   async onSendPrompt(text,meta,isSourceCurrent=()=>true){if(!live()||!actionCurrent()||!isSourceCurrent()||!callbacks.onSendPrompt)return false;const current=()=>live()&&actionCurrent()&&isSourceCurrent();const accepted=await callbacks.onSendPrompt(text,meta,current);if(!current())return false;if(accepted!==false&&currentPolicy.collapseOnSendMessage)setExpanded(false);return accepted;}
   };
  }
  function start(){

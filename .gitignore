@@ -113,3 +113,6 @@ reference/*
 !qa/local-workflows-controls.mjs
 !qa/fal-native-fixture.js
 !qa/fal-native-controls.mjs
+
+!qa/native-creation-fixture.js
+!qa/native-creation-controls.mjs

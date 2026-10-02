@@ -1,6 +1,7 @@
 import {createMcpAppCard} from './card.mjs';
 import {createMcpAppHost} from './host.mjs';
 import {prepareApp,appPolicy,getApp,copyAppState} from './registry.mjs';
+import {resolveDirectorMarkupReply} from './director-markup.mjs';
 export {prepareApp};
 
 export function createAppController({getContext,onQueuePrompt,onSaveState,onError=()=>{}}){
@@ -16,9 +17,16 @@ export function createAppController({getContext,onQueuePrompt,onSaveState,onErro
   const policy=appPolicy(trace.result.resource_uri);
   if(!record){
    record={trace,chat:context.chat,resourceUri:trace.result.resource_uri,disposed:false,card:null};records.set(trace.id,record);
-   record.card=createMcpAppCard({trace,policy,createHost:createMcpAppHost,hostOptions:{isCurrent:()=>current(record),allowResource:uri=>!!getApp(uri),callbacks:{
-    onSetWidgetState:async value=>{if(!current(record))throw Error('应用所属会话已切换');const state=copyAppState(value);await onSaveState(record.chat,trace,state);if(!current(record))throw Error('应用所属会话已切换');},
-    onSendPrompt:async(text,metadata)=>{if(!current(record))return false;try{return await onQueuePrompt(text,trace,record.chat,metadata)!==false;}catch(error){if(current(record))onError(error.message);return false;}},
+   record.card=createMcpAppCard({trace,policy,createHost:createMcpAppHost,hostOptions:{isCurrent:()=>current(record),allowResource:uri=>!!getApp(uri),widgetStateLimit:getApp(record.resourceUri).stateLimit,callbacks:{
+    onSetWidgetState:async value=>{if(!current(record))throw Error('应用所属会话已切换');const state=copyAppState(value,getApp(record.resourceUri).stateLimit);await onSaveState(record.chat,trace,state);if(!current(record))throw Error('应用所属会话已切换');},
+    onSendPrompt:async(text,metadata,isSourceCurrent=()=>true)=>{if(!current(record)||!isSourceCurrent())return false;try{
+     if(record.resourceUri==='ui://tapnow/director-markup@v1'){
+      const savedState=trace.appState,reply=await resolveDirectorMarkupReply(text,trace.result.response.draft,savedState);
+      if(!current(record)||!isSourceCurrent()||getContext().streaming||trace.appState!==savedState)return false;
+      text=reply.text;metadata={...metadata,...reply.metadata};
+     }
+     return await onQueuePrompt(text,trace,record.chat,metadata,()=>current(record)&&isSourceCurrent())!==false;
+    }catch(error){if(current(record))onError(error.message);return false;}},
    }}});
   }
   record.card.update(trace,{policy,runActive:!!context.streaming,locale:'zh-CN'});return record.card.element;

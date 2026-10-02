@@ -24,7 +24,7 @@ export function resolveProviderConfiguration(metadata,request){
 
 export function providerConfigured(metadata,request){
   const selected=resolveProviderConfiguration(metadata,request);
-  if((metadata?.protocol==='routed'||selected?.protocol==='fal-native')&&request?.kind&&selected?.configured===true&&selected.protocol!=='tasks-v1'){
+  if((metadata?.protocol==='routed'||['fal-native','tripo-native','minimax-native'].includes(selected?.protocol))&&request?.kind&&selected?.configured===true&&selected.protocol!=='tasks-v1'){
     if(selected.capabilities?.kinds?.includes(request.kind)!==true)return false;
     const models=selected.capabilities?.models;
     const alias=requestModelAlias(request);
