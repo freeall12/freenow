@@ -1,4 +1,4 @@
-import {libraryPickerUri, libraryPickerImageDomains, libraryPickerTypes, prepareLibraryPicker, validateLibraryPickerFindRequest, validateLibraryPickerState, resolveLibraryPickerContext, resolveLibraryPickerReply, validateLibraryPickerCanvasRequest} from './library-picker.mjs';
+import {libraryPickerUri, libraryPickerTypes, prepareLibraryPicker, validateLibraryPickerFindRequest, validateLibraryPickerState, resolveLibraryPickerContext, resolveLibraryPickerReply, validateLibraryPickerCanvasRequest} from './library-picker.mjs';
 import {libraryFolders, libraryScope} from '../agent-composer/reference-data.mjs';
 const failure = (code, message) => Object.assign(Error(message), {code});
 const clone = value => structuredClone(value);
@@ -10,7 +10,7 @@ function safeMedia(url, type) {
   if (typeof url !== 'string' || !url) return false;
   if (/^asset:[A-Za-z0-9_-]+$/.test(url)) return true;
   if (new RegExp('^data:' + type + '/[a-z0-9.+-]+;base64,[A-Za-z0-9+/]+={0,2}$', 'i').test(url)) return true;
-  try {const parsed = new URL(url);return !parsed.username && !parsed.password && parsed.protocol === 'https:' && libraryPickerImageDomains.includes(parsed.origin);} catch {return false;}
+  return false;
 }
 // Host-owned library:// identities keep data URLs and asset bytes out of the
 // conversation. The iframe never supplies the media imported by insertAsset.

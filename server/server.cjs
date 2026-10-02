@@ -3,6 +3,8 @@ const http=require('node:http'),fs=require('node:fs'),path=require('node:path');
 const {processMedia}=require('./media.cjs');
 const {processPlaylist}=require('./playlist.cjs');
 const {transcribeRequest}=require('./voice.cjs');
+const {createVideoSegmentationAdapter}=require('./video-segmentation.cjs');
+const videoSegmentation=createVideoSegmentationAdapter({baseUrl:process.env.VIDEO_SEGMENTATION_API_BASE_URL,apiKey:process.env.VIDEO_SEGMENTATION_API_KEY});
 const {generateArtifactHtml}=require('./agent-artifacts.cjs');
 const {createWebSearch}=require('./agent-search.cjs');
 const {createAgentSessionStore}=require('./agent-session-store.cjs');
@@ -29,6 +31,7 @@ const server=http.createServer(async(req,res)=>{try{
  const url=new URL(req.url,'http://'+host),pathname=decodeURIComponent(url.pathname);
  if(pathname.startsWith('/api/')){
   if(req.headers.origin&&req.headers.origin!=='http://'+host)return json(res,403,{error:'跨域请求不允许'});
+  if(pathname.startsWith('/api/video-segmentation/'))return await videoSegmentation.handle(req,res,pathname,{json,body});
   if(pathname.startsWith('/api/generation/'))return await generation.handle(req,res,pathname,{json,body:req=>body(req,64*1024*1024)});
   if(pathname==='/api/agent/config'&&req.method==='GET')return json(res,200,{configured,model:process.env.OPENAI_MODEL||null,missing:[...(!process.env.OPENAI_API_KEY?['OPENAI_API_KEY']:[]),...(!process.env.OPENAI_MODEL?['OPENAI_MODEL']:[])]});
   if(pathname==='/api/agent/search/config'&&req.method==='GET')return json(res,200,webSearch.config());
@@ -65,6 +68,9 @@ const server=http.createServer(async(req,res)=>{try{
  const file=path.resolve(root,relative);if(!file.startsWith(root+path.sep))return json(res,403,{error:'Invalid path'});
  let stat;try{stat=await fs.promises.stat(file);}catch{return json(res,404,{error:'Not found'});}if(!stat.isFile())return json(res,404,{error:'Not found'});
  const headers={'Content-Type':mime[path.extname(file)]||'application/octet-stream','Accept-Ranges':'bytes','Cache-Control':'no-cache','X-Content-Type-Options':'nosniff'};
+ // Bundled app sandboxes use local code/media, including standalone demos.
+ // The main canvas still imports configured providers' remote result URLs.
+ if(/^src\/features\/(?:agent-apps\/resources\/|agent-widgets\/widget-proxy\.html$)/.test(relative)&&path.extname(file)==='.html')headers['Content-Security-Policy']=`default-src 'self' http://${host} data: blob:; script-src 'self' http://${host} 'unsafe-inline' 'unsafe-eval' blob:; style-src 'self' http://${host} 'unsafe-inline'; connect-src 'self' http://${host} data: blob:; img-src 'self' http://${host} data: blob:; media-src 'self' http://${host} data: blob:; font-src 'self' http://${host} data:; frame-src 'self' http://${host} blob:; worker-src 'self' http://${host} blob:; object-src 'none'; base-uri 'self'; form-action 'self'`;
  // The opaque official app proxy may read only these bundled public templates.
  if(/^src\/features\/agent-apps\/resources\/apps\/(manifest\.json|[a-z0-9-]+@v[0-9]+\.[a-f0-9]{8}\.html)$/.test(relative))headers['Access-Control-Allow-Origin']='*';
  const range=req.headers.range?.match(/^bytes=(\d+)-(\d*)$/);let start=0,end=stat.size-1,status=200;if(range){start=Number(range[1]);end=range[2]?Math.min(Number(range[2]),end):end;if(start>end||start>=stat.size){res.writeHead(416,{'Content-Range':`bytes */${stat.size}`});return res.end();}status=206;headers['Content-Range']=`bytes ${start}-${end}/${stat.size}`;}headers['Content-Length']=end-start+1;res.writeHead(status,headers);if(req.method==='HEAD')return res.end();fs.createReadStream(file,{start,end}).pipe(res);

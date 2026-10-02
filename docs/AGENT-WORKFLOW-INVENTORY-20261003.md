@@ -1,5 +1,7 @@
 # Agent 官方工作流清点 · 2026-10-03
 
+本次续批已完成下文曾建议的 Creative 无预选 art/hardware 入口与精确选择交接，见[增量验收](AGENT-CREATIVE-FAMILY-20261003.md)。计数仍为13个功能族；单个精确模板正文及后续下载/编辑链仍未完成。
+
 官方清点依据本机可追溯的 TapNow 0.4.81 安装包；“当前”指本次读到的官方安装包快照，不代表已核验线上最新发布。清点子任务为只读操作。主任务随后完成三项接线，下面状态同步到该批；实际操作与测试另见[本地媒体编辑验收](AGENT-LOCAL-EDITING-20261003.md)。
 
 ## 结论与分母
@@ -35,7 +37,7 @@
 | animatic / 动态分镜 | v1 `7f4d2fcb`；v2 `bc00a3a5` | 否 | 两版未接，算一族 | 优先 v2 的 sheets / 分镜编辑与状态恢复、确认协议、`animatic_variants_submit` 实际任务回执 |
 | character-blocking / 人物站位 | v1 `596deb3b`；v3 `f1fd0e23` | 否 | 两版未接，算一族 | 优先 v3 的真实人物 / 场景输入、positions / facings / aspect_ratio 保存与确认交接 |
 | color-adjust / 色彩调整 | v2 `285e6ccb` | 否 | 已接 v2 | 实际PNG、18参数、保存与后续上下文已接；完整hover/大图性能及正式模型调度未全验 |
-| creative-picker / 创意选择器 | v1 `2a07bc2e` | 否 | 已接 v1，含 A / H 推荐 ID | art / hardware 无预选入口确定路由、全部模板交互验收、精确模板获取与后续产物编辑；见下文 |
+| creative-picker / 创意选择器 | v1 `2a07bc2e` | 否 | 已接 v1，含 A / H 推荐 ID | 无预选入口已接；全部模板交互验收、精确模板获取与后续产物编辑；见下文 |
 | cutlist-review / 剪辑清单审核 | v1 `a3b10365` | 否 | 已接 v1 | 真实视频、状态/CR1与单独确认后本机拼装已接；本机产物固定1280×720，正式模型调度未验 |
 | director-markup / 导演批注 | v1 `4b53a29e` | 否 | 已接 v1 | 已有真实正文 / DM1 核对；完整语言、文本选择与视觉组合仍需分项验收 |
 | ecommerce-photoset / 电商组图 | v2 `a7b6a057` | 否，用户创作 | 未接 | 真实产品来源与计划行、状态恢复、`ecommerce_photoset_generate` 逐项真实任务 / 未知提交处理 |
@@ -78,7 +80,7 @@
 
 Creative catalog SHA256 为 `10421d5dedd820104b167d60af250e2a6657365226b0bc7a456f5daffea56781`；它与每个 template_ref.sha256、应用文件 hash8、manifest SHA 是不同身份。
 
-## 最小下一批
+## 前次最小建议（入口本批已落实，模板正文仍待补）
 
 推荐下一批只补 **Creative 的无预选 art / hardware 入口与选择交接**，不增加新 manifest URI、不自造模板下载接口。
 

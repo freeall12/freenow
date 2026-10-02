@@ -29,8 +29,9 @@ const definitions = [
 export function getApp(resourceUri){return definitions.find(item=>item.resourceUri===resourceUri)||null;}
 export function appPolicy(resourceUri){const entry=getApp(resourceUri);if(!entry)throw Error('应用尚未接入或版本不受支持');return {...entry.policy,proxyUrl:new URL(entry.resourceUri===productionProgressUri?'./resources/production-progress-proxy.html':entry.resourceUri===cutlistReviewUri?'./resources/cutlist-review-proxy.html':'./resources/mcp-app-proxy.html',import.meta.url).href};}
 export function prepareApp(args){
- if(!args||typeof args!=='object'||Array.isArray(args)||Object.keys(args).some(k=>!['resource_uri','title','original_request','recommended_template_id','data'].includes(k)))throw Error('应用展示参数无效');
+ if(!args||typeof args!=='object'||Array.isArray(args)||Object.keys(args).some(k=>!['resource_uri','title','original_request','recommended_template_id','family','data'].includes(k)))throw Error('应用展示参数无效');
  const entry=getApp(args.resource_uri);if(!entry)throw Error('应用尚未接入或版本不受支持');
+ if(args.family!==undefined&&(entry.resourceUri!=='ui://tapnow/creative-picker@v1'||!['website','art','hardware'].includes(args.family)))throw Error('只有创意选择器接受 website/art/hardware family');
  if(args.title!==undefined&&(typeof args.title!=='string'||!args.title.trim()||args.title.length>200))throw Error('应用标题无效');
  if(entry.resourceUri==='ui://tapnow/director-markup@v1'){
   if(args.original_request!==undefined||args.recommended_template_id!==undefined)throw Error('导演批注不使用模板选择参数');
@@ -44,7 +45,9 @@ export function prepareApp(args){
  if(args.data!==undefined)throw Error('模板选择器不接受批注正文');
  if(args.original_request!==undefined&&(typeof args.original_request!=='string'||args.original_request.length>12000))throw Error('应用原始需求过长或无效');
  if(args.recommended_template_id!==undefined&&(typeof args.recommended_template_id!=='string'||!entry.prefix.test(args.recommended_template_id)))throw Error('推荐模板标识无效');
- return {kind:'mcp_app',resource_uri:entry.resourceUri,request:{title:args.title||entry.title},response:{original_request:args.original_request||'',...(args.recommended_template_id?{recommended_template_id:args.recommended_template_id}:{}),...(entry.family?{family:entry.family}:{})}};
+ if(args.recommended_template_id==='A05')throw Error('推荐模板已退役');
+ if(args.family&&args.recommended_template_id&&({W:'website',A:'art',H:'hardware'}[args.recommended_template_id[0]]!==args.family))throw Error('推荐模板与 family 不一致');
+ return {kind:'mcp_app',resource_uri:entry.resourceUri,request:{title:args.title||entry.title},response:{original_request:args.original_request||'',...(args.recommended_template_id?{recommended_template_id:args.recommended_template_id}:{}),...((entry.family||args.family)?{family:entry.family||args.family}:{})}};
 }
 export function copyAppState(value,limit=65536){
  const text=JSON.stringify(value);if(!text||new TextEncoder().encode(text).length>limit)throw Error('应用状态过大或无效');

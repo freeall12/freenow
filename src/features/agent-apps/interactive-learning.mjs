@@ -2,7 +2,8 @@
 export const interactiveLearningUri = 'ui://tapnow/interactive-learning@v1';
 export const interactiveLearningLocales = Object.freeze(['zh-CN', 'en-US', 'ja-JP', 'ko-KR', 'fr-FR']);
 export const interactiveLearningQuestions = Object.freeze(['q1', 'q2', 'q3', 'q4', 'q5']);
-export const interactiveLearningImageDomains = Object.freeze(['https://tap-testing.tamaredge.top', 'https://tap-testing2.tamaredge.top', 'https://files-testing.tapnow.art', 'https://files-testing.tapnow.media', 'https://files-testing.tapnow.top', 'https://files.tapnow.art', 'https://files.tapnow.media', 'https://files.tapnow.ai', 'https://files.tapnow.top']);
+// Runtime previews are host-owned local bytes; official storage is reference-only.
+export const interactiveLearningImageDomains = Object.freeze([]);
 const hintQuestions = interactiveLearningQuestions.slice(1);
 const object = value => !!value && typeof value === 'object' && !Array.isArray(value);
 const fail = () => {throw Error('互动学习数据无效或与已保存草稿及进度不一致');};
@@ -22,8 +23,7 @@ function questions(value) {
 function preview(value) {
   text(value, 250000, true);
   if (/^data:image\/(?:png|webp|jpeg);base64,[A-Za-z0-9+/]+={0,2}$/.test(value)) return value;
-  let url;try {url = new URL(value);} catch {fail();}
-  if (url.username || url.password || !interactiveLearningImageDomains.includes(url.origin)) fail();return value;
+  fail();
 }
 function course(value) {
   fields(value, ['title', 'creator', 'total_nodes']);

@@ -153,7 +153,7 @@ test('official proxy injects real-head CSP and only the documented bridge ahead 
   for(const html of ['<!-- <head>fake</head> --><script>bad()</script>','<title><head>fake</head></title><script>bad()</script>','<textarea><head>fake</head></textarea><script>bad()</script>']){
    const output=new dom.window.DOMParser().parseFromString(buildSrcdoc(html,'nonce'),'text/html'),head=output.head;
    assert.equal(head.firstElementChild.getAttribute('http-equiv'),'Content-Security-Policy');const csp=head.firstElementChild.content;
-   assert.match(csp,/connect-src 'none'/);assert.match(csp,/frame-src 'none'/);assert.match(csp,/form-action 'none'/);assert.match(csp,/img-src data: blob: https:/);
+   assert.match(csp,/connect-src 'none'/);assert.match(csp,/frame-src 'none'/);assert.match(csp,/form-action 'none'/);assert.match(csp,/img-src data: blob:;/);
    assert.match(head.children[1].textContent,/--color-background:#161616/);assert.match(head.children[2].textContent,/window.tapnow=\{sendPrompt:window.sendPrompt,openLink:window.openLink\}/);
   }
   const sent=[],style={height:'old'},context={window:{parent:{postMessage:message=>sent.push(message)},addEventListener(){}},document:{body:{scrollHeight:120},documentElement:{style}},ResizeObserver:class{observe(){}},MutationObserver:class{observe(){}},requestAnimationFrame:fn=>fn()};

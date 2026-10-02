@@ -57,7 +57,9 @@ test('syllabus current entry and replay match source; locked and unknown levels 
 test('source fields, answer schema, progress and media domain boundaries are checked',async()=>{
   const {prepareInteractiveLearning,interactiveLearningImageDomains}=await modulePromise,b=board();
   for(const bad of [{tools:['generate']},{locale:'xx'},{view:'unknown'},{chapters:[]},{level:{...b.level,key:'L1;next=1'}},{level:{...b.level,questions:{...b.level.questions,q2:{...b.level.questions.q2,options:[{text:'a',correct:true},{text:'b',correct:true}]}}}},{level:{...b.level,questions:{...b.level.questions,q3:{parts:['a'],blanks:['缺失'],bank:['另一个']}}}},{level:{...b.level,preview_url:'https://evil.test/image.png'}},{level:{...b.level,preview_url:'https://files.tapnow.ai.evil.test/image.png'}},{level:{...b.level,preview_url:'https://user:pass@files.tapnow.ai/image.png'}},{level:{...b.level,creator_prompt:'\ud800'}},{level:{...b.level,hints:{q4:['a','b','c','d','e']}}}])assert.throws(()=>prepareInteractiveLearning({...b,...bad}));
-  for(const origin of interactiveLearningImageDomains)assert.equal(prepareInteractiveLearning({...b,level:{...b.level,preview_url:origin+'/image.png'}}).level.preview_url,origin+'/image.png');
+  assert.deepEqual(interactiveLearningImageDomains,[]);
+  for(const origin of ['https://files.tapnow.media','https://files.tapnow.ai','https://tap-testing.tamaredge.top'])assert.throws(()=>prepareInteractiveLearning({...b,level:{...b.level,preview_url:origin+'/image.png'}}));
+  const local='data:image/png;base64,aGk=';assert.equal(prepareInteractiveLearning({...b,level:{...b.level,preview_url:local}}).level.preview_url,local);
   const s=syllabus();for(const bad of [{level:b.level},{chapters:[{...s.chapters[0],levels:[s.chapters[0].levels[0],s.chapters[0].levels[0]]}]},{chapters:[{...s.chapters[1],levels:[{...s.chapters[1].levels[0],state:'current'}]}]},{chapters:[{...s.chapters[0],levels:[{...s.chapters[0].levels[0],done_questions:['q1']}]}]}])assert.throws(()=>prepareInteractiveLearning({...s,...bad}));
 });
 test('saved state validates real cloze bank, hint ladder and initial completion without false grading',async()=>{
@@ -65,8 +67,8 @@ test('saved state validates real cloze bank, hint ladder and initial completion 
   for(const bad of [{done:[]},{done:['q1','q1']},{cur:'q6'},{hintShown:{q2:3,q3:0,q4:0,q5:0}},{hintShown:{q2:0,q3:0,q4:0,q5:-1}},{clozeFill:['不存在','低角度']},{clozeFill:[null]},{drafts:{q1:'伪造'}},{drafts:{q4:'a'.repeat(2001)}},{tools:['call']}])assert.throws(()=>validateInteractiveLearningState({...state,...bad},data));
   const selfAssessed={...state,done:['q1','q2','q3','q4','q5'],clozeFill:['高角度','高角度']};assert.deepEqual(validateInteractiveLearningState(selfAssessed,data).done,selfAssessed.done);
 });
-test('captured official host policy gives default inline and only exact image origins',async()=>{
+test('inline policy follows official layout while local CSP removes official storage origins',async()=>{
   const {interactiveLearningImageDomains}=await modulePromise,source=fs.readFileSync(require.resolve('../reference/vendor-packages-CN3JnHbF.js'),'utf8');
   const section=source.slice(source.indexOf('const rg=Object.freeze'),source.indexOf('const Iae=')),context={Nx:()=>({name:'interactive-learning'})};vm.createContext(context);vm.runInContext(section+';globalThis.model={policy:Bue("ui://tapnow/interactive-learning@v1"),csp:_ae("interactive-learning")};',context);
-  assert.deepEqual(JSON.parse(JSON.stringify(context.model.policy)),{allowExpanded:false,autoExpandOnReady:false});assert.deepEqual(JSON.parse(JSON.stringify(context.model.csp)),{imgDomains:[...interactiveLearningImageDomains]});
+  assert.deepEqual(JSON.parse(JSON.stringify(context.model.policy)),{allowExpanded:false,autoExpandOnReady:false});assert.ok(context.model.csp.imgDomains.length>0);assert.deepEqual(interactiveLearningImageDomains,[]);
 });

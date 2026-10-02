@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>图片增强指南</title>
+  <style>
+    *{box-sizing:border-box}html{scroll-padding-top:24px}body{margin:0;background:#171717;color:#e5e5e5;font:16px/1.75 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}main{max-width:860px;margin:0 auto;padding:40px 24px 72px}header{border-bottom:1px solid #393939;padding-bottom:24px}h1{font-size:28px;line-height:1.3;margin:0 0 12px}h2{font-size:22px;line-height:1.4;margin:0 0 16px}h3{font-size:17px;margin:22px 0 6px}p{margin:8px 0 16px}nav{display:flex;flex-wrap:wrap;gap:12px 24px}a{color:#dfebf2;text-underline-offset:4px}a:focus-visible{outline:2px solid white;outline-offset:4px}section{padding-top:32px}section:target h2{text-decoration:underline;text-underline-offset:8px}ol,ul{padding-left:24px}li{margin:6px 0}.table-wrap{overflow-x:auto}table{border-collapse:collapse;width:100%;font-size:14px}th,td{border-bottom:1px solid #393939;padding:12px 10px;text-align:left;vertical-align:top}th{color:#aaa;font-weight:500}th:first-child,td:first-child{width:140px}.note{border-left:3px solid #aabcc7;padding-left:16px;color:#c3c3c3}footer{border-top:1px solid #393939;margin-top:36px;padding-top:20px;color:#aaa;font-size:14px}@media(max-width:540px){main{padding:24px 16px 48px}h1{font-size:24px}th:first-child,td:first-child{width:100px}}
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>图片增强指南</h1>
+      <p>在画布上选择源图片，使用“增强”创建相连的增强节点，再设置参数并生成。此帮助保存在本机，查看帮助不会提交图片。</p>
+      <nav aria-label="指南目录"><a href="#image-upscale">高清放大</a><a href="#image-realistic-portrait">皮肤编辑器</a><a href="#results">结果与失败处理</a></nav>
+    </header>
+    <section id="image-upscale" aria-labelledby="upscale-title">
+      <h2 id="upscale-title">高清放大指南</h2>
+      <ol>
+        <li>确认增强节点已连接源图片；面板底部缩略图显示当前来源。</li>
+        <li>选择“高清放大”，然后选择 Topazlabs 或 Magnific。</li>
+        <li>调整风格、倍数或增强强度，点击“开始增强”。</li>
+      </ol>
+      <h3>Topazlabs</h3>
+      <p>可选择通用、低分辨率、3D动画、高保真、文字优化五种风格，以及 2x、4x、6x 放大倍数。</p>
+      <p class="note">当前 fal 原生接入支持上述五种风格的 2x、4x。6x 需要另行配置支持该倍数的服务；不支持时会报错，不会自动改成其他倍数。</p>
+      <h3>Magnific</h3>
+      <div class="table-wrap"><table>
+        <thead><tr><th scope="col">参数</th><th scope="col">作用与范围</th></tr></thead>
+        <tbody>
+          <tr><th scope="row">锐化强度</th><td>控制图像锐化强度，数值越大越清晰。范围 0–100，默认 7。</td></tr>
+          <tr><th scope="row">颗粒增强</th><td>控制纹理与颗粒增强，避免过度平滑。范围 0–100，默认 7。</td></tr>
+          <tr><th scope="row">细节强度</th><td>控制超细节增强，增加纹理与结构。范围 0–100，默认 30。</td></tr>
+          <tr><th scope="row">放大倍数</th><td>范围 2x–8x，默认 2x。</td></tr>
+        </tbody>
+      </table></div>
+      <p>切换模型会恢复所选模型的默认参数。Magnific 需要配置支持这些参数的服务；当前 fal 原生接入不支持该选项。</p>
+    </section>
+    <section id="image-realistic-portrait" aria-labelledby="portrait-title">
+      <h2 id="portrait-title">皮肤编辑器指南</h2>
+      <ol>
+        <li>确认来源缩略图是要处理的人像图片。</li>
+        <li>切换至“皮肤编辑器”，在“模式”中选择细节增强、标准增强或重度增强。</li>
+        <li>点击“开始增强”，完成后检查实际结果。</li>
+      </ol>
+      <p class="note">过度增强可能会改变图像。重度增强也保留这一警告；请检查人像和细节后再使用结果。</p>
+      <p>皮肤增强需要单独配置支持所选模式的服务；当前 fal 原生接入不支持该操作。未配置时会显示错误，不会生成示例图片。</p>
+    </section>
+    <section id="results" aria-labelledby="results-title">
+      <h2 id="results-title">结果与失败处理</h2>
+      <ul>
+        <li>参数可在本机编辑并保存。实际增强需使用已配置的模型服务和自己的 Key；只有点击“开始增强”才会提交任务。</li>
+        <li>生成期间可从任务托盘查看状态或取消。取消阻止结果应用，服务端是否已停止以实际状态为准。</li>
+        <li>成功结果回填增强节点并保留版本。失败会显示原因，确认来源和配置后再操作。</li>
+        <li>等待期间若来源、参数或目标节点发生变化，迟到结果不会覆盖已变化的内容。</li>
+        <li>断开源图片后，参数面板隐藏并提示“请连接源图像”。重新连接有效图片即可继续设置。</li>
+      </ul>
+      <p>参数板中的用量与时长仅为静态参考。实际耗时、费用和图像效果取决于使用的模型服务。</p>
+    </section>
+    <footer>关闭此标签页即可回到原画布继续编辑。</footer>
+  </main>
+</body>
+</html>

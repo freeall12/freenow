@@ -77,67 +77,13 @@
         }
       }
 
-      // ENV_POLICY:BEGIN — 与 widget-proxy.html 保持一致; 两侧修改必须同步。
-      function getEnvPolicy() {
-        var selfHost = location.hostname;
-        // prod
-        if (selfHost === "usercontent.tapnow.art") {
-          return {
-            patterns: [
-              "https://app.tapnow.ai",
-              "https://app.tapnow.media",
-              "https://app.tapnow.zone",
-              "https://app.tapnow.plus",
-              "https://app.tapnow.tv"
-            ],
-            allowVercelPreview: false,
-            allowLocalhost: false,
-            allowSameOrigin: false
-          };
-        }
-        // test
-        if (selfHost === "usercontent-testing.tapnow.art") {
-          return {
-            patterns: [
-              "https://preview.tapnow.ai",
-              "https://preview.tapnow.media",
-              "https://preview.tapnow.top",
-              "https://tamaredge.top"
-            ],
-            allowVercelPreview: true,
-            allowLocalhost: false,
-            allowSameOrigin: false
-          };
-        }
-        // fallback。
-        return {
-          patterns: [],
-          allowVercelPreview: false,
-          allowLocalhost: true,
-          allowSameOrigin: true
-        };
-      }
-
-      var ENV_POLICY = getEnvPolicy();
-      var VERCEL_PREVIEW_HOST_REGEX = /^tapnow-(?:test|cn)-pr-\d+(?:-test-[1-5])?\.vercel\.app$/;
-
+      // ENV_POLICY:BEGIN — local host only; nonce/source checks remain below.
       function isAllowedOrigin(origin) {
+        if (typeof origin !== "string" || origin === "null") return false;
         try {
-          if (ENV_POLICY.allowSameOrigin && origin === location.origin) {
-            return true;
-          }
           var url = new URL(origin);
-          var host = url.hostname;
-          if (ENV_POLICY.allowVercelPreview && url.protocol === "https:" && VERCEL_PREVIEW_HOST_REGEX.test(host)) {
-            return true;
-          }
-          if (ENV_POLICY.allowLocalhost && (host === "localhost" || host === "127.0.0.1")) {
-            return true;
-          }
-          return ENV_POLICY.patterns.some(function (pattern) {
-            var patternUrl = new URL(pattern);
-            return host === patternUrl.hostname || host.endsWith("." + patternUrl.hostname);
-          });
+          return (url.protocol === "http:" || url.protocol === "https:")
+            && origin === location.origin;
         } catch (e) {
           return false;
         }

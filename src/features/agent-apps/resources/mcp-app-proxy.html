@@ -77,67 +77,13 @@
         }
       }
 
-      // ENV_POLICY:BEGIN — 与 widget-proxy.html 保持一致; 两侧修改必须同步。
-      function getEnvPolicy() {
-        var selfHost = location.hostname;
-        // prod
-        if (selfHost === "usercontent.tapnow.art") {
-          return {
-            patterns: [
-              "https://app.tapnow.ai",
-              "https://app.tapnow.media",
-              "https://app.tapnow.zone",
-              "https://app.tapnow.plus",
-              "https://app.tapnow.tv"
-            ],
-            allowVercelPreview: false,
-            allowLocalhost: false,
-            allowSameOrigin: false
-          };
-        }
-        // test
-        if (selfHost === "usercontent-testing.tapnow.art") {
-          return {
-            patterns: [
-              "https://preview.tapnow.ai",
-              "https://preview.tapnow.media",
-              "https://preview.tapnow.top",
-              "https://tamaredge.top"
-            ],
-            allowVercelPreview: true,
-            allowLocalhost: false,
-            allowSameOrigin: false
-          };
-        }
-        // fallback。
-        return {
-          patterns: [],
-          allowVercelPreview: false,
-          allowLocalhost: true,
-          allowSameOrigin: true
-        };
-      }
-
-      var ENV_POLICY = getEnvPolicy();
-      var VERCEL_PREVIEW_HOST_REGEX = /^tapnow-(?:test|cn)-pr-\d+(?:-test-[1-5])?\.vercel\.app$/;
-
+      // ENV_POLICY:BEGIN — local host only; nonce/source checks remain below.
       function isAllowedOrigin(origin) {
+        if (typeof origin !== "string" || origin === "null") return false;
         try {
-          if (ENV_POLICY.allowSameOrigin && origin === location.origin) {
-            return true;
-          }
           var url = new URL(origin);
-          var host = url.hostname;
-          if (ENV_POLICY.allowVercelPreview && url.protocol === "https:" && VERCEL_PREVIEW_HOST_REGEX.test(host)) {
-            return true;
-          }
-          if (ENV_POLICY.allowLocalhost && (host === "localhost" || host === "127.0.0.1")) {
-            return true;
-          }
-          return ENV_POLICY.patterns.some(function (pattern) {
-            var patternUrl = new URL(pattern);
-            return host === patternUrl.hostname || host.endsWith("." + patternUrl.hostname);
-          });
+          return (url.protocol === "http:" || url.protocol === "https:")
+            && origin === location.origin;
         } catch (e) {
           return false;
         }
@@ -187,29 +133,11 @@
       // (见 packages/mcp-app-widgets/src/shared/design-tokens.css)。proxy 只负责安全(CSP)。
       // 仅接受严格 https origin 形态的域(防御纵深: 拒绝含引号/分号/空白的值,
       // 杜绝经拼接注入额外 CSP 指令或破坏 meta content 属性)。
-      var CSP_IMG_DOMAIN_REGEX = /^https:\/\/[a-z0-9.-]+(:\d+)?$/;
-
-      function buildCspPolicy(csp) {
+      function buildCspPolicy() {
         var imgSources = "data: blob:";
         var mediaSources = "blob:";
-        if (csp && Array.isArray(csp.imgDomains)) {
-          for (var i = 0; i < csp.imgDomains.length; i++) {
-            var domain = csp.imgDomains[i];
-            if (typeof domain === "string" && CSP_IMG_DOMAIN_REGEX.test(domain)) {
-              imgSources += " " + domain;
-            }
-          }
-        }
-        if (csp && Array.isArray(csp.mediaDomains)) {
-          for (var j = 0; j < csp.mediaDomains.length; j++) {
-            var mediaDomain = csp.mediaDomains[j];
-            if (typeof mediaDomain === "string" && CSP_IMG_DOMAIN_REGEX.test(mediaDomain)) {
-              mediaSources += " " + mediaDomain;
-            }
-          }
-        }
         // 默认近乎全禁: 无网络(connect-src 'none')、无外部脚本/样式(仅 inline, 适配单文件构建产物)、
-        // 无嵌套 iframe、无表单提交。img 仅放行 data/blob + 宿主声明的 https 白名单。
+        // 无嵌套 iframe、无表单提交。img 仅放行宿主交付的 data/blob 本地媒体。
         return "default-src 'none'; "
           + "script-src 'unsafe-inline'; "
           + "style-src 'unsafe-inline'; "

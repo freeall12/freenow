@@ -1,9 +1,15 @@
-"""Cache the exact font filenames published in the source editor catalog."""
+"""Development-only source capture; the app loads assets/fonts exclusively.
+
+The historical URL is provenance, not the runtime font base. See
+docs/IMAGE-EDITOR-FONTS.md. Cached files are reused without network requests.
+"""
 import concurrent.futures
 import json
 from pathlib import Path
 import urllib.parse
 import urllib.request
+
+SOURCE_BASE = 'https://fe-assets.tapnow.media/955f12545825932389f4e873a824a9c5dcd3fbd0/assets/fonts/'
 
 root = Path(__file__).resolve().parent.parent
 catalog_path = root / 'image-editor-fonts.js'
@@ -16,7 +22,7 @@ def cache(filename):
     if target.exists() and target.stat().st_size > 100:
         return {'file': filename, 'bytes': target.stat().st_size, 'cached': True}
     try:
-        with urllib.request.urlopen(data['base'] + urllib.parse.quote(filename), timeout=30) as response:
+        with urllib.request.urlopen(SOURCE_BASE + urllib.parse.quote(filename), timeout=30) as response:
             content = response.read(12 * 1024 * 1024)
         if content[:4] not in (b'wOF2', b'wOFF', b'OTTO', b'\x00\x01\x00\x00', b'ttcf', b'true'):
             raise ValueError('Unexpected font signature')

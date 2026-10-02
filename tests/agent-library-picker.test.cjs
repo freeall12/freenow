@@ -94,3 +94,17 @@ test('failed receipt compensation after deletion is reported independently',asyn
  const entered=deferred(),commit=deferred();let f,calls=0;f=await fixture({persistConversation:async()=>{if(++calls===1){entered.resolve();await commit.promise;return true;}return false;}});
  const operation=place(f);await entered.promise;f.nodes.splice(0);commit.resolve();await assert.rejects(operation,error=>error.code==='conversation_rollback_failed');assert.equal(f.trace.libraryPickerPlacements,undefined);assert.equal(calls,2);
 });
+
+
+test('official cloud media stays in library data but is not exposed or imported by the local picker',async()=>{
+ const f=await fixture();f.library.items[0].image='https://files.tapnow.media/private-image.png';
+ const args=await f.runtime.prepareAppArgs({resource_uri:f.m.libraryPickerUri,data:{},title:'库'});
+ const response=f.m.prepareLibraryPicker(args.data,args.title),trace={id:'local-only',result:f.runtime.bindPreparedResult({response},args)};
+ trace.appState=f.m.initialLibraryPickerState(response);
+ const ctx=f.runtime.capture(response,{trace,chat:{id:'c1'},isCurrent:()=>true});
+ const found=await ctx.find({scope:'private',query:'小猫'},{userAction:true});
+ assert.equal(found.items[0].source_url,undefined);assert.equal(found.items[0].preview_url,undefined);
+ assert.equal(f.library.items[0].image,'https://files.tapnow.media/private-image.png');
+ for(const key of ['source_url','preview_url'])assert.throws(()=>f.m.prepareLibraryPicker({...data,assets:[{...item,[key]:'https://files.tapnow.media/private-image.png'}]}));
+ await assert.rejects(ctx.addToCanvas({asset:{media_type:'image',source_url:'library://private/a1',name:'小猫'}},{userAction:true}));assert.equal(f.nodes.length,0);
+});

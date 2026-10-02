@@ -26,67 +26,13 @@
       var parentOrigin = "*";
       var currentNonce = null;
 
-      // ENV_POLICY:BEGIN
-      function getEnvPolicy() {
-        var selfHost = location.hostname;
-        // prod
-        if (selfHost === "usercontent.tapnow.art") {
-          return {
-            patterns: [
-              "https://app.tapnow.ai",
-              "https://app.tapnow.media",
-              "https://app.tapnow.zone",
-              "https://app.tapnow.plus",
-              "https://app.tapnow.tv"
-            ],
-            allowVercelPreview: false,
-            allowLocalhost: false,
-            allowSameOrigin: false
-          };
-        }
-        // test
-        if (selfHost === "usercontent-testing.tapnow.art") {
-          return {
-            patterns: [
-              "https://preview.tapnow.ai",
-              "https://preview.tapnow.media",
-              "https://preview.tapnow.top",
-              "https://tamaredge.top"
-            ],
-            allowVercelPreview: true,
-            allowLocalhost: false,
-            allowSameOrigin: false
-          };
-        }
-        // fallback。
-        return {
-          patterns: [],
-          allowVercelPreview: false,
-          allowLocalhost: true,
-          allowSameOrigin: true
-        };
-      }
-
-      var ENV_POLICY = getEnvPolicy();
-      var VERCEL_PREVIEW_HOST_REGEX = /^tapnow-(?:test|cn)-pr-\d+(?:-test-[1-5])?\.vercel\.app$/;
-
+      // ENV_POLICY:BEGIN — local host only; nonce/source checks remain below.
       function isAllowedOrigin(origin) {
+        if (typeof origin !== "string" || origin === "null") return false;
         try {
-          if (ENV_POLICY.allowSameOrigin && origin === location.origin) {
-            return true;
-          }
           var url = new URL(origin);
-          var host = url.hostname;
-          if (ENV_POLICY.allowVercelPreview && url.protocol === "https:" && VERCEL_PREVIEW_HOST_REGEX.test(host)) {
-            return true;
-          }
-          if (ENV_POLICY.allowLocalhost && (host === "localhost" || host === "127.0.0.1")) {
-            return true;
-          }
-          return ENV_POLICY.patterns.some(function (pattern) {
-            var patternUrl = new URL(pattern);
-            return host === patternUrl.hostname || host.endsWith("." + patternUrl.hostname);
-          });
+          return (url.protocol === "http:" || url.protocol === "https:")
+            && origin === location.origin;
         } catch (e) {
           return false;
         }
@@ -95,12 +41,12 @@
 
       // 内层 srcdoc 的 CSP：核心是 connect-src 'none' 封掉网络外带（fetch/XHR/WebSocket/beacon），
       // 并禁外部脚本、子 frame、表单提交。widget 全内联，脚本/样式放行 inline；
-      // 图片/媒体放行 https:（widget 可能引用生成结果图/视频 URL），域名白名单收紧留作后续。
+      // 图片/媒体仅接受宿主交付的 data/blob；生成结果须先保存为本地素材。
       var CSP_CONTENT = "default-src 'none'; "
         + "script-src 'unsafe-inline'; "
         + "style-src 'unsafe-inline'; "
-        + "img-src data: blob: https:; "
-        + "media-src data: blob: https:; "
+        + "img-src data: blob:; "
+        + "media-src data: blob:; "
         + "font-src data:; "
         + "connect-src 'none'; "
         + "frame-src 'none'; "

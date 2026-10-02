@@ -1,3 +1,4 @@
+import {creativePickerUri,websitePickerUri,resolveCreativePickerReply} from './creative-picker.mjs';
 import {createMcpAppCard} from './card.mjs';
 import {createMcpAppHost} from './host.mjs';
 import {prepareApp,appPolicy,getApp,copyAppState} from './registry.mjs';
@@ -23,7 +24,9 @@ export function projectAppModelResult(entry){
   if(!value||typeof value!=='object')return value;
   return Object.fromEntries(Object.entries(value).filter(([key])=>!['preview','preview_url','media_url','media_ref','poster_ref'].includes(key)&&!key.endsWith('SourceContext')).map(([key,item])=>[key,project(item)]));
  }
- return {...entry,result:project(entry.result)};
+ const result=project(entry.result);
+ if([creativePickerUri,websitePickerUri].includes(result.resource_uri))result.local_template_body={status:'configuration_required',reference_only:true,reason:'Exact selected-template HTML has not been obtained locally. Object keys and SHA256 are reference identities only. Do not contact TapNow services or fabricate the missing template; ask for a local authorized template file before content editing.'};
+ return {...entry,result};
 }
 
 /** Normal mutation continuation; the model supplies only durable identities.
@@ -179,7 +182,8 @@ export function createAppController({getContext,onQueuePrompt,onSaveState,getAct
      const savedState=trace.appState,appResult=trace.result,response=appResult.response;
      const baseCurrent=sourceGuard(record,isSourceCurrent),savedGuide=record.resourceUri===actorEmotionUri?record.actorContext?.readGuide():null;
      const sourceCurrent=()=>baseCurrent()&&(record.resourceUri!==actorEmotionUri||record.actorContext.readGuide()===savedGuide);
-     if(!sourceCurrent())return false;
+     if(!sourceCurrent()||getContext().streaming)return false;
+     if([creativePickerUri,websitePickerUri].includes(record.resourceUri)){const reply=resolveCreativePickerReply(text,response,savedState,metadata,record.resourceUri,getContext().locale||'zh-CN');text=reply.text;metadata=reply.metadata;}
      if(['ui://tapnow/director-markup@v1',performanceRhythmUri,storyRoomUri,actorEmotionUri,interactiveLearningUri,libraryPickerUri,colorAdjustUri,cutlistReviewUri].includes(record.resourceUri)){
       let reply;
       if(record.resourceUri===actorEmotionUri){

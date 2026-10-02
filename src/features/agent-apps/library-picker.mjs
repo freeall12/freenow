@@ -3,7 +3,8 @@ export const libraryPickerUri = 'ui://tapnow/library-picker@v1';
 export const libraryPickerTool = 'find_library_assets';
 export const libraryPickerPolicy = Object.freeze({allowExpanded: false, autoExpandOnReady: false});
 export const libraryPickerTypes = Object.freeze(['image', 'video', 'audio', 'text']);
-export const libraryPickerImageDomains = Object.freeze(['https://tap-testing.tamaredge.top', 'https://tap-testing2.tamaredge.top', 'https://files-testing.tapnow.art', 'https://files-testing.tapnow.media', 'https://files-testing.tapnow.top', 'https://files.tapnow.art', 'https://files.tapnow.media', 'https://files.tapnow.ai', 'https://files.tapnow.top', 'https://app.tapnow.ai', 'https://storage.googleapis.com', 'https://conversation-service-131786869360.asia-northeast1.run.app']);
+// Runtime previews are host-owned local bytes; official storage is reference-only.
+export const libraryPickerImageDomains = Object.freeze([]);
 const fail = () => {throw Error('素材库数据无效、来源变化或请求与实际素材不一致');};
 const object = value => !!value && typeof value === 'object' && !Array.isArray(value);
 function fields(value, keys) {if (!object(value) || Object.keys(value).some(key => !keys.includes(key))) fail();}
@@ -18,8 +19,7 @@ function address(value, preview) {
   if (!preview && /^library:\/\/private\/[A-Za-z0-9%_.~-]+$/.test(value)) return value;
   if (preview && /^data:image\/(?:png|jpeg|webp|gif);base64,[A-Za-z0-9+/]+={0,2}$/.test(value)) return value;
   if (preview && /^blob:https?:\/\//.test(value)) return value;
-  let url;try {url = new URL(value);} catch {fail();}
-  if (url.username || url.password || !libraryPickerImageDomains.includes(url.origin) || url.protocol !== 'https:') fail();return value;
+  fail();
 }
 function asset(value) {
   fields(value, ['asset_id', 'type', 'name', 'preview_url', 'source_url']);id(value.asset_id);text(value.name, 1000, true);
