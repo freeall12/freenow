@@ -2,6 +2,7 @@ import {configuration} from '../video-generation/settings.mjs';
 import {prepareGenerationRequest} from './generation-request.mjs';
 import {createWorkflowMediaResolver} from '../agent-workflows/media-resolver.mjs';
 import {prepareWorkflowInputs,assertWorkflowRequestBudget} from '../agent-workflows/media-transport.mjs';
+import {resolveProviderConfiguration,requestModelAlias} from './provider-configuration.mjs';
 
 // Subject/library IDs name immutable submitted assets, not live canvas nodes. Canvas
 // identity checks belong to the submit-time host guard, never synthetic subject IDs.
@@ -11,13 +12,14 @@ export async function prepareGenerationMediaRequest(request,{
   nativeConfiguration,validateSources=()=>{}
 }={}){
   if(!['image.generate','video.generate'].includes(request.kind))return request;
+  nativeConfiguration=resolveProviderConfiguration(nativeConfiguration,request);
   const check=()=>{if(signal?.aborted)throw signal.reason??new DOMException('素材准备已取消','AbortError');validateSources();};
   check();
   let prepared=prepareGenerationRequest(structuredClone(request));
   const inlineImages=prepared.kind==='image.generate'&&nativeConfiguration?.protocol==='openai-native';
   if(inlineImages){
     const images=(prepared.inputs||[]).filter(input=>input.type==='image');
-    const alias=prepared.parameters?.providerParameters?.model??prepared.parameters?.modelId??prepared.parameters?.model;
+    const alias=requestModelAlias(prepared);
     const profiles=nativeConfiguration.capabilities?.imageReferences;
     const profile=profiles&&Object.hasOwn(profiles,alias)?profiles[alias]:null;
     if(images.length&&(!profile||profile.transport!=='inline'||!Number.isSafeInteger(profile.maxImages)||profile.maxImages<1||profile.maxImages>16))throw Error('当前模型尚未配置图片参考能力，请检查服务端模型映射');

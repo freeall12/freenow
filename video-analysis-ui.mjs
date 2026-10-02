@@ -49,7 +49,7 @@ export async function analyze(id){
   loading.set(id,task);
   const timer=setTimeout(()=>task.controller.abort(Error('视频素材准备超时，请重试')),60000);
   try{
-    const availability=await wait(()=>window.GenerationAPI.availability({signal}),signal);guard();
+    const availability=await wait(()=>window.GenerationAPI.availability({kind:'video.analyze',signal}),signal);guard();
     if(availability.configured===false){
       app.notify('待连接分镜解析 API，尚未开始解析');
       window.GenerationAPI.configure();

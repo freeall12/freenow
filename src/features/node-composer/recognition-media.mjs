@@ -1,5 +1,6 @@
 import {createWorkflowMediaResolver} from '../agent-workflows/media-resolver.mjs';
 import {prepareWorkflowInputs,assertWorkflowRequestBudget} from '../agent-workflows/media-transport.mjs';
+import {resolveProviderConfiguration,requestModelAlias} from './provider-configuration.mjs';
 
 // Point recognition keeps the original coordinates and binding. Only the media
 // transport changes for the explicitly configured native Responses adapter.
@@ -8,10 +9,11 @@ export async function prepareRecognitionMedia(request,{
   nativeConfiguration,validateSources=()=>{},
   resolveMedia=createWorkflowMediaResolver({localAssets,baseUrl}),transport=prepareWorkflowInputs
 }={}){
+  nativeConfiguration=resolveProviderConfiguration(nativeConfiguration,request);
   if(request.kind!=='image.recognize'||nativeConfiguration?.protocol!=='openai-native')return request;
   const check=()=>{if(signal?.aborted)throw signal.reason??new DOMException('识别准备已取消','AbortError');validateSources();};
   check();
-  const p=request.parameters||{},alias=p.modelId??p.model??request.kind;
+  const p=request.parameters||{},alias=requestModelAlias(request)??request.kind;
   const profiles=nativeConfiguration.capabilities?.analysis;
   const profile=profiles&&Object.hasOwn(profiles,alias)?profiles[alias]:null;
   if(!profile||profile.kind!==request.kind||profile.operation!=='point-detection'||profile.transport!=='inline'||profile.maxImages!==1)throw Error('尚未配置原生焦点识别模型，请检查服务端映射');

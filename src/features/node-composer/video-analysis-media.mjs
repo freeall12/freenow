@@ -1,4 +1,5 @@
 import {prepareWorkflowInputs,assertWorkflowRequestBudget} from '../agent-workflows/media-transport.mjs';
+import {resolveProviderConfiguration,requestModelAlias} from './provider-configuration.mjs';
 
 // Scene detection needs the complete source stream. Preserve the non-destructive
 // clip as absolute source times; the local decoder applies that interval once.
@@ -6,10 +7,11 @@ export async function prepareVideoAnalysisMedia(request,{
   signal,baseUrl=globalThis.document?.baseURI,nativeConfiguration,
   validateSources=()=>{},transport=prepareWorkflowInputs
 }={}){
+  nativeConfiguration=resolveProviderConfiguration(nativeConfiguration,request);
   if(request.kind!=='video.analyze'||nativeConfiguration?.protocol!=='openai-native')return request;
   const check=()=>{if(signal?.aborted)throw signal.reason??new DOMException('解析准备已取消','AbortError');validateSources();};
   check();
-  const p=request.parameters||{},alias=p.modelId??p.model??request.kind;
+  const alias=requestModelAlias(request)??request.kind;
   const profiles=nativeConfiguration.capabilities?.videoAnalysis;
   const profile=profiles&&Object.hasOwn(profiles,alias)?profiles[alias]:null;
   if(!profile||profile.kind!==request.kind||profile.transport!=='inline')throw Object.assign(Error('尚未配置原生分镜解析模型，请检查服务端映射'),{code:'configuration_required'});

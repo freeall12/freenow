@@ -27,6 +27,7 @@ test('unconfigured analysis opens existing configuration without reading media o
  const f=await fixture({availability:async()=>({configured:false})});
  const result=await f.analyze();assert.equal(result.status,'configuration_required');
  assert.equal(f.availabilityCalls.length,1);assert.equal(f.configurationCalls.length,1);
+ assert.equal(f.availabilityCalls[0].kind,'video.analyze');
  assert.equal(f.resolveCalls.length,0);assert.equal(f.players.length,0);assert.equal(f.calls.length,0);assert.equal(f.readers.length,0);assert.equal(f.jobs.length,0);
  assert.match(f.notices.at(-1),/待连接/);assert.equal(f.notices.some(text=>text.includes('正在解析')),false);
  assert.equal(f.timers.size,0);assert.equal(f.navigation[0](),null);f.close();

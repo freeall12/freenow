@@ -36,7 +36,7 @@
           await prepare(this.prepareRequest);if(job.controller.signal.aborted)return;
           // Validate parameters first, but avoid decoding/uploading media or reserving
           // result nodes when this task's captured provider is explicitly unconfigured.
-          const configured=job.transport?await job.transport.isConfigured?.({signal:job.controller.signal}):false;
+          const configured=job.transport?await job.transport.isConfigured?.({request:structuredClone(job.request),signal:job.controller.signal}):false;
           if(job.controller.signal.aborted)return;validateSources();
           if(configured===false){job.status='configuration_required';job.error='尚未配置生成服务，请连接 API 后重试';this.emit(job);return;}
           await prepare(this.prepareInputs);if(job.controller.signal.aborted)return;

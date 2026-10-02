@@ -136,7 +136,7 @@ export function createAgentVideoAnalysis({app=globalThis.CanvasApp,generationAPI
       guard();await wait(()=>authorize('video_analyze',op.request));
       // availability is provider-level {configured:boolean|null}; only explicit
       // false proves no submission is needed. Native model maps are checked later.
-      const availability=await wait(()=>generationAPI.availability({signal:controller.signal}));
+      const availability=await wait(()=>generationAPI.availability({kind:'video.analyze',signal:controller.signal}));
       if(availability.configured===false){op.status='configuration_required';return receipt(op);}
       op.status='preparing';await write(op.project,op);op.committed=true;guard();
       const request=await wait(()=>prepareAgentVideoAnalysisRequest(node,{resolveMedia,signal:controller.signal,validateSources:guard,baseUrl,transport}));
