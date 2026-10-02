@@ -11,6 +11,9 @@ export function supports(variant,shape){
   return ['image','video','audio'].every(type=>{const range=variant['reference'+type[0].toUpperCase()+type.slice(1)+'Range'];return range?shape[type]>=(range.min||0)&&shape[type]<=(range.max??Infinity):!shape[type];});
 }
 const family=type=>['TEXT_TO_VIDEO','IMAGE_TO_VIDEO','START_END_TO_VIDEO'].includes(type)?'首尾帧':type==='VIDEO_EDIT'?'视频编辑':'全能参考';
+// UI settings use undefined for inapplicable controls; durable wire records must
+// contain JSON values, just like an actual browser POST after JSON.stringify.
+const wireSettings=value=>Object.fromEntries(Object.entries(value).filter(([,entry])=>entry!==undefined));
 export function variantsFor(model,mode,shape){return model.variants.filter(v=>family(v.modelType)===mode).sort((a,b)=>{
   const score=v=>v.modelType==='REFERENCE_VIDEO_TO_VIDEO'?(shape.video?0:4):v.modelType==='REFERENCE_TO_VIDEO'?1:0;
   return score(a)-score(b);
@@ -54,12 +57,12 @@ export function prepareVideoRequest(request){
     const providerParameters={model:data.model.id,draft_video_id:s.draftVideoId,resolution:'1080p',times:1};
     const parameters={...s,providerParameters};
     for(const key of ['elementRefs','element_refs','elementList','subjects','refs','referenceBindings','referenceOrder','referenceIds','images','videos','audios'])delete parameters[key];
-    const prepared={...request,prompt:'',inputs:[],parameters};
+    const prepared={...request,prompt:'',inputs:[],parameters:wireSettings(parameters)};
     delete prepared.elementRefs;delete prepared.element_refs;
     return prepared;
   }
   const providerParameters=Object.fromEntries(Object.entries({model:data.model.id,modelType:s.videoMode,variant:s.variant,aspectRatio:s.ratio,resolution:s.quality,duration:s.duration,generateAudio:s.audio,generateMode:s.generateMode,times:s.count??1,...isDraftConfig(s)?{draft:true}:{}}).filter(([,value])=>value!==undefined));
   const draftEstimateMedia=isDraftConfig(s)?Object.fromEntries(['image','video','audio'].map(type=>[type+'s',(request.inputs||[]).filter(input=>input.type===type).map(input=>input.url||input[type]).filter(url=>typeof url==='string'&&url.trim())])):undefined;
-  return {...request,parameters:{...s,modelId:data.model.id,providerParameters,...draftEstimateMedia?{draftEstimateMedia}:{}}};
+  return {...request,parameters:wireSettings({...s,modelId:data.model.id,providerParameters,...draftEstimateMedia?{draftEstimateMedia}:{}})};
 }
 export function triggerLabel(data){const s=data.settings;return [s.generateMode&&({std:'标准',pro:'专业','4k':'4K'}[s.generateMode]||s.generateMode),data.modeOptions.length>1?s.mode:null,s.ratio==='adaptive'?'自适应':s.ratio||'自动',s.quality||'自动',s.duration===-1?'自动':s.duration?`${s.duration}s`:null].filter(Boolean).join(' · ');}

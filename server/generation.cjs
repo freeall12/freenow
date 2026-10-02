@@ -3,13 +3,14 @@ const {TaskService, httpProvider,normalizeApiBaseUrl} = require('../generation-a
 const {randomUUID}=require('node:crypto');
 const {createDurableGenerationService}=require('./generation-durable.cjs');
 const {createOpenAINativeProvider}=require('./generation-openai.cjs');
+const {createArkProvider}=require('./generation-ark.cjs');
 const {localVideoErrorMessage}=require('./video-analysis-errors.cjs');
 
 // Only the operator-selected task gateway receives requests. Browser payloads
 // cannot choose a destination or supply server credentials.
 function createGenerationGateway({baseUrl = '', apiKey = '', fetchImpl = fetch, now = Date.now, directory, protocol='tasks-v1',modelMap,client} = {}) {
-  const native=protocol==='openai-native'?createOpenAINativeProvider({baseUrl,apiKey,modelMap,client,fetchImpl}):null;
-  const invalidProtocol=!['tasks-v1','openai-native'].includes(protocol);
+  const native=protocol==='openai-native'?createOpenAINativeProvider({baseUrl,apiKey,modelMap,client,fetchImpl}):protocol==='ark-native'?createArkProvider({baseUrl,apiKey,modelMap,fetchImpl}):null;
+  const invalidProtocol=!['tasks-v1','openai-native','ark-native'].includes(protocol);
   let invalidEndpoint=false;
   if(protocol==='tasks-v1'&&baseUrl){try{baseUrl=normalizeApiBaseUrl(baseUrl);}catch{invalidEndpoint=true;}}
   const prepareRequest = async request => {
@@ -18,7 +19,17 @@ function createGenerationGateway({baseUrl = '', apiKey = '', fetchImpl = fetch, 
     // Enforce the same draft/final wire contract for direct HTTP clients. The
     // browser owns graph validation; the gateway never guesses an alternate job.
     const {prepareVideoRequest} = await import('../src/features/video-generation/settings.mjs');
-    return prepareVideoRequest(request);
+    const prepared=prepareVideoRequest(request);
+    // The catalog may suggest UI defaults, but an explicit API request must not
+    // silently turn unsupported Ark options into a different paid generation.
+    if(protocol==='ark-native'&&!request.parameters?.draftVideoId){
+      const before=request.parameters||{},after=prepared.parameters||{};
+      const fields={ratio:'ratio',aspectRatio:'ratio',aspect:'ratio',quality:'quality',resolution:'quality',duration:'duration',audio:'audio',generateAudio:'audio',generateMode:'generateMode',videoMode:'videoMode',variant:'variant',mode:'mode'};
+      const changed=Object.entries(fields).some(([input,output])=>before[input]!==undefined&&before[input]!==after[output]);
+      const wireChanged=Object.entries(before.providerParameters||{}).some(([key,value])=>value!==after.providerParameters?.[key]);
+      if(changed||wireChanged)throw Object.assign(Error('所选视频参数不受支持，未更换规格或提交模型'),{code:'unsupported_generation'});
+    }
+    return prepared;
   };
   const service = directory ? createDurableGenerationService({directory,baseUrl:native||invalidProtocol||invalidEndpoint?'':baseUrl,apiKey:invalidProtocol||invalidEndpoint?'':apiKey,fetchImpl,provider:native,now,prepareRequest}) : new TaskService({prepareRequest:async request=>{const prepared=await prepareRequest(request);if(native?.configured)native.prepare(prepared);return prepared;}});
   const configured=invalidProtocol||invalidEndpoint?false:native?native.configured:!!baseUrl&&!!apiKey;
