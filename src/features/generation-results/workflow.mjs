@@ -1,6 +1,7 @@
 import {assertResultSnapshot, captureResultSnapshot, planGenerationResults} from './plan.mjs';
 import {imageResultCounts} from './counts.mjs';
 import {modelFor} from '../image-generation/catalog.mjs';
+import {resultProvenance} from '../media-preview/provenance.mjs';
 
 const kinds = new Set(['image.generate', 'video.generate', 'text.generate']);
 const aborted = () => Object.assign(new Error('生成任务已取消'), {name: 'AbortError'});
@@ -91,7 +92,7 @@ export function createResultWorkflow(app) {
         if (type === 'text') patch = {content: output.text, textMode: 'generate'};
         else if (type === 'video') patch = {video: output.video || output.url, ...(output.poster ? {image: output.poster} : {}), videoMetadata: {width: output.width ?? null, height: output.height ?? null, duration: output.duration ?? null}};
         else patch = {image: output.image || output.url, fullImage: output.image || output.url};
-        if (type !== 'text') Object.assign(patch, {pixelWidth: output.width, pixelHeight: output.height, currentSourceFileId: output.sourceFileId ?? null});
+        if (type !== 'text') Object.assign(patch, {pixelWidth: output.width, pixelHeight: output.height, currentSourceFileId: output.sourceFileId ?? null}, resultProvenance(job,output));
         return {id: run.plan.targetNodeIds[index], patch};
       });
       return app.applyGenerationResults(job.id, patches);

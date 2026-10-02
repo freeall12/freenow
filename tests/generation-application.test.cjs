@@ -19,6 +19,7 @@ test('concurrent and reentrant requests share one application and unknown or unf
 });
 function applicationHarness(){
  const source=fs.readFileSync(require.resolve('../generation-ui.js'),'utf8'),jobs=new Map(),nodes=[{id:'source',type:'studio'}],calls={connected:0,scene:0,cleared:0},context={service:{jobs},draftGuards:new Map(),inPlace:new Map(),videoTargets:new Map(),imageTargets:new Map(),derivedTargets:new Map(),resultWorkflow:{has:()=>false,clear:()=>calls.cleared++},app:{getState:()=>({nodes}),createConnected:()=>{calls.connected++;return [{id:'result'}];}},validateOutputMedia:async()=>{},window:{StudioAPI:{acceptGeneration:async()=>{calls.scene++;if(calls.scene===1)throw Error('scene not ready');return {objectIds:['object']};}}}};
+ context.provenanceReady=import('../src/features/media-preview/provenance.mjs');
  vm.createContext(context);vm.runInContext(source.slice(source.indexOf('  async function applyResults('),source.indexOf('  function applicationChanged(')),context);return {context,jobs,nodes,calls};
 }
 test('partial canvas output is reused when scene placement fails and retry cannot create duplicate canvas results',async()=>{
@@ -40,4 +41,18 @@ test('panorama rejected scene binding remains unapplied and recoverable without 
 test('Agent task snapshots expose application attempts and refresh does not claim lost application jobs are recoverable',async()=>{
  const {attachGenerationJob,recoverGenerationJobs}=await import('../src/features/agent-generation/jobs.mjs'),trace={name:'generation_submit',result:{taskId:'job'}};
  attachGenerationJob(trace,{id:'job',status:'succeeded',applied:false,applying:false,applicationStatus:'failed',applicationAttempts:2,applicationError:'decode failed',outputs:[{text:'private result'}]});assert.equal(trace.generationJob.applicationAttempts,2);assert.equal(trace.generationJob.outputs,undefined);recoverGenerationJobs([trace],[]);assert.equal(trace.generationJob.status,'unknown');assert.match(trace.generationJob.error,/勿自动重新生成/);
+});
+test('derived Agent video analysis application records physical clip origin without the vision or composer model',async()=>{
+ const {context,jobs,nodes}=applicationHarness(),preview=await import('../media-preview-core.mjs');
+ context.app.createConnected=(_,outputs)=>{const added=outputs.map((output,index)=>({...output,id:'clip-'+index}));nodes.push(...added);return added;};
+ context.derivedTargets.set('analysis',{guard(){},options:{}});
+ const job={id:'analysis',status:'succeeded',request:{kind:'video.analyze',nodeId:'source',parameters:{model:'vision-describer'}},outputs:[{type:'video',url:'physical-clip.mp4',sourceRange:{start:1,end:3},duration:2}]};jobs.set(job.id,job);
+ await context.applyResults(job);assert.deepEqual(Array.from(job.resultIds),['clip-0']);const node=JSON.parse(JSON.stringify(nodes[1]));assert.equal(node.provenance.kind,'video-analysis');assert.deepEqual(node.provenance.sourceRange,{start:1,end:3});assert.equal(node.clip,undefined);assert.equal(preview.resources(node,{model:'Seedance 2.0'})[0].model,null);
+});
+test('custom single and batch applications receive recorded origin without modifying retained provider outputs',async()=>{
+ for(const batch of [false,true]){
+  const {context,jobs}=applicationHarness(),output={type:'video',url:'result.mp4'},job={id:'job',status:'succeeded',request:{kind:'video.edit',nodeId:'source',parameters:{model:'actual-edit-model'}},outputs:[output]};let received;
+  context.inPlace.set(job.id,{type:'video',guard(){},...(batch?{applyBatch:async outputs=>{received=outputs[0];return [{id:'result'}];}}:{apply:async value=>{received=value;return [{id:'result'}];}})});jobs.set(job.id,job);
+  await context.applyResults(job);assert.equal(received.provenance.model,'actual-edit-model');assert.equal(received.provenance.mediaSource,'result.mp4');assert.equal(output.provenance,undefined);
+ }
 });

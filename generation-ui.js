@@ -7,6 +7,7 @@
   const draftGuards=new Map();
   const applicationListeners=new Set();
   const historyReadinessOriginals=new WeakMap();
+  const provenanceReady=import('./src/features/media-preview/provenance.mjs');
   const applicationReady=import('./src/features/generation-results/application.mjs').then(module=>module.createApplicationRunner({getJob:id=>service.jobs.get(id),apply:applyResults,changed:applicationChanged}));
   const service=new GenerationCore.TaskService({prepareRequest:async(request,{jobId,signal})=>{
     if(!['image.generate','video.generate','text.generate'].includes(request.kind))return request;
@@ -105,6 +106,7 @@
   }
   async function applyResults(job){
     const stored=service.jobs.get(job.id);
+    const {resultProvenance}=await provenanceReady;
     if(stored.recovered){
       if(stored.recoveryMode==='existing'){const {applyRecoveredPlan}=await import('./src/features/generation-results/recovery.mjs');await applyRecoveredPlan(stored,{app,workflow:resultWorkflow,validateMedia:validateOutputMedia,persist:()=>{const state=app.getState();return window.CanvasStore.save({version:1,nodes:state.nodes,edges:state.edges});}});}
       else if(stored.recoveryMode==='new_nodes'){const {importRecoveredOutputs}=await import('./src/features/generation-results/recovery.mjs');await importRecoveredOutputs(stored,{app,sourceId:stored.recoverySourceId,validateMedia:validateOutputMedia,localizeAudio:url=>window.AudioAPI.localize(url),persist:()=>{const state=app.getState();return window.CanvasStore.save({version:1,nodes:state.nodes,edges:state.edges});}});}
@@ -116,7 +118,7 @@
       const originalTarget=inPlace.get(job.id),target=originalTarget&&{...originalTarget,guard(){originalTarget.guard();draftGuards.get(job.id)?.();}};
       if(target&&!stored.resultIds){
         target.guard();
-        if(target.applyBatch){if(job.outputs.some(o=>o.type!==target.type))throw Error('批次结果类型与节点类型不一致');await Promise.all(job.outputs.map(validateOutputMedia));target.guard();const applied=await target.applyBatch(job.outputs);stored.resultIds=Array.isArray(applied)?applied.map(n=>n.id):[job.request.nodeId];target.didApply?.();}
+        if(target.applyBatch){if(job.outputs.some(o=>o.type!==target.type))throw Error('批次结果类型与节点类型不一致');await Promise.all(job.outputs.map(validateOutputMedia));target.guard();const applied=await target.applyBatch(job.outputs.map(o=>({...o,...resultProvenance(job,o)})));stored.resultIds=Array.isArray(applied)?applied.map(n=>n.id):[job.request.nodeId];target.didApply?.();}
         else{if(job.outputs.length!==1||job.outputs[0].type!==target.type)throw Error('工作流需要一个与节点类型一致的结果');
         const o=job.outputs[0];await validateOutputMedia(o);let patch;
         if(o.type==='audio')patch={audio:await window.AudioAPI.localize(o.audio||o.url)};
@@ -127,7 +129,7 @@
         if(o.type==='video'&&!target.apply){const history=await import('./video-history-core.mjs'),n=app.getState().nodes.find(n=>n.id===job.request.nodeId);target.guard();patch=history.record({...n,video:n.video||window.EDITOR_DATA?.nodes[n.id]?.video},job,window.NodeEditor.getConfig(n));window.NodeEditor.invalidate();}
         if(o.type==='image'&&!target.apply){const history=await import('./image-history-core.mjs'),n=app.getState().nodes.find(n=>n.id===job.request.nodeId);target.guard();patch=history.record(n,job,window.NodeEditor.getConfig(n),window.VERSION_DATA?.[n.id]);window.NodeEditor.invalidate();}
         if(!target.apply&&patch.generation&&target.patch?.generation)patch.generation={...patch.generation,...target.patch.generation};
-        const applied=target.apply?await target.apply(o):app.updateNode(job.request.nodeId,{...target.patch,...patch});
+        const applied=target.apply?await target.apply({...o,...resultProvenance(job,o)}):app.updateNode(job.request.nodeId,{...target.patch,...patch});
         stored.resultIds=Array.isArray(applied)?applied.map(n=>n.id):[job.request.nodeId];target.didApply?.();}
       }
       if(!stored.resultIds&&resultWorkflow?.has(job.id))stored.resultIds=await resultWorkflow.apply(job,validateOutputMedia);
@@ -148,12 +150,12 @@
       if(!stored.resultIds&&derivedTargets.has(job.id)){
         const target=derivedTargets.get(job.id);target.guard();
         await Promise.all(job.outputs.map(validateOutputMedia));target.guard();
-        const outputs=job.outputs.map(o=>({...o,image:o.image||(o.type==='image'?o.url:o.poster),video:o.video||(o.type==='video'?o.url:null),content:o.text,...(o.type==='text'?{textMode:'pure'}:{}),title:o.title||job.request.label}));
+        const outputs=job.outputs.map(o=>({...o,...resultProvenance(job,o),image:o.image||(o.type==='image'?o.url:o.poster),video:o.video||(o.type==='video'?o.url:null),content:o.text,...(o.type==='text'?{textMode:'pure'}:{}),title:o.title||job.request.label}));
         stored.resultIds=app.createConnected(job.request.nodeId,outputs,target.options).map(n=>n.id);target.didApply?.();
       }
       if(!stored.resultIds){
         if(!stored.materializedOutputs)stored.materializedOutputs=await Promise.all(job.outputs.map(async o=>o.type==='audio'?{...o,audio:await window.AudioAPI.localize(o.audio||o.url),audioMode:'upload'}:o));
-        const results=app.createConnected(job.request.nodeId,stored.materializedOutputs.map(o=>({...o,image:o.image||(o.type==='image'?o.url:o.poster),video:o.video||(o.type==='video'?o.url:null),audio:o.audio||(o.type==='audio'?o.url:null),content:o.text,...(o.type==='text'?{textMode:'pure'}:{}),title:o.title||job.request.label||'生成结果'})));
+        const results=app.createConnected(job.request.nodeId,stored.materializedOutputs.map(o=>({...o,...resultProvenance(job,o),image:o.image||(o.type==='image'?o.url:o.poster),video:o.video||(o.type==='video'?o.url:null),audio:o.audio||(o.type==='audio'?o.url:null),content:o.text,...(o.type==='text'?{textMode:'pure'}:{}),title:o.title||job.request.label||'生成结果'})));
         stored.resultIds=results.map(n=>n.id);
       }
       if(job.request.kind==='model.generate'&&app.getState().nodes.some(n=>n.id===job.request.nodeId&&n.type==='studio')){

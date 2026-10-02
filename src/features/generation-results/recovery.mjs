@@ -1,4 +1,5 @@
 // Explicit recovery imports never invoke a model or restore lost in-place guards.
+import {resultProvenance} from '../media-preview/provenance.mjs';
 export async function importRecoveredOutputs(job,{app,validateMedia,localizeAudio,persist,sourceId=job.request.nodeId}) {
   if(job.request.kind==='image.recognize')throw Error('焦点识别结果绑定原编辑会话，不能作为普通节点恢复');
   const outputs=job.outputs;
@@ -13,7 +14,7 @@ export async function importRecoveredOutputs(job,{app,validateMedia,localizeAudi
   }
   if(job.resultIds?.length)throw Error('上次已创建的恢复节点不再完整，未重复创建');
   await Promise.all(outputs.map(validateMedia));
-  const materialized=await Promise.all(outputs.map(async(output,index)=>({...output,
+  const materialized=await Promise.all(outputs.map(async(output,index)=>({...output,...resultProvenance(job,output),
     image:output.image||(output.type==='image'?output.url:output.poster),
     fullImage:output.type==='image'?(output.image||output.url):undefined,
     video:output.video||(output.type==='video'?output.url:undefined),

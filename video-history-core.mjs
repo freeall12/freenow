@@ -1,4 +1,5 @@
 // Persisted generation history is independent of the transient gallery preview.
+import {resultProvenance,retainedProvenance,historicalProvenance} from './src/features/media-preview/provenance.mjs';
 const clone=value=>structuredClone(value);
 export const mediaSource=n=>n?.video||'';
 export function option(value,index=0){
@@ -31,15 +32,15 @@ export function primaryPatch(node,batch,item,currentConfig=node.generation||{}){
   const generation={...clone(currentConfig),...clone(batch.parameters||{}),prompt:batch.prompt??batch.parameters?.prompt??''};
   // Output multiplicity belongs to the next run, not to a historical result.
   for(const key of ['count','times'])if(currentConfig[key]!==undefined)generation[key]=currentConfig[key];
-  return {video:item.video,image:item.poster||null,fullImage:null,clip:clone(item.clip||null),
+  return {video:item.video,image:item.poster||null,fullImage:null,clip:clone(item.clip||null),provenance:historicalProvenance(batch,item,item.video),
     currentVideoOptionId:item.id,currentSourceFileId:item.sourceFileId||null,generation,
     ...(batch.toolParameters?{params:clone(batch.toolParameters)}:{}),...dimensions(node,item),
     videoMetadata:{width:item.width||null,height:item.height||null,duration:item.duration??null}};
 }
 export function record(node,job,config=node.generation||{}){
   const history=batches(node),existing=history.find(b=>b.id===job.id);
-  if(!history.length&&node.video){history.push({id:'previous:'+node.id,prompt:config.prompt||'',parameters:clone(config),toolParameters:clone(node.params||null),options:[option({video:node.video,poster:node.image,width:node.videoMetadata?.width,height:node.videoMetadata?.height,clip:node.clip,id:node.currentVideoOptionId||'previous:'+node.id,sourceFileId:node.currentSourceFileId})]});}
-  const batch=existing||{id:job.id,createdAt:job.createdAt,prompt:job.request.prompt||'',parameters:clone(job.request.kind==='video.generate'?job.request.parameters||{}:config),toolParameters:clone(node.params||null),options:job.outputs.filter(o=>o.type==='video').map((o,i)=>option({...o,id:o.id||`${job.id}:${i}`}))};
+  if(!history.length&&node.video){history.push({id:'previous:'+node.id,prompt:config.prompt||'',parameters:clone(config),toolParameters:clone(node.params||null),options:[option({video:node.video,poster:node.image,width:node.videoMetadata?.width,height:node.videoMetadata?.height,clip:node.clip,id:node.currentVideoOptionId||'previous:'+node.id,sourceFileId:node.currentSourceFileId,provenance:retainedProvenance(node,node.video)})]});}
+  const batch=existing||{id:job.id,createdAt:job.createdAt,prompt:job.request.prompt||'',parameters:clone(job.request.kind==='video.generate'?job.request.parameters||{}:config),toolParameters:clone(node.params||null),options:job.outputs.filter(o=>o.type==='video').map((o,i)=>option({...o,...resultProvenance(job,o),id:o.id||`${job.id}:${i}`}))};
   if(!batch.options.length)throw Error('视频历史需要可播放的生成结果');
   if(!existing)history.push(batch);
   return {...primaryPatch(node,batch,batch.options[0],config),videoHistory:history,versions:[]};

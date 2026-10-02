@@ -1,4 +1,5 @@
 import {src,values} from './image-versions-core.mjs';
+import {resultProvenance,retainedProvenance,historicalProvenance} from './src/features/media-preview/provenance.mjs';
 export {copyPosition,grid} from './video-history-core.mjs';
 const clone=value=>structuredClone(value);
 export function option(value,index=0){
@@ -23,18 +24,18 @@ export function anchored(node,size){return {...size,x:node.x+(node.width-size.wi
 export function primaryPatch(node,batch,item,config=node.generation||{}){
   const generation={...clone(config),...clone(batch.parameters||{}),prompt:batch.prompt??batch.parameters?.prompt??''};
   for(const key of ['count','times'])if(config[key]!==undefined)generation[key]=config[key];
-  return {...anchored(node,dimensions(node,item)),image:src(item),fullImage:src(item),pixelWidth:item.width||null,pixelHeight:item.height||null,
+  return {...anchored(node,dimensions(node,item)),image:src(item),fullImage:src(item),pixelWidth:item.width||null,pixelHeight:item.height||null,provenance:historicalProvenance(batch,item,src(item)),
     currentImageOptionId:item.id,currentSourceFileId:item.sourceFileId||null,generation,
     ...(batch.toolParameters?{params:clone(batch.toolParameters)}:{}),versions:batch.options.map(o=>({...o,image:src(o)}))};
 }
 export function record(node,job,config=node.generation||{},fallback=[]){
   const history=batches(node),existing=history.find(b=>b.id===job.id);
   if(!history.length&&src(node)){
-    const previous=values(node,fallback),current=option({image:src(node),width:node.pixelWidth,height:node.pixelHeight,id:node.currentImageOptionId||`previous:${node.id}`,sourceFileId:node.currentSourceFileId});
+    const previous=values(node,fallback),current=option({image:src(node),width:node.pixelWidth,height:node.pixelHeight,id:node.currentImageOptionId||`previous:${node.id}`,sourceFileId:node.currentSourceFileId,provenance:retainedProvenance(node,src(node))});
     const options=[current,...previous.filter(o=>src(o)!==src(node)).map(option)];
     history.push({id:`previous:${node.id}`,prompt:config.prompt||'',parameters:clone(config),toolParameters:clone(node.params||null),options});
   }
-  const batch=existing||{id:job.id,createdAt:job.createdAt,prompt:job.request.prompt||'',parameters:clone(job.request.parameters||{}),toolParameters:clone(node.params||null),options:job.outputs.filter(o=>o.type==='image').map((o,i)=>option({...o,id:o.id||`${job.id}:${i}`}))};
+  const batch=existing||{id:job.id,createdAt:job.createdAt,prompt:job.request.prompt||'',parameters:clone(job.request.parameters||{}),toolParameters:clone(node.params||null),options:job.outputs.filter(o=>o.type==='image').map((o,i)=>option({...o,...resultProvenance(job,o),id:o.id||`${job.id}:${i}`}))};
   if(!batch.options.length)throw Error('图片历史需要可读取的图片结果');
   if(!existing)history.unshift(batch);
   return {...primaryPatch(node,batch,batch.options[0],config),imageHistory:history};

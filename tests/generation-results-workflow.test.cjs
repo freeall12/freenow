@@ -65,3 +65,13 @@ test('missing provider file identity becomes null instead of an invented or inhe
   const f=await fixture({type,count:1});await f.prepare();await f.workflow.apply(f.job([{type,url:'https://example.test/result'}]),async()=>{});assert.equal(f.calls.apply[0].patches[0].patch.currentSourceFileId,null);
  }
 });
+test('planned generation stamps dispatched metadata rather than inheriting source render or later composer settings',async()=>{
+ const preview=await import('../media-preview-core.mjs');
+ for(const type of ['image','video']){
+  const f=await fixture({type,count:1});f.source().provenance={kind:'studio-render'};
+  const [module]=await modules,submission=module.captureSubmission(f.request,f.state(),'spread');await f.workflow.prepare(f.request,{jobId:'run',signal:f.controller.signal},submission);
+  const output={type,url:'https://example.test/actual-result'};await f.workflow.apply(f.job([output]),async()=>{});
+  const target=f.state().nodes.find(n=>n.id===f.calls.apply[0].patches[0].id);target.generation.model='edited-next-model';
+  assert.equal(target.provenance.kind,'generation-result');assert.equal(target.provenance.taskId,'run');assert.equal(target.provenance.mediaSource,output.url);assert.equal(preview.resources(JSON.parse(JSON.stringify(target)),{model:'default-model'})[0].model,'nano-banana-flash');
+ }
+});

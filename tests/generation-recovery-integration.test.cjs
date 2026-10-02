@@ -47,3 +47,11 @@ test('recovered placeholder save failure retries persistence without replaying a
  nodes[0].content='user edit';fail=false;await applyRecoveredPlan(job,options);assert.equal(applies,1);assert.equal(nodes[0].content,'user edit');
  nodes.pop();await assert.rejects(applyRecoveredPlan(job,options),/不再完整/);assert.equal(applies,1);
 });
+test('recovering media persists original request provenance and keeps analyzed clips free of a generation model',async()=>{
+ const {importRecoveredOutputs}=await import('../src/features/generation-results/recovery.mjs'),preview=await import('../media-preview-core.mjs');
+ for(const kind of ['video.generate','video.analyze']){
+  const nodes=[{id:'source',type:'video'}],job={id:'original-task',status:'succeeded',request:{kind,nodeId:'source',parameters:{model:kind==='video.generate'?'dispatched-model':'vision-describer'}},outputs:[{type:'video',url:'clip.mp4',...(kind==='video.analyze'?{sourceRange:{start:3,end:5}}:{})}]};
+  await importRecoveredOutputs(job,{app:{getState:()=>({nodes}),createConnected:(_,outputs)=>{const added=outputs.map((o,i)=>({...o,id:'output-'+i}));nodes.push(...added);return added;}},validateMedia:async()=>{},localizeAudio:async value=>value,persist:async()=>{}});
+  const restored=JSON.parse(JSON.stringify(nodes[1]));assert.equal(restored.provenance.taskId,'original-task');assert.equal(preview.resources(restored,{model:'Seedance 2.0'})[0].model,kind==='video.generate'?'dispatched-model':null);
+ }
+});
