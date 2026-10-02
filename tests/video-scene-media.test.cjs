@@ -70,6 +70,12 @@ test('rejects URL-only data, unsupported mime, oversized input and pre-cancellat
  await assert.rejects(analyzeVideoMedia({bytes:Buffer.from('bad'),mimeType:'video/mp4'},{...options,signal:controller.signal}),{name:'AbortError'});
 });
 
+test('missing local decoder returns a safe unavailable code without leaking the executable path',async()=>{
+ const missing='/private/nonexistent-ffprobe-tool-for-video-test';
+ await assert.rejects(analyzeVideoMedia({bytes:Buffer.from('video bytes'),mimeType:'video/mp4'},{ffprobePath:missing}),error=>error.code==='media_tool_unavailable'&&!error.message.includes(missing)&&!error.cause);
+ if(available)await assert.rejects(analyzeVideoMedia({bytes,mimeType:'video/mp4'},{...options,ffmpegPath:missing}),error=>error.code==='media_tool_unavailable'&&!error.message.includes(missing)&&!error.cause);
+});
+
 test('validates clip bounds against actual source and rejects malformed source bytes',async t=>{
  if(!needsMedia(t))return;
  for(const clip of [{start:-1,end:2},{start:1,end:1},{start:0,end:4},{start:0},{start:0,end:1,url:'ignored'}])await assert.rejects(analyzeVideoMedia({bytes,mimeType:'video/mp4',clip},options),{code:'invalid_video_clip'});

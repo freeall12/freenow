@@ -3,6 +3,7 @@ const {TaskService, httpProvider,normalizeApiBaseUrl} = require('../generation-a
 const {randomUUID}=require('node:crypto');
 const {createDurableGenerationService}=require('./generation-durable.cjs');
 const {createOpenAINativeProvider}=require('./generation-openai.cjs');
+const {localVideoErrorMessage}=require('./video-analysis-errors.cjs');
 
 // Only the operator-selected task gateway receives requests. Browser payloads
 // cannot choose a destination or supply server credentials.
@@ -32,11 +33,13 @@ function createGenerationGateway({baseUrl = '', apiKey = '', fetchImpl = fetch, 
     for (const [id, job] of service.jobs) if (terminal.has(job.status) && now() - job.createdAt > 3600000) service.jobs.delete(id);
   }
   function publicJob(job,{includeRequest=false}={}) {
+    const localError=job.request?.kind==='video.analyze'&&job.status==='failed'&&job.providerDispatched===false?localVideoErrorMessage(job.code):null;
     return {id: job.id, status: job.status, progress: job.progress, createdAt: job.createdAt,
       ...(job.outputs ? {outputs: job.outputs} : {}),
       ...(directory ? {...(includeRequest?{request:job.request}:{}),code:job.code,recovery:{...job.recovery,pollable:!!job.providerTaskId,submissionState:job.submissionState}} : {}),
       ...(job.cancellation ? {cancellation: job.cancellation} : {}),
-      ...(job.error ? {error: job.status === 'unknown' ? '生成状态尚未确认，请查询恢复；不会自动重新生成' : job.status === 'configuration_required' ? '请检查服务端生成 API 协议、地址、Key 与真实模型映射后重启服务' : job.code==='request_preparation_failed'?'当前生成参数或操作不受适配器支持，尚未提交模型':'生成服务请求失败，请检查供应商配置或重试'} : {})};
+      ...(localError?{code:job.code,providerDispatched:false}:{}),
+      ...(job.error ? {error: job.status === 'unknown' ? '生成状态尚未确认，请查询恢复；不会自动重新生成' : job.status === 'configuration_required' ? '请检查服务端生成 API 协议、地址、Key 与真实模型映射后重启服务' : localError|| (job.code==='request_preparation_failed'?'当前生成参数或操作不受适配器支持，尚未提交模型':'生成服务请求失败，请检查供应商配置或重试')} : {})};
   }
   return {
     configured,ready,close:()=>service.close?.(),

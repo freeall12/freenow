@@ -80,11 +80,14 @@ Responses 请求使用 `maxRetries:0`，没有自动重新提交。总超时默�
 
 模型调用前的本机失败标记 `error.providerDispatched=false`，宿主可保存为 `failed`，证明没有视觉模型调用；包括工具缺失、预算、解码、媒体验证和本机准备超时。模型已经调用任一场景后的异常保持 `unknown`，宿主继续使用持久任务回执和幂等查询，不自动重放。用户取消保留原 AbortSignal reason。提供方不新增源视频、frame正文或供应商详细错误日志；`prepared` 含媒体 Buffer，不应写入日志。
 
+本机失败通过 `server/video-analysis-errors.cjs` 固定白名单保留机器码与安全中文文案：`media_tool_unavailable`（FFmpeg/FFprobe 未找到或无法执行）、`invalid_video_input`、`invalid_video_clip`、`video_analysis_busy`、`video_analysis_budget`、`video_analysis_timeout`、`video_analysis_failed`。原生提交、持久任务、内存任务和 HTTP 网关均保留已知本机分类与 `providerDispatched:false`；重启及相同幂等键查询保留原失败，不自动派发。未知本机异常统一为 `video_analysis_failed`，不转发原错误正文、stderr、临时路径或 cause。远端任务网关不能借同名码声明本机准备失败；任一视觉请求已调用后，即使远端异常带本机码，仍保持 `unknown`。
+
 ## 验证
 
 ```sh
 node --check server/generation-openai-video-analysis.cjs
 node --test tests/generation-openai-video-analysis.test.cjs
+node --test tests/generation-video-local-errors.test.cjs tests/video-scene-media.test.cjs
 ```
 
 专项10项通过，覆盖显式配置、原请求合同、canonical base64/MIME/元数据/clip拒绝、逐场景三个时间戳帧、实际片段结果与出处、不完整媒体无SDK调用、已安装SDK的 `/responses` wire格式及429零重试、第二场景失败整体拒绝、本机失败无模型派发标记、忽略signal的媒体/SDK取消与超时。测试仅用注入 SDK/fetch，无真实模型调用；提供方测试中的视频容器是接口替身，真实解码、全范围检测、音轨和裁切另由 `video-scene-media.test.cjs` 验证。

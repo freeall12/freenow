@@ -50,13 +50,16 @@ test('clipped source ranges stay absolute while generated physical media has no 
 
 test('invalid scene media, gaps, wrong real metadata and omitted frames never call the vision SDK',async()=>{
  const variants=[()=>({...media(),width:999}),()=>({...media(),duration:8}),()=>({...media(),scenes:[]}),()=>({...media(),scenes:Array.from({length:33},()=>scene(0,6))}),()=>({...media(),scenes:[scene(0,1),scene(2,6)]}),()=>({...media(),scenes:[scene(0,5)]}),()=>({...media(),scenes:[{...scene(0,6),video:Buffer.from('fake video')}]}),()=>({...media(),scenes:[{...scene(0,6),poster:Buffer.from('fake image')}]}),()=>({...media(),scenes:[{...scene(0,6),frames:[scene(0,6).frames[0]]}]}),()=>({...media(),scenes:[{...scene(0,6),frames:scene(0,6).frames.map(f=>({...f,time:8}))}]})];
- for(const get of variants)await assert.rejects(submitVideoAnalysis(prepare(),{analyzeMedia:async()=>get(),sdk:sdkFor(()=>assert.fail('invalid media reached SDK'))}),{code:'unsupported_generation'});
+ for(const [index,get]of variants.entries())await assert.rejects(submitVideoAnalysis(prepare(),{analyzeMedia:async()=>get(),sdk:sdkFor(()=>assert.fail('invalid media reached SDK'))}),{code:index<2?'invalid_video_input':'video_analysis_failed'});
 });
 
 test('local media failures explicitly prove no provider dispatch, while caption errors never do',async()=>{
- for(const code of ['media_tool_unavailable','video_analysis_budget','invalid_video_clip'])await assert.rejects(submitVideoAnalysis(prepare(),{analyzeMedia:async()=>{throw Object.assign(Error('本地媒体错误'),{code});},sdk:sdkFor(()=>assert.fail())}),error=>error.providerDispatched===false&&error.code!=='unknown');
+ for(const code of ['media_tool_unavailable','video_analysis_busy','video_analysis_budget','video_analysis_timeout','invalid_video_input','invalid_video_clip','video_analysis_failed'])await assert.rejects(submitVideoAnalysis(prepare(),{analyzeMedia:async()=>{throw Object.assign(Error('private detail /private/path token'),{code});},sdk:sdkFor(()=>assert.fail())}),error=>error.providerDispatched===false&&error.code===code&&!error.message.includes('private'));
  await assert.rejects(submitVideoAnalysis(prepare(),{analyzeMedia:async()=>{throw Error('private detail');},sdk:sdkFor(()=>assert.fail())}),error=>error.providerDispatched===false&&!error.message.includes('private'));
  await assert.rejects(submitVideoAnalysis(prepare(),{analyzeMedia:async()=>media(),sdk:sdkFor(async()=>{throw Error('private detail');})}),error=>error.code==='unknown'&&error.providerDispatched===undefined&&!error.message.includes('private'));
+ let calls=0;
+ await assert.rejects(submitVideoAnalysis(prepare(),{analyzeMedia:async()=>media(),sdk:sdkFor(async()=>{if(++calls===1)return response(description);throw Object.assign(Error('private detail'),{code:'video_analysis_busy',providerDispatched:false});})}),error=>error.code==='unknown'&&error.providerDispatched===undefined&&!error.message.includes('private'));
+ assert.equal(calls,2);
 });
 
 test('installed SDK POST /responses sends frames exactly once per scene and never retries 429',async()=>{
@@ -74,7 +77,7 @@ test('second-scene refusal, incomplete or malformed response rejects the whole b
 
 test('abort and timeout stop waiting even when media/SDK ignore signal; no late success or next scene',async()=>{
  const before=new AbortController();before.abort(Error('cancel before video'));await assert.rejects(submitVideoAnalysis(prepare(),{signal:before.signal,sdk:sdkFor(()=>assert.fail())}),/cancel before/);
- let releaseMedia;await assert.rejects(submitVideoAnalysis(prepare(),{analyzeMedia:()=>new Promise(resolve=>releaseMedia=resolve),sdk:sdkFor(()=>assert.fail()),timeoutMs:10}),error=>error.providerDispatched===false&&error.code==='unsupported_generation');releaseMedia(media());
+ let releaseMedia;await assert.rejects(submitVideoAnalysis(prepare(),{analyzeMedia:()=>new Promise(resolve=>releaseMedia=resolve),sdk:sdkFor(()=>assert.fail()),timeoutMs:10}),error=>error.providerDispatched===false&&error.code==='video_analysis_timeout');releaseMedia(media());
  let release,started,calls=0;const began=new Promise(resolve=>started=resolve),controller=new AbortController();
  const pending=submitVideoAnalysis(prepare(),{analyzeMedia:async()=>media(),signal:controller.signal,sdk:sdkFor(()=>{calls++;started();return new Promise(resolve=>release=resolve);})});await began;controller.abort(Error('cancel caption'));await assert.rejects(pending,/cancel caption/);release(response(description));await new Promise(resolve=>setImmediate(resolve));assert.equal(calls,1);
  let late;await assert.rejects(submitVideoAnalysis(prepare(),{analyzeMedia:async()=>media(),sdk:sdkFor(()=>new Promise(resolve=>late=resolve)),timeoutMs:10}),{code:'unknown'});late(response(description));

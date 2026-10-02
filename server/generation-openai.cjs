@@ -4,6 +4,7 @@ const {inlineImage}=require('./generation-image-input.cjs');
 const Speech=require('./generation-openai-speech.cjs');
 const Analysis=require('./generation-openai-analysis.cjs');
 const VideoAnalysis=require('./generation-openai-video-analysis.cjs');
+const {localVideoFailure}=require('./video-analysis-errors.cjs');
 const fail=(message,code='unsupported_generation')=>Object.assign(Error(message),{code});
 const object=value=>value&&typeof value==='object'&&!Array.isArray(value);
 const kinds=['text.generate','image.generate','audio.generate','image.recognize','video.analyze'];
@@ -128,8 +129,9 @@ function createOpenAINativeProvider({apiKey='',baseUrl='',modelMap,client,fetchI
     if(!item.b64_json){let address;try{address=new URL(url);}catch{throw fail('模型没有返回实际图片','unknown');}if(typeof url!=='string'||!['http:','https:'].includes(address.protocol)||address.username||address.password)throw fail('模型返回的媒体地址无效','unknown');url=address.href;}
     return {type:'image',url,...dimensions};
    });return {status:'succeeded',outputs};
-  }catch(error){if(signal?.aborted)throw signal.reason;if(kind==='video.analyze'&&error.providerDispatched===false)return {status:'failed',error:'本地视频处理未完成，尚未提交视觉模型'};throw fail('生成请求状态未确认，请查询原任务；未自动重试','unknown');}
+  }catch(error){if(signal?.aborted)throw signal.reason;if(kind==='video.analyze'&&error.providerDispatched===false){const local=localVideoFailure(error);return {status:'failed',code:local.code,error:local.message,providerDispatched:false};}throw fail('生成请求状态未确认，请查询原任务；未自动重试','unknown');}
  }
- return {configured,fingerprint,metadata,prepare:request=>{resolve(request);return request;},submit,generate:submit,isConfigured:()=>configured};
+ async function generate(request,options){const result=await submit(request,options);if(result.status==='failed'&&result.providerDispatched===false)throw localVideoFailure(result);return result;}
+ return {configured,fingerprint,metadata,prepare:request=>{resolve(request);return request;},submit,generate,isConfigured:()=>configured};
 }
 module.exports={createOpenAINativeProvider,parseModelMap};

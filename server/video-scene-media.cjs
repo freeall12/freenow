@@ -6,6 +6,7 @@ const INPUT_FORMATS='mov,matroska,webm,ogg';
 const MIME_TYPES=new Set(['video/mp4','video/webm','video/quicktime','video/ogg']);
 let activeJobs=0;
 const failure=(message,code='video_analysis_failed')=>Object.assign(Error(message),{code});
+const toolFailure=error=>failure(error?.code==='EAGAIN'?'本机视频处理资源繁忙':error?.code==='ENOENT'?'未找到 FFmpeg/FFprobe，请配置本机工具路径':'无法启动视频处理工具',error?.code==='EAGAIN'?'video_analysis_busy':['ENOENT','EACCES','ENOEXEC'].includes(error?.code)?'media_tool_unavailable':'video_analysis_failed');
 const check=signal=>{if(signal?.aborted)throw signal.reason||new DOMException('已取消视频分析','AbortError');};
 
 // Commands receive only private temporary paths and validated numeric values.
@@ -16,17 +17,17 @@ async function command(binary,args,{signal,timeoutMs=120000,maxStdout=1024*1024}
   let child,stdout=[],stdoutBytes=0,stderr='',reason,timer,forceTimer;
   const stop=error=>{reason||=error;if(child){child.kill('SIGTERM');forceTimer||=setTimeout(()=>child.kill('SIGKILL'),1000);}};
   const cancel=()=>stop(signal.reason||new DOMException('已取消视频分析','AbortError'));
-  try{child=spawn(binary,args,{stdio:['ignore','pipe','pipe']});}catch(error){reject(failure('无法启动视频处理工具','media_tool_unavailable'));return;}
+  try{child=spawn(binary,args,{stdio:['ignore','pipe','pipe']});}catch(error){reject(toolFailure(error));return;}
   timer=setTimeout(()=>stop(failure('本地视频分析超时，未返回部分镜头','video_analysis_timeout')),timeoutMs);
   signal?.addEventListener('abort',cancel,{once:true});
   if(signal?.aborted)cancel();
   child.stdout.on('data',chunk=>{stdoutBytes+=chunk.length;if(stdoutBytes>maxStdout)stop(failure('视频处理输出超过预算','video_analysis_budget'));else stdout.push(chunk);});
   child.stderr.on('data',chunk=>{stderr+=chunk.toString();if(Buffer.byteLength(stderr)>2*1024*1024)stop(failure('镜头检测日志超过预算，未截断分析','video_analysis_budget'));});
-  child.on('error',error=>{reason||=failure(error.code==='ENOENT'?'未找到 FFmpeg/FFprobe，请配置本机工具路径':'无法启动视频处理工具','media_tool_unavailable');});
+  child.on('error',error=>{reason||=toolFailure(error);});
   child.on('close',code=>{
    clearTimeout(timer);clearTimeout(forceTimer);signal?.removeEventListener('abort',cancel);
    if(reason)return reject(reason);
-   if(code!==0)return reject(Object.assign(failure('视频解码或处理失败，未返回部分镜头'),{cause:Error(stderr.slice(-1500).replace(/\/[^\s]*canvas-video-scenes-[^\s:]+/g,'[temporary]'))}));
+   if(code!==0)return reject(failure('视频解码或处理失败，未返回部分镜头'));
    resolve({stdout:Buffer.concat(stdout).toString(),stderr});
   });
  });
@@ -37,7 +38,7 @@ async function probe(file,options){
  let value;try{value=JSON.parse(result.stdout);}catch{throw failure('无法读取实际视频元数据');}
  const video=value.streams?.find(stream=>stream.codec_type==='video');
  const duration=Number(video?.duration||value.format?.duration),width=video?.width,height=video?.height;
- if(!video||!Number.isFinite(duration)||duration<=0||!Number.isSafeInteger(width)||!Number.isSafeInteger(height)||width<2||height<2||width>8192||height>8192||width*height>33554432)throw failure('视频时长或画幅无效，未提交视觉分析');
+ if(!video||!Number.isFinite(duration)||duration<=0||!Number.isSafeInteger(width)||!Number.isSafeInteger(height)||width<2||height<2||width>8192||height>8192||width*height>33554432)throw failure('视频时长或画幅无效，未提交视觉分析','invalid_video_input');
  const [numerator,denominator]=String(video.avg_frame_rate||'0/1').split('/').map(Number),fps=numerator/denominator;
  return {duration,width,height,fps:Number.isFinite(fps)&&fps>0?fps:30,hasAudio:value.streams.some(stream=>stream.codec_type==='audio')};
 }

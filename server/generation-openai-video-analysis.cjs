@@ -1,5 +1,6 @@
 'use strict';
 const {inlineImage}=require('./generation-image-input.cjs');
+const {localVideoFailure}=require('./video-analysis-errors.cjs');
 const fail=(message,code='unsupported_generation')=>Object.assign(Error(message),{code});
 const object=value=>value&&typeof value==='object'&&!Array.isArray(value);
 const sameKeys=(value,keys)=>object(value)&&Object.keys(value).length===keys.length&&keys.every(key=>Object.hasOwn(value,key));
@@ -21,10 +22,10 @@ function videoAnalysisCapabilities(entry){
 }
 function videoBytes(input){
  const match=typeof input?.url==='string'&&/^data:video\/(mp4|webm);base64,([A-Za-z0-9+/]+={0,2})$/.exec(input.url);
- if(!match||match[2].length%4||match[2].length>4*Math.ceil(MAX_VIDEO_BYTES/3))throw fail('视频须为不超过40 MiB的内联MP4或WebM');
+ if(!match||match[2].length%4||match[2].length>4*Math.ceil(MAX_VIDEO_BYTES/3))throw fail('视频须为不超过40 MiB的内联MP4或WebM','invalid_video_input');
  const bytes=Buffer.from(match[2],'base64');
- if(!bytes.length||bytes.length>MAX_VIDEO_BYTES||bytes.toString('base64')!==match[2])throw fail('视频内联字节无效或超过40 MiB');
- if(match[1]==='mp4'?(bytes.length<16||bytes.toString('ascii',4,8)!=='ftyp'||bytes.readUInt32BE(0)<16||bytes.readUInt32BE(0)>bytes.length):(bytes.length<4||!bytes.subarray(0,4).equals(Buffer.from([26,69,223,163]))))throw fail('视频格式与容器头不一致');
+ if(!bytes.length||bytes.length>MAX_VIDEO_BYTES||bytes.toString('base64')!==match[2])throw fail('视频内联字节无效或超过40 MiB','invalid_video_input');
+ if(match[1]==='mp4'?(bytes.length<16||bytes.toString('ascii',4,8)!=='ftyp'||bytes.readUInt32BE(0)<16||bytes.readUInt32BE(0)>bytes.length):(bytes.length<4||!bytes.subarray(0,4).equals(Buffer.from([26,69,223,163]))))throw fail('视频格式与容器头不一致','invalid_video_input');
  return {bytes,mimeType:'video/'+match[1]};
 }
 function prepareVideoAnalysisRequest(request,entry){
@@ -38,9 +39,9 @@ function prepareVideoAnalysisRequest(request,entry){
  for(const value of [p.model,p.modelId])if(value!==undefined&&(typeof value!=='string'||!value.trim()))throw fail('分镜模型别名无效');
  if(p.model!==undefined&&p.modelId!==undefined&&p.model!==p.modelId)throw fail('分镜模型别名不一致');
  if(Object.keys(input).some(key=>!['type','url','clip','width','height','duration','id','key','title'].includes(key)))throw fail('分镜源视频包含未支持字段');
- if(!dimension(input.width)||!dimension(input.height)||!finite(input.duration)||input.duration<=0||!dimension(p.width)||!dimension(p.height)||!finite(p.duration)||p.duration<=0||input.width!==p.width||input.height!==p.height||input.duration!==p.duration)throw fail('分镜源视频尺寸或时长元数据无效');
+ if(!dimension(input.width)||!dimension(input.height)||!finite(input.duration)||input.duration<=0||!dimension(p.width)||!dimension(p.height)||!finite(p.duration)||p.duration<=0||input.width!==p.width||input.height!==p.height||input.duration!==p.duration)throw fail('分镜源视频尺寸或时长元数据无效','invalid_video_input');
  const clip=input.clip??null;
- if(clip!==null&&(!sameKeys(clip,['start','end'])||!finite(clip.start)||!finite(clip.end)||clip.start<0||clip.end<=clip.start||clip.end>input.duration))throw fail('分镜源视频裁切范围无效');
+ if(clip!==null&&(!sameKeys(clip,['start','end'])||!finite(clip.start)||!finite(clip.end)||clip.start<0||clip.end<=clip.start||clip.end>input.duration))throw fail('分镜源视频裁切范围无效','invalid_video_clip');
  const media=videoBytes(input);
  // Do not build a Responses body with the source video: only actual per-scene
  // JPEG frames leave this module. Prepared values must not be logged.
@@ -64,7 +65,7 @@ function jpeg(bytes){
 }
 function validateMedia(media,prepared){
  const source=prepared.source,expected=prepared.media.clip??{start:0,end:source.duration};
- if(!object(media)||!dimension(media.width)||!dimension(media.height)||!finite(media.duration)||media.duration<=0||media.width!==source.width||media.height!==source.height||!close(media.duration,source.duration,Math.max(.1,source.duration*.01)))throw fail('源视频声明尺寸或时长与真实解码不一致');
+ if(!object(media)||!dimension(media.width)||!dimension(media.height)||!finite(media.duration)||media.duration<=0||media.width!==source.width||media.height!==source.height||!close(media.duration,source.duration,Math.max(.1,source.duration*.01)))throw fail('源视频声明尺寸或时长与真实解码不一致','invalid_video_input');
  if(!sameKeys(media.range,['start','end'])||!finite(media.range.start)||!finite(media.range.end)||media.range.start<0||media.range.end<=media.range.start||!close(media.range.start,expected.start,.001)||!close(media.range.end,prepared.media.clip?expected.end:media.duration,.001)||media.range.end>media.duration+.001||!Array.isArray(media.scenes)||!media.scenes.length||media.scenes.length>MAX_SCENES)throw fail('分镜范围或场景数量无效');
  let previous=media.range.start,total=0;
  for(const scene of media.scenes){
@@ -116,14 +117,10 @@ async function submitVideoAnalysis(prepared,{sdk,signal,analyzeMedia,timeoutMs=6
  }catch(error){
   if(signal?.aborted)throw signal.reason;
   if(!modelStarted){
-   let local;
-   if(!controller.signal.aborted&&['unsupported_generation','configuration_required'].includes(error?.code))local=error;
-   else if(error?.code==='media_tool_unavailable')local=fail('未找到FFmpeg或FFprobe，视频分镜尚未提交视觉模型','configuration_required');
-   else if(!controller.signal.aborted&&/^(video_analysis_|invalid_video_)/.test(error?.code??''))local=fail(error.message);
-   else local=fail(controller.signal.aborted?'本地视频分镜准备超时，尚未提交视觉模型':'本地视频分镜处理失败，尚未提交视觉模型');
+   const local=localVideoFailure(error,{timedOut:controller.signal.aborted});
    // The host may safely record a local failed preparation. After ANY model
    // dispatch, a lost response remains unknown and cannot be replayed.
-   local.providerDispatched=false;throw local;
+   throw local;
   }
   throw fail('视频分镜状态未确认，未自动重新提交','unknown');
  }finally{clearTimeout(timer);signal?.removeEventListener('abort',cancel);controller.signal.removeEventListener('abort',onAbort);controller.abort();}

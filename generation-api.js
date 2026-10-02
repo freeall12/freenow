@@ -42,7 +42,7 @@
           await prepare(this.prepareInputs);if(job.controller.signal.aborted)return;
           validateSources();
         }
-        catch(error){if(job.controller.signal.aborted)return;job.status=error.code==='configuration_required'?'configuration_required':'failed';job.error=error.message||'生成参数无效';this.emit(job);return;}
+        catch(error){if(job.controller.signal.aborted)return;job.status=error.code==='configuration_required'?'configuration_required':'failed';job.code=error.code;job.providerDispatched=false;job.error=error.message||'生成参数无效';this.emit(job);return;}
       }
       job.status='running';this.emit(job);
       if(job.controller.signal.aborted)return;
@@ -56,7 +56,7 @@
         if(job.controller.signal.aborted)return;
         this.validateResult(result);
         job.outputs=result.outputs;job.progress=100;job.status='succeeded';
-      }catch(error){if(job.controller.signal.aborted)return;job.status=error.code==='configuration_required'?'configuration_required':error.code==='unknown'?'unknown':'failed';job.recovery=error.recovery;job.error=error.message||'生成失败';}finally{job.providerActive=false;}
+      }catch(error){if(job.controller.signal.aborted)return;job.status=error.code==='configuration_required'?'configuration_required':error.code==='unknown'?'unknown':'failed';job.code=error.code;if(error.providerDispatched===false&&job.status==='failed')job.providerDispatched=false;job.recovery=error.recovery;job.error=error.message||'生成失败';}finally{job.providerActive=false;}
       this.emit(job);
     }
     validateResult(result){

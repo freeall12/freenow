@@ -1,6 +1,7 @@
 'use strict';
 const {randomUUID,createHash}=require('node:crypto');
 const {createGenerationStore}=require('./generation-store.cjs');
+const {localVideoErrorMessage}=require('./video-analysis-errors.cjs');
 const terminal=new Set(['succeeded','failed','cancelled','configuration_required']);
 const secretKey=/^(api[-_]?key|authorization|access[-_]?token|refresh[-_]?token|token|password|secret|secret[-_]?key|client[-_]?secret|credentials)$/i;
 const failure=(message,code,status=400)=>Object.assign(Error(message),{code,status});
@@ -52,6 +53,9 @@ function createDurableGenerationService({directory,store=null,baseUrl='',apiKey=
    if(value.status!==undefined&&value.status!=='succeeded')throw failure('生成服务尚未确认成功，不能接受附带结果','contradictory_outputs');
    const outputs=checkedOutputs(value.outputs);await update(id,job=>job.status==='cancelled'?null:{...job,status:'succeeded',outputs,progress:100,error:undefined,code:undefined,recovery:undefined});return;
   }
+  // A remote tasks-v1 response cannot claim a trusted local preparation failure.
+  const localError=provider?.metadata?.protocol==='openai-native'&&existing.request.kind==='video.analyze'&&value?.status==='failed'&&value.providerDispatched===false?localVideoErrorMessage(value.code):null;
+  if(localError){await update(id,job=>job.status==='cancelled'?null:{...job,status:'failed',code:value.code,error:localError,providerDispatched:false,recovery:{reason:value.code,retryableLookup:false}});return;}
   if(['failed','cancelled','configuration_required'].includes(value?.status)){await update(id,job=>job.status==='cancelled'?null:{...job,status:value.status,code:'provider_'+value.status,error:value.status==='cancelled'?'生成服务已取消任务':'生成服务未完成任务',recovery:{reason:'provider_'+value.status,retryableLookup:false}});return;}
   if(value?.status==='succeeded')throw failure('生成服务声称完成但缺少实际结果','missing_outputs');
   if(value?.status!==undefined&&!['queued','running'].includes(value.status))throw failure('生成服务返回未确认状态','provider_status_unconfirmed');
@@ -66,7 +70,7 @@ function createDurableGenerationService({directory,store=null,baseUrl='',apiKey=
    const prepared=await prepareRequest(structuredClone(job.request));rejectCredentials(prepared);canonical(prepared);if(!prepared||prepared.kind!==job.request.kind)throw failure('生成请求准备失败','invalid_prepared_request');
    if(provider?.configured)await provider.prepare?.(prepared);
    job=await update(id,current=>current.status==='cancelled'?null:{...current,preparedRequest:prepared});
-  }catch(error){if(error.code==='storage_error')throw error;await update(id,current=>current.status==='cancelled'?null:{...current,status:error.code==='configuration_required'?'configuration_required':'failed',code:error.code==='configuration_required'?'configuration_required':'request_preparation_failed',error:'生成参数或模型映射未兼容，尚未提交远端'});return;}
+  }catch(error){if(error.code==='storage_error')throw error;const localError=job.request.kind==='video.analyze'?localVideoErrorMessage(error.code):null;await update(id,current=>current.status==='cancelled'?null:{...current,status:error.code==='configuration_required'?'configuration_required':'failed',code:localError?error.code:error.code==='configuration_required'?'configuration_required':'request_preparation_failed',error:localError||'生成参数或模型映射未兼容，尚未提交远端',...(localError?{providerDispatched:false}:{})});return;}
   if(closing||job.status==='cancelled')return;
   if(!configured){await update(id,current=>current.status==='cancelled'?null:{...current,status:'configuration_required',code:'configuration_required',error:'尚未配置生成服务，未提交远端'});return;}
   // This durable intent precedes POST. A crash anywhere after this point without
