@@ -42,7 +42,7 @@
           await prepare(this.prepareInputs);if(job.controller.signal.aborted)return;
           validateSources();
         }
-        catch(error){if(job.controller.signal.aborted)return;job.status=error.code==='configuration_required'?'configuration_required':'failed';job.code=error.code;job.providerDispatched=false;job.error=error.message||'生成参数无效';this.emit(job);return;}
+        catch(error){if(job.controller.signal.aborted)return;job.status=error.code==='configuration_required'?'configuration_required':'failed';job.code=error.code;if(error.providerDispatched===false)job.providerDispatched=false;job.error=error.message||'生成参数无效';this.emit(job);return;}
       }
       job.status='running';this.emit(job);
       if(job.controller.signal.aborted)return;

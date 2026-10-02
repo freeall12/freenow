@@ -43,6 +43,7 @@ test('tasks-v1 cannot impersonate a local video failure or return private error 
 test('native generate throws safe local failure for TaskService, while submit returns a terminal receipt',async t=>{
  const original=Media.analyzeVideoMedia;Media.analyzeVideoMedia=async()=>{throw Object.assign(Error(secret),{code:'video_analysis_busy'});};t.after(()=>{Media.analyzeVideoMedia=original;});
  const provider=createOpenAINativeProvider({modelMap:mapping,client:{responses:{create:()=>assert.fail()}}});
+ assert.throws(()=>provider.prepare({...request,inputs:[{...request.inputs[0],url:'data:video/mp4;base64,AAAA'}]}),error=>error.code==='invalid_video_input'&&error.providerDispatched===false&&error.message===localVideoErrorMessage(error.code));
  assert.deepEqual(await provider.submit(request),{status:'failed',code:'video_analysis_busy',providerDispatched:false,error:localVideoErrorMessage('video_analysis_busy')});
  await assert.rejects(provider.generate(request),error=>error.code==='video_analysis_busy'&&error.providerDispatched===false&&error.message===localVideoErrorMessage(error.code)&&!error.cause);
 });
