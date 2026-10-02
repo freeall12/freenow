@@ -1,4 +1,4 @@
-import {assetFromNode} from '../subject-library/store.mjs';
+import {assetFromNode,getSubjectStore} from '../subject-library/store.mjs';
 import {subjectToken} from '../subject-library/model.mjs';
 import {applySubject} from '../subject-library/apply.mjs';
 
@@ -14,19 +14,16 @@ const page=(offset=0,limit=30,max=50)=>{if(!Number.isSafeInteger(offset)||offset
 const supported=new Set(['image','video','audio','text']);
 const readable=value=>String(value||'').replace(/\b(?:data:[^\s"'<>)]*|blob:[^\s"'<>)]*)/gi,source=>source.toLowerCase().startsWith('blob:')?'[omitted blob media]':'[omitted data media]');
 
-// Share the existing storage format, but never use its corrupt-data-to-empty fallback for writes.
-export function createSubjectAgentService({app=globalThis.CanvasApp,storage=globalThis.localStorage,storageKey=globalThis.window?.SUBJECT_LIBRARY_KEY||'tapnow-subject-library-v1',
+// UI and Agent use one committed subject snapshot and await the durable receipt.
+export function createSubjectAgentService({app=globalThis.CanvasApp,storage=globalThis.localStorage,storageKey,subjectStore,
   store=globalThis.CanvasStore,canvasStore=store,localAssets=globalThis.LocalAssets,localMedia=globalThis.LocalMedia,fetchImpl=(...args)=>fetch(...args),apply=applySubject,fromNode=assetFromNode,hash=digest,createId=()=>crypto.randomUUID(),now=Date.now,
   notify=()=>globalThis.document?.dispatchEvent(new Event('subjects:changed')),resolveUrl}={}){
-  if(typeof storage?.getItem!=='function'||typeof storage?.setItem!=='function'||typeof app?.getState!=='function')throw TypeError('Subject storage and canvas adapters are required');
+  if(typeof app?.getState!=='function')throw TypeError('Canvas adapter is required');
+  const library=subjectStore||getSubjectStore({storage,store,storageKey,notify});
   const imports=new Map(),operationKinds=new Map();
   function reserve(operationId,action){const previous=operationKinds.get(operationId);if(previous&&previous!==action)throw fail('operation_conflict','operationId 已绑定另一类主体操作');operationKinds.set(operationId,action);}
   function noImportOperation(operationId){if(imports.has(operationId)||app.getState().nodes.some(node=>node.provenance?.subjectImport?.operationId===operationId))throw fail('operation_conflict','operationId 已绑定主体导入操作');}
-  function load(){
-    let raw,value;try{raw=storage.getItem(storageKey);value=raw===null?[]:JSON.parse(raw);}catch{throw fail('library_unreadable','主体库读取失败或数据损坏，未修改原数据');}
-    if(!Array.isArray(value)||value.some(s=>!s||typeof s!=='object'||typeof s.id!=='string'||!Array.isArray(s.assets))||new Set(value.map(s=>s.id)).size!==value.length)throw fail('library_unreadable','主体库结构无效，未修改原数据');
-    return {raw,items:value};
-  }
+  const load=()=>library.snapshot();
   function personal(items,subjectId,{archived=false}={}){const s=items.find(s=>s.id===subjectId);if(!s||s.scope!=='personal'||!archived&&s.deletedAt)throw fail('subject_unavailable','个人主体不存在或已归档');return s;}
   async function version(subject){return hash(content(subject));}
   function summary(subject,version,details=false){
@@ -35,12 +32,12 @@ export function createSubjectAgentService({app=globalThis.CanvasApp,storage=glob
       ...(details?{assets:subject.assets.map(a=>({id:a.id,type:a.type,name:readable(a.name),...(a.sourceNodeId?{sourceNodeId:a.sourceNodeId}:{}),hasMedia:typeof a.url==='string'&&!!a.url,hasPoster:typeof a.image==='string'&&!!a.image,textLength:typeof a.text==='string'?readable(a.text).length:0,...(a.type==='text'?{textPreview:readable(a.text).slice(0,200)}:{}),...(Number.isFinite(a.durationMs)?{durationMs:a.durationMs}:{})}))}:{})};
   }
   async function list({query='',offset=0,limit=30}={}){
-    page(offset,limit);if(typeof query!=='string'||query.length>200)throw fail('invalid_request','搜索词无效');
+    await library.ready();page(offset,limit);if(typeof query!=='string'||query.length>200)throw fail('invalid_request','搜索词无效');
     const filtered=load().items.filter(s=>s.scope==='personal'&&!s.deletedAt&&((s.name||'')+' '+(s.description||'')).toLowerCase().includes(query.toLowerCase()));
     return {subjects:await Promise.all(filtered.slice(offset,offset+limit).map(async s=>summary(s,await version(s)))),total:filtered.length,offset,nextOffset:offset+limit<filtered.length?offset+limit:null};
   }
   async function read({id:subjectId,assetId,offset=0,limit=2000}){
-    id(subjectId);page(offset,limit,8000);const subject=personal(load().items,subjectId),result={subject:summary(subject,await version(subject),true)};
+    await library.ready();id(subjectId);page(offset,limit,8000);const subject=personal(load().items,subjectId),result={subject:summary(subject,await version(subject),true)};
     if(assetId!=null){id(assetId,'素材 ID');const asset=subject.assets.find(a=>a.id===assetId);if(!asset||asset.type!=='text')throw fail('asset_unavailable','请选择主体中的文本素材进行分页读取');const text=readable(asset.text);result.text={assetId,offset,totalLength:text.length,text:text.slice(offset,offset+limit),nextOffset:offset+limit<text.length?offset+limit:null,offsetUnit:'UTF-16 code units after media redaction'};}
     return result;
   }
@@ -49,13 +46,11 @@ export function createSubjectAgentService({app=globalThis.CanvasApp,storage=glob
     if(found.subject.scope!=='personal'||found.record.fingerprint!==fingerprint)throw fail('operation_conflict','operationId 已绑定其他主体操作');
     const currentVersion=await version(found.subject);return {operationId:found.record.operationId,action:found.record.action,saved:true,applied:true,replayed:true,committedVersion:found.record.version,currentMatches:currentVersion===found.record.version,subject:summary(found.subject,currentVersion,true)};
   }
-  function write(snapshot,items,signal,guard=()=>{}){
-    abort(signal);guard();if(storage.getItem(storageKey)!==snapshot.raw)throw fail('version_conflict','主体库在执行期间发生变化，请重新读取版本');
-    try{storage.setItem(storageKey,JSON.stringify(items));}catch{throw fail('subject_save_failed','主体保存失败，可能存储空间不足；原主体库保持不变');}
-    try{notify();}catch{/* The committed storage receipt is authoritative. */}
+  async function write(snapshot,items,signal,guard=()=>{}){
+    await library.write(snapshot,items,{guard:()=>{abort(signal);guard();}});
   }
   async function save(input,{signal}={}){
-    abort(signal);const operationId=id(input.operationId,'operationId'),expectedVersion=expected(input.expectedVersion),subjectId=input.id==null?null:id(input.id);
+    await library.ready();abort(signal);const operationId=id(input.operationId,'operationId'),expectedVersion=expected(input.expectedVersion),subjectId=input.id==null?null:id(input.id);
     if(subjectId&&expectedVersion==='0'||!subjectId&&expectedVersion!=='0')throw fail('invalid_version','新建主体不传 id 并使用版本 0；更新必须传 id 和实际内容版本');
     reserve(operationId,'save');noImportOperation(operationId);
     const name=typeof input.name==='string'?input.name.trim():'',description=input.description==null?'':input.description;
@@ -85,16 +80,16 @@ export function createSubjectAgentService({app=globalThis.CanvasApp,storage=glob
     const nextVersion=await version(next);next.agentContentVersion=nextVersion;
     next.agentOperations=[...(previous?.agentOperations||[]),{operationId,action:'save',fingerprint,version:nextVersion,at:now()}];
     const items=snapshot.items.map(s=>s.id===next.id?next:s);if(!previous)items.push(next);
-    write(snapshot,items,signal,()=>{noImportOperation(operationId);sourceGuard();});
+    await write(snapshot,items,signal,()=>{noImportOperation(operationId);sourceGuard();});
     return {operationId,action:'save',saved:true,applied:true,replayed:false,committedVersion:nextVersion,currentMatches:true,subject:summary(next,nextVersion,true)};
   }
   async function archive(input,{signal}={}){
-    abort(signal);const operationId=id(input.operationId,'operationId'),subjectId=id(input.id),expectedVersion=expected(input.expectedVersion);reserve(operationId,'archive');noImportOperation(operationId);
+    await library.ready();abort(signal);const operationId=id(input.operationId,'operationId'),subjectId=id(input.id),expectedVersion=expected(input.expectedVersion);reserve(operationId,'archive');noImportOperation(operationId);
     const request={action:'archive',operationId,id:subjectId,expectedVersion},fingerprint=await hash(canonical(request));abort(signal);
     const snapshot=load(),found=findOperation(snapshot.items,operationId);if(found)return replay(found,fingerprint);
     const subject=personal(snapshot.items,subjectId);if(await version(subject)!==expectedVersion)throw fail('version_conflict','主体内容版本已变化，请先重新读取');
     const next={...subject,deletedAt:now(),updatedAt:now()},nextVersion=await version(next);next.agentContentVersion=nextVersion;next.agentOperations=[...(subject.agentOperations||[]),{operationId,action:'archive',fingerprint,version:nextVersion,at:now()}];
-    write(snapshot,snapshot.items.map(s=>s.id===subjectId?next:s),signal,()=>noImportOperation(operationId));
+    await write(snapshot,snapshot.items.map(s=>s.id===subjectId?next:s),signal,()=>noImportOperation(operationId));
     return {operationId,action:'archive',saved:true,applied:true,replayed:false,committedVersion:nextVersion,currentMatches:true,subject:summary(next,nextVersion,true)};
   }
   const matches=op=>!!op.nodeSnapshots&&op.nodeSnapshots.every(([node,snapshot])=>app.getState().nodes.includes(node)&&nodeContent(node)===snapshot);
@@ -109,7 +104,7 @@ export function createSubjectAgentService({app=globalThis.CanvasApp,storage=glob
     catch(error){op.saved=false;throw fail('save_failed','主体节点已导入，但画布保存失败：'+error.message,{receipt:importReceipt(op),operationId:op.request.operationId,applied:true,nodeIds:op.nodes.map(n=>n.id)});}
   }
   async function applyToCanvas(input,{signal}={}){
-    abort(signal);const operationId=id(input.operationId,'operationId'),subjectId=id(input.id),expectedVersion=expected(input.expectedVersion),position={x:input.position?.x,y:input.position?.y};
+    await library.ready();abort(signal);const operationId=id(input.operationId,'operationId'),subjectId=id(input.id),expectedVersion=expected(input.expectedVersion),position={x:input.position?.x,y:input.position?.y};
     reserve(operationId,'apply');if(findOperation(load().items,operationId))throw fail('operation_conflict','operationId 已绑定主体保存或归档操作');
     if(!Number.isFinite(position.x)||!Number.isFinite(position.y))throw fail('invalid_position','主体导入需要明确世界坐标');
     const request={action:'apply',operationId,id:subjectId,expectedVersion,position},fingerprint=await hash(canonical(request));abort(signal);

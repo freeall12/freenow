@@ -20,7 +20,7 @@
   let draftFinalUI=null,draftFinalSignature='';
   import('./src/features/video-generation/draft-final-ui.mjs').then(module=>{draftFinalUI=module.createDraftFinalUI({app,panel,onModeChange(){framePicker?.close();closePopover();draw();},onLayout:position});draftFinalUI.syncBadges(app.getState());if(node)draw();}).catch(error=>console.error('Draft/final controls:',error));
   let subjects=null;
-  import('./src/features/subject-library/entry.mjs').then(module=>{subjects=module;if(node)draw();}).catch(error=>console.error('Subject library:',error));
+  import('./src/features/subject-library/entry.mjs').then(async module=>{await module.readySubjects();subjects=module;if(node)draw();}).catch(error=>console.error('Subject library:',error));
   let focusEdit=null;
   import('./src/features/focus-edit/entry.mjs').then(module=>{focusEdit=module;if(node){draw();}}).catch(error=>console.error('Focus edit:',error));
   let videoMenus=null, videoFrames=null, referencePicker=null, framePicker=null, tailFrameKey=null;

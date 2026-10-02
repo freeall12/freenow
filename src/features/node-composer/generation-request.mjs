@@ -1,5 +1,5 @@
 import {projectSubjects,subjectIds} from '../subject-library/model.mjs';
-import {listSubjects} from '../subject-library/store.mjs';
+import {listSubjects,readySubjects} from '../subject-library/store.mjs';
 import {assetReferences,libraryPolicy,projectAssets} from './library-mentions.mjs';
 import {prepareVideoRequest} from '../video-generation/settings.mjs';
 import {prepareImageRequest} from '../image-generation/request.mjs';
@@ -17,4 +17,9 @@ export function prepareGenerationRequest(request) {
   }
   if(subjectIds(prepared.prompt||'').length || (prepared.prompt||'').includes('{{ElementRef:'))prepared=projectSubjects(prepared,prepared.parameters?.subjects|| (typeof window!=='undefined'?listSubjects():[]));
   return prepareVideoRequest(prepareImageRequest(prepared));
+}
+
+export async function prepareGenerationRequestReady(request){
+  if(['image.generate','video.generate'].includes(request.kind)&&(subjectIds(request.prompt||'').length||(request.prompt||'').includes('{{ElementRef:')))await readySubjects();
+  return prepareGenerationRequest(request);
 }

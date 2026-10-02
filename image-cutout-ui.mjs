@@ -1,3 +1,4 @@
+import {imageResultPatch} from './src/features/image-editor/generated-results.mjs';
 import {sourceOf,request,sourceMatches,untouched} from './image-cutout-core.mjs';
 import {nodeSize} from './image-resize-core.mjs';
 import statusIcons from './media-review-icons.mjs';
@@ -51,11 +52,11 @@ export async function submit(id,{inPlace=false}={}){
   let url=await window.LocalAssets.url(src);guard();const resolved=new URL(url,document.baseURI);if(resolved.protocol==='blob:'||resolved.origin===location.origin){const response=await fetch(resolved);if(!response.ok)throw Error('来源图片读取失败');url=await window.LocalMedia.asDataUrl(await response.blob());}else url=resolved.href;guard();
   const req=request(source,target?.id||source.id,url);unsubscribe=window.GenerationAPI.subscribe(job=>{if(job.request.kind===req.kind&&job.request.nodeId===req.nodeId&&['queued','running'].includes(job.status))op.job=job.id;});
   await window.GenerationAPI.runInPlace(req,{type:'image',guard,apply:async output=>{
-   const image=output.image||output.url,decoded=new Image();decoded.src=image;await decoded.decode();guard();
+   const patch=imageResultPatch(output),decoded=new Image();decoded.src=patch.fullImage;await decoded.decode();guard();
    // A provider may be attached while the source media is being read.
-   if(!target&&inPlace){target=source;app.updateNode(source.id,{image,fullImage:image,cutoutResult:true,pixelWidth:decoded.naturalWidth,pixelHeight:decoded.naturalHeight,...nodeSize(decoded.naturalWidth,decoded.naturalHeight)});return [source];}
-   if(!target){target=app.createConnected(source.id,[{type:'image',title:'抠图',image,fullImage:image,cutoutResult:true,pixelWidth:decoded.naturalWidth,pixelHeight:decoded.naturalHeight}],{gap:100,nodeSize:nodeSize(decoded.naturalWidth,decoded.naturalHeight)})[0];return [target];}
-   app.updateNode(target.id,{image,fullImage:image,cutoutResult:true,pendingOperation:null,pixelWidth:decoded.naturalWidth,pixelHeight:decoded.naturalHeight,...nodeSize(decoded.naturalWidth,decoded.naturalHeight)});return [target];
+   if(!target&&inPlace){target=source;app.updateNode(source.id,{...patch,cutoutResult:true,pixelWidth:decoded.naturalWidth,pixelHeight:decoded.naturalHeight,...nodeSize(decoded.naturalWidth,decoded.naturalHeight)});return [source];}
+   if(!target){target=app.createConnected(source.id,[{type:'image',title:'抠图',...patch,cutoutResult:true,pixelWidth:decoded.naturalWidth,pixelHeight:decoded.naturalHeight}],{gap:100,nodeSize:nodeSize(decoded.naturalWidth,decoded.naturalHeight)})[0];return [target];}
+   app.updateNode(target.id,{...patch,cutoutResult:true,pendingOperation:null,pixelWidth:decoded.naturalWidth,pixelHeight:decoded.naturalHeight,...nodeSize(decoded.naturalWidth,decoded.naturalHeight)});return [target];
   }});return target;
  }catch(error){if(inPlace){if(current(source.id)===source&&source.pendingOperation==='image.remove-background')app.updateNode(source.id,{pendingOperation:null});}else if(target&&untouched(current(target.id),target,snapshot))app.remove([target.id]);app.notify(error.message);}finally{unsubscribe?.();operations.delete(source.id);render();}
 }

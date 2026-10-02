@@ -1,14 +1,23 @@
 # Agent 本地持久化与容量
 
-Agent 会话与视频分镜操作使用现有 `CanvasStore` 的 IndexedDB `documents` records。没有数据库版本、object store 或服务端协议变更。
+Agent 会话、视频分镜操作和主体库使用现有 `CanvasStore` 的 IndexedDB `documents` records。没有数据库版本、object store 或服务端协议变更。
 
 | 内容 | 权威记录 | 旧 localStorage |
 | --- | --- | --- |
 | 会话、草稿、队列、运行检查点 | `agent-conversations:<projectId>` | `tapnow-agent-chats` / `tapnow-agent-active-chat` 的项目专属 key 只作为已有读取来源；IndexedDB 成功后不再镜像完整聊天 |
 | 视频分镜操作身份 | `agent-video-analysis-operations:<projectId>` | `tapnow.agent.video-analysis.operations.v1.<encodedProjectId>` 仅在 IndexedDB 记录缺失时读取、验证并迁移；原值保留 |
 | 生成历史与任务回执 | `agent-generation-history:<projectId>` | 原有 IndexedDB 链路 |
+| 主体、素材快照、归档和 Agent 操作回执 | `agent-subject-library:<encodedBaseKey>` | `tapnow-subject-library-v1`（或宿主显式指定的 `SUBJECT_LIBRARY_KEY`）仅在记录缺失时验证、完整迁移；原值保留 |
 
-旧 key 不删除、不清空、不覆盖；现有 localStorage 配额不会因为迁移自动释放。会话和分镜操作的新增长不再占用这项小额配额，已经满额也不会阻断这两条 IndexedDB 保存路径。素材库、主体库、个人技能、反馈和偏好仍有独立的 localStorage 路径，尚未完成统一迁移，不能宣称整个站点已摆脱容量限制。IndexedDB 自身也可能达到浏览器磁盘配额。
+旧 key 不删除、不清空、不覆盖；现有 localStorage 配额不会因为迁移自动释放。会话、分镜操作和主体库的新增长不再占用这项小额配额，已经满额也不会阻断这些 IndexedDB 保存路径。素材库、个人技能、反馈和偏好仍有独立的 localStorage 路径，尚未完成统一迁移，不能宣称整个站点已摆脱容量限制。IndexedDB 自身也可能达到浏览器磁盘配额。
+
+## 主体库保存
+
+`readySubjects()` 等待读取及必要迁移；`listSubjects()` 保持同步，并读取 UI 与 Agent 共用的已提交缓存。主体选择弹窗仍同步返回 dialog，内部显示读取/错误状态。编辑完成、重命名、归档和 Agent 保存均等待事务提交后再报告成功；失败保留编辑器草稿及原缓存。Agent 请求展开主体与中断恢复来源指纹也读取这份主体库。恢复指纹只有在 legacy 值与权威主体内容语义一致时保留原序列化（含空库的 null 或旧空白）；内容已变化或 legacy 读取失败时使用当前主体序列化，IndexedDB 失败仍阻断恢复。主体素材引用和 `agentOperations` 原样迁移；旧编辑器覆盖内容时保留最新已提交回执，同 operationId 重试可继续核对原结果。
+
+个人主体继续在多个画布之间共享，相同主体库 key 对应同一份记录；测试或独立宿主显式指定不同 key 时分开，数据库 namespace 沿用宿主 `CanvasStore`。存在 record adapter 时，读取、迁移或提交失败均直接报错，不降级写 localStorage。独立宿主没有 record adapter 时才保留 legacy 路径。项目导航等待正在读取/保存的主体事务，刷新或关页在事务进行中提示；已经结束的失败不永久锁定导航，原草稿仍受编辑器离页保护。多窗口冲突沿用 `CanvasStore.writeRecord` 的事务版本保护，禁止覆盖另一窗口较新记录。
+
+本次只运行 `node --test tests/agent-subjects.test.cjs`（18 项通过）与修改模块语法检查：包含满 localStorage、迁移原素材/回执、等待事务、失败不降级、不发布未提交缓存、刷新重读回执、共享主体库范围和显式 key 隔离。后续通过实际浏览器在旧主体存储拒写条件下新建、选入视频、保存和刷新；见 [本地工作流验收](LOCAL-WORKFLOWS-20261003.md)。未跑全套回归。
 
 ## 保存与派发顺序
 

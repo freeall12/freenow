@@ -601,13 +601,14 @@
   const store=await artifactsReady,files=await store.list(),builtinSkills=await catalog(),state=app.getState(),editor=window.CanvasImageEditor?.current;
   if(editor&&(editor.loading||editor.saving||editor.crop||editor.canvas?._currentTransform||editor.resizing))throw Error('图片编辑器正在操作，请完成后再核对来源版本');
   const scene=chat.studioNodeId?window.StudioAPI.getState():null;
+  const subjectLibrary=await import('./src/features/subject-library/store.mjs');await subjectLibrary.readySubjects();
   return recoveryModule.fingerprint({projectId:project.id,studioNodeId:chat.studioNodeId||null,nodes:state.nodes,edges:state.edges,
    configs:state.nodes.filter(node=>['image','video'].includes(node.type)).map(node=>({id:node.id,config:window.NodeEditor?.getConfig(node)||{}})),
    artifacts:files.map(({artifact_path,revision,content_type,source_artifact_path,source_revision})=>({artifact_path,revision,content_type,source_artifact_path,source_revision})),
    scene:scene?Object.fromEntries(['version','nodeId','sessionId','revision','objects','room','ground','environment','activeSetup','setups','cameras','animations','lighting'].map(key=>[key,scene[key]])):null,
    editor:editor?{nodeId:editor.nodeId,sessionId:editor.sessionId,revision:editor.revision,document:editor.document()}:null,
    builtinSkills,personalSkills:customSkills(),disabledSkills:disabledSkills(),library:window.CanvasLibrary?.items||[],
-   subjectLibrary:localStorage.getItem(window.SUBJECT_LIBRARY_KEY||'tapnow-subject-library-v1'),
+   subjectLibrary:await subjectLibrary.getSubjectStore().recoverySource(),
    formSubmissions:chat.messages.filter(message=>message.role==='user'&&message.formSubmission).map(message=>message.formSubmission)});
  }
  async function resumeInterruptedRun(record,scope){

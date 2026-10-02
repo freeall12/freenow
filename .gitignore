@@ -108,3 +108,6 @@ reference/*
 
 !qa/provider-routing-fixture.js
 !qa/provider-routing-controls.mjs
+
+!qa/local-workflows-fixture.js
+!qa/local-workflows-controls.mjs

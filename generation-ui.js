@@ -1,7 +1,7 @@
 (() => {
   'use strict';
   const app=window.CanvasApp;
-  let generationRequests,generationMedia,recognitionMedia,videoAnalysisMedia,draftWorkflow,resultModules,resultWorkflow,failureBridge;
+  let generationRequests,generationMedia,recognitionMedia,videoAnalysisMedia,extensionMedia,draftWorkflow,resultModules,resultWorkflow,failureBridge;
   const failureSources=new Map();
   const resultSubmissions=new Map();
   const draftGuards=new Map();
@@ -20,8 +20,12 @@
       const prepared=(await draftWorkflow).prepareDraftFinalRequest(request,app);request=prepared.request;
       if(prepared.guard)draftGuards.set(jobId,prepared.guard);
     }
-    return (await generationRequests).prepareGenerationRequest(request);
+    return (await generationRequests).prepareGenerationRequestReady(request);
   },prepareInputs:async(request,{jobId,signal,validateSources,acceptSourceReplacements})=>{
+    if(request.kind==='video.extend'){
+      extensionMedia||=import('./src/features/video-creation/media.mjs');
+      return (await extensionMedia).prepareExtensionMedia(request,{signal,validateSources,localAssets:window.LocalAssets,localMedia:window.LocalMedia,baseUrl:document.baseURI});
+    }
     if(request.kind==='video.analyze'){
       videoAnalysisMedia||=import('./src/features/node-composer/video-analysis-media.mjs');
       const nativeConfiguration=service.jobs.get(jobId)?.transport===localProvider?taskNativeConfigurations.get(signal):null;

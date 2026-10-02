@@ -110,7 +110,7 @@ test('stale UI editor preserves committed agent operation receipts while current
  const oldWindow=globalThis.window,oldStorage=Object.getOwnPropertyDescriptor(globalThis,'localStorage'),oldDocument=globalThis.document;
  try{
   globalThis.window={SUBJECT_LIBRARY_KEY:'test-subjects'};Object.defineProperty(globalThis,'localStorage',{value:f.storage,writable:true,configurable:true});globalThis.document={dispatchEvent:()=>{}};
-  const {saveSubject}=await import('../src/features/subject-library/store.mjs');saveSubject({...before,name:'UI旧编辑器保存'});
+  const {saveSubject}=await import('../src/features/subject-library/store.mjs');await saveSubject({...before,name:'UI旧编辑器保存'});
  }finally{globalThis.window=oldWindow;if(oldStorage)Object.defineProperty(globalThis,'localStorage',oldStorage);else delete globalThis.localStorage;globalThis.document=oldDocument;}
  const replay=await f.service.save(create);assert.equal(replay.replayed,true);assert.equal(replay.currentMatches,false);assert.equal(replay.subject.name,'UI旧编辑器保存');assert.equal(replay.committedVersion,saved.subject.version);assert.equal(JSON.parse(f.data.get('test-subjects')).length,1);
 });
@@ -119,4 +119,38 @@ test('moving imported nodes permits replay but changing actual media metadata in
  const f=await fixture(),saved=await f.service.save(create),request={operationId:'metadata',id:saved.subject.id,expectedVersion:saved.subject.version,position:{x:0,y:0}},result=await f.service.apply(request),node=f.state.nodes.find(n=>n.id===result.nodeIds[0]);
  node.x=999;node.y=-555;assert.equal((await f.newService().apply(request)).saved,true);
  node.durationMs=2000;await assert.rejects(f.newService().apply(request),error=>error.code==='output_changed');assert.equal(f.calls.pastes,1);
+});
+
+test('IndexedDB subjects migrate intact despite full localStorage, share UI receipts and await transaction commit',async()=>{
+ const {getSubjectStore}=await import('../src/features/subject-library/store.mjs'),records=new Map();let gate=null,commits=0;
+ const store={readRecord:async key=>structuredClone(records.get(key)),writeRecord:async(key,value)=>{if(gate)await gate.promise;records.set(key,structuredClone(value));commits++;},save:async()=>{}};
+ const f=await fixture({store}),legacy=[{id:'old',scope:'personal',name:'旧人物',assets:[{id:'inline',type:'image',url:'data:image/png;base64,ORIGINAL'}],agentOperations:[{operationId:'historic',action:'save',version:'old-version'}]}],raw=' \n'+JSON.stringify(legacy,null,2)+'\n ';
+ f.data.set('test-subjects',raw);f.setQuota(true);assert.equal((await f.service.list()).total,1);assert.deepEqual([...records.values()][0].subjects,legacy);assert.equal(f.data.get('test-subjects'),raw);assert.equal(f.calls.writes,0);const initialRecoverySource=await getSubjectStore({storage:f.storage,store,storageKey:'test-subjects'}).recoverySource();
+ gate=deferred();let settled=false;const pending=f.service.save(create).then(result=>{settled=true;return result;});await new Promise(done=>setImmediate(done));assert.equal(settled,false);assert.equal(commits,1);gate.resolve();const saved=await pending;gate=null;
+ const library=getSubjectStore({storage:f.storage,store,storageKey:'test-subjects',notify:()=>{}});assert.deepEqual([initialRecoverySource,await library.recoverySource()],[raw,JSON.stringify(library.snapshot().items)]);const stale=library.list().find(s=>s.id===saved.subject.id);delete stale.agentOperations;await library.save({...stale,name:'UI 修改'});
+ assert.equal((await f.service.save(create)).replayed,true);assert.equal((await f.service.read({id:saved.subject.id})).subject.name,'UI 修改');assert.equal(f.calls.writes,0);
+ const {createSubjectAgentService}=await import('../src/features/agent-subjects/service.mjs'),reopened=createSubjectAgentService({...f.options,store:{...store}});assert.equal((await reopened.save(create)).replayed,true);assert.equal(f.data.get('test-subjects'),raw);
+});
+
+test('IndexedDB read and commit failures never fall back or publish an unsaved subject cache',async()=>{
+ const {getSubjectStore}=await import('../src/features/subject-library/store.mjs');let failRead=true,failWrite=false;const records=new Map();
+ const store={readRecord:async key=>{if(failRead)throw Error('IndexedDB read failed');return structuredClone(records.get(key));},writeRecord:async(key,value)=>{if(failWrite)throw Error('IndexedDB commit failed');records.set(key,structuredClone(value));},save:async()=>{}};
+ const f=await fixture({store});f.data.set('test-subjects','[]');await assert.rejects(f.service.save(create),/IndexedDB read failed/);assert.equal(f.calls.writes,0);
+ failRead=false;failWrite=true;await assert.rejects(f.service.save(create),error=>error.code==='subject_save_failed');assert.equal(getSubjectStore({storage:f.storage,store,storageKey:'test-subjects'}).list().length,0);assert.equal(records.size,0);assert.equal(f.calls.writes,0);
+ failWrite=false;assert.equal((await f.service.save(create)).saved,true);assert.equal((await f.service.save(create)).replayed,true);
+});
+
+test('personal subjects remain shared across projects while explicit library keys stay isolated',async()=>{
+ const {getSubjectStore}=await import('../src/features/subject-library/store.mjs'),records=new Map(),values=new Map([['tapnow-subject-library-v1',JSON.stringify([{id:'shared',scope:'personal',name:'共享人物',assets:[]}])]]);
+ const storage={getItem:key=>values.get(key)??null,setItem(){throw Error('full');}},store={readRecord:async key=>structuredClone(records.get(key)),writeRecord:async(key,value)=>records.set(key,structuredClone(value))};
+ const a=getSubjectStore({storage,store,projectId:'canvas',notify:()=>{}}),b=getSubjectStore({storage,store,projectId:'other',notify:()=>{}});await a.ready();await b.ready();assert.equal(a,b);assert.equal(b.list()[0].id,'shared');
+ const isolated=getSubjectStore({storage,store,storageKey:'test-library',notify:()=>{}});await isolated.ready();assert.deepEqual(isolated.list(),[]);await isolated.save({id:'test',scope:'personal',name:'独立命名空间',assets:[]});assert.equal(a.list()[0].id,'shared');assert.equal(records.size,2);
+ values.set('tapnow-subject-library-v1','{broken old mirror');const reopened=getSubjectStore({storage,store:{...store},notify:()=>{}});await reopened.ready();assert.equal(reopened.list()[0].id,'shared');
+});
+
+test('navigation drains pending subject writes, unload warns, and a finished failure can be retried',async()=>{
+ const {getSubjectStore}=await import('../src/features/subject-library/store.mjs'),guards=[],listeners={},gate=deferred();let fail=false;
+ const library=getSubjectStore({storage:{getItem:()=>null},store:{readRecord:async()=>undefined,writeRecord:async()=>{await gate.promise;if(fail)throw Error('commit failed');}},storageKey:'navigation-test',notify:()=>{},root:{CanvasProjects:{registerNavigationGuard:guard=>guards.push(guard)},addEventListener:(name,handler)=>listeners[name]=handler}});await library.ready();assert.equal(await library.recoverySource(),null);
+ const saving=library.save({id:'pending',scope:'personal',name:'主体',assets:[]});let navigated=false;const navigation=guards[0]().then(result=>{assert.equal(result,null);navigated=true;});const event={preventDefault(){this.prevented=true;}};listeners.beforeunload(event);assert.equal(event.prevented,true);await new Promise(done=>setImmediate(done));assert.equal(navigated,false);gate.resolve();await saving;await navigation;assert.equal(library.pending,false);
+ fail=true;await assert.rejects(library.save({id:'failed',scope:'personal',name:'失败',assets:[]}),/commit failed/);assert.equal(await guards[0](),null);fail=false;await library.save({id:'retry',scope:'personal',name:'重试',assets:[]});await library.flush();assert.equal(library.list().length,2);
 });
