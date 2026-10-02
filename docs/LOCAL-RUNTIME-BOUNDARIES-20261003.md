@@ -6,12 +6,16 @@
 
 - 字体运行清单使用 `assets/fonts/`，124个实际文件已核实并由浏览器解码；原采集地址只保留在开发脚本和来源文档。两个图片增强指南改到本地 `help/image-enhance.html`，保留tooltip和新标签页交互。详见[字体及帮助证据](IMAGE-EDITOR-FONTS.md)。
 - 素材选择器只交付本地asset/data媒体与宿主library标识；学习预览只接受有界内嵌图片。两类原站媒体域权限为空。旧远程素材记录不删除，不会通过选择器静默从原站拉取。
-- 四类沙箱代理仅接受精确本地父源，协议/主机/端口均匹配；仍核验nonce与frame来源。MCP页面不再接受宿主参数扩展远程媒体权限；Widget改为data/blob媒体。
-- 对随产品提供的Agent应用HTML及代理添加本地资源CSP，防止直接打开未接入应用时加载原站演示图。product-kit演示图仍是未迁移资源，阻断不算完成该功能。
+- 各类沙箱代理仅接受精确本地父源，协议/主机/端口均匹配；仍核验nonce与frame来源。MCP页面不再接受宿主参数扩展远程媒体权限；Widget改为data/blob媒体。
+- 对随产品提供的Agent应用HTML及代理添加本地资源CSP，防止直接打开未接入应用时加载原站演示图。product-kit官方演示图不作运行输入：现接实际本地产品图片，并在完整SHA核验后只修正缩略图校验；官方原HTML仍保留来源身份，阻断演示图本身不算完成。
 - Agent指令明确原始技能/模板只是本地参考，不允许借用原站下载、账号或服务；未取得精确模板正文应报告缺口，不能猜下载域或生成假回执。
 
 - 创意库艺术/硬件入口直接打开本地原页面且无预选，严格绑定已保存模板与交接；已修复会话切换、草稿和失败保存回滚。见[Creative验收](AGENT-CREATIVE-FAMILY-20261003.md)。
 - 视频分割已迁到本机后端，供应商地址/Key由服务端环境配置；浏览器只读本机状态和提交本机请求。禁止原站地址与HTTP跳转、约束RLE来源并校验实际蒙层。见[分割配置合同](VIDEO-SEGMENTATION-SETUP.md)。
+
+- 本批再接人物站位v3、产品素材板v1、广告审核v1，registry为16/22个版本URI、16/20个功能族。四族仍未接：animatic、ecommerce-photoset、layer-composer、previs；历史animatic@v1、character-blocking@v1单列保留，不扩充功能族计数。接线计数不证明完整验收。
+- 三应用仅接真实本地node_ref/source，由宿主读取/裁图/封装预览；保存状态、来源SHA、会话和队列实际提交均校验。确认通过普通用户队列，生成使用正常已配置API工具；iframe不增tools/call权限。合同：[人物站位](../src/features/agent-apps/CHARACTER-BLOCKING.md)、[产品素材](../src/features/agent-apps/product-kit.md)、[广告审核](../src/features/agent-apps/AD-REVIEW.md)。
+- ad-review专属proxy只允许该资源的本地data/blob媒体与16MiB宿主响应，保留opaque双iframe和connect-src none。product-kit仅共享proxy的SHA核验缩略图兼容修正，不改磁盘原应用HTML；人物站位和产品素材沿用默认宿主容量并有独立小预览限额。
 
 ## 实际验证与限制
 
@@ -19,7 +23,9 @@
 
 视频分割17项定向检查通过，Creative相关51项及最终8项专项通过（有重叠，不相加为全套测试）。浏览器实际框选视频后识别显示未配置，打开/关闭配置窗口可用；实际GET config返回200且configured:false，POST未配置返回503且未派发。框选源为本地固定视频，不是模型生成质量验证。配置窗口退出复焦在隔离验收页调用同一生产模块实际通过：关闭后原入口标记active。旧视频蒙层整页fixture仍有GenerationAPI.resolve错误及初始化重置，本轮没有据此声称旧整页QA全部通过。
 
-字体/指南6项相关测试及124字体浏览器解码由独立子任务验证。旧增强QA在已通过新帮助断言后，因已有fixture的provider resolve未定义停于24/25；不能报告全套增强验收通过。真实生成服务未配置Key，本批没有验证模型效果。
+字体/指南6项相关测试及124字体浏览器解码由独立子任务验证。旧增强QA在已通过新帮助断言后，因已有fixture的provider resolve未定义停于24/25；不能报告全套增强验收通过。该字体/指南批次没有验证真实模型效果，本批三应用QA也未调用生成模型。
+
+本批三应用共同接线37项定向检查通过。根任务实际浏览器已核验站位真实头像、video/9:16、X310/facing96、CB3一次交接、reload恢复及保存失败不新增队列；产品素材以真实本地camera图856×558核验砂岩配色、双调性、PK1一次交接、来源SHA和真实reload。站位鼠标拖动、产品拖动与全部组合未验；广告审核实际浏览器已验证中文首帧keep/cull与备注净化、英文试拍win/pass_over、日语成片keep/rework/win，三阶段累计3条可信node_ref/SHA交接；重复确认、刷新恢复、运行中拒绝和真实替换PNG后旧来源拒绝均通过。真实本地视频解码为320×180/8秒，readyState4并实际原生播放；后续模型生成与投放效果未验。正式首页Agent已实际加载且本轮console无warn/error；QA通过不代表真实模型联调。没有据此宣称图片/视频已经生成或广告投放效果通过。
 
 独立审计发现主画布的tasks-v1直连网关以及合法供应商的远程图片/视频结果仍有浏览器读取路径。因此撤回试验性的主页面全局CSP，仅在已经本地化的Agent沙箱和模板页强制本地资源。最终全局隔离前必须把真实供应商结果导入本地存储，不能通过挡掉它们来声称功能齐全。审计细节见[运行依赖审计](RUNTIME-DEPENDENCY-AUDIT-20261003.md)。
 
@@ -27,7 +33,7 @@
 
 1. tasks-v1浏览器直连配置转本机适配，以及所有供应商返回媒体的本地落盘/有界下载/取消/来源回执；旧项目远程资源需可检查、可恢复的迁移流程。
 2. 通用用户内容导航与历史Widget远程资源的迁移；禁止原站运行依赖不等于删除用户历史数据。
-3. 7个尚未接入的Agent功能族、Creative单个精确模板正文和后续编辑链、Marble/SPZ实际渲染，以及全站菜单/hover/布局逐项验收。
+3. 四个尚未接入的Agent功能族（animatic、ecommerce-photoset、layer-composer、previs）、Creative单个精确模板正文和后续编辑链、Marble/SPZ实际渲染，以及全站菜单/hover/布局逐项验收。
 4. 完成上述目标功能后，统一替换产品可见名称、logo、水印、导出标识和favicon；保留开发证据真实来源并兼容旧项目数据。
 
 官方资源URI的“tapnow”字符串暂为本地协议标识，不产生HTTP/DNS请求；不能用字符串计数证明联网或完成迁移。

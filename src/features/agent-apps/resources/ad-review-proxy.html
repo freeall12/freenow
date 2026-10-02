@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="color-scheme" content="light dark" />
   <meta name="viewport" content="initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>MCP App Proxy</title>
+  <title>Ad Review Local Transport</title>
   <style>
     html, body { margin: 0; height: 100%; width: 100%; overflow: hidden; background: #1f1f1f; }
     body { display: flex; flex-direction: column; }
@@ -133,11 +133,14 @@
       // (见 packages/mcp-app-widgets/src/shared/design-tokens.css)。proxy 只负责安全(CSP)。
       // 仅接受严格 https origin 形态的域(防御纵深: 拒绝含引号/分号/空白的值,
       // 杜绝经拼接注入额外 CSP 指令或破坏 meta content 属性)。
-      function buildCspPolicy() {
+      var CSP_IMG_DOMAIN_REGEX = /^https:\/\/[a-z0-9.-]+(:\d+)?$/;
+
+      // Local ad-review transport: actual bounded media bytes only; no network domains.
+      function buildCspPolicy(csp) {
         var imgSources = "data: blob:";
-        var mediaSources = "blob:";
+        var mediaSources = "blob: data:";
         // 默认近乎全禁: 无网络(connect-src 'none')、无外部脚本/样式(仅 inline, 适配单文件构建产物)、
-        // 无嵌套 iframe、无表单提交。img 仅放行宿主交付的 data/blob 本地媒体。
+        // 无嵌套 iframe、无表单提交。img 仅放行 data/blob + 宿主声明的 https 白名单。
         return "default-src 'none'; "
           + "script-src 'unsafe-inline'; "
           + "style-src 'unsafe-inline'; "
@@ -165,22 +168,6 @@
         return "<!doctype html>" + doc.documentElement.outerHTML;
       }
 
-      // PRODUCT_KIT_LOCAL_TRANSPORT:BEGIN
-      // Keep the captured reference intact. This exact, hash-bound derivative only
-      // changes the thumbnail transport from vendor HTTPS to host-owned pixels.
-      async function localizeProductKitTransport(html, name, version) {
-        if (name !== "product-kit") return html;
-        if (version !== "v1") throw new Error("unsupported local product-kit version");
-        var expected = "758d09b3f06e99a6b4e47a782d33ef90b9f12935c140b8bdfe88ca41f76e2535";
-        var digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(html));
-        var hash = Array.from(new Uint8Array(digest), function (byte) {return byte.toString(16).padStart(2, "0");}).join("");
-        var original = 'thumbnail_url:f().url().refine(e=>e.startsWith("https://"))';
-        if (hash !== expected || html.split(original).length !== 2) throw new Error("product-kit reference integrity mismatch");
-        var local = String.raw`thumbnail_url:f().max(500000).regex(/^data:image\/(?:png|jpeg|webp);base64,[A-Za-z0-9+/]+={0,2}$/)`;
-        return html.replace(original, local);
-      }
-      // PRODUCT_KIT_LOCAL_TRANSPORT:END
-
       function notifyParent(method, params) {
         window.parent.postMessage(
           { jsonrpc: "2.0", method: method, params: params || {}, nonce: (params && params.nonce) || currentNonce },
@@ -191,6 +178,11 @@
       function handleResourceReady(params, origin) {
         if (resourceLoaded) return;
         if (!params || typeof params.nonce !== "string" || !params.resource) return;
+        // This transport cannot be repurposed for other archived apps.
+        if (params.resource.name !== "ad-review" || params.resource.version !== "v1") {
+          notifyParent("ui/notifications/sandbox-resource-error", {nonce: params.nonce, message: "invalid_ad_review_resource"});
+          return;
+        }
         // 宿主已接住 ready 并返回 nonce，停止有上限的重发；后续由 nonce 控制面接管。
         stopProxyReadyAnnouncements();
         var name = params.resource.name;
@@ -218,9 +210,6 @@
           .then(function (response) {
             if (!response.ok) throw new Error("template fetch failed: " + response.status);
             return response.text();
-          })
-          .then(function (templateHtml) {
-            return localizeProductKitTransport(templateHtml, name, version);
           })
           .then(function (templateHtml) {
             inner.srcdoc = buildSrcdocWithCsp(templateHtml, buildCspPolicy(params.csp));

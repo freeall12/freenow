@@ -4,7 +4,7 @@
 
 ## 模块边界
 
-- `registry.mjs`：十三个已接通的版本 URI、模板 ID 范围、展示策略与状态校验。
+- `registry.mjs`：十六个已接通的版本 URI、模板 ID 范围、展示策略与状态校验。
 - `director-markup.mjs`：真实剧本文本输入、官方 DM1 批注解码、已保存正文/位置/批注核对与稳定交接 ID。
 - `performance-rhythm.mjs`：固定时长、实际驱动力曲线/节拍与PS1确认核对，合同见 [表演节奏](PERFORMANCE-RHYTHM.md)。
 - `story-room.mjs`：来源场景、按幕排列、新增/废弃与NS1确认核对，合同见 [剧本结构板](STORY-ROOM.md)。
@@ -15,16 +15,19 @@
 - `color-adjust.mjs`、`color-adjust-runtime.mjs`：官方18参数像素变换、真实图片预览/PNG输出、已保存输出回执与官方上下文文案核验。
 - `platform-resize.mjs`、`platform-resize-runtime.mjs`：真实图片尺寸与千分比裁切、指定平台规格、真实PNG批量入图及幂等回执。
 - `cutlist-review.mjs`、`cutlist-review-runtime.mjs`：真实视频解码/哈希、源时基裁切提案、保存状态与精确CR1正常队列交接。
+- `character-blocking.mjs`、`character-blocking-runtime.mjs`：真实人物引用与局部头像裁图、positions/facings保存、精确CB3与真实来源交接，见[人物站位合同](CHARACTER-BLOCKING.md)。
+- `product-kit.mjs`、`product-kit-runtime.mjs`：真实产品源图、配色/调性/禁令与规格确认、精确PK1及来源绑定，见[产品素材合同](product-kit.md)。
+- `ad-review.mjs`、`ad-review-runtime.mjs`：真实图片/视频与审核阶段、marks/notes保存、精确AR1及来源绑定，见[广告审核合同](AD-REVIEW.md)。
 - `integration.mjs`：会话/trace身份、卡片复用、保存与正常消息队列适配。
 - `host.mjs`：JSON-RPC握手、nonce/source、状态回执、运行状态与展示通知。相同host context/run不重发，避免官方模板清空暂停状态。
 - `card.mjs`、`styles.css`、`icons.mjs`：官方标题栏/图标、加载与失败、重载、展开和焦点恢复；重载不重提生成任务。
-- `resources/`：安装包原始proxy、manifest与HTML模板。包含文件不等于对应工具工作流已实现。
+- `resources/`：安装包manifest与原HTML模板、受限本地proxy及明确的传输兼容修正。包含文件不等于对应工具工作流已实现。
 
 ## show_app 合同
 
-Purpose：在Agent会话显示十三个已集成官方应用：三个选择器、导演批注、表演节奏、剧本结构、人物情绪、制作进度、互动学习、个人素材选择、调色、平台裁切和拼装审阅。可编辑应用保存实际状态并通过正常消息队列交接；制作进度只读取真实制作任务。
+Purpose：在Agent会话显示十六个已集成官方应用：三个选择器、导演批注、表演节奏、剧本结构、人物情绪、制作进度、互动学习、个人素材选择、调色、平台裁切、拼装审阅、人物站位、产品素材板和广告审核。可编辑应用保存实际状态并通过正常消息队列交接；制作进度只读取真实制作任务。
 
-Inputs：三个选择器 `resource_uri`（motion-picker@v1、creative-picker@v1、website-design-picker@v1），可选title、original_request、recommended_template_id。另外十个工作流使用各自data（素材选择可省略data），拒绝混用模板选择参数及任意工具参数：
+Inputs：三个选择器 `resource_uri`（motion-picker@v1、creative-picker@v1、website-design-picker@v1），可选title、original_request、recommended_template_id。另外十三个工作流使用各自data（素材选择可省略data），拒绝混用模板选择参数及任意工具参数：
 
 - director-markup@v1：`data:{draft,locale?}`，正文非空且最多8000 UTF-16字符，支持中/英/日/韩/法。
 - performance-rhythm@v3：固定duration_ms、真实scene、曲线点curve和节拍beats，详见 [输入与状态合同](PERFORMANCE-RHYTHM.md)。
@@ -38,6 +41,10 @@ Inputs：三个选择器 `resource_uri`（motion-picker@v1、creative-picker@v1�
 - platform-resize@v1：`data:{image_id,platforms,project_id?,locale?}`；platforms必须1..16个唯一实际规格，每项platform、label_zh、label_en、ratio_id（r_W_H），可选selected。宿主读取真实图片尺寸后计算千分比最大取景范围，Agent不能提供preview、尺寸或裁切结果。
 - cutlist-review@v1：`data:{shots,locale?,ratio?,notes?,target_duration_s?}`，每项真实视频节点id、label、实际media_duration_ms、in_ms、out_ms、default_keep，可选trim_reason、flag、flag_note。源时长与实际解码毫秒核验；预览由宿主读取完整有界视频并写入data:video。原视频已裁切状态需先用现有video_trim导出完整结果，不能误用源视频。
 
+- character-blocking@v3：`data:{locale?,target,aspect_ratio,scene,characters}`；人物使用真实文本与整数千分比x/y、可选facing及`portrait_source:{node_ref,crop?}`，宿主从实际本地图片裁图；禁止模型传portrait/URL/字节，详见[合同](CHARACTER-BLOCKING.md)。
+- product-kit@v1：`data:{node_ref,version,locale,variant,product,kit_version,updated_at,palette,tones,look,bans,copy,hypotheses,plan_attached?,summary}`；模型product只含name/category/price_band，缩略图由宿主真实解码产生，详见[合同](product-kit.md)。
+- ad-review@v1：`data:{locale?,stage,batch,items}`；stage为frame_cull/pilot_review/final_review，items使用实际node_ref、combo、media和官方文本；不接受模型preview/poster/URL/字节，详见[合同](AD-REVIEW.md)。
+
 Outputs：本地`kind:mcp_app`展示回执；选择或已核对的编辑结果通过`ui/message`进入新的用户回合，保留原官方协议、可读结果、`widgetOrigin`与handoffId。打开应用、采用节奏/结构或确认人物情绪均不等于生成授权。
 
 Permissions：`sandbox=allow-scripts`双iframe；只对manifest与带版本hash的静态HTML开放匿名跨源读取。API继续拒绝Origin:null。消息与写入来源需当前会话、存活trace、对应iframe、nonce及真实当前用户动作；制作进度只读轮询不需用户动作，个人库被动查询仅允许恢复已实际保存的query/folder；它不是精确意图的密码学证明。应用消息不扩大工具权限，后续画布修改和生成仍经过正常流程。
@@ -47,7 +54,7 @@ Permissions：`sandbox=allow-scripts`双iframe；只对manifest与带版本hash�
 各应用的专属窄方法：
 
 - actor-emotion@v1：`tools/call` → `actor_emotion_save_expression_guide`，真实指导图片保存后才给回执。
-- production-progress@v1：`tools/call` → `get_production_result`。核对同顺序node_ids/project_id与真实生成trace，始终只读；官方SDK只带progressToken时合法，不强加人物写回专属callId。只有provider succeeded、应用已提交、实际结果节点仍存在且媒体与job.outputs/生成provenance一致时才能done。真实图片按有界字节或实际缩放像素转为data:image；视频先实际解码宽高/时长，再把完整有界字节转为data:video/mp4或webm，在官方video标签播放。仅此资源使用本地 `production-progress-proxy.html` 传输副本：只允许production-progress@v1，media-src增加data:，保留双opaque iframe、scripts-only和connect-src none，忽略网络域输入；归档 `mcp-app-proxy.html` 与官方页面原样保留。单图读取上限8MiB、单视频8MiB、每次读取总量16MiB、缓存/整页媒体文本15MiB、host仅此专属查询回执上限16MiB，整次读取/解码30秒；流式核对声明与实际字节，超时、来源失效或关闭立即中止，重复轮询复用有界缓存。视频超限时有已证明属于该实际输出的poster才提供明确“首帧预览（非完整播放）”；否则保留真实已应用状态，注明“预览超限，未加载播放”，不能假称可播或改变原任务。读取失败或来源变化不给虚假完成预览。没有状态保存或ui/message。
+- production-progress@v1：`tools/call` → `get_production_result`。核对同顺序node_ids/project_id与真实生成trace，始终只读；官方SDK只带progressToken时合法，不强加人物写回专属callId。只有provider succeeded、应用已提交、实际结果节点仍存在且媒体与job.outputs/生成provenance一致时才能done。真实图片按有界字节或实际缩放像素转为data:image；视频先实际解码宽高/时长，再把完整有界字节转为data:video/mp4或webm，在官方video标签播放。仅此资源使用本地 `production-progress-proxy.html` 传输副本：只允许production-progress@v1，media-src增加data:，保留双opaque iframe、scripts-only和connect-src none，忽略网络域输入；官方页面原字节保留；共享 `mcp-app-proxy.html` 仅对product-kit执行下文所述SHA核验后的窄传输修正。单图读取上限8MiB、单视频8MiB、每次读取总量16MiB、缓存/整页媒体文本15MiB、host仅此专属查询回执上限16MiB，整次读取/解码30秒；流式核对声明与实际字节，超时、来源失效或关闭立即中止，重复轮询复用有界缓存。视频超限时有已证明属于该实际输出的poster才提供明确“首帧预览（非完整播放）”；否则保留真实已应用状态，注明“预览超限，未加载播放”，不能假称可播或改变原任务。读取失败或来源变化不给虚假完成预览。没有状态保存或ui/message。
 - library-picker@v1：`tools/call` → `find_library_assets`；`ui/update-model-context` 绑定当前可见真实资产；`tapnow/addToCanvas` 只能导入宿主选定资产的真实媒体，实际画布与会话保存后返回node_ref。普通搜索、上下文更新、入图检查当前iframe动作；被动搜索只可恢复已存浏览位置。所有异步阶段核对本次iframe代次/状态/项目，禁止工具泛化。
 - interactive-learning@v1：无专属tools/call；学习板通过 `tapnow/setWidgetState` 保存，精确IL1通过 `ui/message` 进入正常队列；目录无需编辑状态。
 
@@ -55,11 +62,11 @@ Permissions：`sandbox=allow-scripts`双iframe；只对manifest与带版本hash�
 
 Failure modes：非法资源、初始化超时、保存失败、过期来源、不支持方法均明确失败。除本应用以上专属方法之外的tools/call、结构化appReply、任意model context等未实现方法返回JSON-RPC错误；真实图片、画布保存和会话回执必须分别成立。
 
-Logging：会话保存show_app trace、appState、appHandoffs与widgetOrigin；handoff去重与队列同一次提交，失败回滚，不覆盖输入草稿。工作流保留原DM1/PS1/NS1/AE2及核对后的可读内容；稳定内容SHA256交接ID用于同来源页重复确认去重。人物应用另保留实际指导图片回执、来源快照与字节哈希。任意KEY只放服务端。
+Logging：会话保存show_app trace、appState、appHandoffs与widgetOrigin；handoff去重与队列同一次提交，失败回滚，不覆盖输入草稿。工作流保留原DM1/PS1/NS1/AE2/CB3/PK1/AR1及核对后的可读内容；稳定内容SHA256交接ID用于同来源页重复确认去重。人物应用另保留实际指导图片回执、来源快照与字节哈希。任意KEY只放服务端。
 
 生产应用状态与消息回执均等待对话 IndexedDB 事务实际提交；保存期间暂锁应用入队、队列编辑和发送，避免消费未确认的消息。提交失败撤销本次状态、队列项及去重身份，不改输入草稿或其他队列项。提交后再次核对会话、trace、资源、保存状态和 iframe 代次；保存期间切换来源或重载时，撤销该入队并等待补偿保存。补偿保存失败明确提示未能保存撤销结果，保留 unsaved 状态且不启动模型。
 
-Story Room、人物情绪、互动学习板和个人素材页缺少已存状态时，controller在onReady通过正常保存链提交初始状态，不能把默认显示冒充持久保存。初始提交与后续状态写入按卡片串行，确认和指导图片保存先等待该链；异步期间重新核对trace/result/response、状态身份和来源代次，失败保持明确错误。
+Story Room、人物情绪、互动学习板、个人素材页、人物站位、产品素材板和广告审核缺少已存状态时，controller在onReady通过正常保存链提交初始状态，不能把默认显示冒充持久保存。初始提交与后续状态写入按卡片串行，确认和指导图片保存先等待该链；异步期间重新核对trace/result/response、状态身份和来源代次，失败保持明确错误。
 
 Tests：host/card/registry、各工作流协议/来源/保存、widget queue与stream聚焦回归。`agent-apps-batch-integration.test.cjs` 覆盖三应用工具白名单、官方仅progressToken的只读轮询、学习板真实保存前禁止IL1入队、真实个人库referenceMention进入媒体输入、多结果状态和媒体读取期间来源失效，另覆盖流读取的声明/实际字节预算、HTTP失败流取消、超时/关闭中止、专用proxy隔离以及真实本地MP4字节往返。Node测试的媒体解码采用明确桩，实际播放须独立浏览器验收。此前选择器手工验收使用真实OpenAI SDK和本机固定HTTP响应；本批确定性验收页使用生产prepareApp/controller/host，未调用外部模型。
 
@@ -67,7 +74,7 @@ Tests：host/card/registry、各工作流协议/来源/保存、widget queue与s
 
 ## 尚未完成
 
-按既有22个工作流口径，另外12个MCP资源的专属工作流、完整艺术/硬件模板逐项交互、模板文件获取/哈希校验/产物编辑链仍待接入。有KEY也不能自动补齐尚未实现的工作流。应用交接已按官方hidden标志隐藏聊天行，原文和widgetOrigin仍保留于历史，修改工具仍需正常确认；运行中不接受新的应用交接。验收见 `reference/agent-hidden-handoff-20260930.md`。
+对照当前manifest与registry，版本URI已接16/22，功能族已接16/20。未接的四族为animatic、ecommerce-photoset、layer-composer、previs；另保留未接历史URI animatic@v1和character-blocking@v1，不算两个新增功能族。完整艺术/硬件模板逐项交互、精确模板文件获取/哈希校验/产物编辑链仍待补齐。计数仅证明接线存在，不能作为完整视觉、交互、真实生成或本地化验收。有KEY也不能自动补齐尚未实现的工作流。应用交接已按官方hidden标志隐藏聊天行，原文和widgetOrigin仍保留于历史，修改工具仍需正常确认；运行中不接受新的应用交接。验收见 `reference/agent-hidden-handoff-20260930.md`。
 
 ## 导演画线批注
 
@@ -91,11 +98,11 @@ node --test tests/agent-director-markup.test.cjs tests/agent-app-host.test.cjs t
 - platform-resize@v1仅允许`tools/call → resize_for_platform_apply({image_id,project_id?,crops:[{platform,x,y,w,h}]})`，禁止state、message和model-context。x/y/w/h为千分比整数，宿主核验页面尺寸、平台顺序、重复宽高比和来源。真实裁切图片批次单次入图/撤销，保存后才返回实际node_refs；callId重试复用回执，不重复插图。
 - cutlist-review@v1只允许保存`{shots:{[id]:{keep,in_ms,out_ms}}}`及官方message，无服务端工具。默认state保存核验当前来源，提交消息前重新读实际视频SHA，不逐次重复视频解码。精确CR1是后续普通用户回合中的审阅提案，不是自动拼装或生成授权。本地executor通过正常画布修改工具`cutlist_assemble`调用，仍不注册给iframe。审核确认后只保存提案，实际拼装需通过该工具的正常修改确认。
 
-三个应用仍核对当前会话、trace/result/response、iframe/nonce、项目、真实来源以及运行状态。调色/平台裁切要求当前用户动作；调色的延迟上下文仅继承刚完成的那次Apply窄许可。新资源不能调用其他资源专属方法。图片输出已保留但会话提交失败时明确报错；不能声称整体撤销或伪造成功。凭据只留服务端，官方HTML与原mcp-app-proxy保持原样。
+三个应用仍核对当前会话、trace/result/response、iframe/nonce、项目、真实来源以及运行状态。调色/平台裁切要求当前用户动作；调色的延迟上下文仅继承刚完成的那次Apply窄许可。新资源不能调用其他资源专属方法。图片输出已保留但会话提交失败时明确报错；不能声称整体撤销或伪造成功。凭据只留服务端，官方HTML原字节保留；共享proxy仅有下文列明的product-kit传输修正。
 
-拼装审阅使用仅允许cutlist-review@v1的专属`cutlist-review-proxy.html`，开放有界data:video，保留双opaque iframe、scripts-only及connect-src none；单视频8MiB、总读取16MiB、整页响应15MiB、30秒超时。host仅该资源tool-result接受16MiB，关闭立即取消读取。颜色tool-result单独2MiB容纳实际512边预览；其他资源沿用原限制。
+拼装审阅使用仅允许cutlist-review@v1的专属`cutlist-review-proxy.html`，开放有界data:video，保留双opaque iframe、scripts-only及connect-src none；单视频8MiB、总读取16MiB、整页响应15MiB、30秒超时。host仅cutlist-review与ad-review资源tool-result接受16MiB，关闭立即取消读取。颜色tool-result单独2MiB容纳实际512边预览；其他资源沿用原限制。
 
-`projectAppModelResult`只作用于模型续轮和持久恢复回执：删除preview/preview_url/media_url和宿主SourceContext，保留应用数据与真实来源ID。iframe和UI trace仍保留真实预览字节，数据不会全文塞进模型history。
+`projectAppModelResult`只作用于模型续轮和持久恢复回执：删除preview/preview_url/media_url/poster_url/thumbnail_url/portrait和宿主SourceContext，保留应用数据与真实来源ID。iframe和UI trace仍保留真实预览字节，数据不会全文塞进模型history。
 
 验证：`node --test tests/agent-apps-edit-integration.test.cjs tests/agent-apps-batch-integration.test.cjs`。专项像素/裁切/视频/回执持久化测试与QA由各工作流模块提供。
 
@@ -114,3 +121,12 @@ Failure modes：未完成或非当前show_app、未持久接受的widgetOrigin�
 Logging：原show_app记录cutlistAssemblyReceipts，正常执行trace记录真实工具输出，当前会话持久化。后续普通模型回合通过有界历史回执读取，历史记录不当作新授权。
 
 Tests：集成测试涵盖正常mutation确认/拒绝、只接受三项identity参数、真实user/queue交接、无审核及state变化拒绝、stable operation重试、不接收晚回执；实际FFmpeg/媒体解码和保存由cutlist专项runtime测试验证。
+
+
+## 人物站位、产品素材与广告审核的本地交接
+
+三应用均由runtime执行`prepareAppArgs → bindPreparedResult → capture`。原应用页面接收真实本地预览；模型回执剥除预览字节与宿主来源快照。初始及编辑状态按卡片串行保存，确认等待最新stateWork；精确官方消息经runtime.reply附真实node_ref/媒体SHA/项目，再保存为普通用户队列。保存前后、确认期间和队列实际flush后异步核验来源；同步isCurrent核对会话、trace/result/response与保存状态身份。失败撤销本次队列/handoff并补偿保存，不启动模型。三类没有iframe tools/call或model-context能力；打开与确认不提交生成，后续生成使用正常已配置API工具与权限。
+
+character-blocking使用原官方HTML和默认本地图片CSP。product-kit磁盘原HTML不变；共享proxy仅在完整源SHA匹配且校验目标唯一时，把thumbnail_url的HTTPS校验窄替换成有界本地data:image校验，保留其余UI和脚本。ad-review使用仅允许ad-review@v1的`ad-review-proxy.html`：本地data/blob图片与视频、connect-src none、opaque scripts-only双iframe；单项8MiB、总读取16MiB、整页15MiB、30秒，host响应16MiB。人物站位和产品素材仍使用默认1,000,000字节host限制，并各有更小的预览限额。
+
+本批共同接线相关37项检查通过；其中新增7项覆盖严格输入、模型预览剥除、保存等待/失败拒绝、来源变化及真实queue补偿。Node媒体解码存在明确测试桩，不能替代浏览器或真实模型验收。根任务已在实际浏览器核验站位真实头像、video/9:16、X310/facing96、CB3一次交接、reload恢复及保存失败无新队列；产品素材以真实本地camera图片856×558核验砂岩配色、双调性、PK1一次交接、来源SHA和真实reload恢复。人物鼠标拖动、产品拖动尚未验收；广告审核实际浏览器已验证中文首帧keep/cull与备注净化、英文试拍win/pass_over、日语成片keep/rework/win，三阶段累计3条可信node_ref/SHA交接；重复确认、刷新恢复、运行中拒绝和真实替换PNG后旧来源拒绝均通过。真实本地视频解码为320×180/8秒，readyState4并实际原生播放；后续模型生成与投放效果未验。正式首页Agent已实际加载且本轮console无warn/error；QA使用生产接线与本地保存，不是实际模型联调。以上均为局部证据，不等于全部交互、媒体生成或投放效果通过。

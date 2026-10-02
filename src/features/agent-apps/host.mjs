@@ -86,7 +86,7 @@ export function createMcpAppHost(options) {
   const canResizePlatform = options.resourceUri === 'ui://tapnow/platform-resize@v1' && typeof callbacks.onPlatformResizeApply === 'function';
   const canMessage = !['ui://tapnow/production-progress@v1','ui://tapnow/platform-resize@v1'].includes(options.resourceUri) && typeof callbacks.onSendPrompt === 'function';
   const canState = !['ui://tapnow/production-progress@v1','ui://tapnow/platform-resize@v1'].includes(options.resourceUri) && typeof callbacks.onSetWidgetState === 'function';
-  const resourceDataLimit = options.resourceUri === 'ui://tapnow/cutlist-review@v1' ? 16 * 1024 * 1024 : options.resourceUri === 'ui://tapnow/color-adjust@v2' ? 2 * 1024 * 1024 : 1000000;
+  const resourceDataLimit = ['ui://tapnow/cutlist-review@v1','ui://tapnow/ad-review@v1'].includes(options.resourceUri) ? 16 * 1024 * 1024 : options.resourceUri === 'ui://tapnow/color-adjust@v2' ? 2 * 1024 * 1024 : 1000000;
   const canSaveExpressionGuide = options.resourceUri === actorEmotionUri && typeof callbacks.onSaveExpressionGuide === 'function';
   const canQueryProduction = options.resourceUri === 'ui://tapnow/production-progress@v1' && typeof callbacks.onProductionProgressQuery === 'function';
   const canFindLibrary = options.resourceUri === 'ui://tapnow/library-picker@v1' && typeof callbacks.onLibraryFind === 'function';

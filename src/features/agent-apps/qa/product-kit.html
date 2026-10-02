@@ -1,0 +1,11 @@
+<!doctype html>
+<html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Product Kit · 本地素材验收</title>
+<style>body{background:#161616;color:#eee;font:14px system-ui;margin:24px;max-width:1060px}textarea{box-sizing:border-box;width:100%;min-height:160px;background:#252525;color:#eee;border:1px solid #555;padding:12px}button{padding:8px 14px;margin:8px 8px 16px 0}output{display:block;white-space:pre-wrap;margin:10px 0}label{display:block;margin:8px 0}#source img{max-width:320px;max-height:220px;object-fit:contain}#input{height:260px}#reply{height:160px}</style>
+<h1>Product Kit · 本地素材验收</h1><p>导入真实本地产品图片，核对输入后打开官方素材板。使用生产registry/controller/host和真实图片解码；磁盘官方HTML保持原字节，宿主只修正缩略图传输。未调用模型、营销或生成接口。</p>
+<label>真实本地产品图片 <input id="upload" type="file" accept="image/png,image/jpeg,image/webp" disabled></label><section id="source"></section>
+<label for="input">本次创作材料与Kit（配色/调性仅为验收创作设置，需按实际材料修改产品类别与价格带）</label><textarea id="input"></textarea>
+<button id="open" disabled>打开 Product Kit</button><button id="rerender" disabled>普通会话重绘</button><button id="verify" disabled>回读持久状态与队列</button>
+<label><input id="busy" type="checkbox" disabled>模拟会话运行中（拒绝确认）</label><label><input id="fail-save" type="checkbox" disabled>模拟保存失败（不接受未提交状态与队列）</label>
+<output id="status" aria-live="polite">正在读取本页专用 IndexedDB…</output><section id="cards"></section>
+<h2>持久保存状态</h2><textarea id="state" readonly></textarea><h2>实际交接队列</h2><textarea id="reply" readonly></textarea>
+<script type="module" src="./product-kit.mjs"></script></html>
