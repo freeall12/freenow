@@ -8,13 +8,73 @@ import {actorEmotionUri,initialActorEmotionState,validateActorEmotionState,resol
 import {productionProgressUri,validateProductionProgressRequest,normalizeProductionProgressResult} from './production-progress.mjs';
 import {interactiveLearningUri,initialInteractiveLearningState,validateInteractiveLearningState,resolveInteractiveLearningReply} from './interactive-learning.mjs';
 import {libraryPickerUri,initialLibraryPickerState,validateLibraryPickerFindResult,libraryPickerName} from './library-picker.mjs';
+import {colorAdjustUri,initialColorAdjustState,validateColorAdjustState,resolveColorAdjustReply} from './color-adjust.mjs';
+import {platformResizeUri} from './platform-resize.mjs';
+import {cutlistReviewUri,initialCutlistReviewState,validateCutlistReviewState,resolveCutlistReviewReply} from './cutlist-review.mjs';
 export {prepareApp};
 
-export function createAppController({getContext,onQueuePrompt,onSaveState,getActorSourceContext,onSaveExpressionGuide,getProductionSourceContext,onProductionProgressQuery,getLibrarySourceContext,onLibraryAddToCanvas,onError=()=>{}}){
+// The iframe keeps its real preview bytes; model continuation receives only
+// the app contract. Media previews and host source snapshots are not evidence.
+export function projectAppModelResult(entry){
+ if(entry?.result?.kind!=='mcp_app')return entry;
+ function project(value){
+  if(typeof value==='string'&&/^(?:data:|blob:)/i.test(value))return '[local preview omitted]';
+  if(Array.isArray(value))return value.map(project);
+  if(!value||typeof value!=='object')return value;
+  return Object.fromEntries(Object.entries(value).filter(([key])=>!['preview','preview_url','media_url','media_ref','poster_ref'].includes(key)&&!key.endsWith('SourceContext')).map(([key,item])=>[key,project(item)]));
+ }
+ return {...entry,result:project(entry.result)};
+}
+
+/** Normal mutation continuation; the model supplies only durable identities.
+ * Actual review text/state and execution authority remain in the host. */
+export function createCutlistAssemblyRoute({getContext,getSourceContext,executor,persistConversation}){
+ const clone=value=>structuredClone(value),same=(left,right)=>JSON.stringify(left)===JSON.stringify(right);
+ return async function assemble(args,{approved=false,signal}={}){
+  if(!args||typeof args!=='object'||Array.isArray(args)||Object.keys(args).length!==3||Object.keys(args).some(key=>!['trace_id','handoff_id','operation_id'].includes(key))||!['trace_id','operation_id'].every(key=>typeof args[key]==='string'&&/^[A-Za-z0-9_-]{1,180}$/.test(args[key]))||typeof args.handoff_id!=='string'||!/^cutlist_[a-f0-9]{64}$/.test(args.handoff_id))throw Error('拼装执行只接受已保存审核与操作标识');
+  args=clone(args);if(approved!==true)throw Error('拼装执行尚未通过正常画布修改确认');
+  const context=getContext(),chat=context.chat,trace=chat?.messages?.find(item=>item.id===args.trace_id);
+  if(!context.panelActive||context.pageLeaving||trace?.name!=='show_app'||trace.status!=='done'||trace.error||trace.result?.error||trace.result?.kind!=='mcp_app'||trace.result.resource_uri!==cutlistReviewUri||trace.args?.resource_uri!==cutlistReviewUri||!trace.appHandoffs?.includes(args.handoff_id))throw Error('缺少当前会话已保存的拼装审核交接');
+  const matches=[...(chat.messages||[]).filter(item=>item.role==='user'),...(chat.queuedMessages||[])].filter(item=>item.widgetOrigin?.traceId===trace.id&&item.widgetOrigin.resourceUri===cutlistReviewUri&&item.widgetOrigin.handoffId===args.handoff_id&&item.widgetOrigin.callId===trace.callId);
+  if(!matches.length)throw Error('拼装计划尚未作为真实用户审核交接保存');
+  const accepted=matches[0],acceptedText=accepted.text,acceptedOrigin=clone(accepted.widgetOrigin),result=trace.result,response=result.response,state=clone(trace.appState),sourceBinding=result.cutlistSourceContext;
+  if(typeof acceptedText!=='string'||matches.some(item=>item.text!==acceptedText))throw Error('拼装审核交接内容冲突');
+  const priorReceipt=clone(trace.cutlistAssemblyReceipts?.find(item=>item.operationId===args.operation_id)||null);
+  if(priorReceipt&&(priorReceipt.trace_id!==trace.id||priorReceipt.handoff_id!==args.handoff_id))throw Error('已有拼装操作与本次审核交接不一致');
+  const message=acceptedText.split('\n')[0],reply=await resolveCutlistReviewReply(message,response,state);
+  if(reply.kind!=='confirmed'||reply.metadata.handoffId!==args.handoff_id||reply.text!==acceptedText)throw Error('原审核交接与当前已保存拼装计划不一致');
+  const guard=()=>{const now=getContext();if(signal?.aborted)throw signal.reason||new DOMException('拼装已取消','AbortError');if(now.chat!==chat||!now.panelActive||now.pageLeaving||!chat.messages.includes(trace)||trace.status!=='done'||trace.result!==result||trace.result.response!==response||trace.result.cutlistSourceContext!==sourceBinding||!same(trace.appState,state)||!trace.appHandoffs?.includes(args.handoff_id)||accepted.text!==acceptedText||!same(accepted.widgetOrigin,acceptedOrigin)||!(chat.messages.includes(accepted)||chat.queuedMessages?.includes(accepted)))throw Error('拼装执行期间会话、审核状态或交接来源已变化');return true;};
+  guard();if(await persistConversation()===false)throw Error('拼装审核与会话尚未实际保存');guard();
+  const source=getSourceContext(response,trace,chat),sourceContext={guard:async options=>{guard();await source.guard(options);guard();return true;},isCurrent:()=>{try{return guard()&&source.isCurrent();}catch{return false;}}};
+  try{
+   await sourceContext.guard({verifyBytes:true});
+   const receipt=await executor.execute({operationId:args.operation_id,message,response,state,authorization:{kind:'local_cutlist_assembly',handoffId:args.handoff_id},...(priorReceipt?{expectedReceipt:priorReceipt}:{})},{sourceContext,signal});
+   if(typeof executor.validateReceiptCurrent!=='function')throw Error('拼装执行器缺少真实产物回执校验');
+   if(await executor.validateReceiptCurrent(receipt,{sourceContext,signal})===false)throw Error('拼装实际产物回执失效');
+   // A visible saved result remains real if the review became stale after save.
+   if(!sourceContext.isCurrent())throw Error('拼装结果已入图并保存，但来源已变化；请核对实际节点 '+(receipt.nodeIds||[]).join(', '));
+   if(receipt.applied!==true||receipt.saved!==true||!Array.isArray(receipt.nodeIds)||!receipt.nodeIds.length)throw Error('拼装执行未返回实际已保存的视频节点');
+   if(priorReceipt&&['nodeIds','mediaSha256','duration','width','height'].some(key=>!same(priorReceipt[key],receipt[key])))throw Error('已有拼装产物与原持久回执不一致，不会重新声明成功');
+   const saved={...clone(receipt),trace_id:trace.id,handoff_id:args.handoff_id},previousRecords=trace.cutlistAssemblyReceipts,next=[...(previousRecords||[]).filter(item=>item.operationId!==args.operation_id),saved];trace.cutlistAssemblyReceipts=next;
+   try{if(await persistConversation()===false)throw Error('会话回执保存未提交');guard();if(await executor.validateReceiptCurrent(receipt,{sourceContext,signal})===false)throw Error('会话保存期间拼装实际产物回执失效');guard();}
+   catch(error){
+    // Only undo this write. A later successful operation owns its own receipt.
+    if(trace.cutlistAssemblyReceipts===next){if(previousRecords===undefined)delete trace.cutlistAssemblyReceipts;else trace.cutlistAssemblyReceipts=previousRecords;}
+    else if(Array.isArray(trace.cutlistAssemblyReceipts))trace.cutlistAssemblyReceipts=trace.cutlistAssemblyReceipts.filter(item=>item!==saved);
+    try{if(await persistConversation()===false)throw Error('补偿保存未提交');}
+    catch(failure){throw Error('拼装结果已入图并保存，但会话回执及补偿保存失败，请保留本页核对节点 '+receipt.nodeIds.join(', ')+'：'+failure.message);}
+    throw Error('拼装结果已入图并保存，会话回执保存失败并已撤销该回执，请核对节点 '+receipt.nodeIds.join(', ')+'：'+error.message);
+   }
+   return saved;
+  }finally{source.dispose?.();}
+ };
+}
+
+export function createAppController({getContext,onQueuePrompt,onSaveState,getActorSourceContext,onSaveExpressionGuide,getProductionSourceContext,onProductionProgressQuery,getLibrarySourceContext,onLibraryAddToCanvas,getColorAdjustSourceContext,onApplyColorAdjust,onColorAdjustContext,getPlatformResizeSourceContext,onPlatformResizeApply,getCutlistSourceContext,onError=()=>{}}){
  const records=new Map();
  const validTrace=trace=>trace?.name==='show_app'&&trace.status==='done'&&!trace.error&&!trace.result?.error&&trace.result?.kind==='mcp_app'&&trace.args?.resource_uri===trace.result.resource_uri&&!!getApp(trace.result.resource_uri);
  function current(record){const context=getContext();return !record.disposed&&records.get(record.trace.id)===record&&context.chat===record.chat&&context.panelActive&&!context.pageLeaving&&record.chat.messages.includes(record.trace)&&validTrace(record.trace)&&record.card?.element.isConnected;}
- function dispose(record){record.disposed=true;record.productionContext?.dispose?.();record.card.destroy();records.delete(record.trace.id);}
+ function dispose(record){record.disposed=true;record.productionContext?.dispose?.();record.colorContext?.dispose?.();record.resizeContext?.dispose?.();record.cutlistContext?.dispose?.();record.card.destroy();records.delete(record.trace.id);}
  function persistState(record,value,{initialize=false,restore=false}={}){
   const {trace}=record,result=trace.result,response=result.response;
   // Official story/actor pages debounce state updates and do not flush on
@@ -26,6 +86,8 @@ export function createAppController({getContext,onQueuePrompt,onSaveState,getAct
    if(record.resourceUri===performanceRhythmUri)state=validatePerformanceRhythmState(state,response.duration_ms);
    if(record.resourceUri===storyRoomUri)state=validateStoryRoomState(state,response);
    if(record.resourceUri===actorEmotionUri)state=validateActorEmotionState(state,response);
+   if(record.resourceUri===colorAdjustUri)state=validateColorAdjustState(state,response);
+   if(record.resourceUri===cutlistReviewUri){await record.cutlistContext?.guard();if(!current(record))throw Error('审片来源已切换');state=validateCutlistReviewState(state,response);}
    if(record.resourceUri===interactiveLearningUri)state=validateInteractiveLearningState(state,response);
    if(record.resourceUri===libraryPickerUri){await record.libraryContext?.guard();if(!current(record))throw Error('素材库所属会话已切换');state=record.libraryContext.validateState(state);}
    if(await onSaveState(record.chat,trace,state)===false)throw Error('应用状态未能保存');
@@ -38,9 +100,9 @@ export function createAppController({getContext,onQueuePrompt,onSaveState,getAct
  async function waitForState(record){
   let work;do{work=record.stateWork;await work;}while(work!==record.stateWork);
  }
- function sourceGuard(record,isSourceCurrent=()=>true){
+ function sourceGuard(record,isSourceCurrent=()=>true,{ignoreState=false}={}){
   const {trace}=record,savedState=trace.appState,appResult=trace.result,response=appResult.response,stateWork=record.stateWork;
-  return ()=>{try{return current(record)&&isSourceCurrent()&&record.stateWork===stateWork&&!record.stateError&&trace.appState===savedState&&trace.result===appResult&&trace.result.response===response&&trace.result.resource_uri===record.resourceUri&&(record.resourceUri!==actorEmotionUri||record.actorContext?.guard()===true)&&(record.resourceUri!==libraryPickerUri||record.libraryContext?.isCurrent()===true)&&(record.resourceUri!==productionProgressUri||record.productionContext?.guard()===true);}catch{return false;}};
+  return ()=>{try{return current(record)&&isSourceCurrent()&&(ignoreState||record.stateWork===stateWork&&!record.stateError&&trace.appState===savedState)&&trace.result===appResult&&trace.result.response===response&&trace.result.resource_uri===record.resourceUri&&(record.resourceUri!==actorEmotionUri||record.actorContext?.guard()===true)&&(record.resourceUri!==libraryPickerUri||record.libraryContext?.isCurrent()===true)&&(record.resourceUri!==productionProgressUri||record.productionContext?.guard()===true)&&(record.resourceUri!==colorAdjustUri||record.colorContext?.isCurrent()===true)&&(record.resourceUri!==platformResizeUri||record.resizeContext?.isCurrent()===true)&&(record.resourceUri!==cutlistReviewUri||record.cutlistContext?.isCurrent()===true);}catch{return false;}};
  }
  function render(trace){
   const context=getContext();if(trace.name!=='show_app')return null;
@@ -53,16 +115,19 @@ export function createAppController({getContext,onQueuePrompt,onSaveState,getAct
    if(record.resourceUri===actorEmotionUri){try{record.actorContext=getActorSourceContext?.(trace.result.response,trace,record.chat);}catch(error){onError(error.message);}}
    if(record.resourceUri===productionProgressUri){try{record.productionContext=getProductionSourceContext?.(trace.result.response,trace,record.chat);}catch(error){onError(error.message);}}
    if(record.resourceUri===libraryPickerUri){try{record.libraryContext=getLibrarySourceContext?.(trace.result.response,trace,record.chat);}catch(error){onError(error.message);}}
+   if(record.resourceUri===colorAdjustUri){try{record.colorContext=getColorAdjustSourceContext?.(trace.result.response,trace,record.chat);}catch(error){onError(error.message);}}
+   if(record.resourceUri===platformResizeUri){try{record.resizeContext=getPlatformResizeSourceContext?.(trace.result.response,trace,record.chat);}catch(error){onError(error.message);}}
+   if(record.resourceUri===cutlistReviewUri){try{record.cutlistContext=getCutlistSourceContext?.(trace.result.response,trace,record.chat);}catch(error){onError(error.message);}}
    record.card=createMcpAppCard({trace,policy,createHost:createMcpAppHost,hostOptions:{isCurrent:()=>current(record),allowResource:uri=>!!getApp(uri),widgetStateLimit:getApp(record.resourceUri).stateLimit,csp:getApp(record.resourceUri).csp,callbacks:{
     onReady:()=>{
      // A reload restores the committed UI state. Retry its real save after a
      // failure, reading at execution time so newer queued edits are preserved.
      if(trace.appState!=null){if(record.stateError)void persistState(record,null,{restore:true}).catch(error=>{if(current(record))onError(error.message);});return;}
-     const initial=record.resourceUri===storyRoomUri?initialStoryRoomState:record.resourceUri===actorEmotionUri?initialActorEmotionState:record.resourceUri===interactiveLearningUri?initialInteractiveLearningState:record.resourceUri===libraryPickerUri?initialLibraryPickerState:null;
+     const initial=record.resourceUri===storyRoomUri?initialStoryRoomState:record.resourceUri===actorEmotionUri?initialActorEmotionState:record.resourceUri===interactiveLearningUri?initialInteractiveLearningState:record.resourceUri===libraryPickerUri?initialLibraryPickerState:record.resourceUri===colorAdjustUri?initialColorAdjustState:record.resourceUri===cutlistReviewUri?initialCutlistReviewState:null;
      const value=initial?.(trace.result.response);
      if(value)void persistState(record,value,{initialize:true}).catch(error=>{if(current(record))onError(error.message);});
     },
-    ...(record.resourceUri!==productionProgressUri?{onSetWidgetState:value=>persistState(record,value)}:{}),
+    ...(![productionProgressUri,platformResizeUri].includes(record.resourceUri)?{onSetWidgetState:value=>persistState(record,value)}:{}),
     ...(record.resourceUri===productionProgressUri&&typeof onProductionProgressQuery==='function'?{onProductionProgressQuery:async(args,isSourceCurrent=()=>true)=>{
      const sourceCurrent=sourceGuard(record,isSourceCurrent);if(!sourceCurrent())throw Error('制作进度来源已切换');
      const request=validateProductionProgressRequest(args,trace.result.response),receipt=await onProductionProgressQuery(request,trace,record.chat,{isCurrent:sourceCurrent,sourceContext:record.productionContext});
@@ -83,6 +148,23 @@ export function createAppController({getContext,onQueuePrompt,onSaveState,getAct
       if(!sourceCurrent()||getContext().streaming)throw Error('素材保存期间来源已切换');return receipt;
      },
     }:{}),
+    ...(record.resourceUri===colorAdjustUri?{
+     onApplyColorAdjust:async(args,{callId,userAction},isSourceCurrent=()=>true)=>{
+      const sourceCurrent=sourceGuard(record,isSourceCurrent,{ignoreState:true});if(!sourceCurrent()||getContext().streaming)throw Error('调色来源已切换或会话正在运行');
+      const receipt=await onApplyColorAdjust(args,trace,record.chat,{callId,userAction,isCurrent:sourceCurrent,sourceContext:record.colorContext});
+      if(!sourceCurrent()||getContext().streaming)throw Error('调色保存期间来源已切换');return {content:[],structuredContent:receipt};
+     },
+     onColorAdjustContext:async(params,options,isSourceCurrent=()=>true)=>{
+      const sourceCurrent=sourceGuard(record,isSourceCurrent,{ignoreState:true});if(!sourceCurrent()||getContext().streaming)throw Error('调色来源已切换或会话正在运行');
+      const receipt=await onColorAdjustContext(params,trace,record.chat,{...options,isCurrent:sourceCurrent,sourceContext:record.colorContext});
+      if(!sourceCurrent()||getContext().streaming)throw Error('调色上下文保存期间来源已切换');return receipt;
+     },
+    }:{}),
+    ...(record.resourceUri===platformResizeUri?{onPlatformResizeApply:async(args,{callId,userAction},isSourceCurrent=()=>true)=>{
+     await record.resizeContext?.guard();const sourceCurrent=sourceGuard(record,isSourceCurrent);if(!sourceCurrent()||getContext().streaming)throw Error('平台裁切来源已切换或会话正在运行');
+     const receipt=await onPlatformResizeApply(args,trace,record.chat,{callId,userAction,isCurrent:sourceCurrent,sourceContext:record.resizeContext});
+     if(!sourceCurrent()||getContext().streaming)throw Error('平台裁切保存期间来源已切换');return {content:[],structuredContent:receipt};
+    }}:{}),
     ...(record.resourceUri===actorEmotionUri&&typeof onSaveExpressionGuide==='function'?{onSaveExpressionGuide:async(args,{callId},isSourceCurrent=()=>true)=>{
      await waitForState(record);const sourceCurrent=sourceGuard(record,isSourceCurrent);
      if(!sourceCurrent()||getContext().streaming)throw Error('人物情绪来源已切换或会话正在运行');
@@ -90,14 +172,15 @@ export function createAppController({getContext,onQueuePrompt,onSaveState,getAct
      if(!sourceCurrent()||getContext().streaming)throw Error('保存期间人物情绪来源已切换');
      return {content:[],structuredContent:receipt};
     }}:{}),
-    ...(record.resourceUri!==productionProgressUri?{onSendPrompt:async(text,metadata,isSourceCurrent=()=>true)=>{if(!current(record)||!isSourceCurrent())return false;try{
+    ...(![productionProgressUri,platformResizeUri].includes(record.resourceUri)?{onSendPrompt:async(text,metadata,isSourceCurrent=()=>true)=>{if(!current(record)||!isSourceCurrent())return false;try{
      await waitForState(record);
      if(record.resourceUri===libraryPickerUri)await record.libraryContext?.guard();
+     if(record.resourceUri===cutlistReviewUri)await record.cutlistContext?.guard({verifyBytes:true});
      const savedState=trace.appState,appResult=trace.result,response=appResult.response;
      const baseCurrent=sourceGuard(record,isSourceCurrent),savedGuide=record.resourceUri===actorEmotionUri?record.actorContext?.readGuide():null;
      const sourceCurrent=()=>baseCurrent()&&(record.resourceUri!==actorEmotionUri||record.actorContext.readGuide()===savedGuide);
      if(!sourceCurrent())return false;
-     if(['ui://tapnow/director-markup@v1',performanceRhythmUri,storyRoomUri,actorEmotionUri,interactiveLearningUri,libraryPickerUri].includes(record.resourceUri)){
+     if(['ui://tapnow/director-markup@v1',performanceRhythmUri,storyRoomUri,actorEmotionUri,interactiveLearningUri,libraryPickerUri,colorAdjustUri,cutlistReviewUri].includes(record.resourceUri)){
       let reply;
       if(record.resourceUri===actorEmotionUri){
        const guide=savedGuide;
@@ -105,7 +188,9 @@ export function createAppController({getContext,onQueuePrompt,onSaveState,getAct
        if(!sourceCurrent()||record.actorContext.readGuide()!==guide)return false;
        reply=await resolveActorEmotionReply(text,response,savedState,guide);
        if(record.actorContext.readGuide()!==guide)return false;
-      }else if(record.resourceUri===interactiveLearningUri)reply=await resolveInteractiveLearningReply(text,response,savedState);
+      }else if(record.resourceUri===colorAdjustUri)reply=await resolveColorAdjustReply(text,response);
+      else if(record.resourceUri===cutlistReviewUri)reply=await resolveCutlistReviewReply(text,response,savedState);
+      else if(record.resourceUri===interactiveLearningUri)reply=await resolveInteractiveLearningReply(text,response,savedState);
       else if(record.resourceUri===libraryPickerUri)reply=await record.libraryContext.reply(text,savedState,{locale:getContext().locale||'zh-CN',userAction:true,isCurrent:sourceCurrent});
       else if(record.resourceUri===storyRoomUri)reply=await resolveStoryRoomReply(text,response,savedState);
       else if(record.resourceUri===performanceRhythmUri)reply=await resolvePerformanceRhythmReply(text,response,savedState);

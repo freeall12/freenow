@@ -1,5 +1,7 @@
 # TapNow 复刻循环与覆盖清单
 
+2026-10-03 再补官方调色、平台裁切、粗剪审核及真实本机拼装，累计13个版本URI/13个功能族接线；实际PNG、精确像素比例、同批撤销及真实视频播放见[本批记录](AGENT-LOCAL-EDITING-20261003.md)。[官方清点](AGENT-WORKFLOW-INVENTORY-20261003.md)纠正分母为22个版本URI/20个功能族，仍缺7族；局部接线和验收不等于全站完成。
+
 2026-10-03 追加表演节奏、剧本结构、人物情绪、本地素材选择、互动学习和制作进度，累计10个已接版本URI。真实灰模图片、素材入图/引用、课程保存及任务状态已分项验证；剩余12个工作流与全站同态视觉继续开放。见[创作页与侧栏性能](AGENT-STORY-ACTOR-AND-WORLD-20261003.md)、[素材/学习/进度](AGENT-LIBRARY-LEARNING-PROGRESS-20261003.md)。Marble只有原生适配和SPZ存档合同，Spark授权与真实渲染/路由接线仍待完成。
 
 2026-10-03 追加 [MiniMax H3 视频](MINIMAX-H3-SETUP.md)、[Tripo 3D](TRIPO-NATIVE-SETUP.md) 两条独立原生链路、导演批注 Agent 页面、原图历史来源恢复与片场浮层焦点。共享素材准备、GLB 真实字节本地保存及实际浏览器结果见 [本批验收](NATIVE-CREATION-AND-AGENT-APPS-20261003.md)。专项证据不代表真实生成质量或全站视觉验收；Marble/高斯泼溅保持未完成。

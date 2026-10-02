@@ -1,0 +1,8 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>拼装审阅 · 官方页面确定性验收</title>
+<style>body{background:#161616;color:#eee;font:14px system-ui;margin:24px;max-width:1080px}textarea{box-sizing:border-box;width:100%;min-height:160px;background:#252525;color:#eee;border:1px solid #555;padding:12px;font:13px monospace}button{padding:8px 14px;margin:8px 8px 16px 0}output{display:block;white-space:pre-wrap;margin:10px 0}#cards{margin:16px 0}label{display:block;margin:8px 0}video{max-width:100%;width:480px}pre{white-space:pre-wrap;word-break:break-all}</style>
+<h1>拼装审阅 · 官方页面确定性验收</h1><p>原版官方 cutlist-review + 生产 prepareApp/controller/card/host。专用 IndexedDB、独立图谱/素材，未调用模型、未修改其他画布。真实本地 MP4 作为明确标注的 QA 来源；预览完整视频字节，审核不会自动裁剪或生成。</p>
+<label for="input">实际来源与建议（JSON，id须对应本页真实视频节点）</label><textarea id="input"></textarea>
+<button id="fixture" disabled>准备真实视频样例</button><button id="open" disabled>打开官方拼装审阅</button><button id="rerender" disabled>普通会话重绘</button><label><input id="busy" type="checkbox" disabled>模拟会话运行中（拒绝交接）</label><output id="status" aria-live="polite">正在读取专用 IndexedDB…</output><section id="cards"></section>
+<h2>已提交的普通队列交接</h2><p>按钮编辑后请等待400ms保存再提交；未保存的新CR1会被拒绝。重复确认/刷新保持去重。丢弃只从本次计划排除，来源不删除。</p><textarea id="reply" readonly></textarea>
+<h2>独立本地执行授权</h2><p>此按钮是审核完成后的单独用户授权：只处理本页最新已确认方案，通过本机FFmpeg裁剪/拼装、实际解码和保存真实产物。不是外部模型生成；固定归一化到1280×720，其他画幅按比例留边。</p><button id="assemble" disabled>另行授权：在隔离验收图谱本地拼装</button><button id="retry" disabled>重试保存已有产物</button><section id="outputs"></section><pre id="receipts"></pre>
+<script type="module" src="./cutlist-review.mjs"></script></html>

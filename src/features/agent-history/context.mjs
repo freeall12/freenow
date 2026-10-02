@@ -8,9 +8,28 @@ function project(value,depth=0){
  if(Array.isArray(value))return [...value.slice(0,16).map(item=>project(item,depth+1)),...(value.length>16?[{omittedItems:value.length-16}]:[])];
  return Object.fromEntries(Object.entries(value).filter(([key])=>!excluded.test(key)&&!sensitive.test(key)&&!['__proto__','constructor','prototype'].includes(key)).slice(0,40).map(([key,item])=>[key,project(item,depth+1)]));
 }
+function appEdits(trace){
+ if(trace.name!=='show_app'||trace.status!=='done'||trace.error||trace.result?.error||trace.result?.kind!=='mcp_app')return undefined;
+ // These writes happen after show_app has returned. Keep committed receipts in
+ // later turns without replaying previews or treating an old node as still live.
+ if(trace.result.resource_uri==='ui://tapnow/color-adjust@v2'&&trace.colorAdjustReceipt){
+  return project({colorAdjustment:trace.colorAdjustReceipt,...(trace.colorAdjustContext?{modelContext:trace.colorAdjustContext}:{})});
+ }
+ if(trace.result.resource_uri==='ui://tapnow/platform-resize@v1'&&trace.platformResizePlacements?.length){
+  return project({platformCrops:trace.platformResizePlacements});
+ }
+ if(trace.result.resource_uri==='ui://tapnow/cutlist-review@v1'){
+  return project({acceptedHandoffs:Array.isArray(trace.appHandoffs)?trace.appHandoffs.slice(-16):[],
+   ...(trace.appHandoffs?.length>16?{omittedEarlierHandoffs:trace.appHandoffs.length-16}:{}),
+   ...(trace.cutlistAssemblyReceipts?.length?{assemblies:trace.cutlistAssemblyReceipts.slice(-16)}:{})});
+ }
+ return undefined;
+}
 function receipt(trace,index,itemIndex){
- return {messageIndex:index,...(itemIndex===undefined?{}:{itemIndex}),callId:trace.callId,tool:trace.name,status:trace.status,
+ const localEdits=appEdits(trace);
+ return {messageIndex:index,...(itemIndex===undefined?{}:{itemIndex}),...(trace.id?{traceId:trace.id}:{}),callId:trace.callId,tool:trace.name,status:trace.status,
   startedAt:trace.startedAt,endedAt:trace.endedAt,args:project(trace.args),result:project(trace.result),
+  ...(localEdits?{appEdits:localEdits}:{}),
   ...(trace.submittedTaskId?{submittedTaskId:trace.submittedTaskId}:{}),
   ...(trace.generationJob?{generation:project(trace.generationJob)}:{}),
   ...(trace.formReceipts?{formReceipts:project(trace.formReceipts)}:{})};

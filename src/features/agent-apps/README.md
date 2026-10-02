@@ -4,7 +4,7 @@
 
 ## 模块边界
 
-- `registry.mjs`：十个已接通的版本 URI、模板 ID 范围、展示策略与状态校验。
+- `registry.mjs`：十三个已接通的版本 URI、模板 ID 范围、展示策略与状态校验。
 - `director-markup.mjs`：真实剧本文本输入、官方 DM1 批注解码、已保存正文/位置/批注核对与稳定交接 ID。
 - `performance-rhythm.mjs`：固定时长、实际驱动力曲线/节拍与PS1确认核对，合同见 [表演节奏](PERFORMANCE-RHYTHM.md)。
 - `story-room.mjs`：来源场景、按幕排列、新增/废弃与NS1确认核对，合同见 [剧本结构板](STORY-ROOM.md)。
@@ -12,6 +12,9 @@
 - `production-progress.mjs`、`production-progress-runtime.mjs`：真实生成任务回执、当前 `GenerationAPI.getJobs()` 只读投影、已应用结果与真实图片/视频字节预览；多结果优先展开实际占位/结果节点，来源任务卡需全部实际结果存在才可完成。
 - `interactive-learning.mjs`：学习目录/五题学习板、真实保存状态与精确 IL1 队列交接，合同见 [互动学习](INTERACTIVE-LEARNING.md)。
 - `library-picker.mjs`、`library-picker-runtime.mjs`：真实个人库查询、来源绑定、引用与实际入图；团队库不在本地接线范围。
+- `color-adjust.mjs`、`color-adjust-runtime.mjs`：官方18参数像素变换、真实图片预览/PNG输出、已保存输出回执与官方上下文文案核验。
+- `platform-resize.mjs`、`platform-resize-runtime.mjs`：真实图片尺寸与千分比裁切、指定平台规格、真实PNG批量入图及幂等回执。
+- `cutlist-review.mjs`、`cutlist-review-runtime.mjs`：真实视频解码/哈希、源时基裁切提案、保存状态与精确CR1正常队列交接。
 - `integration.mjs`：会话/trace身份、卡片复用、保存与正常消息队列适配。
 - `host.mjs`：JSON-RPC握手、nonce/source、状态回执、运行状态与展示通知。相同host context/run不重发，避免官方模板清空暂停状态。
 - `card.mjs`、`styles.css`、`icons.mjs`：官方标题栏/图标、加载与失败、重载、展开和焦点恢复；重载不重提生成任务。
@@ -19,9 +22,9 @@
 
 ## show_app 合同
 
-Purpose：在Agent会话显示十个已集成官方应用：三个选择器、导演批注、表演节奏、剧本结构、人物情绪、制作进度、互动学习和个人素材选择。可编辑应用保存实际状态并通过正常消息队列交接；制作进度只读取真实制作任务。
+Purpose：在Agent会话显示十三个已集成官方应用：三个选择器、导演批注、表演节奏、剧本结构、人物情绪、制作进度、互动学习、个人素材选择、调色、平台裁切和拼装审阅。可编辑应用保存实际状态并通过正常消息队列交接；制作进度只读取真实制作任务。
 
-Inputs：三个选择器 `resource_uri`（motion-picker@v1、creative-picker@v1、website-design-picker@v1），可选title、original_request、recommended_template_id。另外七个工作流使用各自data（素材选择可省略data），拒绝混用模板选择参数及任意工具参数：
+Inputs：三个选择器 `resource_uri`（motion-picker@v1、creative-picker@v1、website-design-picker@v1），可选title、original_request、recommended_template_id。另外十个工作流使用各自data（素材选择可省略data），拒绝混用模板选择参数及任意工具参数：
 
 - director-markup@v1：`data:{draft,locale?}`，正文非空且最多8000 UTF-16字符，支持中/英/日/韩/法。
 - performance-rhythm@v3：固定duration_ms、真实scene、曲线点curve和节拍beats，详见 [输入与状态合同](PERFORMANCE-RHYTHM.md)。
@@ -30,6 +33,10 @@ Inputs：三个选择器 `resource_uri`（motion-picker@v1、creative-picker@v1�
 - production-progress@v1：`data:{node_ids,project_id?}`。宿主要求当前会话真实已提交的图片/视频任务，绑定实际taskId和项目；Agent不能提供items、完成状态、百分比或预览URL。当前任务尚未应用或未知时不会标为完成；刷新不会自行恢复或重发任务。
 - interactive-learning@v1：`data.view=syllabus` 时为真实course/chapters，`board` 时为level及q2/q3/q4/q5题目、hints、可选初始进度。保存后核对精确IL1再进入普通队列；自评标记不代表模型判分或已经学会。
 - library-picker@v1：可选 `data:{applied:{types},can_add_to_canvas}`。宿主从实时 `CanvasLibrary.items/folders` 读取个人库，拒绝Agent提供素材/文件夹/URL、拒绝团队scope；缺getter明确失败，不能用空库掩盖读取失败。
+
+- color-adjust@v2：`data:{node_ref,params?,suggested?,locale?}`，真实图片节点，18个参数为整数；fade/rolloff为0..100，其余为-100..100。suggested只接受exposure/temperature/tint，宿主不会伪造建议；预览只由真实图像生成。官方state是18参数加active_tab与advanced_open的平坦对象。
+- platform-resize@v1：`data:{image_id,platforms,project_id?,locale?}`；platforms必须1..16个唯一实际规格，每项platform、label_zh、label_en、ratio_id（r_W_H），可选selected。宿主读取真实图片尺寸后计算千分比最大取景范围，Agent不能提供preview、尺寸或裁切结果。
+- cutlist-review@v1：`data:{shots,locale?,ratio?,notes?,target_duration_s?}`，每项真实视频节点id、label、实际media_duration_ms、in_ms、out_ms、default_keep，可选trim_reason、flag、flag_note。源时长与实际解码毫秒核验；预览由宿主读取完整有界视频并写入data:video。原视频已裁切状态需先用现有video_trim导出完整结果，不能误用源视频。
 
 Outputs：本地`kind:mcp_app`展示回执；选择或已核对的编辑结果通过`ui/message`进入新的用户回合，保留原官方协议、可读结果、`widgetOrigin`与handoffId。打开应用、采用节奏/结构或确认人物情绪均不等于生成授权。
 
@@ -77,3 +84,33 @@ Tests：host/card/registry、各工作流协议/来源/保存、widget queue与s
 ```sh
 node --test tests/agent-director-markup.test.cjs tests/agent-app-host.test.cjs tests/agent-app-registry.test.cjs tests/agent-app-card.test.cjs
 ```
+
+## 三个编辑工作流的写入边界
+
+- color-adjust@v2仅允许`tools/call → color_adjust_apply({node_ref,params})`、平坦state、官方固定Skip消息及`ui/update-model-context`。完整18参数取自当次实际Apply，官方400ms延迟state不会否定刚提交的参数。成功保存真实PNG节点、画布和会话回执后，宿主授予一次仅供当前Apply的上下文许可；官方await后不要求仍有瞬时用户激活。上下文必须与当前已保存输出和官方文案精确一致，不自动启动模型。后续模型回合读取有界历史回执，生成仍需正常授权。
+- platform-resize@v1仅允许`tools/call → resize_for_platform_apply({image_id,project_id?,crops:[{platform,x,y,w,h}]})`，禁止state、message和model-context。x/y/w/h为千分比整数，宿主核验页面尺寸、平台顺序、重复宽高比和来源。真实裁切图片批次单次入图/撤销，保存后才返回实际node_refs；callId重试复用回执，不重复插图。
+- cutlist-review@v1只允许保存`{shots:{[id]:{keep,in_ms,out_ms}}}`及官方message，无服务端工具。默认state保存核验当前来源，提交消息前重新读实际视频SHA，不逐次重复视频解码。精确CR1是后续普通用户回合中的审阅提案，不是自动拼装或生成授权。本地executor通过正常画布修改工具`cutlist_assemble`调用，仍不注册给iframe。审核确认后只保存提案，实际拼装需通过该工具的正常修改确认。
+
+三个应用仍核对当前会话、trace/result/response、iframe/nonce、项目、真实来源以及运行状态。调色/平台裁切要求当前用户动作；调色的延迟上下文仅继承刚完成的那次Apply窄许可。新资源不能调用其他资源专属方法。图片输出已保留但会话提交失败时明确报错；不能声称整体撤销或伪造成功。凭据只留服务端，官方HTML与原mcp-app-proxy保持原样。
+
+拼装审阅使用仅允许cutlist-review@v1的专属`cutlist-review-proxy.html`，开放有界data:video，保留双opaque iframe、scripts-only及connect-src none；单视频8MiB、总读取16MiB、整页响应15MiB、30秒超时。host仅该资源tool-result接受16MiB，关闭立即取消读取。颜色tool-result单独2MiB容纳实际512边预览；其他资源沿用原限制。
+
+`projectAppModelResult`只作用于模型续轮和持久恢复回执：删除preview/preview_url/media_url和宿主SourceContext，保留应用数据与真实来源ID。iframe和UI trace仍保留真实预览字节，数据不会全文塞进模型history。
+
+验证：`node --test tests/agent-apps-edit-integration.test.cjs tests/agent-apps-batch-integration.test.cjs`。专项像素/裁切/视频/回执持久化测试与QA由各工作流模块提供。
+
+## cutlist_assemble 正常执行工具
+
+Purpose：从实际已接受的拼装审阅交接执行本地裁剪和固定顺序拼装，写入真实视频节点。
+
+Inputs：仅`{trace_id,handoff_id,operation_id}`。trace_id须当前会话的已完成cutlist-review展示记录；handoff_id须该记录实际已保存的cutlist_ SHA256；operation_id为稳定操作标识，重试使用同一标识。模型不能提供message、response、state或authorization。
+
+Outputs：已保存的真实视频节点nodeIds、解码时长/尺寸、媒体SHA256、operationId以及绑定的trace_id/handoff_id。画布保存成功但会话记录失败时明确说明实际节点保留；会话回执按CAS撤销本次写入并持久补偿，不覆盖后续成功回执，补偿失败明确报错；没有真实产物回执不返回成功。
+
+Permissions：`mutates:true`，沿正常executeTracedCall修改确认；由审核应用触发的下一回合仍固定要求确认。生产execute回调在正常确认之后传递宿主内部批准标志，模型参数没有授权字段。审核交接本身不自动执行、不代表生成授权。
+
+Failure modes：未完成或非当前show_app、未持久接受的widgetOrigin、缺appHandoffs、CR1/完整交接正文/当前已存state不匹配、项目/来源字节/源节点变化、运行期间交接变更、超限、解码或保存失败均拒绝。现有已保存计划变更需重新审核；不默默重建被修改/删除的产物。
+
+Logging：原show_app记录cutlistAssemblyReceipts，正常执行trace记录真实工具输出，当前会话持久化。后续普通模型回合通过有界历史回执读取，历史记录不当作新授权。
+
+Tests：集成测试涵盖正常mutation确认/拒绝、只接受三项identity参数、真实user/queue交接、无审核及state变化拒绝、stable operation重试、不接收晚回执；实际FFmpeg/媒体解码和保存由cutlist专项runtime测试验证。
