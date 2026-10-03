@@ -119,4 +119,4 @@ async function submitSpeech(prepared,{sdk,signal,timeoutMs=600000}={}){
  finally{clearTimeout(timer);signal?.removeEventListener('abort',cancel);controller.signal.removeEventListener('abort',aborted);if(!completed){controller.abort();if(reader)void reader.cancel().catch(()=>{});}try{reader?.releaseLock();}catch{}}
 }
 
-module.exports={validateSpeechProfile,speechCapabilities,prepareSpeechRequest,submitSpeech,MAX_AUDIO_BYTES};
+module.exports={validateSpeechProfile,speechCapabilities,prepareSpeechRequest,submitSpeech,MAX_AUDIO_BYTES,validateMP3,waveMetadata};

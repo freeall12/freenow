@@ -1,4 +1,5 @@
-import { metadata, nextDocument, ordered, readSlice, validatePath } from './model.mjs';
+import { metadata, nextDocument, nextTemplateImport, ordered, readSlice, validatePath } from './model.mjs';
+import {verifyStoredTemplateSource} from '../agent-apps/template-source.mjs';
 
 // Same namespace as the current canvas, shared across its conversations. No OS paths.
 export function createStore({ namespace = 'tapnow-canvas-replica', indexedDB = globalThis.indexedDB } = {}) {
@@ -41,7 +42,7 @@ export function createStore({ namespace = 'tapnow-canvas-replica', indexedDB = g
       validatePath(path);
       const file = (await transaction('readonly')).files.find(item => item.artifact_path === path);
       if (!file) throw Error('产物不存在');
-      return file;
+      return verifyStoredTemplateSource(file);
     },
     async read({ artifact_path, offset, limit }) { return readSlice(await api.get(artifact_path), offset, limit); },
     async write(input) {
@@ -50,6 +51,17 @@ export function createStore({ namespace = 'tapnow-canvas-replica', indexedDB = g
       const file = document.files.find(item => item.artifact_path === input.artifact_path);
       notify(metadata(file)); channel?.postMessage({ changed: true });
       return metadata(file);
+    },
+    async importTemplate(input,{guard=()=>true}={}) {
+      const document=await transaction('readwrite',current=>{
+        if(guard()===false)throw Error('模板导入来源已切换');
+        const next=nextTemplateImport(current,input);
+        if(guard()===false)throw Error('模板导入保存前来源已切换');
+        return next;
+      });
+      const source=document.files.find(file=>file.artifact_path===input.source_path),artifact=document.files.find(file=>file.artifact_path===input.artifact_path);
+      notify(metadata(artifact));channel?.postMessage({changed:true});
+      return {source:metadata(source),artifact:metadata(artifact)};
     },
     subscribe(listener) { listeners.add(listener); return () => listeners.delete(listener); },
   };

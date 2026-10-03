@@ -4,6 +4,8 @@ import {ecommercePhotosetUri,initialEcommercePhotosetState} from './ecommerce-ph
 const generationAppUris=[animaticUri,previsUri,ecommercePhotosetUri];
 import {creativePickerUri,websitePickerUri,resolveCreativePickerReply} from './creative-picker.mjs';
 import {createMcpAppCard} from './card.mjs';
+import {templatePickerUris} from './template-source.mjs';
+import {createTemplateSourceControls} from './template-source-controls.mjs';
 import {createMcpAppHost} from './host.mjs';
 import {prepareApp,appPolicy,getApp,copyAppState} from './registry.mjs';
 import {resolveDirectorMarkupReply} from './director-markup.mjs';
@@ -34,7 +36,7 @@ export function projectAppModelResult(entry){
   return Object.fromEntries(Object.entries(value).filter(([key])=>!['preview','preview_url','media_url','media_ref','poster_ref','portrait','thumbnail_url','poster_url','sourceContext'].includes(key)&&!key.endsWith('SourceContext')).map(([key,item])=>[key,project(item)]));
  }
  const result=project(entry.result);
- if([creativePickerUri,websitePickerUri].includes(result.resource_uri))result.local_template_body={status:'configuration_required',reference_only:true,reason:'Exact selected-template HTML has not been obtained locally. Object keys and SHA256 are reference identities only. Do not contact TapNow services or fabricate the missing template; ask for a local authorized template file before content editing.'};
+ if(templatePickerUris.includes(result.resource_uri))result.local_template_body={status:'configuration_required',reference_only:true,reason:'Automatic retrieval of exact template HTML is not configured. Object keys and SHA256 are identities, not URLs. If current host-verified template source metadata is available in artifact context, read and edit its latest editable artifact revision; preserve the original source. Otherwise request an authorized local file matching the selected SHA256 before claiming an edit of that exact template. Independent free HTML creation remains available without template import. Do not contact TapNow services or fabricate missing original template bytes.'};
  return {...entry,result};
 }
 
@@ -82,13 +84,13 @@ export function createCutlistAssemblyRoute({getContext,getSourceContext,executor
  };
 }
 
-export function createAppController({getContext,onQueuePrompt,onSaveState,getActorSourceContext,onSaveExpressionGuide,getProductionSourceContext,onProductionProgressQuery,getLibrarySourceContext,onLibraryAddToCanvas,getColorAdjustSourceContext,onApplyColorAdjust,onColorAdjustContext,getPlatformResizeSourceContext,onPlatformResizeApply,getCutlistSourceContext,getCharacterBlockingSourceContext,getProductKitSourceContext,getAdReviewSourceContext,getLayerComposerSourceContext,onApplyLayerComposer,onLayerComposerContext,getGenerationAppSourceContext,onGenerationAppTool,onGenerationAppContext,onValidateAppReply,onAppReply,onAppReplyRunStatus,onError=()=>{}}){
+export function createAppController({getContext,onQueuePrompt,onSaveState,getActorSourceContext,onSaveExpressionGuide,getProductionSourceContext,onProductionProgressQuery,getLibrarySourceContext,onLibraryAddToCanvas,getColorAdjustSourceContext,onApplyColorAdjust,onColorAdjustContext,getPlatformResizeSourceContext,onPlatformResizeApply,getCutlistSourceContext,getCharacterBlockingSourceContext,getProductKitSourceContext,getAdReviewSourceContext,getLayerComposerSourceContext,onApplyLayerComposer,onLayerComposerContext,getGenerationAppSourceContext,onGenerationAppTool,onGenerationAppContext,onValidateAppReply,onAppReply,onAppReplyRunStatus,templateSourceRuntime,onOpenTemplateArtifact,onError=()=>{}}){
  const records=new Map();
  async function validateGenerationSource(record){const source=record.generationContext;if(!source)throw Error('生成应用缺少真实来源绑定');await source.guard();await source.validateSourcesCurrent?.();}
  async function validateWorkflowSource(record){const source=record.workflowContext;if(!source)throw Error('应用缺少真实来源绑定');if(record.resourceUri===productKitUri){await source.guard();await source.validateSourceCurrent();}else await source.guard(record.resourceUri===adReviewUri?{verifyBytes:true}:undefined);}
  const validTrace=trace=>trace?.name==='show_app'&&trace.status==='done'&&!trace.error&&!trace.result?.error&&trace.result?.kind==='mcp_app'&&trace.args?.resource_uri===trace.result.resource_uri&&!!getApp(trace.result.resource_uri);
  function current(record){const context=getContext();return !record.disposed&&records.get(record.trace.id)===record&&context.chat===record.chat&&context.panelActive&&!context.pageLeaving&&record.chat.messages.includes(record.trace)&&validTrace(record.trace)&&record.card?.element.isConnected;}
- function dispose(record){record.disposed=true;record.productionContext?.dispose?.();record.colorContext?.dispose?.();record.resizeContext?.dispose?.();record.cutlistContext?.dispose?.();record.workflowContext?.dispose?.();record.layerContext?.dispose?.();record.generationContext?.dispose?.();record.card.destroy();records.delete(record.trace.id);}
+ function dispose(record){record.disposed=true;record.templateControls?.destroy();record.productionContext?.dispose?.();record.colorContext?.dispose?.();record.resizeContext?.dispose?.();record.cutlistContext?.dispose?.();record.workflowContext?.dispose?.();record.layerContext?.dispose?.();record.generationContext?.dispose?.();record.card.destroy();records.delete(record.trace.id);}
  function persistState(record,value,{initialize=false,restore=false}={}){
   const {trace}=record,result=trace.result,response=result.response;
   // Official story/actor pages debounce state updates and do not flush on
@@ -264,6 +266,8 @@ export function createAppController({getContext,onQueuePrompt,onSaveState,getAct
    }}});
   }
   if(generationAppUris.includes(record.resourceUri)&&record.generationResult!==trace.result){record.generationContext?.dispose?.();record.generationContext=getGenerationAppSourceContext?.(trace.result.response,trace,record.chat);record.generationResult=trace.result;record.stateWork=Promise.resolve();record.stateError=null;}
+  if(templateSourceRuntime&&templatePickerUris.includes(record.resourceUri)&&!record.templateControls){record.templateControls=createTemplateSourceControls({trace,runtime:templateSourceRuntime,onOpenArtifact:onOpenTemplateArtifact,onError});record.card.element.append(record.templateControls.element);}
+  void record.templateControls?.refresh();
   record.card.update(trace,{policy,runActive:!!context.streaming,locale:'zh-CN'});syncPrevisReplyStatus(record);return record.card.element;
  }
  function prune(traces){const context=getContext(),live=new Set(traces);for(const record of [...records.values()])if(record.chat!==context.chat||!context.panelActive||context.pageLeaving||!live.has(record.trace)||!validTrace(record.trace))dispose(record);}

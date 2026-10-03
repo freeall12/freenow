@@ -1,13 +1,14 @@
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),vm=require('node:vm');
 const core=require('../canvas-text.js');
 
-function fixture({count=4,edgeCount=3,script=fs.readFileSync(path.join(__dirname,'../text-generation-ui.js'),'utf8')}={}){
+function fixture({count=4,edgeCount=3,script=fs.readFileSync(path.join(__dirname,'../text-generation-ui.js'),'utf8'),windowPatch={},appPatch={}}={}){
  const handlers=new Map(),metrics={edgeSourceReads:0,edgeTargetReads:0,replacements:0};
  class Element{
-  constructor(tag){this.tagName=tag;this.children=[];this.attributes={};this.style={};this.className='';this.offsetHeight=180;}
+  constructor(tag){this.tagName=tag;this.children=[];this.attributes={};this.style={};this.dataset={};this.className='';this.offsetHeight=180;}
   setAttribute(key,value){this.attributes[key]=value;}getAttribute(key){return this.attributes[key];}removeAttribute(key){delete this.attributes[key];}
   append(...children){this.children.push(...children);}prepend(...children){this.children.unshift(...children);}replaceChildren(){metrics.replacements++;this.children=[];}
   addEventListener(){}setCustomValidity(reason){this.validationMessage=reason;}
+  focus(){document.activeElement=this;}contains(target){return this===target||this.children.some(child=>child.contains(target));}
   querySelectorAll(selector){const result=[];const walk=e=>{for(const child of e.children){if(selector.startsWith('.')?child.className.split(' ').includes(selector.slice(1)):child.tagName===selector)result.push(child);walk(child);}};walk(this);return result;}
   querySelector(selector){return this.querySelectorAll(selector)[0]||null;}
  }
@@ -17,12 +18,12 @@ function fixture({count=4,edgeCount=3,script=fs.readFileSync(path.join(__dirname
  for(let i=0;i<edgeCount;i++)edges.push(edge(nodes[1+(i%(count-1))].id,i===0?'target':`unselected-${i}`,`edge-${i}`));
  const state={nodes,edges,selected:['target'],view:{x:7.125,y:9.375,scale:.7}},jobs=[];
  const document={body:new Element('body'),activeElement:null,createElement:tag=>new Element(tag),addEventListener(name,fn){handlers.set(name,fn);},querySelector(selector){if(selector==='#canvas')return{getBoundingClientRect:()=>({left:10,top:20,width:1280,right:1290})};}};
- const app={getState:()=>state,updateNode(id,patch){Object.assign(nodes.find(n=>n.id===id),patch);render();}};
- const window={CanvasText:core,CanvasApp:app,UI_ICONS:{},TEXT_MODEL_ICONS:{},VoiceInput:{bind(){}},CanvasTextUI:{open(){},close(){}},GenerationAPI:{getJobs:()=>jobs,subscribe(){}},addEventListener(){}};
+ const app={getState:()=>state,updateNode(id,patch){Object.assign(nodes.find(n=>n.id===id),patch);render();},...appPatch};
+ const window={CanvasText:core,CanvasApp:app,UI_ICONS:{},TEXT_MODEL_ICONS:{},VoiceInput:{bind(){}},CanvasTextUI:{open(){},close(){}},GenerationAPI:{getJobs:()=>jobs,subscribe(){}},addEventListener(){},...windowPatch};
  const render=detail=>handlers.get('canvas:render')({detail});
- vm.runInNewContext(script,{window,document,innerHeight:900,innerWidth:1300});
+ vm.runInNewContext(script.replace(/import\([^)]*\)/g, '(new Promise(()=>{}))'),{window,document,innerHeight:900,innerWidth:1300});
  const panel=document.body.children[0];
- return{state,target,document,panel,metrics,render,edge,reset(){for(const key in metrics)metrics[key]=0;}};
+ return{state,target,document,panel,metrics,render,edge,window,app,reset(){for(const key in metrics)metrics[key]=0;}};
 }
 
 test('text generation movement uses a linear edge pass and preserves composer DOM and exact position',()=>{
@@ -35,10 +36,10 @@ test('text generation movement uses a linear edge pass and preserves composer DO
  f.reset();f.state.view.x+=.375;f.render({viewportOnly:true});assert.equal(f.metrics.edgeSourceReads,0);assert.equal(f.metrics.edgeTargetReads,0);assert.equal(f.panel.querySelector('textarea'),prompt);
 });
 
-test('reference content, title, edge changes and model changes still invalidate the text composer',()=>{
+test('reference content, title, edges and models refresh controls while retaining the prompt',()=>{
  const f=fixture(),initial=f.panel.querySelector('textarea');f.state.nodes[2].content='unrelated change';f.render();assert.equal(f.panel.querySelector('textarea'),initial);
- f.state.nodes[1].content='changed reference';f.render();assert.notEqual(f.panel.querySelector('textarea'),initial);
- const renamed=f.panel.querySelector('textarea');f.state.nodes[1].title='重命名参考';f.render();assert.notEqual(f.panel.querySelector('textarea'),renamed);assert.equal(f.panel.querySelector('.text-reference-chip').children[0].getAttribute('aria-label'),'重命名参考');
+ f.state.nodes[1].content='changed reference';f.render();assert.equal(f.panel.querySelector('textarea'),initial);
+ const renamed=f.panel.querySelector('textarea');f.state.nodes[1].title='重命名参考';f.render();assert.equal(f.panel.querySelector('textarea'),renamed);assert.equal(f.panel.querySelector('.text-reference-chip').children[0].getAttribute('aria-label'),'重命名参考');
  f.state.edges.push(f.edge('ref-1','target','new-edge'));f.render();assert.equal(f.panel.querySelectorAll('.text-reference-chip').length,2);
  f.state.edges.push(f.edge('ref-1','target','duplicate-edge'));f.render();assert.equal(f.panel.querySelectorAll('.text-reference-chip').length,2);
  f.state.edges=f.state.edges.filter(e=>e.source!=='ref-0');f.render();assert.equal(f.panel.querySelectorAll('.text-reference-chip').length,1);
@@ -51,6 +52,11 @@ test('reference ordering follows explicit config then edge order and typing reta
  assert.deepEqual(f.panel.querySelectorAll('.text-reference-chip').map(chip=>chip.children[0].getAttribute('aria-label')),['参考1','参考0']);
  const prompt=f.panel.querySelector('textarea');f.document.activeElement=prompt;prompt.value='新提示';f.target.generation.prompt='新提示';f.render();assert.equal(f.panel.querySelector('textarea'),prompt);
  f.state.selected=[];f.render();assert.equal(f.panel.hidden,true);
+});
+
+test('the first typed draft seeds semantic bindings without replacing or blurring the loading editor',()=>{
+ const f=fixture(),prompt=f.panel.querySelector('textarea');prompt.focus();prompt.value='第一笔文字';prompt.selectionStart=prompt.selectionEnd=5;prompt.oninput();
+ assert.equal(f.panel.querySelector('textarea'),prompt);assert.equal(f.document.activeElement,prompt);assert.equal(prompt.selectionStart,5);assert.equal(f.target.generation.prompt,'第一笔文字');assert.deepEqual(f.target.generation.promptReferenceBindings,[{renderText:'Text 1',referenceKey:'node:ref-0'}]);
 });
 
 module.exports={fixture};

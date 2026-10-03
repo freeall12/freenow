@@ -18,10 +18,10 @@ const labels={...audioLabels,model:'模型',videoMode:'生成方式',aspect:'比
 const modeNames={TEXT_TO_VIDEO:'文生视频',IMAGE_TO_VIDEO:'图生视频',START_END_TO_VIDEO:'首尾帧',REFERENCE_TO_VIDEO:'全能参考',REFERENCE_VIDEO_TO_VIDEO:'视频参考',VIDEO_EDIT:'视频编辑'};
 const valueLabel=(key,v)=>key==='audioScene'?sceneNames[v]:key==='lyricsMode'?({auto:'自动',custom:'自定义',instrumental:'纯音乐'})[v]:['speechRate','loudnessRate'].includes(key)?Math.round((1+v/100)*100)/100+'×':key==='sampleRate'?v+' Hz':key==='audioFormat'?String(v).toUpperCase().replace('_',' '):typeof v==='boolean'?v?'开启':'关闭':key==='count'?v+'×':key==='duration'?v===-1||v===null?'自动':v+'s':key==='generateAudio'?v?'开启':'关闭':key==='videoMode'?modeNames[v]||v:/^(auto|adaptive)$/i.test(String(v))?'自适应':String(v);
 
-export function createGenerationCard(initial,{getNodes=()=>[],getEdges=()=>[],getConfig=()=>({}),listVoices=()=>window.AudioAPI?.listVoices()||Promise.resolve({voices:[],configured:false}),previewVoice=voice=>window.AudioAPI?.preview({title:voice.name,audio:voice.previewUrl}),getMode=()=> 'ask',setMode=()=>{},onConfirm,onChange=()=>{},onOpenNode=()=>{},resolveAsset=async url=>url}={}){
+export function createGenerationCard(initial,{getNodes=()=>[],getEdges=()=>[],getConfig=()=>({}),listVoices=options=>window.AudioAPI?.listVoices(options)||Promise.resolve({voices:[],configured:false}),previewVoice=(voice,options)=>window.AudioAPI?.previewVoice(voice,options),getMode=()=> 'ask',setMode=()=>{},onConfirm,onChange=()=>{},onOpenNode=()=>{},resolveAsset=async url=>url}={}){
  if(isDraftFinal(initial.args))return createDraftFinalCard(initial,{getNodes,getEdges,getMode,setMode,onConfirm,onChange,onOpenNode,resolveAsset});
  let trace=initial,draft=trace.confirmationDraft||createGenerationDraft(trace.args,getConfig(trace.args.nodeId),getNodes()),items=isBatch(trace)?batchDraft(trace,getConfig,getNodes()):null;
- let voiceState=null,voiceLoading=false,voiceError='',menu=null,signature=stamp(initial),focusState=null,formError='';
+ let voiceState=null,menu=null,signature=stamp(initial),focusState=null,formError='';
  const modes=new Map(),inputs=new Map(),root=el('section','agent-generation-card');
  root.setAttribute('aria-label',(items?'批量':'')+(trace.args.kind==='image.generate'?'图片生成确认':trace.args.kind==='audio.generate'?'音频生成确认':'视频生成确认'));
  root.dataset.batch=String(!!items);
@@ -124,11 +124,11 @@ export function createGenerationCard(initial,{getNodes=()=>[],getEdges=()=>[],ge
     if(key==='audioScene')choices=['Music','Sound','Text-to-Speech'].map(value=>({value,label:sceneNames[value],disabled:!model?.scenes[value],reason:'所选模型不支持此场景'}));
     chips.append(el('span','generation-divider'),chip(key,key==='duration'&&shape.video?'自适应':draft[key],choices,{disabled:key==='duration'&&!!shape.video,prefix:['stability','promptInfluence','sampleRate','speechRate','pitchRate','loudnessRate','subtitle','loop'].includes(key),icon:key==='audioScene'||key==='lyricsMode'?'method':key==='duration'?'duration':undefined}));
    }
-   if(s?.voice){const voice=button(voiceState?.voices?.find(v=>v.id===draft.voice)?.name||draft.voice||'音色',async e=>{
-    const trigger=e.currentTarget;if(menu){closeMenu();return;}
-    if(!voiceState&&!voiceLoading){voiceLoading=true;trigger.textContent='加载音色…';try{voiceState=await listVoices();}catch(error){voiceError=error.message;}finally{voiceLoading=false;}if(!trigger.isConnected)return;trigger.textContent=voiceState?.voices?.find(v=>v.id===draft.voice)?.name||draft.voice||'音色';}
-    menu=openParameterMenu(trigger,{label:'音色',value:draft.voice,search:true,options:(voiceState?.voices||[]).map(v=>({value:v.id,label:v.name,preview:v.previewUrl?()=>previewVoice(v):undefined})),emptyMessage:voiceError||(voiceState?.configured?'暂无可用音色':'连接音色 API 后加载系统音色'),onSelect:value=>change('voice',value),onClose:()=>menu=null});
-   },'generation-chip');voice.setAttribute('aria-label','音色');voice.setAttribute('aria-haspopup','menu');voice.disabled=trace.status!=='pending';chips.append(el('span','generation-divider'),voice);}
+   if(s?.voice){const voice=button(voiceState?.voices?.find(v=>v.id===draft.voice)?.name||draft.voice||'音色',e=>{
+    const trigger=e.currentTarget;if(menu){closeMenu();return;}if(!window.AudioAPI?.openVoiceMenu){formError='音色菜单尚未加载，请稍后重试';render();return;}
+    const currentModel=draft.model,currentTrace=trace;
+    menu=window.AudioAPI.openVoiceMenu(trigger,{model:'eleven_v3',value:draft.voice,listVoices:async options=>{const state=await listVoices(options);if(trigger.isConnected&&trace===currentTrace&&draft.model===currentModel)voiceState=state;return state;},previewVoice,isCurrent:()=>trace.status==='pending'&&trace===currentTrace&&draft.model===currentModel&&trigger.isConnected,onSelect:value=>change('voice',value),onClose:()=>menu=null});
+   },'generation-chip');voice.setAttribute('aria-label','音色');voice.setAttribute('aria-haspopup','dialog');voice.disabled=trace.status!=='pending';chips.append(el('span','generation-divider'),voice);}
   }
   for(const key of ['videoMode','aspect','imageSize','quality','duration','resolution','generateAudio','count']){
    if(kind==='audio'||draft[key]===undefined)continue;

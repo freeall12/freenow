@@ -204,6 +204,17 @@ test('Agent Markdown rejects active content while preserving GFM and literal cod
  assert.doesNotMatch(html,/<script|<img|href="javascript:/);assert.equal(safeMessageLink('data:text/html,hi'),null);assert.equal(safeMessageLink('/private'),null);assert.equal(safeMessageLink('https://example.com'), 'https://example.com/');
 });
 
+test('Agent Markdown blocks original-service navigation while preserving independent links and mailto',async()=>{
+ const {renderMessageMarkdown,safeMessageLink}=await import('../src/features/agent-messages/markdown.mjs');
+ const blocked=['https://tapnow.ai/help','https://files.tapnow.media/image.png','https://sub.TAPNOW.AI./help','http://tapnow.tv:8080/help','https://tamaredge.top/media','https://conversation-service-131786869360.asia-northeast1.run.app/help'];
+ for(const url of blocked)assert.equal(safeMessageLink(url),null,url);
+ const html=renderMessageMarkdown('[原站](https://tapnow.ai/help) ![原站图片](https://files.tapnow.media/image.png)\n\nhttps://sub.tapnow.ai/help');
+ assert.doesNotMatch(html,/<a\b|<img\b/);assert.match(html,/原站图片/);assert.match(html,/原站/);
+ for(const url of ['https://example.com/help','http://example.org/help','https://tapnow.ai.example.com/help','mailto:hello@example.com'])assert.equal(safeMessageLink(url),url);
+ const independent=renderMessageMarkdown('[独立来源](https://example.com/help) [邮件](mailto:hello@example.com) ![独立图片](http://example.org/image.png)');
+ assert.match(independent,/href="https:\/\/example\.com\/help"/);assert.match(independent,/href="mailto:hello@example\.com"/);assert.match(independent,/href="http:\/\/example\.org\/image\.png"/);assert.doesNotMatch(independent,/<img\b/);
+});
+
 test('Conversation fork keeps the selected history and scene but never pending input or later actions',async()=>{
  const {forkConversation}=await import('../src/features/agent-messages/model.mjs');
  const source={id:'source',title:'场景',queuedMessages:[{id:'later-task'}],studioNodeId:'scene',selectedModelAtStart:{id:'auto'},text:'未发出的文字',composerDoc:{type:'doc'},refs:['image','scene'],skills:['other'],uploads:[{id:'upload'}],messages:[{role:'user',text:'构图',composerDoc:{type:'doc'}},{role:'tool',status:'done',result:{nodeId:'created'}},{role:'assistant',text:'完成'},{role:'user',text:'此后'}]};

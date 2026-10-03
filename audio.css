@@ -10,3 +10,5 @@
 .audio-popover button{transition:background-color .15s}
 @keyframes audio-popover-enter{from{opacity:0}to{opacity:1}}
 @media(prefers-reduced-motion:reduce){.audio-popover{animation:none}.audio-popover button{transition:none}}
+/* Shared real voice catalog; keep the original audio/generation popover chrome. */
+.voice-catalog-row{display:flex;align-items:center;gap:6px;min-width:0}.voice-catalog-row button{font:inherit;color:inherit;border:0;background:transparent;border-radius:8px;cursor:pointer;padding:9px}.voice-catalog-select{flex:1;min-width:0;text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.voice-catalog-select[aria-pressed=true],.voice-catalog-row button:hover{background:#ffffff0b}.voice-catalog-preview{flex-shrink:0;font-size:12px!important;color:#aaa!important}.voice-catalog-list{min-width:0}.voice-catalog-retry,.voice-catalog-more{font:inherit;color:inherit;background:transparent;border:0;padding:8px;cursor:pointer}.voice-catalog-retry[hidden],.voice-catalog-more[hidden]{display:none}.audio-popover .voice-catalog-row button{width:auto}.audio-popover p:empty{display:none}

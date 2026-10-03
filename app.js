@@ -291,10 +291,18 @@
     if(copies.some(n=>n.type==='studio')){notify('暂不支持复制 3D 片场。');return;}
     remember();const mapping=new Map(copies.map(n=>[n.id,crypto.randomUUID()]));
     const added=copies.map(n=>({...clone(n),id:mapping.get(n.id),parentId:mapping.get(n.parentId),memberIds:n.memberIds?.map(id=>mapping.get(id)),...(n.clips?{clips:n.clips.map(c=>({...c,id:crypto.randomUUID(),sourceId:mapping.get(c.sourceId)||c.sourceId}))}:{}),x:n.x+80,y:n.y+100}));
+    for(let i=0;i<added.length;i++)if(copies[i].type==='text'&&copies[i].generation&&window.CanvasText?.remapGeneration)added[i].generation=window.CanvasText.remapGeneration(copies[i],mapping);
     edges.push(...edges.filter(e=>ids.has(e.source)&&ids.has(e.target)).map(e=>({...clone(e),id:crypto.randomUUID(),path:undefined,source:mapping.get(e.source),target:mapping.get(e.target)})));
     nodes.push(...added);const pileOwners=window.CanvasPiles.index(nodes).owner;selected=new Set(added.filter(n=>!n.parentId&&!pileOwners.has(n.id)).map(n=>n.id));rebuildAndPersist();
   }
-  function removeSelected(){if(!selected.size)return;remember();const removed=window.CanvasGroups.descendants(nodes,selected);nodes=nodes.filter(n=>!removed.has(n.id));edges=edges.filter(e=>!removed.has(e.source)&&!removed.has(e.target));selected.clear();rebuildAndPersist();}
+  function removeSelected(){
+    if(!selected.size)return;remember();const removed=window.CanvasGroups.descendants(nodes,selected),sources=nodes.filter(n=>removed.has(n.id));
+    // Removing a source and its bound prompt mentions must share one undo entry.
+    for(const n of nodes)if(n.type==='text'&&(n.generation||n.textMode==='generate')&&!removed.has(n.id)){
+      const next=window.CanvasText?.withoutSources?.(n,sources,nodes,edges);if(next)n.generation=next;
+    }
+    nodes=nodes.filter(n=>!removed.has(n.id));edges=edges.filter(e=>!removed.has(e.source)&&!removed.has(e.target));selected.clear();rebuildAndPersist();
+  }
   function nodeMenu(x,y){if(window.CanvasMenus)return window.CanvasMenus.node(x,y);const picked=nodes.filter(n=>selected.has(n.id));if(picked.length===1&&picked[0].type==='pile'){menu(x,y,[{label:'取消堆叠',run:()=>window.CanvasApp.unstack(picked[0].id)},{label:'下载全部',run:()=>window.CanvasPilesUI.downloadAll(picked[0].id).catch(e=>notify(e.message))},null,{label:'副本',key:'⌘D',run:duplicate},{label:'删除',key:'⌫',run:removeSelected,danger:true}]);return;}if(picked.length===1&&picked[0].type==='group')return;if(picked.some(n=>n.type==='studio')){menu(x,y,[{label:'复制',key:'⌘C'}, {label:'粘贴',key:'⌘V'}, {label:'副本'},null,{label:'删除',key:'⌫,del',run:removeSelected},null,{label:'反馈问题',run:()=>window.FeedbackAPI.open(picked.map(n=>n.id))}]);return;}menu(x,y,[{label:'重命名',run:()=>rename(nodes.find(n=>selected.has(n.id)))},{label:'下载图片',run:()=>download(nodes.find(n=>selected.has(n.id)))},null,{label:'副本',key:'⌘D',run:duplicate},{label:'删除',key:'⌫',run:removeSelected,danger:true}]);}
   function download(n){if(window.CanvasMenus)return window.CanvasMenus.download(n).catch(e=>notify(e.message));if(!n?.image)return;const a=document.createElement('a');a.href=n.fullImage||n.image;const ext=a.href.startsWith('data:image/png')?'png':a.href.startsWith('data:image/webp')?'webp':a.href.split(/[?#]/)[0].match(/\.(png|webp|jpe?g)$/i)?.[1]||'jpg';a.download=(n.title||'image')+'.'+ext;a.click();}
   function preview(n){
@@ -466,7 +474,7 @@
       remember();
       // A reference and its visible connection are one undoable action. Clearing
       // legacy URL copies prevents a deleted edge reappearing as a saved input.
-      for(const target of new Set(links.map(e=>e.target))){const n=nodes.find(n=>n.id===target);if(n&&['image','video'].includes(n.type)){const sources=links.filter(e=>e.target===target).map(e=>nodes.find(n=>n.id===e.source)).filter(Boolean);const next=window.NodeEditor?.withoutSources(n,sources);if(next)n.generation=next;}}
+      for(const target of new Set(links.map(e=>e.target))){const n=nodes.find(n=>n.id===target);if(n&&['image','video','text'].includes(n.type)){const sources=links.filter(e=>e.target===target).map(e=>nodes.find(n=>n.id===e.source)).filter(Boolean);const next=n.type==='text'?window.CanvasText?.withoutSources?.(n,sources,nodes,edges):window.NodeEditor?.withoutSources(n,sources);if(next)n.generation=next;}}
       edges=edges.filter(e=>!removed.has(e.id));if(window.CanvasConnections){render();persist();}else rebuild();
     },
     addConnectionNode(originId,side,draft){
@@ -563,7 +571,7 @@
     },
     updateNode(id,patch){
       const n=nodes.find(n=>n.id===id);if(!n)return;
-      const parametersOnly=['image','video'].includes(n.type)&&Object.keys(patch).every(key=>key==='generation');
+      const parametersOnly=['image','video'].includes(n.type)&&Object.keys(patch).every(key=>key==='generation')||n.type==='text'&&window.CanvasText?.mode?.(n)==='generate'&&Object.keys(patch).every(key=>key==='generation'||key==='textMode'&&patch.textMode==='generate');
       remember();
       if(['group','pile'].includes(n.type)&&(patch.x!==undefined||patch.y!==undefined))window.CanvasGroups.translate(nodes,window.CanvasGroups.positions(nodes,[id]),(patch.x??n.x)-n.x,(patch.y??n.y)-n.y);
       Object.assign(n,patch);

@@ -6,11 +6,12 @@ function fixture(){
  const core=require('../audio-core.js'),nodes=[{id:'a',type:'audio',title:'A',x:10,y:10,width:300,height:300,audioConfig:core.transition({prompt:'hello'},'seed-audio-1-0')},{id:'b',type:'audio',title:'B',x:10,y:10,width:300,height:300,audioConfig:core.transition({prompt:'other'},'seed-audio-1-0')},{id:'ref',type:'text',title:'参考文本',content:'text'}],state={nodes,selected:['a'],edges:[],view:{x:0,y:0,scale:1}},writes=[];
  document.querySelector('#canvas').getBoundingClientRect=()=>({left:0,top:0,right:1000,width:1000});
  Object.assign(window,{AudioCore:core,UI_ICONS:{},CanvasApp:{getState:()=>state,getNodeElement:()=>null,updateNode(id,patch){writes.push({id,patch});Object.assign(nodes.find(n=>n.id===id),patch);document.dispatchEvent(new window.Event('canvas:render'));},disconnect(){},saveSelection(){}},NodeActions:{notify(){},colors(){}},GenerationAPI:{getJobs:()=>[],subscribe(){}},VoiceInput:{bind(){}},LocalAssets:{}});
- const source=fs.readFileSync(require.resolve('../audio-ui.js'),'utf8').replace(/import\([^)]*\)/g,'(new Promise(()=>{}))');
- vm.runInNewContext(source,{window,document,Event:window.Event,structuredClone,console,innerWidth:1000,innerHeight:800,ResizeObserver:class{observe(){}disconnect(){}},setTimeout,clearTimeout,requestAnimationFrame(){},cancelAnimationFrame(){}});
+ const source=fs.readFileSync(require.resolve('../audio-ui.js'),'utf8').replace(/import\([^)]*\)/g,'(new Promise(()=>{}))').replace('let voiceUI=null','let voiceUI=voiceMenuModule');
+ vm.runInNewContext(source,{voiceMenuModule,window,document,AbortController,DOMException,Event:window.Event,structuredClone,console,innerWidth:1000,innerHeight:800,ResizeObserver:class{observe(){}disconnect(){}},setTimeout,clearTimeout,requestAnimationFrame(){},cancelAnimationFrame(){}});
  const trigger=label=>document.querySelector('.audio-editor').querySelector('[aria-label="'+label+'"]'),pop=()=>document.querySelector('.audio-popover'),key=(target,key,extra={})=>{const e=new window.KeyboardEvent('keydown',{key,bubbles:true,cancelable:true,...extra});target.dispatchEvent(e);return e;},render=()=>document.dispatchEvent(new window.Event('canvas:render'));
  return{dom,window,document,state,nodes,writes,trigger,pop,key,render,useVoice(){for(const n of nodes.filter(n=>n.type==='audio'))n.audioConfig=core.transition(n.audioConfig,'elevenlabs-v3','Text-to-Speech');render();},open(label){const b=trigger(label);b.focus();b.click();return pop();},close(){window.dispatchEvent(new window.Event('pagehide'));dom.window.close();}};
 }
+let voiceMenuModule;test.before(async()=>{voiceMenuModule=await import('../src/features/audio-voices/menu.mjs');});
 const deferred=()=>{let resolve,reject;const promise=new Promise((a,b)=>{resolve=a;reject=b;});return{promise,resolve,reject};};
 const tick=()=>new Promise(resolve=>setTimeout(resolve,5));
 test('model and scene menus expose radio navigation and Escape returns to rebuilt trigger',()=>{
@@ -40,4 +41,7 @@ test('public listVoices also rejects provider replacement and setVoices superses
 });
 test('voice refresh retains a focused cached row or returns to search when it disappears',async()=>{
  for(const retain of [true,false]){const f=fixture(),next=deferred();let calls=0;try{f.useVoice();f.window.AudioAPI.setVoiceProvider({listVoices:()=>++calls===1?Promise.resolve([{id:'cached',name:'缓存音色'}]):next.promise});await f.window.AudioAPI.listVoices();f.open('选择音色');await Promise.resolve();f.pop().querySelector('[aria-label="缓存音色"]').focus();next.resolve([{id:retain?'cached':'new',name:'刷新音色'}]);await tick();assert.ok(f.pop());assert.equal(f.document.activeElement.getAttribute('aria-label'),retain?'刷新音色':'搜索音色');}finally{f.close();}}
+});
+test('choosing a catalog ID persists it and carries it unchanged into node generation request',async()=>{
+ const f=fixture();try{f.useVoice();f.window.AudioAPI.setVoiceProvider({listVoices:async()=>[{id:'provider-stable-123',name:'目录音色'}]});f.open('选择音色');await tick();f.pop().querySelector('[aria-label="目录音色"]').click();assert.equal(f.nodes[0].audioConfig.params.voice_id,'provider-stable-123');const request=await f.window.AudioAPI.buildRequest('a');assert.equal(request.parameters.voice_id,'provider-stable-123');assert.equal(request.parameters.model,'eleven_v3');}finally{f.close();}
 });

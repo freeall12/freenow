@@ -11,7 +11,7 @@
 
 ## 当前补充复核：同源网关落盘后的主页面 CSP 与剩余持久资源
 
-本节优先于历史存档。最初补充复核为只读代码与文档，随后完成共享 HTML 模块的专项测试和独立组合复核；主线程另外完成了上述实际浏览器验收。文中代码行号对应各次复读时，不应代替最终代码定位；本次收尾只整理文档，没有追加测试、浏览器操作或代码改动。
+本节优先于历史存档。最初补充复核为只读代码与文档，随后完成共享 HTML 模块的专项测试和独立组合复核；主线程另外完成了上述实际浏览器验收。文中代码行号对应各次复读时，不应代替最终代码定位；最初收尾仅整理文档，此后本轮 Agent Markdown 导航专项已修复代码、重建 bundle 并执行定向检查，见第 3 节，未追加浏览器操作。
 
 ### 主页面严格同源 CSP 已落地，按具体功能记录验收
 
@@ -78,7 +78,7 @@ root 本轮已在 cards 与 integration 的 openLink 两层调用 `local-resourc
 | `agent-client.js:97`、forms view | 表单图片来源从当前节点/已上传附件解析；旧来源仍需读取边界保护 |
 | `agent-client.js:711–714`、media-inputs | 发送Agent附件时实际浏览器解码并采样媒体；不是只把名字发给模型 |
 
-普通消息 `agent-messages/markdown.mjs:14–23` 丢弃 raw HTML，把 Markdown 图片变成 anchor，不会自动请求图片。`safeMessageLink():7–10` 仍允许通用 HTTP/HTTPS/mailto，原站链接是用户点击后的导航入口。若要求全部用户导航也脱离原站，应复用明确域策略，不要把 Markdown 正文当媒体字符串改写。文本产物 `TextEditor.html` 同样剥除图片并把链接变成静态 span，不是自动联网入口。SVG/XML namespace、ui://tapnow RPC 标识、DB/key名称、skill sourceUrl证据字段、URL格式示例均不能按请求数量统计。
+普通消息 `agent-messages/markdown.mjs` 丢弃 raw HTML，把 Markdown 图片变成 anchor，不会自动请求图片。本轮导航专项复核确认旧 `safeMessageLink()` 仅检查协议，Agent 普通回复与历史消息中的原站链接可经用户点击打开新标签；主页面资源 CSP 不会阻止这种导航。该入口现已复用共享 `independentNavigationUrl()`：HTTP/HTTPS 原站域、子域及尾点形式被拒绝，只保留链接标签；独立来源与 mailto 保留。普通 Markdown 链接、自动识别链接和图片链接统一经过此检查，不改写消息原文或持久记录。实际入口 `agent-client.js` 加载的 `assets/agent-editor.js` 已通过现有 `build:agent` 重建；专项检查覆盖上述域形式、独立链接和 mailto，另以实际消息渲染器核对输出 DOM，未访问原站、未据此声称浏览器中全部导航路径均已验收。文本产物 `TextEditor.html` 同样剥除图片并把链接变成静态 span，不是自动联网入口。SVG/XML namespace、ui://tapnow RPC 标识、DB/key名称、skill sourceUrl证据字段、URL格式示例均不能按请求数量统计。
 
 ### 4. 素材库与模板专项提交边界复读
 
@@ -102,7 +102,7 @@ root 本轮已在 cards 与 integration 的 openLink 两层调用 `local-resourc
 
 ## 历史第一轮结论（已被收尾状态替代）
 
-Agent App 模板与技能捕获正文从本地文件加载，没有发现服务端直接调用 TapNow API 或固定 TapNow 遥测端点。修改前，互动学习和个人素材库确有条件性原站媒体请求，根线程本轮已移除对应域权限与远程输入。Widget HTTPS媒体权限也已移除。最终复读的服务端CSP仅作用于Agent App模板/代理和Widget代理，已撤回对主画布HTML的全局CSP，避免破坏已配置用户API与供应商结果回填。product-kit原站演示图现被沙箱范围CSP阻止，演示内容本地化仍未完成。主画布供应商媒体、旧远程历史与通用用户导航仍是待补边界，不能宣称全项目完全本地化。
+第一轮结束时，Agent App 与技能捕获正文已从本地加载，未找到固定原站 API/遥测端点；互动学习、素材库与 Widget 原站媒体权限已收紧。当时主画布全局 CSP 曾因直连配置和远程结果回填回归而撤回，product-kit 也只挡住演示图、尚未接本地运行输入。这些是历史过程，后续已完成同源网关、本地生成媒体、主页面 CSP、product-kit 输入与历史资源迁移/派生；具体收尾状态及验收范围以本文件开头为准。
 
 ## 历史第一轮风险排序
 
@@ -204,7 +204,7 @@ App 外层卡片 `card.mjs:67` 使用 `sandbox="allow-scripts"`，文档安全 o
 
 本节记录主网关直连及远程结果尚未后端化时的撤回理由。现在同源网关与本地生成媒体已替代这两个主要前提，主 index.html 已重新实施严格同源 CSP；下面“最终仅约束 App”“主入口无新增 header”“供应商结果仍直接读取”均只描述当时版本。
 
-初次二次复核时，`server/server.cjs:70` 曾为所有本地 `.html` 静态响应设置 CSP。独立review发现下面列出的实际配置与结果媒体回归，根线程随后撤回全局方案。最终复读条件为 `^src/features/(agent-apps/resources/|agent-widgets/widget-proxy.html$)` 加 `.html`：只有官方App模板、三类App代理和Widget代理有响应CSP，主入口与普通QA页面没有该新增header。
+初次二次复核时，`server/server.cjs:70` 曾为所有本地 `.html` 静态响应设置 CSP。独立review发现下面列出的配置与结果媒体回归，根线程曾撤回全局方案；那次复读条件为 `^src/features/(agent-apps/resources/|agent-widgets/widget-proxy.html$)` 加 `.html`，当时只有 App/widget 范围有新增响应 CSP。这不是收尾版本的 header 范围，主 index.html 后来已恢复独立严格策略。
 
 最终沙箱CSP用 `self` 加当前请求的明确 `http://host:port` 允许本地加载，data/blob允许本地媒体；内联脚本/样式和现有eval保留，object禁止。API JSON响应不添加该CSP。这个收窄避免由沙箱本地化顺带破坏主画布已配置供应商链路，但也不覆盖主画布的远程历史/供应商媒体导入。
 
@@ -249,4 +249,4 @@ App 外层卡片 `card.mjs:67` 使用 `sandbox="allow-scripts"`，文档安全 o
 
 资源CSP没有提供通用导航禁令。`cards.mjs:164–169` 的用户动作openLink、技能详情HTTPS anchor、页面自身location导航/外部下载仍需按业务边界审计。当前Widget sandbox禁止top-navigation/popups，桥接openLink仍通过宿主用户动作；但整个主页面的导航能力未因资源CSP消失。
 
-`server/agent.cjs:12` 新增本地资源指令有助于模型选择正确资源，但它不是权限执行层，也不能约束用户提供的历史内容或浏览器导航。固定TapNow演示资源请求现在在App模板/代理层被CSP阻止；主画布仍可能访问远程历史/供应商结果。最终结论仅为沙箱权限收紧及已定位未完成边界，服务器显式配置与供应商媒体仍需要完整适配证据。
+当时 `server/agent.cjs:12` 的本地资源指令有助于模型选资源，但不是权限执行层。那一阶段仅能确认 App 沙箱权限收紧，主画布历史/供应商媒体仍有远程读取路径，因此要求后续完整适配。本段不是收尾结论；同源网关、生成媒体落盘、主页面 CSP、HTML 派生和会话附件迁移的后续实现及实际验收见文件开头。

@@ -121,6 +121,9 @@ reference/*
 !qa/generation-local-media.html
 !qa/generation-local-media.mjs
 
+# Synthetic text graph used by the tracked text reference browser QA.
+!qa/text-fixture.js
+
 # Machine-local exact resource mappings; hashes still describe private inputs.
 /assets/local-resource-index.json
 /assets/.local-resource-index-*

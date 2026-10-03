@@ -1,4 +1,5 @@
 import { MarkdownManager } from '@tiptap/markdown';
+import { independentNavigationUrl } from '../local-resource-migration/origin-policy.mjs';
 
 const parser = new MarkdownManager().instance;
 const renderer = new parser.Renderer();
@@ -7,7 +8,8 @@ const escape = text => String(text).replace(/[&<>"']/g, value => ({ '&': '&amp;'
 export function safeMessageLink(value) {
   try {
     const url = new URL(value);
-    return ['https:', 'http:', 'mailto:'].includes(url.protocol) ? url.href : null;
+    if (url.protocol === 'mailto:') return url.href;
+    return independentNavigationUrl(url.href);
   } catch { return null; }
 }
 

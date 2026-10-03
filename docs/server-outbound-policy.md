@@ -11,6 +11,7 @@
 | Agent 委派 | 子 AgentRuntime 的 `responses.create`、`compact` | 子任务及明确提供的上下文 | 继承父运行的受保护 client，不创建另一条未受保护 SDK 链 |
 | `/api/agent/search` | `responses.create`，`tools: web_search` | 验证后的公开检索词、可选域名过滤 | 同一受保护 client；检索源 URL 仅返回链接，不由本机服务下载 |
 | `/api/voice/transcribe` | `client.audio.transcriptions.create` | 上传的录音文件与显式转写模型 | 同一受保护 client，Multipart 合同保持 |
+| `/api/generation/voices`、`voices/:id/preview` | ElevenLabs `GET /v2/voices`、已有公开试听文件 GET | 目录过滤/分页；目录 Key 仅发到配置 origin | 同一目的域/redirect/Key echo guard；试听不带 Key，沿用安全 DNS 与媒体校验 |
 | `/api/agent/artifact-html` | `client.responses.create` | 已验证的 brainstorm 元数据和正文 | 同一受保护 client；保留原 HTML 返回合同 |
 | `/api/video-segmentation/segment` | POST `<configured endpoint>/segment-video`，必要时 GET 同源 `rleUrl` | 验证过的视频字节/来源、选区与像素提示 | 共享目的地址/redirect guard；RLE GET 继续同源校验，不携带 API Key |
 | `/api/media/*`、`/api/media/playlist` | 本机 FFmpeg 子进程 | 上传字节写入临时文件 | `file,pipe` 协议白名单、格式白名单；不接受远端媒体地址作为 FFmpeg 输入 |
@@ -33,6 +34,8 @@ Agent stream 会按最长 Key 的完整 UTF-8 percent 编码长度保留文字�
 ## 覆盖范围与未完成边界
 
 本清点只证明上述本机服务器直接发出的请求受到保护，不能据此声称整个页面已与原站零关联。
+
+真实音色目录与试听的参数、容量、缓存、取消和未配置合同见 [VOICE-CATALOG.md](VOICE-CATALOG.md)。该接口只读，不以目录就绪代替生成服务的配置或权限证明。
 
 - 浏览器中的历史 Canvas/LocalAssets 保存内容、用户输入的远端媒体地址、原站参考与旧 HTML/template 资源必须由前端资源迁移、渲染策略和实际 Network 验收继续审查；服务器 SDK guard 不会替浏览器拦截图片、视频、字体或脚本请求。
 - 检索源链接和用户明确点击的外部导航不是服务器素材下载。上游原生 `web_search` 的远端工具执行由已配置供应商负责，本机 fetch guard 只能约束发往该供应商的 API 地址，无法验证其内部检索网络。

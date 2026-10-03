@@ -13,6 +13,7 @@ const {wantsAgentStream,writeAgentStream}=require('./agent-stream.cjs');
 const {createGenerationGateway}=require('./generation.cjs');
 const {readGenerationRoutingConfig}=require('./generation-routing-config.cjs');
 const generation=createGenerationGateway({localPort:Number(process.env.PORT||4173),directory:path.join(__dirname,'.generation-tasks'),mediaDirectory:path.join(__dirname,'.generation-media'),baseUrl:process.env.GENERATION_API_BASE_URL,apiKey:process.env.GENERATION_API_KEY,protocol:process.env.GENERATION_API_PROTOCOL||'tasks-v1',modelMap:process.env.GENERATION_MODEL_MAP,...readGenerationRoutingConfig(process.env)});
+const voiceCatalog=require('./voice-catalog.cjs').createVoiceCatalog({provider:process.env.VOICE_CATALOG_PROVIDER||'elevenlabs',apiKey:process.env.ELEVENLABS_API_KEY,baseUrl:process.env.ELEVENLABS_API_BASE_URL||'https://api.elevenlabs.io',localPort:Number(process.env.PORT||4173)});
 const OpenAI=require('openai');const {AgentRuntime}=require('./agent.cjs');
 const root=path.resolve(__dirname,'..'),port=Number(process.env.PORT||4173);
 const localResourceIndexReady=require('../src/features/local-resource-migration/cli.cjs').writeLocalResourceIndex({root}).catch(()=>({published:false}));
@@ -38,6 +39,7 @@ const server=http.createServer(async(req,res)=>{try{
  if(pathname.startsWith('/api/')){
   if(req.headers.origin&&req.headers.origin!=='http://'+host)return json(res,403,{error:'跨域请求不允许'});
   if(pathname.startsWith('/api/video-segmentation/'))return await videoSegmentation.handle(req,res,pathname,{json,body});
+  if(pathname==='/api/generation/voices'||pathname.startsWith('/api/generation/voices/'))return await voiceCatalog.handle(req,res,pathname,{json});
   if(pathname.startsWith('/api/generation/'))return await generation.handle(req,res,pathname,{json,body:req=>body(req,64*1024*1024)});
   if(pathname==='/api/agent/config'&&req.method==='GET')return json(res,200,{configured,configurationError:modelConnection.configurationError,model:process.env.OPENAI_MODEL||null,missing:[...(!process.env.OPENAI_API_KEY?['OPENAI_API_KEY']:[]),...(!process.env.OPENAI_MODEL?['OPENAI_MODEL']:[])]});
   if(pathname==='/api/agent/search/config'&&req.method==='GET')return json(res,200,webSearch.config());
@@ -88,4 +90,4 @@ const server=http.createServer(async(req,res)=>{try{
 Promise.all([generation.ready,runtime.ready]).then(()=>server.listen(port,'127.0.0.1',()=>console.log(`Canvas replica: http://localhost:${port} | Agent ${configured?'configured':'requires OPENAI_API_KEY and OPENAI_MODEL'}`))).catch(async()=>{console.error('Local task stores unavailable; server was not started.');await Promise.allSettled([runtime.close(),agentSessionStore.close(),generation.close()]);process.exitCode=1;});
 
 let closing=false;
-for(const event of ['SIGTERM','SIGINT'])process.once(event,async()=>{if(closing)return;closing=true;server.close();try{await runtime.close();await agentSessionStore.close();await generation.close();process.exit(0);}catch{console.error('Local task shutdown could not confirm persistence.');process.exit(1);}});
+for(const event of ['SIGTERM','SIGINT'])process.once(event,async()=>{if(closing)return;closing=true;server.close();voiceCatalog.close();try{await runtime.close();await agentSessionStore.close();await generation.close();process.exit(0);}catch{console.error('Local task shutdown could not confirm persistence.');process.exit(1);}});
