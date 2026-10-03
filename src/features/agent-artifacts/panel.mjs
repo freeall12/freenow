@@ -14,8 +14,9 @@ function button(text, action, icon, className = '') {
   node.onclick = action; return node;
 }
 
-export function createPanel({ store, anchor, onAdd, onDiscuss, onError, onShare, onQuote, onStart, generation }) {
-  let element = null, content = null, layout = null, selectedPath = null, epoch = 0, selectionEpoch = 0, closing = null, trigger = null, triggerTooltip = null, preview = null, brainstorm = null, collapse = null;
+export function createPanel({ store, anchor, onAdd, onDiscuss, onError, onShare, onQuote, onStart, generation,getHtmlResourceOptions }) {
+  let element = null, content = null, layout = null, selectedPath = null, epoch = 0, selectionEpoch = 0, closing = null, trigger = null, triggerTooltip = null, preview = null,previewPath=null, brainstorm = null, collapse = null;
+  function closePreview(){preview?.close();preview=null;previewPath=null;}
   function syncCollapse() { if (collapse) collapse.hidden = !!anchor || !!selectedPath; }
   function syncTrigger() { trigger?.setAttribute('aria-pressed', String(!!element && !closing)); }
   function errorMessage(error) { onError?.(error.message || String(error)); }
@@ -70,22 +71,25 @@ export function createPanel({ store, anchor, onAdd, onDiscuss, onError, onShare,
   }
   async function act(action) { try { await action(); } catch (error) { errorMessage(error); } }
   async function select(path) {
-    const version = ++selectionEpoch;
+    const version = ++selectionEpoch;closePreview();
     try {
       const file = await store.get(path);
       if (!element || closing || version !== selectionEpoch) return;
-      if (file.content_type === 'html') { preview?.close(); preview = openHtmlPreview({ file, onShare, onError }); return true; }
+      if (file.content_type === 'html') {
+        previewPath=path;
+        preview=openHtmlPreview({file,onShare,onError,getCurrentFile:()=>store.get(path),isCurrent:()=>!!element&&!closing&&version===selectionEpoch,getResourceOptions:getHtmlResourceOptions});return true;
+      }
       selectedPath = path; layout.mode(true); await render();
       syncCollapse();
     } catch (error) { if(version === selectionEpoch)errorMessage(error);return false; }
   }
-  function back() { selectionEpoch++;brainstorm?.suspend(); selectedPath = null; layout.mode(false); render(); syncCollapse(); }
-  function remove() { epoch++;selectionEpoch++; brainstorm?.destroy(); brainstorm = null; layout?.destroy(); layout = null; element?.remove(); element = null; closing = null; syncTrigger(); }
+  function back() { selectionEpoch++;closePreview();brainstorm?.suspend(); selectedPath = null; layout.mode(false); render(); syncCollapse(); }
+  function remove() { epoch++;selectionEpoch++;closePreview(); brainstorm?.destroy(); brainstorm = null; layout?.destroy(); layout = null; element?.remove(); element = null; closing = null; syncTrigger(); }
   function close({ immediate = false } = {}) {
     triggerTooltip?.hide();
     if (!element || closing) return;
     const restoreFocus = element.contains(document.activeElement);
-    epoch++;selectionEpoch++;brainstorm?.suspend();element.inert = true;element.setAttribute('aria-hidden','true');
+    epoch++;selectionEpoch++;closePreview();brainstorm?.suspend();element.inert = true;element.setAttribute('aria-hidden','true');
     if (restoreFocus && trigger?.isConnected) trigger.focus({ preventScroll: true });
     if (immediate) remove();
     else { element.dataset.state = 'closed'; closing = setTimeout(remove, 280); syncTrigger(); }
@@ -101,7 +105,7 @@ export function createPanel({ store, anchor, onAdd, onDiscuss, onError, onShare,
     layout = createLayout({ element, content, anchor, isDetail: () => !!selectedPath, onError });
     layout.reset(); render(); syncTrigger();
   }
-  const unsubscribe = store.subscribe(() => { render(); });
+  const unsubscribe = store.subscribe(file => {if(previewPath&&(!file||file.artifact_path===previewPath)){selectionEpoch++;closePreview();}render();});
   return {
     open, close, select,
     setAnchor(next) { anchor = next; triggerTooltip?.hide(); layout?.setAnchor(next); syncCollapse(); },
@@ -110,6 +114,6 @@ export function createPanel({ store, anchor, onAdd, onDiscuss, onError, onShare,
       trigger = button('侧边栏', () => { triggerTooltip?.hide(); element && !closing ? close() : open(); }, 'sidebar', 'agent-artifact-trigger');
       triggerTooltip = bindTooltip(trigger, { text: () => '侧边栏' }); syncTrigger(); return trigger;
     },
-    destroy() { if (closing) clearTimeout(closing); preview?.close(); triggerTooltip?.destroy(); unsubscribe(); remove(); },
+    destroy() { if (closing) clearTimeout(closing); closePreview(); triggerTooltip?.destroy(); unsubscribe(); remove(); },
   };
 }

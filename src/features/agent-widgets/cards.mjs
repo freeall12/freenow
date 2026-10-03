@@ -1,3 +1,4 @@
+import {createWidgetHtmlResources} from './html-resources.mjs';
 import {fileTextSpark} from './icons.mjs';
 import {mediaBridgeSource} from './media-bridge.mjs';
 import {createWidgetMediaReceiver} from './media-receiver.mjs';
@@ -69,16 +70,21 @@ function generationPlaceholder(document) {
 /** Arbitrary widget HTML stays in the official double-frame sandbox. The host
  * accepts messages and proposed media; no tools/call route is exposed. */
 export function createWidgetCard({trace, streaming = trace?.streaming === true, onSendPrompt, onOpenLink,
-  onUploadMedia,onDownloadMedia,
+  onUploadMedia,onDownloadMedia,prepareResources,
   onError = () => {}, isCurrent = () => true, document = globalThis.document}) {
   const window = document.defaultView || globalThis.window;styles(document);
   const element = node(document, 'div', 'agent-show-widget'), generating = generationPlaceholder(document);
   const loading = node(document, 'div', 'agent-widget-loading');
   loading.append(node(document, 'div', 'agent-widget-loading-spinner'), node(document, 'span', '', 'Loading widget...'));
-  element.append(generating.element, loading);
+  const resourceError=node(document,'div','agent-widget-loading'),resourceMessage=node(document,'span','',''),retry=node(document,'button','','重试资源');resourceError.setAttribute('role','status');resourceError.hidden=true;retry.type='button';const resourceActions=node(document,'div','execution-confirm-actions');resourceActions.append(retry);resourceError.append(resourceMessage,resourceActions);
+  element.append(generating.element, loading,resourceError);
   let value = trace, isStreaming = streaming, destroyed = false, suspended = false, frame = null, nonce = '', code = null, traceId = null;
+  let transportReady=false;
   let sent = false, rendered = false, resized = false, state = 'idle', generation = 0, timeout = null, deadline = 0, remaining = 10000, loads = 0;
   let rotation = null, labelIndex = 0, labelKey = '', labels = [], loadingTitle, sending = false, lastActionAt = -Infinity;
+  const htmlResources=prepareResources?null:createWidgetHtmlResources({document,fetchImpl:window.fetch?.bind(window)||globalThis.fetch});
+  let resourceAttempt=null,resourceEpoch=0;
+  function cancelResources(){resourceEpoch++;resourceAttempt?.abort();resourceAttempt=null;}
   const mediaReceiver=createWidgetMediaReceiver({mount:element,document,
     isCurrent:identity=>interactive(identity.version,identity.source,identity.token)&&identity.trace===value&&identity.code===request(value).widget_code,
     onUpload:(payload,options)=>{if(!onUploadMedia)throw Error('画布媒体交接尚未配置');return onUploadMedia(payload,value,options);},onDownload:onDownloadMedia,
@@ -88,8 +94,8 @@ export function createWidgetCard({trace, streaming = trace?.streaming === true, 
   function stopRotation() {if (rotation !== null) {window.clearInterval(rotation);rotation = null;}}
   function hideFrame() {if (frame) frame.style.display = 'none';}
   function syncDisplay() {
-    const preparing = active(value) && isStreaming, display = completed(value) && !!code && state !== 'error';
-    element.hidden = !preparing && !display;generating.element.hidden = !preparing;
+    const preparing = active(value) && isStreaming, repair = completed(value)&&!!code&&state==='resource-error', display = completed(value) && !!code && state !== 'error' && !repair;
+    element.hidden = !preparing && !display&&!repair;generating.element.hidden = !preparing;resourceError.hidden=!repair;
     loading.hidden = !display || rendered && resized;
     if (frame) frame.style.display = display && rendered && resized ? 'block' : 'none';
   }
@@ -101,18 +107,30 @@ export function createWidgetCard({trace, streaming = trace?.streaming === true, 
   function fail() {state = 'error';stopTimeout();syncDisplay();}
   function resetHandshake() {sent = false;rendered = false;resized = false;state = 'loading';remaining = 10000;syncDisplay();armTimeout();}
   function sendRender() {
-    if (destroyed || sent || !frame?.contentWindow || !code || state === 'error') return;
-    sent = true;frame.contentWindow.postMessage({type: 'render', html: code, nonce,localBridge:mediaBridgeSource(nonce)+whiteboxCaptureSource()}, '*');
+    if (destroyed || suspended || !transportReady || sent || resourceAttempt || !frame?.contentWindow || !code || state === 'error'||state==='resource-error') return;
+    const controller=new AbortController(),attempt=++resourceEpoch,captured={version:generation,frame,source:frame.contentWindow,token:nonce,trace:value,code};resourceAttempt=controller;
+    const valid=()=>!destroyed&&!suspended&&!controller.signal.aborted&&attempt===resourceEpoch&&generation===captured.version&&frame===captured.frame&&frame?.contentWindow===captured.source&&nonce===captured.token&&value===captured.trace&&code===captured.code&&request(value).widget_code===captured.code&&completed(value)&&element.isConnected&&current(isCurrent);
+    const apply=result=>{if(!valid())return;if(result?.status!=='ready'||typeof result.html!=='string'){
+      state='resource-error';stopTimeout();const count=result?.summary?.unresolved;resourceMessage.textContent=`组件资源待修复${count?`：${count} 项无法读取`:'：本地资源无法确认'}。原代码已保留，请补齐本地资源后重试。`;syncDisplay();return;
+    }sent=true;state='loading';remaining=10000;captured.source.postMessage({type:'render',html:result.html,nonce:captured.token,localBridge:mediaBridgeSource(captured.token)+whiteboxCaptureSource()},'*');armTimeout();};
+    const failed=error=>{if(!valid())return;state='resource-error';stopTimeout();resourceMessage.textContent='组件资源待修复：准备失败，原代码已保留。请修复本地资源后重试。';syncDisplay();};
+    let preparationTimer=null;const finish=()=>{if(preparationTimer!==null)window.clearTimeout(preparationTimer);preparationTimer=null;if(resourceAttempt===controller)resourceAttempt=null;};controller.signal.addEventListener('abort',finish,{once:true});
+    try{
+      const result=(prepareResources||htmlResources.prepare)(captured.code,{signal:controller.signal,isCurrent:valid,trace:captured.trace});
+      if(result?.then){stopTimeout();preparationTimer=window.setTimeout(()=>{failed(Error('资源准备超时'));controller.abort();},30000);Promise.resolve(result).then(apply).catch(failed).finally(finish);}else{apply(result);finish();}
+    }catch(error){failed(error);finish();}
   }
+  retry.onclick=()=>{if(destroyed||suspended||!current(isCurrent))return;cancelResources();resetHandshake();sendRender();};
+
   function makeFrame() {
-    mediaReceiver.reset();stopTimeout();frame?.remove();generation++;nonce = window.crypto.randomUUID();loads = 0;
+    cancelResources();mediaReceiver.reset();stopTimeout();frame?.remove();generation++;nonce = window.crypto.randomUUID();loads = 0;transportReady=false;
     frame = node(document, 'iframe', 'agent-widget-frame');frame.setAttribute('sandbox', 'allow-scripts');
     frame.title = request(value).title ?? 'Widget';frame.style.height = '200px';
     frame.addEventListener('load', () => {
       // Moving with moveBefore preserves the browsing context. A real reload
       // must repeat the handshake; keeping a DOM object is not sufficient.
       if (destroyed || frame !== eventFrame) return;
-      if (loads++ > 0) {mediaReceiver.reset();generation++;nonce = window.crypto.randomUUID();resetHandshake();}sendRender();
+      if (loads++ > 0) {cancelResources();mediaReceiver.reset();generation++;nonce = window.crypto.randomUUID();resetHandshake();}transportReady=true;sendRender();
     });
     const eventFrame = frame;
     frame.src = proxyUrl;element.append(frame);resetHandshake();
@@ -151,8 +169,8 @@ export function createWidgetCard({trace, streaming = trace?.streaming === true, 
   function receive(event) {
     if (destroyed || !frame || event.source !== frame.contentWindow) return;
     const data = event.data;if (!data || typeof data !== 'object') return;
-    if (data.type === 'proxy-ready') {sendRender();return;}
-    if (data.nonce !== nonce || state === 'error') return;
+    if (data.type === 'proxy-ready') {transportReady=true;sendRender();return;}
+    if (data.nonce !== nonce || state === 'error'||state==='resource-error'||!sent) return;
     if (data.type === 'rendered') {rendered = true;state = 'rendered';stopTimeout();syncDisplay();}
     else if (data.type === 'error') fail();
     else if (data.type === 'resize' && typeof data.height === 'number' && Number.isFinite(data.height) && data.height > 0) {
@@ -179,24 +197,24 @@ export function createWidgetCard({trace, streaming = trace?.streaming === true, 
   window.addEventListener('message', receive);
   function update(next, options = {}) {
     if (destroyed) return element;
-    const wasSuspended = suspended;if(value!==next)mediaReceiver.reset();value = next;suspended = false;
+    const wasSuspended = suspended,traceChanged=value!==next;if(traceChanged){mediaReceiver.reset();cancelResources();}value = next;suspended = false;
     isStreaming = options.streaming ?? next?.streaming ?? isStreaming;
     const args = request(next), nextLabelKey = JSON.stringify([args.title, args.loading_messages]);
     if (labelKey !== nextLabelKey) {stopRotation();labelKey = nextLabelKey;loadingTitle = args.title;labels = Array.isArray(args.loading_messages) ? args.loading_messages.filter(text => typeof text === 'string') : [];labelIndex = 0;syncLabel();}
     if (completed(next) && typeof args.widget_code === 'string' && args.widget_code) {
       if (code !== args.widget_code || traceId !== identity(next)) {code = args.widget_code;traceId = identity(next);makeFrame();}
-      else if (frame) {frame.title = args.title ?? 'Widget';if (wasSuspended) armTimeout();}
+      else if (frame) {frame.title = args.title ?? 'Widget';if (wasSuspended) armTimeout();if((wasSuspended||traceChanged)&&!sent)sendRender();}
     } else {
       stopTimeout();hideFrame();
-      if (frame) {mediaReceiver.reset();generation++;frame.remove();frame = null;code = null;nonce = '';state = 'idle';}
+      if (frame) {cancelResources();mediaReceiver.reset();generation++;frame.remove();frame = null;code = null;nonce = '';state = 'idle';}
     }
     syncDisplay();syncRotation();return element;
   }
   update(trace, {streaming});
   return {element, update, suspend() {
     if (destroyed || suspended) return;
-    mediaReceiver.reset();suspended = true;if (timeout !== null) remaining = Math.max(0, deadline - Date.now());stopTimeout();stopRotation();
+    cancelResources();mediaReceiver.reset();suspended = true;if (timeout !== null) remaining = Math.max(0, deadline - Date.now());stopTimeout();stopRotation();
   }, destroy() {
-    if (destroyed) return;mediaReceiver.destroy();destroyed = true;generation++;stopTimeout();stopRotation();window.removeEventListener('message', receive);frame?.remove();frame = null;element.remove();
+    if (destroyed) return;cancelResources();htmlResources?.dispose();retry.onclick=null;mediaReceiver.destroy();destroyed = true;generation++;stopTimeout();stopRotation();window.removeEventListener('message', receive);frame?.remove();frame = null;element.remove();
   }};
 }

@@ -1,0 +1,6 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>HTML作品 · 本地预览与导出验收</title>
+<style>body{background:#161616;color:#eee;font:14px system-ui;margin:24px;max-width:1000px}button{padding:8px 14px;margin:8px}output{display:block;white-space:pre-wrap;margin:12px 0}label{display:block;margin:12px}pre{white-space:pre-wrap}</style>
+<h1>HTML作品 · 本地预览与导出验收</h1><p>使用生产产物store/panel/preview及共享HTML资源转换。专用产物IndexedDB；保存原文，下载派生自包含HTML。未调用模型或原站。下方显式操作仅影响本页验收产物。</p>
+<button id="known" disabled>保存本地图片互动作品</button><button id="unknown" disabled>保存未知远端图片作品</button><button id="panel" disabled>打开文件面板</button><button id="preview" disabled>预览当前互动作品</button><button id="replace" disabled>替换为新版本（撤销旧预览）</button>
+<label><input id="delay" type="checkbox">资源准备延迟3秒，关闭预览应取消迟到结果</label><output id="status" aria-live="polite">正在读取专用产物存储…</output>
+<h2>实际保存的原文与版本</h2><pre id="source"></pre><script src="/local-assets.js"></script><script type="module" src="./local-export.mjs"></script></html>

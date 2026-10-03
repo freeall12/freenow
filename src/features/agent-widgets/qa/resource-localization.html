@@ -1,0 +1,16 @@
+<!doctype html><html lang="zh"><head><meta charset="utf-8"><title>Widget 本地资源 QA</title><link rel="stylesheet" href="../../agent-execution/styles.css"><style>body{background:#161616;color:#eee;font:14px system-ui;margin:32px}button{cursor:pointer;margin:6px;padding:8px 12px}main{max-width:760px;margin-top:20px}pre{white-space:pre-wrap}</style></head><body><h1>Widget 入向本地资源检查</h1><p>独立 QA，使用内存素材，不改画布、会话或供应商配置。</p><nav><button id="asset">加载真实内存素材</button><button id="missing">加载缺失素材</button><button id="unmapped">加载未知外链</button><button id="indexed">加载索引资源</button><button id="restore">修复内存素材</button><button id="reload">重载 iframe</button><button id="dispose">销毁卡片</button></nav><p id="status" role="status"></p><main id="mount"></main><pre id="source"></pre><script type="module">
+import {createWidgetCard} from '../cards.mjs';
+const mount=document.querySelector('#mount'),status=document.querySelector('#status'),source=document.querySelector('#source');let card,trace,available=true,active=true;
+const bytes=Uint8Array.from(atob('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jG2kAAAAASUVORK5CYII='),c=>c.charCodeAt(0)),url=URL.createObjectURL(new Blob([bytes],{type:'image/png'}));
+window.LocalAssets={url:async ref=>{if(ref!=='asset:widget-qa'||!available)throw Error('QA 素材尚未导入');return url;}};
+const html=src=>`<!doctype html><html><body style="background:#202023;color:white;padding:16px;font-family:system-ui"><h2>本地素材 Widget</h2><img alt="本地像素素材" src="${src}" style="width:80px;height:80px;image-rendering:pixelated;background:#607080"><p>加载完成后可点击组件按钮。</p><button onclick="sendPrompt('资源检查完成')">继续</button></body></html>`;
+function show(src){card?.destroy();active=true;trace={id:crypto.randomUUID(),name:'show_widget',status:'done',args:{widget_code:html(src),title:'本地资源 Widget'},result:{kind:'widget'}};source.textContent='原始 widget_code 保留：\n'+trace.args.widget_code;card=createWidgetCard({trace,onSendPrompt:text=>{status.textContent=text;return true;},onError:text=>status.textContent=text,isCurrent:()=>active,document});mount.replaceChildren(card.element);status.textContent='等待资源准备和 sandbox 握手';}
+document.querySelector('#asset').onclick=()=>{available=true;show('asset:widget-qa');};
+document.querySelector('#missing').onclick=()=>{available=false;show('asset:widget-qa');};
+document.querySelector('#unmapped').onclick=()=>show('https://unmapped.invalid/widget-resource.png');
+document.querySelector('#indexed').onclick=async()=>{try{const response=await fetch('/assets/local-resource-index.json',{cache:'no-store'}),index=await response.json(),row=Object.values(index.entries).find(item=>/\.png$/i.test(item.ref)&&item.bytes<2*1024*1024);if(!row)throw Error('索引中没有可用的小型 PNG');show(row.ref);}catch(error){status.textContent=error.message;}};
+document.querySelector('#restore').onclick=()=>{available=true;status.textContent='素材已修复，请点击卡片的重试资源';};
+document.querySelector('#reload').onclick=()=>{const frame=card?.element.querySelector('iframe');if(frame)frame.src=frame.src;};
+document.querySelector('#dispose').onclick=()=>{active=false;card?.destroy();card=null;status.textContent='已销毁；旧异步结果不能挂载';};
+window.addEventListener('pagehide',()=>{active=false;card?.destroy();URL.revokeObjectURL(url);});show('asset:widget-qa');
+</script></body></html>

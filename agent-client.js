@@ -6,7 +6,7 @@
  const app=window.CanvasApp,clone=v=>structuredClone(v),el=(tag,cls,text)=>{const n=document.createElement(tag);if(cls)n.className=cls;if(text!==undefined)n.textContent=text;return n;};
  const btn=(icon,label,fn,cls='',text='')=>{const b=el('button',cls,text);b.type='button';if(icon)b.insertAdjacentHTML('afterbegin',window.STAGE_ICONS[label]||window.UI_ICONS[icon]||'');b.setAttribute('aria-label',label);b.title=label;b.onclick=fn;return b;};
  let panel=null,current=0,chats=[],skills=[],controller=null,busy=false,sessionId=null,pendingResolve=null,pendingTraceId=null;
- let messageRows=new WeakMap(),activeStream=null,streamSaveTimer=0,pageLeaving=false,appQueueSaving=false;
+ let messageRows=new WeakMap(),activeStream=null,streamSaveTimer=0,pageLeaving=false,appQueueSaving=false,migratingConversationAssets=false;
  let recoveryModule=null,recoveryController=null,recoveryEpoch=0,recoveryChatId=null,recoveryRunning=false,recoveryPreparing=false;
  const recoveryReady=Promise.all([import('./src/features/agent-recovery/model.mjs'),import('./src/features/agent-recovery/view.mjs'),import('./src/features/agent-recovery/journal.mjs'),import('./src/features/agent-recovery/generation-settlement.mjs')]).then(([model,view,journal,settlement])=>{recoveryModule={...model,...view,...journal,...settlement};const style=el('link');style.rel='stylesheet';style.href='src/features/agent-recovery/styles.css';document.head.append(style);recoveryController=model.createRecoveryController({request:data=>request('state',data),isCurrent:(record,scope)=>!pageLeaving&&!!panel&&!busy&&recoveryEpoch===scope.epoch&&project.id===scope.projectId&&draft()===scope.chat&&chats.includes(scope.chat)&&scope.chat.interruptedRuns?.includes(record),persist:async()=>{if(!save())throw Error('核对记录未能保存');await flushConversation();},changed:()=>{if(panel)render();}});return recoveryModule;});
  recoveryReady.catch(error=>notice('中断任务核对加载失败：'+error.message));
@@ -31,6 +31,27 @@
  let conversations=window.CanvasProjectContext?.createConversations({project,storage:localStorage,store:window.CanvasStore}),conversationsLoaded=false;
  const conversationReady=Promise.all([conversations?.load(),recoveryReady]).then(([saved,recovery])=>{if(saved?.chats?.length){chats=saved.chats;current=Math.max(0,chats.findIndex(chat=>chat.id===saved.activeId));}conversations?.baseline(chats,draft().id);let recovered=false;for(const chat of chats)recovered=recovery.hydrateChat(chat)||recovered;conversationsLoaded=true;if(recovered)persistStreamingNow();return saved;}).catch(error=>{notice('会话读取失败：'+error.message);throw error;});conversationReady.catch(()=>{});
  async function flushConversation(){await conversationReady;await conversations?.flush();}
+ async function migrateConversationAttachments(options={}){
+  await conversationReady;
+  if(migratingConversationAssets||!panel||pageLeaving||busy||queueRunner?.running||recoveryRunning||recoveryPreparing||operations?.pending||chats.some(chat=>chat.activeRun||(chat.queuedMessages?.length&&!chat.queuePauseReason)))throw Error('请先完成或停止当前任务，再迁移对话附件');
+  const owner=panel,activeId=draft().id;
+  const available=()=>panel===owner&&draft().id===activeId&&!pageLeaving&&!busy&&!queueRunner?.running&&!recoveryRunning&&!recoveryPreparing&&(!operations||operations.pending===1)&&!chats.some(chat=>chat.activeRun||(chat.queuedMessages?.length&&!chat.queuePauseReason));
+  migratingConversationAssets=true;
+  try{return await track(async()=>{
+   composerEditor?.sync(draft());if(!save())throw Error('对话尚未保存，未开始附件迁移');await flushConversation();
+   const {createConversationMigration}=await import('./src/features/local-resource-migration/conversations.mjs');
+   if(!available())throw Error('当前会话已变化，附件迁移已暂停');
+   notice('正在核对并迁移对话附件…');
+   const report=await conversations.migrateResources({migrate:createConversationMigration({assets:window.LocalAssets,fetchImpl:options.fetch||window.fetch.bind(window),...(options.index?{index:options.index}:{})}),getCurrent:()=>({chats,activeId:draft().id}),canCommit:available,
+    applyCommitted:record=>{
+     artifactCards?.reset();appCards?.reset();messageRenderer?.reset();executionRenderer?.reset();queueView?.destroy();queueView=null;composerEditor?.destroy();composerEditor=null;messageRows=new WeakMap();
+     chats=record.chats;current=Math.max(0,chats.findIndex(chat=>chat.id===record.activeId));recoveryEpoch++;render();studioChannel?.publish();
+    }});
+   const missing=report.summary?.unresolved||0,count=report.summary?.changed||0;
+   const text=report.status==='local_edits'?'对话在迁移期间有新修改，已保留，请重新核对附件。':report.status?.startsWith('index_')?'本地资源索引暂不可用，原附件已保留。':`${count?'已迁移 '+count+' 项附件引用。':'没有新增可迁移的附件引用。'}${missing?'还有 '+missing+' 项需导入本地文件，原附件已保留。':''}`;
+   notice(text);return report;
+  });}finally{migratingConversationAssets=false;}
+ }
  function newDraft(){return {queuedMessages:[],queuePauseReason:null,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),id:crypto.randomUUID(),title:'新建对话',text:'',refs:[],messages:[],autoConfirm:false,skills:[],selectedModelAtStart:null};}
  let studioChannel=null,composerModule=null,composerEditor=null;
  const conversationScopeReady=import('./src/features/agent-scene/conversation-scope.mjs');
@@ -494,7 +515,7 @@
   if(!historyModule){const button=btn(null,title||'聊天记录',null,'agent-history-trigger',title||'');button.disabled=true;return button;}
   let control;
   control=historyModule.createControl({title,align:title===undefined?'end':'start',disabled:busy,getConversations:()=>historyModule.historyEntries(chats.filter(chat=>draft().studioNodeId?chat.studioNodeId===draft().studioNodeId:!chat.studioNodeId)),
-   beforeOpen:()=>{historyControls.forEach(item=>{if(item!==control)item.close();});modelControl?.close();confirmationControl?.close();panel?.querySelector('.agent-dropdown')?.remove();},onError:notice,
+   beforeOpen:()=>{historyControls.forEach(item=>{if(item!==control)item.close();});modelControl?.close();confirmationControl?.close();panel?.querySelector('.agent-dropdown')?.remove();},onError:notice,onMigrate:migrateConversationAttachments,
    onNew:async()=>{if(busy)return;const {newConversationScope}=await conversationScopeReady;if(busy)return;const previous=current;composerEditor?.sync(draft());chats.push({...newDraft(),...newConversationScope(draft(),window.StudioAPI?.getState()?.nodeId)});current=chats.length-1;if(!save()){chats.pop();current=previous;return;}render();},
    onSelect:id=>{if(busy)return;const index=chats.findIndex(chat=>chat.id===id);if(index<0)return;current=index;saveActive();render();},
    onRename:async(id,title)=>{if(busy)throw Error('请等待当前对话结束');const chat=chats.find(item=>item.id===id);if(!chat)throw Error('对话不存在');const previous=chat.title;chat.title=title;if(!save()){chat.title=previous;throw Error('重命名未能保存');}if(chat.id===draft().id){const label=panel?.querySelector('.agent-history-title');if(label){label.querySelector('span').textContent=title;label.ariaLabel=title;}}},

@@ -1,18 +1,27 @@
 # 运行时原站依赖独立审计 · 2026-10-03
 
+## 阅读规则与本轮收尾状态
+
+本文件先列收尾状态，再保留早期审计证据。**“历史审计存档”分隔线后的章节全部描述当时版本，其中“当前”“最终”“本轮”不代表收尾版本。** 特别是“主页面 CSP 已撤回”“product-kit 未注册”“只读审计、未浏览器验收”均为历史阶段结论，不能作为现在的事实引用。
+
+- 主 `index.html` 已有严格同源响应 CSP；同源生成网关与已落盘生成媒体替代了此前阻碍主页面收紧的浏览器直连路径。App/widget 专用策略独立保留。
+- HTML 预览/下载已接共享资源派生；主线程报告实际完成 HTML 下载、重新打开、真实图像、计数及交互验收。Agent 会话附件迁移也已用真实 PNG 完成迁移、权威回读与刷新复验。这些浏览器证据由主线程取得，本审计整理者没有重复操作。
+- Widget 入向资源已经接线，合同见 [Widget HTML 入向资源本地化](widget-html-resource-localization.md)；product-kit 已接实际本地产品图，当前合同与浏览器证据见 [本地运行边界](LOCAL-RUNTIME-BOUNDARIES-20261003.md)。不能沿用历史的未接入结论。
+- 未映射资源仍需明确导入或修复；静态资源本地化、资源请求阻断、浏览器功能验收分别报告。没有据此声称任意历史 HTML、动态脚本或全部模型供应商能力都已验收。
+
 ## 当前补充复核：同源网关落盘后的主页面 CSP 与剩余持久资源
 
-本节优先于下面的历史复核结论。此次只读代码、已有文档与入口属性，没有读取用户会话/产物私有数据库，没有扫描官方 minified 正文，没有执行浏览器联网验收。root 正在并行修改代码，以下定位对应本节复读时。
+本节优先于历史存档。最初补充复核为只读代码与文档，随后完成共享 HTML 模块的专项测试和独立组合复核；主线程另外完成了上述实际浏览器验收。文中代码行号对应各次复读时，不应代替最终代码定位；本次收尾只整理文档，没有追加测试、浏览器操作或代码改动。
 
-### 主页面严格同源 CSP 已在代码落地，运行验收待完成
+### 主页面严格同源 CSP 已落地，按具体功能记录验收
 
-本次追加复读确认 `server/server.cjs:80` 已对 `relative === 'index.html'` 返回下述同源策略，覆盖 `/` 与 `/index.html`；`:83` 的 App/widget HTML 专用策略保持独立。本节的可行性判断现已形成代码变更，但没有据此推定浏览器运行通过。
+追加复读确认 `server/server.cjs:80` 已对 `relative === 'index.html'` 返回下述同源策略，覆盖 `/` 与 `/index.html`；`:83` 的 App/widget HTML 专用策略保持独立。主页面及既有 Three 片场的浏览器记录见本地运行边界；后续 HTML 导出和会话 PNG 迁移验收由主线程单独完成，不能把局部通过扩大为全部编辑器或供应商验收。
 
 此前撤回全局 CSP 的两个主要原因已经发生实质变化：`generation-ui.js:70–88` 的主 provider 固定使用同源 `/api/generation`；`generation-config/client.mjs:16` 配置保存也只 POST 同源端点。网关目标地址是送给本机服务的配置数据，浏览器不再对它直接 POST/poll。生成媒体通过已封存的本地 API route 读取。页面 CSP 不影响本机服务按显式配置访问独立供应商。
 
 主 `index.html` 的直接资源属性聚合为 21 个 link.href、2 个 img.src、71 个 script.src，共 94 个，远程属性计数为零。主链未发现必需远程字体、模块、Worker、WebSocket 或 AudioWorklet。图片编辑器 `image-editor-entry.mjs:25–26` 的 FontFace 使用本地 `assets/fonts/`；Three 在 `studio.mjs:29` 与 `studio-v2/model-io.mjs:11` 使用本地 `/node_modules/three/.../draco/gltf/` 解码器。DRACOLoader 会读取本地 JS/WASM，并用 Blob 创建 worker，不能遗漏 `worker-src 'self' blob:` 和当前 WASM/动态代码所需 eval 权限。Fabric/Tiptap 资源来自项目本地 bundle。
 
-建议用于**主页面**的权限形状：
+已用于**主页面**的权限形状：
 
 ```text
 default-src 'self';
@@ -33,29 +42,29 @@ form-action 'self'
 
 仍存在的明确功能变化：`agent-workflows/media-resolver.mjs:32` 接受通用 HTTPS 来源，后续 Image/video/audio.src 会在浏览器解码；`media-transport.mjs:66` 的 forceInline 分支会跨源 fetch。这类**用户独立 HTTPS 参考直读**也会被严格 CSP 拒绝，需要先导入本机。`agent-attachments/media-inputs.mjs:9–14` 的历史附件解码同样如此。Marble 公有 URI 仅作为数据传给本机服务/供应商的分支不受页面 CSP 限制。不能把限制独立 HTTPS 参考直读说成没有行为变化；若该流程仍须保留，应走受控显式本地导入，而非放行所有 HTTPS。
 
-### 1. HTML 导出的真实网络边界尚未继承预览隔离
+### 1. HTML 原文下载边界已由本地派生和导出包裹替换
 
 入口一为 `agent-artifacts/panel.mjs:77` 的文件预览；入口二为 `agent-widgets/integration.mjs:37–56` 的 show_html 卡片。两者读取权威 artifact file 后调用同一个 `openHtmlPreview`。
 
-`agent-artifacts/html-preview.mjs:3–7,43` 仅给 iframe.srcdoc 加入 CSP 并设置 sandbox。但 `:24–27` 的“下载 HTML”直接 `Blob([file.content])`，导出的是原始正文，没有复制这层 CSP。下载本身只读取本机 Blob；用户随后打开文件时，里面的 script src、图片、媒体、CSS URL、fetch、表单或导航才可能产生网络行为。这是**条件性入口**，本次没有读取私有 HTML，不能声称实际导出内容必含原站 URL。`:34` 的 share 回调也传原正文，不过当前 show_html 集成明确 `showShare:false`，默认分享提供方未配置，不是自动上传路径。
+初轮发现旧下载直接 `Blob([file.content])`，仅应用内预览有 CSP。该问题已经由共享 `html-document.mjs` 与 artifact 的本地导出会话接线替换：原正文保留，预览/下载消费受资源检查的派生结果，离线导出使用外层策略与 opaque sandbox 包裹。未知资源或外部代码不静默当作成功导出；异步结果仍须匹配原路径、revision、正文和当前预览。
 
-最小下一批：保留原文和 revision，生成独立派生的离线预览/下载正文。用 DOMParser 处理真实资源属性，按完整来源哈希索引验证本地文件并嵌入 data URL；至少处理 img/src/srcset、video/audio/source、poster、SVG image href。CSS URL 必须有独立解析支持，不能以全局正则替换冒充覆盖。未知资源返回只含位置/hash的诊断。派生导出前置真实 head CSP；预览和下载消费同一派生结果。脚本内动态 URL、meta refresh 和外部 anchor 导航是另一明确边界，CSP 的资源限制不等于通用导航禁令。不要静默删除原始内容或声称任意 HTML 已完全离线。
+当前实现用惰性 template 解析媒体属性，按精确来源哈希索引验证本地字节并嵌入 data URL，CSS 使用 CSSOM。没有采用最初建议的 DOMParser 读取未知原文。主线程已实际下载、重新打开，并验证真实图像和计数/交互；内联脚本仍未做通用静态分析，不能把本次夹具的通过视为任意 HTML 的功能保证。合同和已知不支持的 CSS/外部代码范围见 [HTML 资源派生](HTML-RESOURCE-DERIVATION.md)。
 
 权威存储为 `agent-artifacts/store.mjs:4–13` 的 `<project namespace>-artifacts`，documents store 的 canvas document；文件通过 `store.write()` → `model.nextDocument()` 检查 expected_revision。若需要保存本地化派生文件，使用新 artifact_path 和 source_artifact_path/source_revision 保留来源，不能覆盖不匹配 revision 的原文件。
 
-### 2. Widget 历史资源已被挡，仍缺入向素材绑定
+### 2. Widget 历史资源已接入只读入向本地派生
 
-`agent-widgets/cards.mjs:105–110,192–204` 从历史 trace.args.widget_code 取正文，经本地 proxy postMessage/render 进入 `widget-proxy.html:156–170` 的 DOMParser 和真实 head CSP。内层 img/media 仅允许 data/blob，connect-src none。因此历史代码中的远程资源目前会被阻止，而不是自动修复；本地 `/assets/...` 同样不能直接在这个 opaque 内层使用。
+历史 trace.args.widget_code 原文保留。cards → html-resources →共享 html-document 在 sendRender 前处理明确资源槽，只把 ready 派生结果交给既有双 iframe；精确映射的本地文件和可信 asset 字节转为 data URL，unknown/读取失败显示“组件资源待修复”并允许重试。内层继续只允许 data/blob 媒体、connect-src none，不直接放行 `/assets/...` 或远程来源。
 
 root 本轮已在 cards 与 integration 的 openLink 两层调用 `local-resource-migration/origin-policy.mjs`，禁止原站域及其子域，保留用户激活、nonce/source和当前trace校验。这是已修的宿主导航入口，不应继续列成未修原站跳转。
 
-最小下一批：宿主在 sendRender 前从惰性 DOM 采集明确资源槽，精确映射/用户导入后转成 data URL，构建派生 widget HTML，并绑定 chat/trace/code版本。保留原 widget_code，单独保存资源绑定或派生 revision；已有 uploadToCanvas 是组件**输出进入画布**的出向桥，不能直接解决历史图片进入组件。宿主读取完成时仍要验证 generation/nonce/trace/code 与当前会话一致。
+接线已绑定 frame/generation/nonce/trace/code/当前会话，缓存核对索引和资产绑定，过期结果不得发送。纯内联无资源组件保留原同步握手；固定 widget policy 保留既有 Blob 预览能力。专项接线测试与浏览器 QA 入口见 Widget 合同，不能把该接线存在当作所有历史组件和白模录像都已浏览器验收。已有 uploadToCanvas 仍是组件输出进入画布的出向桥，与新入向派生职责不同。
 
 ### 3. Agent 会话与主页面数据驱动入口
 
-`project-context.js:20–35` 的权威记录为 `agent-conversations:<projectId>`，保存 `{chats,activeId}`；旧 localStorage 快照在 IndexedDB存在时仅作为遗留来源。`agent-client.js:29–32` 会先读取旧会话再由权威记录 hydrate，目前没有资源纯迁移钩子。
+权威记录仍为 `agent-conversations:<projectId>`，保存 `{chats,activeId}`；旧 localStorage 在权威记录存在时仅作为只读遗留来源。现在已有显式附件迁移接线，进入保存队列、CAS 重算并在持久提交后更新页面，不再是初轮“没有迁移钩子”的状态。
 
-下一批最小字段范围为 chats[].uploads、messages[].uploads、queuedMessages[].uploads 内明确 asset；再按已注册 App resource_uri，单独处理 trace.result.response 与 appState 中当前可读媒体槽。不要通用递归替换 tool args、文字、提示词、ID、raw request或恢复 journal。`projectAppModelResult()` 的媒体剥除只用于模型投影，不是持久化迁移。
+已实现范围为 chats[].uploads、chats[].messages[].uploads、chats[].queuedMessages[].uploads 内 image/video 附件的 asset 与可选 image；主线程用真实 PNG 完成迁移、权威回读和刷新复验。合同见 [Agent 会话附件迁移](AGENT-CONVERSATION-RESOURCE-MIGRATION.md)。App trace.result.response/appState 的媒体槽需按已注册 resource_uri 单独处理，不属于这次附件迁移范围；文字、提示词、工具参数、ID、raw request 和恢复 journal 不通用替换。`projectAppModelResult()` 的模型投影也不能当作持久迁移。
 
 实际读取入口包括：
 
@@ -75,19 +84,27 @@ root 本轮已在 cards 与 integration 的 openLink 两层调用 `local-resourc
 
 `sidebars.js:14–38` 的普通素材库写入与迁移共用 Web Locks 写锁，普通写入按自身快照串行提交并比较原始存储字串；迁移在锁内同时比较内存 baseline、权威原始字串和未保存状态。不支持锁时迁移返回 lock_unavailable。`templates-ui.js:24–31` 的迁移在同一 IndexedDB 读写事务内读取全部记录、比较 baseline 并批量 put，提交后才换缓存；`:36–37` 的普通保存对目标记录做同事务 CAS。本次静态复读没有发现这两个合作写入协议的覆盖新版本路径，未运行专项测试。
 
-两处 mediaSource 在赋 src 前拒绝已识别原站域与子域，模板图使用也有单独读取检查。仍有一个条件性有效来源边界：`sidebars.js:81` 先检查素材条目，再把 `EDITOR_DATA.nodes[item.nodeId].video` 补入预览对象；插入检查同样只检查条目，`app.js:579` 随后补入视频。若条目没有 video 且后备视频仍为原站，该专项检查不会给出迁移提示，主 CSP 会在实际加载时阻止请求。应按最终后备来源检查，或明确证明静态后备始终本地；不能把检查条目直接来源等同于检查最终来源。已向专项实现线程反馈。
+两处 mediaSource 在赋 src 前拒绝已识别原站域与子域，模板图使用也有单独读取检查。曾发现条目本身没有 video 时，预览/插入检查之后才补入 `EDITOR_DATA.nodes[item.nodeId].video` 的有效来源边界；专项实现已修复。当前 `sidebars.js:55–57` 的 effectiveLibraryAsset 在检查/插入前解析真实后备视频，`:33–37` 的迁移先把后备来源物化，再纯映射。专项实现线程报告针对该缺口的回归已通过；本审计仅复读代码，未重复运行其测试。
+
+### 5. 历史 HTML 资源派生模块已实现，消费者接线独立验证
+
+新增 `local-resource-migration/html-document.mjs` 与合同文档 `docs/HTML-RESOURCE-DERIVATION.md`，保留原文、原 UTF-8 哈希，不写用户存储。template 惰性解析明确媒体槽，精确索引映射通过 importIndexedAsset 的临时内存适配器校验字节后嵌入 data URL；已有 asset 只读 Blob 转码。CSS 用 CSSOM 解析 URL token，外部样式/import/font/image-set 等未支持边界给 error，内联 JS 未分析只给 warning。默认 artifact 策略 data-only，widget 固定策略保留既有图片/媒体 blob 权限。模块返回的 ready 仅表示可识别静态资源完成，动态导航仍须消费者外层 opaque sandbox 与 frame 策略保护。
+
+该模块专项 9 项和语法检查通过，独立组合复核还验证真实 PNG 索引/asset 的一致字节、仅一次本地读取、无自动请求和无存储写入。消费者接线已完成；主线程随后实际验证 HTML 下载/重新打开的图像与交互。Widget 合同明确另外的浏览器验收边界，不因共享模块测试通过就声称任意历史组件全部可用。
 
 ### 本节验收范围与限度
 
-本节没有运行 CUA、没有捕获私有内容、没有执行广泛测试。主 CSP 加入后仍须验收同源任务配置/POST/poll、封存媒体预览、Three Draco/WASM/blob worker、Fabric/字体、Agent会话恢复，以及unknown原站媒体没有实际请求且有可用导入修复入口。导出HTML应单独打开派生文件验证网络行为。阻止原站请求、数据迁移成功和功能可用是三个不同结论。
+本审计整理者没有运行 CUA、读取用户私有存储或执行全套测试；共享模块专项和独立组合复核由相应实现/复核线程完成，HTML 导出及真实 PNG 会话迁移刷新由主线程完成。本地运行边界记录还包括主页面、既有 Three 片场及字体的各自验收。未记录的压缩 Draco/WASM、全部 Fabric 编辑状态、所有 Widget 录像及真实供应商联调不能据此推定通过。阻止原站请求、数据迁移成功和功能可用是三个不同结论。
 
-审计目录：`/Users/laplace/Documents/Codex/2026-09-22/new-chat/outputs/canvas-replica`。范围为 Agent Apps 官方 HTML、四类沙箱代理、互动学习/个人素材、内置技能详情、服务端运行资源与遥测。字体与帮助入口由其他审计负责。本记录只改文档，未运行广泛测试、未提交代码。代码在根线程同时更新，因此分别列出修改前证据和本轮复读状态；下列“当前”是本文件生成时状态。
+## 历史审计存档：以下仅为修改过程证据
 
-## 结论
+**本分隔线之后全部是较早版本的审计记录，不是收尾结论。** 审计目录为 `/Users/laplace/Documents/Codex/2026-09-22/new-chat/outputs/canvas-replica`。当时范围包括 Agent Apps 官方 HTML、四类代理、互动学习/个人素材、内置技能、服务端资源与遥测，最初阶段只改文档。保留原定位和推理供追溯；以下“当前”“最终”“本轮”一律指各历史阶段，已被上方收尾状态替代。
+
+## 历史第一轮结论（已被收尾状态替代）
 
 Agent App 模板与技能捕获正文从本地文件加载，没有发现服务端直接调用 TapNow API 或固定 TapNow 遥测端点。修改前，互动学习和个人素材库确有条件性原站媒体请求，根线程本轮已移除对应域权限与远程输入。Widget HTTPS媒体权限也已移除。最终复读的服务端CSP仅作用于Agent App模板/代理和Widget代理，已撤回对主画布HTML的全局CSP，避免破坏已配置用户API与供应商结果回填。product-kit原站演示图现被沙箱范围CSP阻止，演示内容本地化仍未完成。主画布供应商媒体、旧远程历史与通用用户导航仍是待补边界，不能宣称全项目完全本地化。
 
-## 按风险与可操作性排序
+## 历史第一轮风险排序
 
 ### 1. 初轮发现，二次复核已收紧：Widget 允许任意 HTTPS 图片/视频/音频
 
@@ -100,12 +117,12 @@ Agent App 模板与技能捕获正文从本地文件加载，没有发现服务�
 
 二次复核当前 `widget-proxy.html:48–49` 已为 `img-src data: blob:` / `media-src data: blob:`。原站媒体加载权限已移除；历史Widget中的远程资源不会自动成为本地数据，因此仍需实际媒体交付验收。
 
-### 2. 初轮发现，当前被CSP拦截：product-kit演示图尚未本地化
+### 2. 历史初轮发现：当时 product-kit 演示图未本地化
 
 - `src/features/agent-apps/resources/apps/product-kit@v1.758d09b3.html:175`：演示对象 `U_` 含 `thumbnail_url:"https://files.tapnow.ai/demo/product-kit.webp"`；同一行 `os=window.parent===window` 判定顶层预览模式。
 - 同文件 `:175`：`j_` 创建 `img` 并执行 `o.src=e`；`xm` 从 `L.product.thumbnail_url` 取图。
 - 同文件 `:176`：`F_` 在顶层预览模式执行 `zm(U_)`，随后渲染上述图片。
-- `src/features/agent-apps/registry.mjs:14–28` 当前没有 product-kit。它是已归档且待接入的页面，不是已接入 App 的自动 fallback。
+- 当时 `src/features/agent-apps/registry.mjs:14–28` 没有 product-kit，处于已归档待接入阶段。该阶段性状态已过时；收尾版本已接实际本地产品图，见本文件开头链接。
 - `server/server.cjs:63–70` 静态服务公开项目 HTML，故用户直接访问该资源页能触发此条件路径；此路径不经过 App 代理的 `data/blob` CSP。
 
 最小修复：把演示缩略图交付为本地嵌入图/本地数据，或在本地演示映射中提供同图；保留原版捕获文件与本地化产物来源/hash界限。不要通过禁止演示入口替代功能还原。
@@ -130,14 +147,14 @@ Agent App 模板与技能捕获正文从本地文件加载，没有发现服务�
 
 剩余验证：旧会话中持久化的远程预览输入应明确要求重新获取/本地导入，而不是无提示的坏图；真实个人本地图片/视频预览及添加到画布需浏览器回归。
 
-### 4. 当前通用导航能力：用户操作后的 Widget openLink
+### 4. 历史导航检查：当时 Widget openLink 尚未加入原站域策略
 
 - `src/features/agent-widgets/cards.mjs:164–169`：收到 `openLink`，需 `interactive(...)` 和 `userAction()`，只接受 HTTP/HTTPS，之后调用宿主回调或 `window.open`。
 - `src/features/agent-widgets/integration.mjs:86–87` 同样执行通用 HTTP/HTTPS 导航。
 
 这是内容提供的用户操作导航能力，未找到固定 TapNow 目标；不是后台 fetch 或自动原站回退。若“无 TapNow 关联”还要求禁止任意用户内容跳转原站，应在同一宿主导航边界做明确域策略，或使用应用自己的本地帮助/文档；不要把所有外部合法链接无条件删除。
 
-## 四类代理的独立复查
+## 历史四类代理复查
 
 审计初读时，`mcp-app-proxy`、`production-progress-proxy`、`cutlist-review-proxy`、`widget-proxy` 含 prod/test TapNow 父源 allowlist。它们用于判断 `postMessage` 来源：按代理自身 hostname 选择生产/测试策略；localhost 走空 patterns 加 localhost/same-origin。列表本身不执行 fetch、导航或远程回退。
 
@@ -147,7 +164,7 @@ App 外层卡片 `card.mjs:67` 使用 `sandbox="allow-scripts"`，文档安全 o
 
 三个 App proxy 的 `resolveAppsBase`（当前 `mcp-app-proxy:102–105`）根据本地路径选 `./apps/` 或 `/apps/`；`:114` 读取本地 manifest，`:200` 读取 `key.hash.html`。生产进度和粗剪代理同类读取在 `:114,208`。没有固定远程 URL 或失败后原站下载逻辑。`server.cjs:70` 仅对这些本地公共模板允许 CORS，以支持 opaque iframe 读取。
 
-## 官方 HTML URL 分类
+## 历史官方 HTML URL 分类
 
 扫描了 `resources/apps/` 的 24 个 HTML，包括未注册版本；没有外部 `script src`、stylesheet URL 或实际 modulepreload 标签。常见 `fetch` 是 Vite modulepreload polyfill；没有对应远程标签，且已接入内层 CSP 的 `connect-src 'none'` 会阻止该类请求。Three.js 中存在通用 loader 方法，不代表业务一定调用远程资源。
 
@@ -160,7 +177,7 @@ App 外层卡片 `card.mjs:67` 使用 `sandbox="allow-scripts"`，文档安全 o
 - Motion picker 的 MDN path语法说明、SIL OFL许可地址：库错误文本/许可资料。
 - `ui://tapnow/...`、`tapnow/setWidgetState` 等：当前本地 registry 与 RPC 协议标识；没有 DNS/HTTP语义。品牌迁移时应成组迁移标识和已保存数据，而不是断言这些字符串会联网。
 
-## 内置技能详情：当前没有原站导航或自动图片请求
+## 历史内置技能详情检查
 
 - `reader.mjs:18` 只 fetch `'/'+entry.captureFile`；`:31–32` 拒绝路径协议和穿越。
 - `reader.mjs:73` 的 `sourceUrl` 是采集来源 metadata，不被 fetch。
@@ -171,7 +188,7 @@ App 外层卡片 `card.mjs:67` 使用 `sandbox="allow-scripts"`，文档安全 o
 
 `index.mjs` 的 `sourceUrl:https://app.tapnow.media/`、捕获 `source`、dialog文字、技能叙述属于采集依据。它们不证明运行时原站服务依赖。若以后提供可点击来源，应映射到本地捕获详情页；如果本地化修改正文，需同步捕获的长度与 SHA256 校验，而不是直接删 JSON字符串后破坏 reader。
 
-## 服务端运行资源与遥测
+## 历史服务端运行资源与遥测检查
 
 - `server/server.cjs:15,17–23` 初始化显式配置的 OpenAI客户端/生成网关；`:33–59` 通过本地 API处理 Agent、语音、搜索和媒体操作；`:72` 只绑定127.0.0.1。
 - 运行静态资源由本地 fs提供（`:63–71`），不存在资源缺失后向原站拉取的 fallback。
@@ -179,17 +196,19 @@ App 外层卡片 `card.mjs:67` 使用 `sandbox="allow-scripts"`，文档安全 o
 - 配置后的模型任务确有外部供应商调用：OpenAI、fal、Tripo、WorldLabs及配置的其他供应商；这是用户显式配置的功能边界，并非 TapNow服务。默认地址或 endpoint字符串不是凭证未配置时的自动请求证据。
 - 生产进度 `production-progress-runtime.mjs:108–109` 会 fetch当前真实节点媒体，再转为本地 blob/data预览。它不硬编码原站；若旧数据中仍存在原站URL，仍可请求该用户数据中的来源。全项目“完全本地媒体”验收还需要覆盖旧资产导入/恢复的统一边界，这次审计未扫描全部节点读取链。
 
-## 后续验收建议
+## 历史阶段的验收建议（不是未完成清单）
 
 做一个聚焦浏览器验收：本地 App握手、学习本地图片、个人素材data/asset预览、Widget本地图片/视频、production/cutlist实际blob预览、旧远程会话恢复，以及直接打开product-kit。记录实际request URL、触发交互和失败表现。静态字符串扫描不能替代该证据。
 
-## 二次独立复核：全HTML CSP方案已撤回，最终仅约束App沙箱
+## 历史二次复核：曾撤回全 HTML CSP，之后已重新实施主页面策略
+
+本节记录主网关直连及远程结果尚未后端化时的撤回理由。现在同源网关与本地生成媒体已替代这两个主要前提，主 index.html 已重新实施严格同源 CSP；下面“最终仅约束 App”“主入口无新增 header”“供应商结果仍直接读取”均只描述当时版本。
 
 初次二次复核时，`server/server.cjs:70` 曾为所有本地 `.html` 静态响应设置 CSP。独立review发现下面列出的实际配置与结果媒体回归，根线程随后撤回全局方案。最终复读条件为 `^src/features/(agent-apps/resources/|agent-widgets/widget-proxy.html$)` 加 `.html`：只有官方App模板、三类App代理和Widget代理有响应CSP，主入口与普通QA页面没有该新增header。
 
 最终沙箱CSP用 `self` 加当前请求的明确 `http://host:port` 允许本地加载，data/blob允许本地媒体；内联脚本/样式和现有eval保留，object禁止。API JSON响应不添加该CSP。这个收窄避免由沙箱本地化顺带破坏主画布已配置供应商链路，但也不覆盖主画布的远程历史/供应商媒体导入。
 
-### 最终范围下预计保持的本地功能
+### 当时收窄范围下预计保持的本地功能
 
 - 主入口 `index.html:9` 的内联 importmap、相对模块、CSS与 `/assets/` 资源不受此次新增header约束；仍按既有本地路径加载。
 - 外层App代理在 opaque origin下 fetch本地模板：`connect-src` 中明确HTTP宿主地址覆盖了opaque下不能仅靠self匹配的情况，模板端 `Access-Control-Allow-Origin:*`仍保留（server:72）。代理再给srcdoc添加更严格meta CSP，两者取交集；没有把内层网络权限放宽。
@@ -199,7 +218,7 @@ App 外层卡片 `card.mjs:67` 使用 `sandbox="allow-scripts"`，文档安全 o
 
 未看到本轮CSP直接破坏本地模块、本地Three资源、Canvas/WebGL像素导出。源码复核不能代替主入口/Agent App/压缩GLB/实际下载验收。
 
-### 已撤回全局方案会造成的已配置服务冲突
+### 当时全局方案暴露的已配置服务冲突
 
 下表是促成撤回的review证据，不是最终收窄策略仍在阻断这些主画布请求。入口尚未后端化，运行边界需要在下一批真实适配。
 
@@ -215,7 +234,7 @@ App 外层卡片 `card.mjs:67` 使用 `sandbox="allow-scripts"`，文档安全 o
 - 反馈：`feedback.js:33,50,54` 默认无provider且仅本地保存，`FeedbackAPI.setProvider`为程序注入；没有内置远程HTTP实现/URL配置UI。
 - `GenerationAPI.setProvider`、`VideoSegmentationAPI.setProvider`也允许程序注入，但不能据hook存在推断当前使用某个外部服务。
 
-### 全局约束之前仍需解决的供应商媒体读取
+### 当时尚未完成的供应商媒体本地化
 
 这不是旧历史独有问题，当前真实配置供应商的新任务也能返回远程结果URL：
 
@@ -226,7 +245,7 @@ App 外层卡片 `card.mjs:67` 使用 `sandbox="allow-scripts"`，文档安全 o
 
 最小正确方向：在本地受控媒体适配层实现供应商结果/用户明确导入参考的下载或代理，处理来源身份、失效URL、类型/大小/超时、取消和实际像素/解码验收。其授权/来源边界应独立于“删除TapNow域字符串”。保留用户自有远程媒体导入意图，并明确提示旧来源需重新导入。不要放行所有HTTPS来恢复功能，也不要以请求被挡作为功能已完成的证据。
 
-### 仍可离开本地的行为与限制
+### 当时记录的导航行为与限制
 
 资源CSP没有提供通用导航禁令。`cards.mjs:164–169` 的用户动作openLink、技能详情HTTPS anchor、页面自身location导航/外部下载仍需按业务边界审计。当前Widget sandbox禁止top-navigation/popups，桥接openLink仍通过宿主用户动作；但整个主页面的导航能力未因资源CSP消失。
 

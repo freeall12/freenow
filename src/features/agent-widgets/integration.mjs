@@ -52,7 +52,7 @@ export function createArtifactController({getContext, getStore, onQueuePrompt, o
       if (!valid()) return false;
       if (checked.revision !== receipt.revision) throw Error('HTML 产物已更新，当前卡片已失效，请重新展示');
       closePreview();
-      const handle = await openPreview({file: {...file, title: receipt.title || 'HTML'}, showShare: false, onError: message => {if (valid()) onError(message);}});
+      const handle = await openPreview({file: {...file, title: receipt.title || 'HTML'}, showShare: false, getCurrentFile:()=>store.get(receipt.artifact_path),isCurrent:valid,onError: message => {if (valid()) onError(message);}});
       if (!valid()) {try {handle?.close?.();} catch {}return false;}
       preview = {handle, record, binding: receipt};return true;
     } catch (error) {if (!valid()) return false;throw error;}

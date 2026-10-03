@@ -19,8 +19,13 @@
  }
  function createConversations({project,storage,store}){
   const recordKey='agent-conversations:'+project.id;
-  let latest=Promise.resolve(),saved=null,pending=0,error=null;
-  return {
+  let latest=Promise.resolve(),saved=null,pending=0,error=null,saveError=null,editVersion=0,migrationReport=null;
+  const enqueue=operation=>{
+   pending++;
+   const promise=latest.catch(()=>{}).then(operation).finally(()=>{pending--;});
+   latest=promise;promise.catch(()=>{});return promise;
+  };
+  const api={
    async load(){return store?.readRecord?store.readRecord(recordKey):null;},
    baseline(chats,activeId){saved=JSON.stringify({chats,activeId});},
    save(chats,activeId){
@@ -29,16 +34,66 @@
     const mirror=()=>{storage.setItem(project.storageKey('tapnow-agent-chats'),JSON.stringify(value.chats));storage.setItem(project.storageKey('tapnow-agent-active-chat'),activeId);};
     if(!store?.writeRecord){try{mirror();}catch(failure){error=failure;return false;}saved=serialized;error=null;return true;}
     // Capture each revision before yielding; a newer draft can queue during a write.
-    pending++;saved=serialized;
+    editVersion++;saved=serialized;migrationReport=null;
     // IndexedDB owns new revisions. Preserve legacy snapshots as read-only
     // migration sources instead of duplicating growing conversations there.
-    latest=latest.catch(()=>{}).then(()=>store.writeRecord(recordKey,value)).then(()=>{error=null;},failure=>{error=failure;throw failure;}).finally(()=>{pending--;});
-    latest.catch(()=>{});return true;
+    enqueue(async()=>{try{if(await store.writeRecord(recordKey,value)===false)throw Error('会话记录未能提交');error=null;saveError=null;}catch(failure){error=failure;saveError=failure;throw failure;}});return true;
+   },
+   migrationStatus(){return migrationReport?structuredClone(migrationReport):null;},
+   migrateResources({migrate,getCurrent,applyCommitted,canCommit=()=>true}={}){
+    if(typeof migrate!=='function'||typeof getCurrent!=='function'||typeof applyCommitted!=='function')return Promise.reject(Error('会话附件迁移尚未配置'));
+    const version=editVersion,captured=structuredClone(getCurrent()),baseline=JSON.stringify(captured);
+    const unchanged=()=>editVersion===version&&JSON.stringify(getCurrent())===baseline&&canCommit();
+    const report=value=>{migrationReport=value;return structuredClone(value);};
+    return enqueue(async()=>{
+     let persisted=false;
+     try{
+      if(!store?.readRecord||!store?.writeRecord)throw Error('会话附件迁移需要本地数据库');
+      if(saveError)throw saveError;
+      if(!unchanged())return report({status:'local_edits',persisted:false,summary:null,diagnostics:[]});
+      for(let attempt=0;attempt<3;attempt++){
+       const authoritative=await store.readRecord(recordKey),original=authoritative||structuredClone(captured);
+       const result=await migrate(structuredClone(original)),candidate=result?.snapshot;
+       // Prove that the migration changed only the declared typed upload slots.
+       const expected=structuredClone(original);
+       for(const change of result?.changes||[]){
+        const match=change.path?.match(/^\$\.chats\[(\d+)\](?:\.(messages|queuedMessages)\[(\d+)\])?\.uploads\[(\d+)\]\.(asset|image)$/);
+        if(!match||typeof change.ref!=='string'||!/^asset:[^\s]+$/.test(change.ref))throw Error('会话迁移改变了非附件字段，未保存');
+        const chat=expected.chats?.[Number(match[1])],container=match[2]?chat?.[match[2]]?.[Number(match[3])]:chat,upload=container?.uploads?.[Number(match[4])];
+        if(!upload||!['image','video'].includes(upload.type))throw Error('会话迁移附件位置无效，未保存');
+        upload[match[5]]=change.ref;
+       }
+       if(!candidate||JSON.stringify(candidate)!==JSON.stringify(expected))throw Error('会话迁移改变了非附件字段，未保存');
+       const summary=result.summary||null,diagnostics=(result.unresolved||[]).map(({path,code})=>({path,code}));
+       if(!unchanged())return report({status:'local_edits',persisted:false,summary,diagnostics});
+       if(!(result.changes||[]).length&&(authoritative||result.summary===null)){
+        const serialized=JSON.stringify({chats:candidate.chats,activeId:candidate.activeId});
+        // A previous write may have succeeded while its UI refresh failed.
+        // Retrying must reconcile that committed record even with no new slots.
+        if(authoritative&&result.summary!==null&&serialized!==baseline){persisted=true;saved=serialized;applyCommitted(structuredClone(candidate));}
+        error=null;return report({status:result.status||'ready',persisted:false,summary,diagnostics});
+       }
+       try{if(await store.writeRecord(recordKey,structuredClone(candidate))===false)throw Error('会话附件迁移未能提交');}
+       catch(failure){
+        if(failure.name!=='AgentConversationConflictError')throw failure;
+        if(attempt===2)return report({status:'local_edits',persisted:false,summary,diagnostics});
+        continue;
+       }
+       persisted=true;error=null;
+       // A draft edited while IndexedDB was committing owns the next queued
+       // save. Never replace that live draft with the older migration snapshot.
+       if(!unchanged())return report({status:'local_edits',persisted:true,summary,diagnostics});
+       saved=JSON.stringify({chats:candidate.chats,activeId:candidate.activeId});
+       applyCommitted(structuredClone(candidate));
+       return report({status:result.status||'ready',persisted:true,summary,diagnostics});
+      }
+     }catch(failure){error=failure;report({status:'migration_failed',persisted,summary:null,diagnostics:[]});failure.persisted=persisted;throw failure;}
+    });
    },
    get pending(){return pending;},
    get unsaved(){return pending>0||!!error;},
    async flush(){let promise;do{promise=latest;await promise;}while(promise!==latest);if(error)throw error;}
-  };
+  };return api;
  }
  root.CanvasProjectContext={resolve,createOperations,createConversations};
  if(typeof module!=='undefined')module.exports=root.CanvasProjectContext;

@@ -21,7 +21,7 @@ function iconButton(name, label) {
   return button;
 }
 
-export function createControl({ title, align = 'end', disabled = false, getConversations, onSelect, onNew, onRename, onDelete, beforeOpen, onError }) {
+export function createControl({ title, align = 'end', disabled = false, getConversations, onSelect, onNew, onRename, onDelete, onMigrate, beforeOpen, onError }) {
   const trigger = element('button', title !== undefined ? 'agent-history-title' : 'agent-history-trigger');
   trigger.type = 'button'; trigger.disabled = disabled;
   trigger.setAttribute('aria-haspopup', 'menu'); trigger.setAttribute('aria-expanded', 'false');
@@ -164,7 +164,15 @@ export function createControl({ title, align = 'end', disabled = false, getConve
     create.onclick = () => { close(true); onNew(); }; create.onpointermove = () => focusRow(create);
     create.onpointerleave = () => { if (!editing) create.dataset.highlighted = 'false'; };
     list = element('div', 'agent-history-list');
-    menu.append(create, list); menu.addEventListener('keydown', keydown);
+    menu.append(create, list);
+    if (onMigrate) {
+      const migrate = element('div', 'agent-history-new', '迁移本地附件'); migrate.role = 'menuitem'; migrate.tabIndex = -1;
+      migrate.onclick = () => { close(true); Promise.resolve().then(onMigrate).catch(error => onError?.(error.message || '附件迁移未完成')); };
+      migrate.onpointermove = () => focusRow(migrate);
+      migrate.onpointerleave = () => { migrate.dataset.highlighted = 'false'; };
+      menu.append(migrate);
+    }
+    menu.addEventListener('keydown', keydown);
     document.body.append(menu); trigger.setAttribute('aria-expanded', 'true');
     document.addEventListener('pointerdown', outside, true); document.addEventListener('scroll', position, true); window.addEventListener('resize', position);
     observer = new ResizeObserver(position); observer.observe(menu); observer.observe(trigger);
