@@ -1,0 +1,11 @@
+.local-video-repair{width:min(440px,calc(100vw - 48px));border:1px solid #444;background:#232323;color:#eee;border-radius:10px;padding:24px;font:14px/1.6 system-ui,sans-serif}
+.local-video-repair::backdrop{background:#0009}
+.local-video-repair h2{margin:0 0 12px;font-size:18px}
+.local-video-repair p{margin:12px 0}
+.local-video-repair label{display:block;color:#bbb}
+.local-video-repair input{display:block;width:100%;margin-top:10px;font:inherit;color:#eee}
+.local-video-repair .repair-status{min-height:56px;color:#ccc;overflow-wrap:anywhere}
+.local-video-repair .repair-actions{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;margin-top:18px}
+.local-video-repair button{font:inherit;border:1px solid #555;border-radius:5px;padding:7px 12px;background:#333;color:#eee;cursor:pointer}
+.local-video-repair button:disabled{opacity:.45;cursor:default}
+.local-video-repair button:focus-visible,.local-video-repair input:focus-visible{outline:2px solid #eee;outline-offset:3px}

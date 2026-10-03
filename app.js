@@ -15,13 +15,19 @@
   const localImageBindings=new WeakMap();
   window.CanvasResourceDisplayReady=import('./src/features/local-resource-migration/display-media.mjs').then(policy=>{window.CanvasResourceDisplay=policy;return policy;}).catch(()=>null);
   const displayMediaRef=value=>window.CanvasResourceDisplay?.displayMediaRef(value)??(typeof value==='string'&&!/^(?:\s*https?:|\s*[\/\\]{2})/i.test(value)?value:'');
-  const pendingMedia=node=>window.CanvasResourceDisplay?.nodeHasPendingOriginalMedia(node)??['image','fullImage','video','audio','poster','thumbnail'].some(key=>node?.[key]&&!displayMediaRef(node[key]));
+  const pendingMedia=node=>{const pending=window.CanvasResourceDisplay?.nodeHasPendingOriginalMedia(node)??['image','fullImage','video','audio','poster','thumbnail'].some(key=>node?.[key]&&!displayMediaRef(node[key]));const fallback=node?.type==='video'&&!node.video&&window.EDITOR_DATA?.nodes[node.id]?.video;return pending||!!(fallback&&!displayMediaRef(fallback));};
   const actionMediaRef=node=>node?.type==='video'?displayMediaRef(node.video||window.EDITOR_DATA?.nodes[node.id]?.video):node?.type==='audio'?displayMediaRef(node.audio):displayMediaRef(node?.fullImage)||displayMediaRef(node?.image);
   const blockedPrimaryMedia=node=>['image','video','audio'].includes(node?.type)&&!actionMediaRef(node)&&pendingMedia(node);
   async function repairNodeImage(id){
     const projectId=window.CanvasProjects?.id?.(),node=nodes.find(item=>item.id===id);
     const isCurrent=()=>window.CanvasProjects?.id?.()===projectId&&nodes.includes(node);
     try{const {openNodeImageRepair}=await import('./src/features/local-resource-migration/node-image-repair-ui.mjs');if(isCurrent())await openNodeImageRepair({app:window.CanvasApp,nodeId:id,isCurrent});}
+    catch(error){if(isCurrent())notify(error.message);}
+  }
+  async function repairNodeVideo(id){
+    const projectId=window.CanvasProjects?.id?.(),node=nodes.find(item=>item.id===id);
+    const isCurrent=()=>window.CanvasProjects?.id?.()===projectId&&nodes.includes(node);
+    try{const {openNodeVideoRepair}=await import('./src/features/local-resource-migration/node-video-repair-ui.mjs');if(isCurrent())await openNodeVideoRepair({app:window.CanvasApp,nodeId:id,isCurrent});}
     catch(error){if(isCurrent())notify(error.message);}
   }
   const mediaDisplayNode=node=>{if(!['image','video','audio'].includes(node?.type))return node;const source=actionMediaRef(node);return {...node,image:displayMediaRef(node.image)||(node.type==='image'?source:''),fullImage:node.type==='image'?source:displayMediaRef(node.fullImage),video:node.type==='video'?source:displayMediaRef(node.video),audio:displayMediaRef(node.audio),poster:displayMediaRef(node.poster),thumbnail:displayMediaRef(node.thumbnail)};};
@@ -131,6 +137,7 @@
     else body.innerHTML=`<div class="placeholder">${svg('image')}</div>`;
     if(pendingMedia(n)){el.dataset.mediaStatus='pending_import';body.title='原站媒体待导入本地；旧引用已保留。请重新导入本地素材后替换。';}
     if(n.type==='image'&&[n.image,n.fullImage].some(value=>value&&!displayMediaRef(value))){const repair=document.createElement('button');repair.className='node-media-repair';repair.type='button';repair.textContent='导入本地图片';repair.setAttribute('aria-label','为 '+(n.title||'图片节点')+' 导入本地图片');repair.onpointerdown=event=>event.stopPropagation();repair.ondblclick=event=>event.stopPropagation();repair.onclick=event=>{event.stopPropagation();void repairNodeImage(n.id);};body.append(repair);}
+    if(n.type==='video'&&(n.video||window.EDITOR_DATA?.nodes[n.id]?.video)&&blockedPrimaryMedia(n)){const repair=document.createElement('button');repair.className='node-media-repair';repair.type='button';repair.textContent='导入本地视频';repair.setAttribute('aria-label','为 '+(n.title||'视频节点')+' 导入本地视频');repair.onpointerdown=event=>event.stopPropagation();repair.ondblclick=event=>event.stopPropagation();repair.onclick=event=>{event.stopPropagation();void repairNodeVideo(n.id);};body.append(repair);}
     const left=document.createElement('button');left.className='port left';left.dataset.port='left';left.textContent='+';left.setAttribute('aria-label','输入连接点');
     const right=left.cloneNode(true);right.className='port right';right.dataset.port='right';right.setAttribute('aria-label','输出连接点');
     el.append(title,body,left,right);if(n.type==='text')window.CanvasTextUI.renderNode(n,el);if(n.type==='studio')window.StudioNode.render(n,el);if(n.type==='world')window.WorldNode?.render(n,el);if(n.type==='group')window.CanvasGroupsUI.renderNode(n,el);if(n.type==='pile')window.CanvasPilesUI.renderNode(n,el,nodes);$('#nodes').insertBefore(el,before);nodeElements.set(n.id,el);nodeRecords.set(n.id,{node:n,content:nodeContentKey(n)});

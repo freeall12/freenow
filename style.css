@@ -11,6 +11,6 @@
 #reset>span{position:absolute;inset:-2px;border-radius:10px;opacity:0;transition:opacity .2s;background:#0006;backdrop-filter:blur(56px);box-shadow:0 4px 16px #00000029,inset 0 .5px #ffffff29}
 #reset>svg:last-child{position:absolute;width:22px;height:22px;opacity:0;transition:opacity .2s}
 #reset:hover>svg:first-child{opacity:0}#reset:hover>span,#reset:hover>svg:last-child{opacity:1}
-.node-media-repair{position:absolute;left:50%;bottom:18px;transform:translateX(-50%);max-width:calc(100% - 24px);padding:8px 12px;border:1px solid #555;border-radius:8px;background:#303030;color:#eee;font-size:12px;white-space:nowrap;transition:background .15s,border-color .15s}
+.node-media-repair{position:absolute;z-index:6;left:50%;bottom:18px;transform:translateX(-50%);max-width:calc(100% - 24px);padding:8px 12px;border:1px solid #555;border-radius:8px;background:#303030;color:#eee;font-size:12px;white-space:nowrap;transition:background .15s,border-color .15s}
 .node-media-repair:hover{background:#414141;border-color:#777}
 @media(prefers-reduced-motion:reduce){.node-media-repair{transition:none}}

@@ -8,6 +8,8 @@ import {previewEnvironment, previewLights} from './preview-environment.mjs';
 import {environmentControls} from './preview-environment-ui.mjs';
 import {previewNavigation} from './preview-navigation.mjs';
 import {assertWorldRendererSupport} from './render-capabilities.mjs';
+import {isGenerationMediaRef} from '../generation-results/media-ref.mjs';
+import {isStaticAssetRef} from '../local-resource-migration/index-format.mjs';
 
 const app = window.CanvasApp;
 const el = (tag, cls, text) => {const node = document.createElement(tag); node.className = cls || ''; if (text !== undefined) node.textContent = text; return node;};
@@ -85,9 +87,43 @@ export async function materialize(output, outputType, options = {}) {
     return patch;
   } finally {scope.close();}
 }
-export async function download(node) {
-  assertReadableMediaSource(node.worldResource.url);
-  const link = el('a'); link.href = await window.LocalAssets.url(node.worldResource.url); link.download = node.worldResource.name || node.title + '.glb'; link.click();
+function localDownloadSource(source, baseUrl, {allowAsset = false} = {}) {
+  const unavailable = () => Object.assign(Error('模型尚未保存到本机，请迁移或重新导入本地素材后下载；原记录已保留'), {code: 'media_localization_required'});
+  if (typeof source !== 'string' || !source || source !== source.trim() || /[\x00-\x20\x7f\\]/.test(source)) throw unavailable();
+  if (allowAsset && /^asset:[^\s]+$/.test(source)) return source;
+  if (/^data:(?:model\/gltf-binary|application\/octet-stream);base64,[A-Za-z0-9+/]+={0,2}$/i.test(source)) return new URL(source).href;
+  let url, base;
+  try {base = new URL(baseUrl); url = new URL(source, base);} catch {throw unavailable();}
+  if (url.username || url.password || url.origin !== base.origin) throw unavailable();
+  if (url.protocol === 'blob:') return url.href;
+  if (!['http:', 'https:'].includes(url.protocol) || url.search || url.hash || !isStaticAssetRef(url.pathname) && !isGenerationMediaRef(url.pathname)) throw unavailable();
+  return url.href;
+}
+
+export async function readWorldDownloadBlob(source, {assets = window.LocalAssets, fetchImpl = globalThis.fetch, baseUrl = globalThis.location?.href || window.location?.href, signal} = {}) {
+  const scope = materializationScope({signal});
+  try {
+    const local = localDownloadSource(source, baseUrl, {allowAsset: true});
+    const resolved = local.startsWith('asset:') ? await scope.wait(() => assets.url(local)) : local;
+    const url = localDownloadSource(resolved, baseUrl);
+    // An anchor download can become a cross-origin navigation, including a
+    // redirect. Only bytes fetched locally may produce the final anchor URL.
+    const response = await scope.wait(() => fetchImpl(url, {signal: scope.signal, redirect: 'error', credentials: 'same-origin'}), {disposeLate: value => value.body?.cancel?.().catch(() => {})});
+    let redirected = response.redirected;
+    try {if (response.url && localDownloadSource(response.url, baseUrl) !== url) redirected = true;} catch {redirected = true;}
+    if (redirected) {
+      response.body?.cancel?.().catch(() => {});
+      throw Object.assign(Error('模型下载不允许跳转到其他资源'), {code: 'world_download_redirect_forbidden'});
+    }
+    const blob = await readModelBlob(response, scope, maxBytes);
+    return new Blob([blob], {type: response.headers?.get?.('content-type') || blob.type});
+  } finally {scope.close();}
+}
+
+export async function download(node, options) {
+  const blob = await readWorldDownloadBlob(node?.worldResource?.url, options);
+  const url = URL.createObjectURL(blob), link = el('a'); link.href = url; link.download = node.worldResource.name || node.title + '.glb';
+  try {link.click();} finally {const timer = setTimeout(() => URL.revokeObjectURL(url), 30000); timer.unref?.();}
 }
 
 export async function preview(node, {panoramaUrl = null} = {}) {

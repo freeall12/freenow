@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>模型本地下载验收</title>
+  <script type="importmap">{"imports":{"three":"/node_modules/three/build/three.module.js","three/addons/":"/node_modules/three/examples/jsm/"}}</script>
+  <style>body{font:16px system-ui;margin:48px;max-width:760px}button{padding:12px;margin:12px 12px 12px 0}pre{white-space:pre-wrap}button:disabled{opacity:.5}</style>
+</head>
+<body>
+  <h1>模型本地下载验收</h1>
+  <p>调用生产 download 函数。只读取已有本地自行车 GLB；不写项目、会话或素材存储，不提交生成任务。</p>
+  <button id="local" disabled>下载本地模型</button><button id="remote" disabled>拒绝旧远程模型</button>
+  <pre id="status" role="status">加载生产模块…</pre>
+  <script type="module">
+    window.CanvasApp = {};
+    const {download} = await import('/src/features/world-node/resource.mjs');
+    const status = document.querySelector('#status'), requests = [];
+    const options = {assets: {url: async source => source}, baseUrl: location.href,
+      fetchImpl: (url, settings) => {requests.push(url); return fetch(url, settings);}};
+    for (const button of document.querySelectorAll('button')) button.disabled = false;
+    status.textContent = '生产模块就绪；读取次数 0';
+    document.querySelector('#local').onclick = async () => {
+      try {await download({title: '本地自行车', worldResource: {url: '/assets/studio/library/bicycle-city.glb', name: 'local-bicycle.glb'}}, options); status.textContent = '已交给浏览器下载 local-bicycle.glb；读取次数 ' + requests.length;}
+      catch (error) {status.textContent = '下载失败：' + error.code + ' / ' + error.message;}
+    };
+    document.querySelector('#remote').onclick = async () => {
+      const before = requests.length;
+      try {await download({title: '旧远程模型', worldResource: {url: 'https://supplier.invalid/legacy.glb', name: 'legacy.glb'}}, options); status.textContent = '错误：未拒绝远程地址';}
+      catch (error) {status.textContent = '旧远程模型已拒绝：' + error.code + '；本次读取次数 ' + (requests.length - before);}
+    };
+  </script>
+</body>
+</html>
