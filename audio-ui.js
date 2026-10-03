@@ -1,6 +1,15 @@
 (() => {
  'use strict';
  const app=window.CanvasApp,core=window.AudioCore,$=s=>document.querySelector(s);
+ let resourceDisplay;
+ const resourceDisplayReady=window.CanvasResourceDisplayReady||import('./src/features/local-resource-migration/display-media.mjs');
+ const pendingOriginalAudio=node=>!!node?.audio&&(resourceDisplay?resourceDisplay.isOriginalMediaRef(node.audio):/^\s*(?:https?:|[\/\\]{2})/i.test(node.audio));
+ async function repairAudio(nodeId){
+  const node=app.getState().nodes.find(item=>item.id===nodeId),projectId=app.projectIdentity().id;
+  const isCurrent=()=>app.projectIdentity().id===projectId&&app.getState().nodes.includes(node);
+  try{const {openNodeAudioRepair}=await import('./src/features/local-resource-migration/node-audio-repair-ui.mjs');if(isCurrent())openNodeAudioRepair({app,nodeId,isCurrent});}
+  catch(error){if(isCurrent())app.notify(error.message);}
+ }
  const el=(tag,cls,text)=>{const e=document.createElement(tag);if(cls)e.className=cls;if(text!==undefined)e.textContent=text;return e;};
  const icon=name=>window.UI_ICONS[name]||window.UI_ICONS.music;
  const button=(label,name,fn)=>{const b=el('button');b.type='button';b.title=label;b.setAttribute('aria-label',label);if(name)b.innerHTML=icon(name);else b.textContent=label;b.onclick=fn;return b;};
@@ -160,8 +169,12 @@
   }
   // Reconcile each existing player once; dragging another node must not search
   // the full graph and the document separately for every audio instance.
-  for(const [id,p]of players){const node=byId.get(id),body=bodyFor(id);if(!node||node.audio!==p.src||!p.wrap.isConnected||!body?.contains(p.wrap)){p.dispose();players.delete(id);}}
-  for(const n of audioNodes){const body=bodyFor(n.id);if(!body)continue;if(n.audio){if(!players.has(n.id)){body.replaceChildren();const p=makePlayer(n.audio,n.id);p.src=n.audio;players.set(n.id,p);body.append(p.wrap);const replace=button('替换音频','import',()=>upload(n));replace.className='audio-upload audio-replace';replace.onpointerdown=e=>e.stopPropagation();replace.ondblclick=e=>e.stopPropagation();body.append(replace);}}else if(!body.querySelector('.audio-empty')){const empty=el('div','audio-empty');empty.innerHTML=icon('music');const uploadButton=button('上传本地音频',null,()=>upload(n));uploadButton.className='audio-upload';uploadButton.onpointerdown=e=>e.stopPropagation();empty.append(uploadButton);body.replaceChildren(empty);}}
+  for(const [id,p]of players){const node=byId.get(id),body=bodyFor(id);if(!node||node.audio!==p.src||pendingOriginalAudio(node)||!p.wrap.isConnected||!body?.contains(p.wrap)){p.dispose();players.delete(id);}}
+  for(const n of audioNodes){const body=bodyFor(n.id);if(!body)continue;
+   if(pendingOriginalAudio(n)){
+    if(!body.querySelector('.audio-source-repair')){const empty=el('div','audio-empty audio-source-repair');empty.append(el('p','','原站音频待导入本地'));const repair=button('导入本地音频',null,()=>repairAudio(n.id));repair.className='audio-upload';repair.onpointerdown=e=>e.stopPropagation();repair.ondblclick=e=>e.stopPropagation();empty.append(repair);body.replaceChildren(empty);}continue;
+   }
+   if(n.audio){if(!players.has(n.id)){body.replaceChildren();const p=makePlayer(n.audio,n.id);p.src=n.audio;players.set(n.id,p);body.append(p.wrap);const replace=button('替换音频','import',()=>upload(n));replace.className='audio-upload audio-replace';replace.onpointerdown=e=>e.stopPropagation();replace.ondblclick=e=>e.stopPropagation();body.append(replace);}}else if(!body.querySelector('.audio-empty')){const empty=el('div','audio-empty');empty.innerHTML=icon('music');const uploadButton=button('上传本地音频',null,()=>upload(n));uploadButton.className='audio-upload';uploadButton.onpointerdown=e=>e.stopPropagation();empty.append(uploadButton);body.replaceChildren(empty);}}
  }
  function render(event){if(event?.detail?.viewportOnly){position();if(current)positionToolbar(app.getState());return;}const state=app.getState();reconcilePlayers(state);
   const n=state.selected.length===1?state.nodes.find(n=>n.id===state.selected[0]&&n.type==='audio'):null;
@@ -170,6 +183,7 @@
   syncToolbar(n);positionToolbar(state);
  }
  window.GenerationAPI.subscribe(updateGenerateState);
+ resourceDisplayReady.then(policy=>{resourceDisplay=policy;render();}).catch(error=>console.error('Audio media policy:',error));
  panel.onpointerdown=e=>{if(pop&&!pop.contains(e.target)&&!popAnchor?.contains(e.target))closePop();e.stopPropagation();};panel.onkeydown=e=>{popKey(e);if(e.key!=='Escape')e.stopPropagation();};const dismissOutside=e=>{if(pop&&!pop.contains(e.target)&&!popAnchor?.contains(e.target))closePop();};document.addEventListener('pointerdown',dismissOutside);document.addEventListener('focusin',dismissOutside);window.addEventListener('blur',()=>closePop());window.addEventListener('pagehide',()=>closePop());document.addEventListener('canvas:render',render);window.addEventListener('resize',position);new ResizeObserver(position).observe(panel);
  window.AudioAPI={createPlayer:makePlayer,upload,preview,download,buildRequest,localize,setVoiceProvider(provider){for(const menu of externalVoiceMenus)menu.close();voiceRevision++;voiceProvider=provider;voices=[];if(pop?.getAttribute('aria-label')==='选择音色')closePop();},setVoices(value){for(const menu of externalVoiceMenus)menu.close();voiceRevision++;voices=value;if(pop?.getAttribute('aria-label')==='选择音色')closePop();},listVoices,previewVoice,openVoiceMenu,getConfig(id){return core.transition(app.getState().nodes.find(n=>n.id===id)?.audioConfig||{});}};render();document.dispatchEvent(new Event('audio:ready'));
 })();

@@ -1,6 +1,16 @@
 const test=require('node:test'),assert=require('node:assert/strict');
 const {parse,delegationTools}=require('../agent-tools.js');
 const state={nodeId:'editor',sessionId:'session',expectedRevision:4};
+test('cross-group move requires an explicit parent and slot and remains a confirmed write',async()=>{
+ const valid={...state,action:'reparent',objectId:'layer',parentObjectId:'group',index:0};
+ assert.equal(parse('image_editor_edit',valid).definition.mutates,true);
+ assert.equal(parse('image_editor_edit',{...valid,parentObjectId:null}).args.parentObjectId,null);
+ for(const patch of [{parentObjectId:undefined},{objectId:undefined},{parentObjectId:'layer'},{parentObjectId:''},{index:undefined},{index:-1},{index:.5},{objectIds:['layer']},{properties:{left:1}}])assert.throws(()=>parse('image_editor_edit',{...valid,...patch}));
+ const {toolPresentation}=await import('../src/features/agent-execution/presentation.mjs');
+ const view=toolPresentation({name:'image_editor_edit',status:'pending',args:{...valid,parentObjectId:null}});
+ assert.match(view.label,/跨组移动图层.*等待确认/);assert.match(view.detail,/目标：画板根层/);assert.match(view.detail,/插入位置：0/);
+ assert.equal(delegationTools.includes('image_editor_edit'),false);
+});
 test('editor tools require current session and action-specific bounded input without arbitrary objects or URLs',()=>{
  assert.equal(parse('image_editor_edit',{...state,action:'update',objectId:'layer',properties:{left:1.125,top:-5.75,opacity:.4,flipX:true}}).args.properties.left,1.125);
  for(const args of [{...state,action:'remove',objectId:'layer',points:[{x:0,y:0},{x:1,y:1}]},{...state,action:'add',kind:'image',properties:{src:'https://example.test/a.png'}},{...state,action:'add',kind:'line',points:[{x:0,y:0},{x:1,y:1},{x:2,y:2}]},{...state,expectedRevision:4.5,action:'undo'},{nodeId:'editor',action:'undo'}])assert.throws(()=>parse('image_editor_edit',args));

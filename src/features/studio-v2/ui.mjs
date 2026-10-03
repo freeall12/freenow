@@ -54,8 +54,14 @@ export function createUI({root,runtime,onClose}){
   }
   function refresh(reason){if(reason==='agent'){empty.hidden=runtime.loadStatus!=='ready'||!!runtime.content.children.length||!!composer.state?.hasSubmitted;return;}motionUI.refresh(reason);if(reason==='playback-tick'){preview.tick();if(lastPlaying!==runtime.playback.playing)refreshScenePanel();return;}if(reason==='playback')refreshScenePanel();preview.refresh();const ready=runtime.loadStatus==='ready',populated=ready&&!!runtime.content.children.length;empty.hidden=!ready||populated||!!composer.state?.hasSubmitted;ui.dataset.guidance=String(ready&&!populated);primary.hidden=end.hidden=!populated;panels.hidden=!ready;corner.hidden=!ready;loadingStatus.hidden=ready;
     if(!ready){loadingStatus.replaceChildren(el('p','',runtime.loadStatus==='error'?'场景加载失败':'正在加载 3D 场景…'));if(runtime.loadError)loadingStatus.append(el('small','',runtime.loadError.message),button('重新加载',null,act(()=>runtime.initialize()),'','重新加载'));}
-    saveStatus.hidden=!runtime.saveError;if(runtime.saveError){saveStatus.replaceChildren(el('p','','场景保存失败，本地修改已保留'),el('small','',runtime.saveError.message),button('重试保存',null,act(async()=>{await runtime.flush();refresh('saved');}),'','重试保存'));}
-    if(!['transform','saved','save-error','motion-select','motion-value','playback'].includes(reason))renderPanels();
+    const recovering=!!runtime.reloading;back.disabled=recovering;panels.inert=preview.element.inert=primary.inert=end.inert=empty.inert=corner.inert=recovering;
+    saveStatus.hidden=!runtime.saveError&&!recovering;if(!saveStatus.hidden){
+      const retry=button('重试保存',null,act(async()=>{if(importing)throw Error('模型正在添加并保存，请等待完成');await runtime.flush();refresh('saved');}),'','重试保存');
+      const discard=button('放弃修改并重新加载',null,act(async()=>{if(importing)throw Error('模型正在添加并保存，请等待完成');finalizePopup?.();closePopup(false);await runtime.discardEditsAndReload();notice('已重新加载已保存场景');runtime.focusView();}),'','放弃修改并重新加载');
+      retry.disabled=discard.disabled=!!runtime.saving||recovering;discard.setAttribute('aria-busy',String(recovering));
+      saveStatus.replaceChildren(el('p','',recovering?'正在重新加载已保存场景…':'场景保存失败，本地修改已保留'));if(runtime.saveError)saveStatus.append(el('small','',runtime.saveError.message));saveStatus.append(retry,discard);
+    }
+    if(!['transform','saved','save-error','save-start','save-idle','reload-start','reload-idle','motion-select','motion-value','playback'].includes(reason))renderPanels();
   }
   composerReady=true;refresh();return {refresh,notice,assertCanClose(){if(importing)throw Error('模型正在添加并保存，请等待完成');finalizePopup?.();},dispose(){disposed=true;composer.destroy();abort.abort();closePopup();preview.dispose();motionUI.dispose();controls.forEach(c=>c.destroy());window.VoiceInput.cancel();}};
 }

@@ -1,5 +1,5 @@
 const actions={image_editor_create:'新建图片编辑文档',image_editor_open:'打开图片编辑器',image_editor_read:'读取图片图层',image_editor_edit:'编辑图片图层',image_editor_export:'导出图片文档',image_editor_save:'保存图片编辑',image_editor_close:'关闭图片编辑器'};
-const edits={add:'添加图层',update:'修改图层',remove:'删除图层',reorder:'调整图层顺序',group:'创建图层分组',ungroup:'解组图层',resize:'调整画板',crop:'裁剪图片图层',erase:'擦除图层内容',pose:'编辑本地姿势',undo:'撤销编辑',redo:'重做编辑'};
+const edits={add:'添加图层',update:'修改图层',remove:'删除图层',reorder:'调整图层顺序',group:'创建图层分组',ungroup:'解组图层',reparent:'跨组移动图层',resize:'调整画板',crop:'裁剪图片图层',erase:'擦除图层内容',pose:'编辑本地姿势',undo:'撤销编辑',redo:'重做编辑'};
 export const isImageEditorTool=trace=>Object.hasOwn(actions,trace.name);
 export function imageEditorPresentation(trace){
  const args=trace.args||{},result=trace.result||{},action=trace.name==='image_editor_edit'?(edits[args.action]||actions[trace.name]):actions[trace.name];
@@ -12,6 +12,7 @@ export function imageEditorPresentation(trace){
  if(result.groupedObjectIds?.length)details.push('组内图层（底→顶）：'+result.groupedObjectIds.join('、'));
  if(result.ungroupedObjectId)details.push('已解组：'+result.ungroupedObjectId);
  if(result.releasedObjectIds?.length)details.push('释放图层（底→顶）：'+result.releasedObjectIds.join('、'));
+ if(args.action==='reparent'){details.push('目标：'+(args.parentObjectId===null?'画板根层':args.parentObjectId));if(Number.isInteger(args.index))details.push('底到顶插入位置：'+args.index);if(Object.hasOwn(result,'previousParentObjectId'))details.push('原父级：'+(result.previousParentObjectId===null?'画板根层':result.previousParentObjectId));}
  if(args.crop)details.push(`源像素裁剪：(${args.crop.x}, ${args.crop.y}) ${args.crop.width} × ${args.crop.height}`);
  if(args.strokeWidth!==undefined)details.push('橡皮宽度：'+args.strokeWidth+' 画板像素');
  if(args.action==='pose'){details.push(args.objectId?'修改已有姿势图层':'创建姿势图层');if(args.pose?.color)details.push('姿势颜色：'+args.pose.color);if(args.pose?.joints)details.push('姿势源像素关节点：'+Object.keys(args.pose.joints).join('、'));}

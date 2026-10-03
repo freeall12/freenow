@@ -105,7 +105,39 @@ function assertHierarchyUnlocked(entry) {
   }
 }
 
+function validateArtworkReparent(args, objects) {
+  const entries = artworkEntries(objects), entry = findArtwork(entries, args.objectId);
+  if (!Object.hasOwn(args, 'parentObjectId') || (args.parentObjectId !== null && (typeof args.parentObjectId !== 'string' || !args.parentObjectId))) throw fail('invalid_argument', 'parentObjectId 必须显式指定图层组 ID 或 null（画板根层）');
+  const destination = args.parentObjectId === null ? null : findArtwork(entries, args.parentObjectId);
+  if (destination && !isGroup(destination.object)) throw fail('not_group', '目标父级必须为 Group 或画板根层');
+  if (destination && (destination.object === entry.object || destination.ancestors.includes(entry.object))) throw fail('hierarchy_cycle', '不能将图层移入自身或其后代');
+  if ((entry.parent || null) === (destination?.object || null)) throw fail('same_parent', '图层已在该父级，请使用 reorder 调整顺序');
+  assertHierarchyUnlocked(entry);
+  if (destination) assertArtworkUnlocked(destination);
+  if (entry.parent && entry.parent.getObjects().filter(object => !object.excludeFromExport).length === 1) throw fail('last_group_child', '不能移走分组最后一个子图层，请显式解组或移除该分组');
+  const siblings = destination ? destination.object.getObjects().filter(object => !object.excludeFromExport) : objects.filter(object => !object.excludeFromExport);
+  if (!Number.isInteger(args.index) || args.index < 0 || args.index > siblings.length) throw fail('invalid_argument', 'index 必须是目标父级有效的底到顶插入位置');
+  const ancestors = new Set([...entry.ancestors, ...(destination ? [...destination.ancestors, destination.object] : [])]);
+  // ActiveSelection wrappers are not artwork entries, but their opacity/masks
+  // are real UI-visible compositing effects and disappear when selection clears.
+  for (const root of objects) for (let wrapper = root.group; wrapper; wrapper = wrapper.group) ancestors.add(wrapper);
+  for (const parent of ancestors) {
+    if (parent.selectable === false) throw fail('locked_ancestor', '父分组或选择组合已锁定，请先显式解锁');
+    assertHierarchyMatrix(parent);
+    // Changing a compositing boundary can change pixels even when all world
+    // matrices match. Deliberately refuse these cases, including shared ancestors.
+    if (parent.opacity !== 1 || !parent.visible || parent.clipPath || parent.shadow || parent.backgroundColor || parent.globalCompositeOperation !== 'source-over') throw fail('unsupported_group_effect', '跨组移动要求原父级和目标父级的所有祖先可见，且无整体透明度、蒙版、阴影、背景或混合效果');
+  }
+  const affected = [...(entry.parent ? entry.parent.getObjects() : objects), ...(destination ? destination.object.getObjects() : objects)];
+  for (const {object} of artworkEntries(affected)) {
+    assertHierarchyMatrix(object);
+    if (object.globalCompositeOperation !== 'source-over') throw fail('unsupported_group_effect', '涉及的图层含非普通合成效果，跨组移动无法保证效果等价');
+  }
+  return entry;
+}
+
 export function validateArtworkHierarchy(action, args, objects) {
+  if (action === 'reparent') return [validateArtworkReparent(args, objects)];
   const entries = artworkEntries(objects);
   if (action === 'group') {
     if (!Array.isArray(args.objectIds) || args.objectIds.length < 2 || args.objectIds.length > 50 || new Set(args.objectIds).size !== args.objectIds.length) throw fail('invalid_argument', '分组需要 2–50 个不重复图层 ID');
@@ -155,7 +187,15 @@ export async function prepareArtworkHierarchy(action, args, canvas, fabric, {sig
     guard();
     const targets = validateArtworkHierarchy(action, args, roots), owner = targets[0].parent || rootOwner, index = targets[0].index;
     let result;
-    if (action === 'group') {
+    if (action === 'reparent') {
+      const entry = targets[0], object = entry.object;
+      const destination = args.parentObjectId === null ? rootOwner : findArtwork(artworkEntries(roots), args.parentObjectId).object;
+      owner.remove(object);
+      detached = [object];
+      destination.insertAt(args.index, object);
+      detached = [];
+      result = {movedObjectId: object.id, previousParentObjectId: entry.parent?.id || null, parentObjectId: args.parentObjectId, index: args.index};
+    } else if (action === 'group') {
       const children = targets.map(entry => entry.object);
       owner.remove(...children);
       detached = children;
@@ -178,6 +218,7 @@ export async function prepareArtworkHierarchy(action, args, canvas, fabric, {sig
     }
     for (const {object} of artworkEntries(roots)) {assertHierarchyMatrix(object); object.setCoords();}
     guard();
+    if (action === 'reparent') validateArtworkHierarchy(action, args, canvas.getObjects());
     return {objects: roots, result, dispose() {for (const object of roots) object.dispose(); discardedGroup?.dispose();}, complete() {discardedGroup?.dispose();}};
   } catch (error) {
     for (const object of roots) object.dispose();

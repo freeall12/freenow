@@ -243,3 +243,90 @@ test('Group container fill/stroke updates reject atomically while explicit unloc
     assert.equal(b.fill, siblingFill); assert.equal(editor.revision, 1);
   } finally {globalThis.CSS = oldCSS;}
 });
+
+test('reparent preserves real nested artwork matrices, IDs, one undo per move and save/reopen state', async () => {
+  const {fabric, bridge, editor, objects} = await setup();
+  const {artworkEntries} = await import('../src/features/image-editor/group-objects.mjs');
+  const initial = new Map(artworkEntries(objects).filter(({object}) => object.type !== 'group').map(({object}) => [object.id, object.calcTransformMatrix().slice()]));
+  const check = () => {for (const {object} of artworkEntries(objects)) if (initial.has(object.id)) near(object.calcTransformMatrix(), initial.get(object.id));};
+  const moves = [['a', 'outer', 1], ['outside', 'inner', 1], ['inner', null, 1], ['a', 'inner', 0]];
+  for (const [objectId, parentObjectId, index] of moves) {
+    const before = editor.revision, history = editor.history.past.length;
+    const receipt = await bridge.execute('reparent', {...stateArgs(editor), objectId, parentObjectId, index});
+    assert.equal(receipt.movedObjectId, objectId); assert.equal(receipt.parentObjectId, parentObjectId); assert.equal(receipt.index, index);
+    assert.equal(editor.revision, before + 1); assert.equal(editor.history.past.length, history + 1); check();
+    const read = await bridge.execute('read', {nodeId: 'editor', objectId});
+    assert.equal(read.layers[0].parentObjectId, parentObjectId); assert.equal(read.layers[0].index, index);
+    assert.equal(read.capabilities.groupReparent, true);
+  }
+  const comparable = layers => JSON.parse(JSON.stringify(layers, (_, value) => typeof value === 'number' ? Number(value.toFixed(8)) : value));
+  const edited = comparable((await bridge.execute('read', {nodeId: 'editor'})).layers);
+  await bridge.execute('undo', stateArgs(editor)); check(); assert.equal((await bridge.execute('read', {nodeId: 'editor', objectId: 'a'})).layers[0].parentObjectId, 'outer');
+  await bridge.execute('redo', stateArgs(editor)); check(); assert.deepEqual(comparable((await bridge.execute('read', {nodeId: 'editor'})).layers), edited);
+  let stored; editor.save = async () => {stored = structuredClone(editor.document()); editor.saved = JSON.stringify(stored); return {saved: true, applied: true, savedRevision: editor.revision};};
+  const saved = await bridge.execute('save', stateArgs(editor)); assert.equal(saved.saved, true); assert.equal(saved.dirty, false);
+  const restored = await fabric.util.enlivenObjects(stored.canvas.objects); objects.splice(0, objects.length, ...restored); check();
+  assert.deepEqual(comparable((await bridge.execute('read', {nodeId: 'editor'})).layers), edited);
+});
+
+test('reparent rejects cycles, invalid slots, source/destination locks, final-child removal and non-equivalent effects atomically', async () => {
+  const cases = [
+    [{objectId: 'outer', parentObjectId: 'inner', index: 0}, null, 'hierarchy_cycle'],
+    [{objectId: 'inner', parentObjectId: 'inner', index: 0}, null, 'hierarchy_cycle'],
+    [{objectId: 'a', parentObjectId: 'inner', index: 0}, null, 'same_parent'],
+    [{objectId: 'a', parentObjectId: 'outside', index: 0}, null, 'not_group'],
+    [{objectId: 'a', index: 0}, null, 'invalid_argument'],
+    [{objectId: 'a', parentObjectId: null, index: 3}, null, 'invalid_argument'],
+    [{objectId: 'a', parentObjectId: null, index: .5}, null, 'invalid_argument'],
+    [{objectId: 'a', parentObjectId: null, index: 0}, f => f.inner.set({selectable: false}), 'locked_ancestor'],
+    [{objectId: 'outside', parentObjectId: 'inner', index: 0}, f => f.inner.set({selectable: false}), 'locked_object'],
+    [{objectId: 'outer', parentObjectId: null, index: 0}, null, 'same_parent'],
+    [{objectId: 'inner', parentObjectId: null, index: 0}, f => f.a.set({selectable: false}), 'locked_object'],
+    [{objectId: 'a', parentObjectId: null, index: 0}, f => f.inner.remove(f.b), 'last_group_child'],
+    ...['opacity', 'visible', 'clipPath', 'shadow', 'backgroundColor', 'globalCompositeOperation'].map(property => [
+      {objectId: 'outside', parentObjectId: 'inner', index: 0}, f => f.outer.set({[property]: {opacity: .5, visible: false, clipPath: new f.fabric.Rect({width: 5, height: 5}), shadow: new f.fabric.Shadow({blur: 3}), backgroundColor: '#f00', globalCompositeOperation: 'multiply'}[property]}), 'unsupported_group_effect']),
+    [{objectId: 'a', parentObjectId: null, index: 0}, f => f.b.set({globalCompositeOperation: 'destination-out'}), 'unsupported_group_effect'],
+    [{objectId: 'a', parentObjectId: null, index: 0}, f => f.a.set({globalCompositeOperation: 'multiply'}), 'unsupported_group_effect'],
+  ];
+  for (const [args, mutate, code] of cases) {
+    const f = await setup(); mutate?.(f);
+    const before = JSON.stringify(f.editor.document()), history = f.editor.history.past.length;
+    await assert.rejects(f.bridge.execute('reparent', {...stateArgs(f.editor), ...args}), {code});
+    assert.equal(JSON.stringify(f.editor.document()), before); assert.equal(f.editor.revision, 0); assert.equal(f.editor.history.past.length, history);
+  }
+});
+
+test('reparent rejects late version changes, cancellation and staged layout failure without adopting partial edits', async () => {
+  for (const reason of ['revision', 'source', 'cancel']) {
+    const f = await setup(), before = JSON.stringify(f.editor.document()), controller = new AbortController();
+    const task = f.bridge.execute('reparent', {...stateArgs(f.editor), objectId: 'a', parentObjectId: null, index: 1}, {signal: controller.signal});
+    if (reason === 'revision') f.editor.revision++;
+    if (reason === 'source') f.editor.sourceNode.image = 'changed-source';
+    if (reason === 'cancel') controller.abort();
+    await assert.rejects(task, error => ['revision_conflict', 'source_changed', 'cancelled'].includes(error.code) || /abort/i.test(error.name + error.message));
+    assert.equal(JSON.stringify(f.editor.document()), before); assert.equal(f.editor.history.past.length, 1);
+  }
+  const f = await setup(), before = JSON.stringify(f.editor.document());
+  const {prepareArtworkHierarchy} = await import('../src/features/image-editor/group-objects.mjs');
+  const insert = f.fabric.Group.prototype.insertAt;
+  try {
+    f.fabric.Group.prototype.insertAt = () => {throw Error('staged insertion failed');};
+    await assert.rejects(prepareArtworkHierarchy('reparent', {objectId: 'outside', parentObjectId: 'inner', index: 1}, f.editor.canvas, f.fabric, {guard() {}}), /staged insertion failed/);
+  } finally {f.fabric.Group.prototype.insertAt = insert;}
+  assert.equal(JSON.stringify(f.editor.document()), before); assert.equal(f.editor.history.past.length, 1);
+});
+
+
+test('reparent refuses real ActiveSelection effects including an opacity edit during asynchronous staging', async () => {
+  for (const late of [false, true]) {
+    const f = await setup(), selection = new f.fabric.ActiveSelection([f.outer, f.outside]);
+    f.editor.canvas.getActiveObject = () => selection;
+    if (!late) selection.set({opacity: .4});
+    const before = JSON.stringify(f.editor.document());
+    const task = f.bridge.execute('reparent', {...stateArgs(f.editor), objectId: 'outside', parentObjectId: 'inner', index: 1});
+    if (late) selection.set({opacity: .4});
+    await assert.rejects(task, {code: 'unsupported_group_effect'});
+    assert.equal(JSON.stringify(f.editor.document()), before); assert.equal(f.editor.revision, 0);
+    assert.equal(f.outside.group, selection); assert.equal(f.a.getObjectOpacity(), .4);
+  }
+});

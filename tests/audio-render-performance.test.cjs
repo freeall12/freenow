@@ -13,7 +13,7 @@ function fixture({count=2000,audioCount=200,indexed=true}={}){
  for(const n of nodes.filter(n=>n.type==='audio')){const shell=new Element(),body=new Element('node-body');shell.append(body);shells.set(n.id,shell);}
  const state={nodes,selected:[]},app={getState:()=>state};if(indexed)app.getNodeElement=id=>shells.get(id);
  const context={app,players,Map,WeakMap,current:null,panel:{},$:(selector)=>{metrics.globalQueries++;return shells.get(selector.match(/data-id="([^"]+)"/)[1])?.querySelector('.node-body');},makePlayer(src,id){metrics.created++;return {wrap:new Element('audio-player'),src,id,dispose(){metrics.disposed++;}};},button:()=>new Element(),el:(_tag,cls)=>new Element(cls),icon:()=>'',upload(){},closePop(){},position(){}};
- vm.createContext(context);const source=fs.readFileSync(require.resolve('../audio-ui.js'),'utf8'),start=source.indexOf(' const audioBodies='),end=source.indexOf(' window.GenerationAPI.subscribe',start);assert.ok(start>=0&&end>start);vm.runInContext(source.slice(start,end),context);
+ vm.createContext(context);const source=fs.readFileSync(require.resolve('../audio-ui.js'),'utf8'),start=source.indexOf(' const audioBodies='),end=source.indexOf(' window.GenerationAPI.subscribe',start);assert.ok(start>=0&&end>start);vm.runInContext('let resourceDisplay;'+source.slice(source.indexOf(' const pendingOriginalAudio='),source.indexOf('\n',source.indexOf(' const pendingOriginalAudio=')))+source.slice(start,end),context);
  const reset=()=>Object.keys(metrics).forEach(key=>metrics[key]=0);context.render();reset();
  return{state,players,shells,Element,metrics,reset,render:detail=>context.render({detail}),reconcile:()=>context.reconcilePlayers(state)};
 }
@@ -38,4 +38,13 @@ test('query fallback resolves each audio body once and empty/upload transitions 
 });
 test('node index preserves the original find-first behavior for duplicate IDs',()=>{
  const f=fixture({count:1,audioCount:1}),original=f.players.get('n0');f.state.nodes.push({id:'n0',type:'audio',audio:'/later-duplicate.wav'});f.render();assert.equal(f.players.get('n0'),original);assert.equal(f.metrics.disposed,0);assert.equal(f.metrics.created,0);
+});
+test('old audio replaces its player with a stable repair control and local undo/redo recreates only that player',()=>{
+ const f=fixture({count:2,audioCount:2}),other=f.players.get('n1');
+ f.state.nodes[0].audio='https://files.tapnow.media/old.wav';f.render();
+ assert.equal(f.players.has('n0'),false);assert.equal(f.players.get('n1'),other);assert.equal(f.metrics.disposed,1);assert.equal(f.metrics.created,0);
+ const body=f.shells.get('n0').querySelector('.node-body'),control=body.querySelector('.audio-source-repair');assert.ok(control);
+ f.reset();f.render();assert.equal(body.querySelector('.audio-source-repair'),control);assert.equal(f.metrics.replacements,0);
+ f.state.nodes[0].audio='asset:repaired';f.render();assert.ok(f.players.has('n0'));assert.equal(f.players.get('n1'),other);assert.equal(f.metrics.created,1);
+ f.state.nodes[0].audio='https://files.tapnow.media/old.wav';f.render();assert.equal(f.players.has('n0'),false);assert.ok(body.querySelector('.audio-source-repair'));
 });
