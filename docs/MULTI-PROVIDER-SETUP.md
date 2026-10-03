@@ -17,7 +17,7 @@ node --env-file=.env.local server/server.cjs
 | `GENERATION_PROVIDERS` | JSON：供应商 ID → 配置 |
 | `GENERATION_ROUTES` | JSON：准确操作 kind → 供应商 ID 或 `{default,models}` |
 
-供应商配置允许 `protocol`、`apiKeyEnv`、`baseUrl` / `baseUrlEnv`、`modelMap` / `modelMapEnv`。Key 只允许通过环境变量名称引用；JSON 中的 `apiKey` 会使路由无效。地址和模型映射的内联值与环境引用不能同时提供。`modelMapEnv` 所引用的值同样为 JSON。协议支持 `openai-native`、`ark-native`、`fal-native`、`fal-video-native`、`minimax-native`、`minimax-music-native`、`tripo-native`、`elevenlabs-native`、`marble-native` 和 `tasks-v1`。fal 抠图和 Topaz 放大的可直接使用配置见 [fal 图片工具](FAL-NATIVE-SETUP.md)。
+供应商配置允许 `protocol`、`apiKeyEnv`、`baseUrl` / `baseUrlEnv`、`modelMap` / `modelMapEnv`。Key 只允许通过环境变量名称引用；JSON 中的 `apiKey` 会使路由无效。地址和模型映射的内联值与环境引用不能同时提供。`modelMapEnv` 所引用的值同样为 JSON。协议支持 `openai-native`、`ark-native`、`fal-native`、`fal-video-native`、`minimax-native`、`minimax-music-native`、`tripo-native`、`elevenlabs-native`、`elevenlabs-sound-native`、`openai-masked-edit-native`、`marble-native` 和 `tasks-v1`。fal 抠图和 Topaz 放大的可直接使用配置见 [fal 图片工具](FAL-NATIVE-SETUP.md)。
 
 两项路由变量都未设置时，原单供应商配置保持不变。只设置一项、JSON 损坏或路由引用不存在的供应商时，整个路由禁用，不借用旧 Key。某个供应商缺 Key 或能力时只阻止选到它的功能，不影响其他已配置功能。Key 名称未设置等同该供应商未就绪。
 
@@ -39,14 +39,14 @@ node --env-file=.env.local server/server.cjs
 - 浏览器只收到功能、公开别名和配置状态；不返回 Key、端点或真实模型 ID。任务在读取媒体前按操作和别名检查配置。
 - 配置弹窗显示每个操作/供应商是否就绪；整体存在可用图片服务并不表示视频服务可用。
 - 异步任务持久保存原供应商身份；修改路由表不改变旧任务的目的地。修改原供应商地址/模型映射后阻止查询及取消，恢复原配置才能继续核对。
-- Key 轮换不会改变任务身份。unknown 提交不重发；没有远端任务 ID 的同步 OpenAI、ElevenLabs TTS 和 MiniMax Music 任务只能查询本地证据。
+- Key 轮换不会改变任务身份。unknown 提交不重发；没有远端任务 ID 的同步 OpenAI（含蒙版编辑）、ElevenLabs TTS/Sound 和 MiniMax Music 任务只能查询本地证据。
 - Ark 原始 `sourceFileId` 保留，样片续生成仍使用原供应商任务 ID。远端取消仍依据具体协议，不能宣称 Ark 已停算。
 
 型号与配置：[MiniMax H3 视频](MINIMAX-H3-SETUP.md)、[Tripo 3D](TRIPO-NATIVE-SETUP.md)。两个 H3 名称属于不同供应商和媒体类型，不能共用模型映射。
 
 详细契约：[路由 API](generation-routing-contract.md)、[Ark 限制](ARK-VIDEO.md)、[OpenAI 图片参考](OPENAI-IMAGE-REFERENCES.md)、[原生分镜解析](OPENAI-VIDEO-ANALYSIS.md)。
 
-新增原生配置：[MiniMax Music 2.6](MINIMAX-MUSIC-NATIVE.md)、[fal 视频超分](FAL-VIDEO-NATIVE-SETUP.md)、[ElevenLabs TTS](ELEVENLABS-NATIVE-TTS.md)、[Marble](MARBLE-NATIVE-SETUP.md)。Music API 仅对既有合资格付费用户开放，不能由 Key 存在推定访问权。视频超分的参数边界以适配器文档为准。
+新增原生配置：[MiniMax Music 2.6](MINIMAX-MUSIC-NATIVE.md)、[fal 视频超分](FAL-VIDEO-NATIVE-SETUP.md)、[ElevenLabs TTS](ELEVENLABS-NATIVE-TTS.md)、[ElevenLabs 音效](ELEVENLABS-NATIVE-SOUND.md)、[OpenAI 蒙版编辑](OPENAI-MASKED-EDIT-NATIVE.md)、[Marble](MARBLE-NATIVE-SETUP.md)。Music API 仅对既有合资格付费用户开放，不能由 Key 存在推定访问权。视频超分的参数边界以适配器文档为准。
 
 ## 历史验收（最初路由批次）
 

@@ -187,11 +187,13 @@
         if (name !== "product-kit") return html;
         if (version !== "v1") throw new Error("unsupported local product-kit version");
         var expected = "758d09b3f06e99a6b4e47a782d33ef90b9f12935c140b8bdfe88ca41f76e2535";
+        var productKitDemoDerivedSha256 = "bf378d28fe79d46390b75b4f5ab0d1cbc2bbf7ab46f360154c6de234c5d02234";
         var digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(html));
         var hash = Array.from(new Uint8Array(digest), function (byte) {return byte.toString(16).padStart(2, "0");}).join("");
         var original = 'thumbnail_url:f().url().refine(e=>e.startsWith("https://"))';
-        if (hash !== expected || html.split(original).length !== 2) throw new Error("product-kit reference integrity mismatch");
         var local = String.raw`thumbnail_url:f().max(500000).regex(/^data:image\/(?:png|jpeg|webp);base64,[A-Za-z0-9+/]+={0,2}$/)`;
+        if (hash === productKitDemoDerivedSha256 && html.split(local).length === 2 && html.indexOf(original) === -1) return html;
+        if (hash !== expected || html.split(original).length !== 2) throw new Error("product-kit reference integrity mismatch");
         return html.replace(original, local);
       }
       // PRODUCT_KIT_LOCAL_TRANSPORT:END

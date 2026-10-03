@@ -22,7 +22,19 @@
  function layout(nodes,edges,ids,mode,dagre){const wanted=new Set(ids),selected=nodes.filter(n=>wanted.has(n.id)),groupNode=selected.length===1&&selected[0].type==='group'?selected[0]:null,picked=groupNode?children(nodes,groupNode.id):selected.filter(n=>n.type!=='group');if(!picked.length)throw Error('没有可布局的节点');if(!['grid','horizontal'].includes(mode))throw Error('布局类型无效');const origin=groupNode?{x:groupNode.x,y:groupNode.y}:bounds(picked,0),padding=groupNode?100:0,spacing=200,result=new Map;let width,height;
   if(mode==='grid'){const rows=Math.ceil(Math.sqrt(picked.length)),columns=Math.ceil(picked.length/rows),w=Math.max(...picked.map(n=>n.width)),h=Math.max(...picked.map(n=>n.height));picked.forEach((n,i)=>result.set(n.id,{x:padding+(i%columns)*(w+spacing)+(w-n.width)/2,y:padding+Math.floor(i/columns)*(h+spacing)+(h-n.height)/2}));width=padding*2+columns*w+(columns-1)*spacing;height=padding*2+rows*h+(rows-1)*spacing;
   }else{if(!dagre)throw Error('布局引擎未加载');const graph=new dagre.graphlib.Graph().setDefaultEdgeLabel(()=>({}));graph.setGraph({rankdir:'LR',nodesep:spacing,ranksep:spacing,marginx:padding,marginy:padding});picked.forEach(n=>graph.setNode(n.id,{width:n.width,height:n.height}));const members=new Set(picked.map(n=>n.id));edges.filter(e=>members.has(e.source)&&members.has(e.target)).forEach(e=>graph.setEdge(e.source,e.target));dagre.layout(graph);picked.forEach(n=>{const p=graph.node(n.id);result.set(n.id,{x:p.x-n.width/2,y:p.y-n.height/2});});const minX=Math.min(...[...result.values()].map(p=>p.x)),minY=Math.min(...[...result.values()].map(p=>p.y));result.forEach(p=>{p.x+=padding-minX;p.y+=padding-minY;});width=Math.max(...picked.map(n=>result.get(n.id).x+n.width))+padding;height=Math.max(...picked.map(n=>result.get(n.id).y+n.height))+padding;}
-  for(const n of picked){const p=result.get(n.id),dx=origin.x+p.x-n.x,dy=origin.y+p.y-n.y;translate(nodes,positions(nodes,[n.id]),dx,dy);}if(groupNode)Object.assign(groupNode,{width,height,layoutType:mode});return{width,height,ids:picked.map(n=>n.id)};
+  // Layout changes coordinates only. Index ownership once, but capture each
+  // subtree's current positions in graph order after earlier selections moved.
+  // A selected pile and its member must retain that sequential behavior.
+  const layoutLinks=new Map(),layoutRecords=new Map(),layoutNodes=new Map();
+  const append=(from,to)=>{let targets=layoutLinks.get(from);if(!targets)layoutLinks.set(from,targets=[]);targets.push(to);};
+  nodes.forEach((node,index)=>{const id=node.id;layoutNodes.set(id,node);let records=layoutRecords.get(id);if(!records)layoutRecords.set(id,records=[]);records.push({node,index});if(node.parentId)append(node.parentId,id);if(node.type==='pile')for(const member of node.memberIds||[])append(id,member);});
+  for(const n of picked){
+   const p=result.get(n.id),dx=origin.x+p.x-n.x,dy=origin.y+p.y-n.y,all=new Set([n.id]),queue=[n.id];
+   for(let i=0;i<queue.length;i++)for(const id of layoutLinks.get(queue[i])||[])if(!all.has(id)){all.add(id);queue.push(id);}
+   const snapshot=queue.flatMap(id=>layoutRecords.get(id)||[]).sort((a,b)=>a.index-b.index).map(({node})=>({id:node.id,x:node.x,y:node.y}));
+   for(const position of snapshot){const node=layoutNodes.get(position.id);if(node){node.x=position.x+dx;node.y=position.y+dy;}}
+  }
+  if(groupNode)Object.assign(groupNode,{width,height,layoutType:mode});return{width,height,ids:picked.map(n=>n.id)};
  }
  function resizeBounds(start,handle,dx,dy){const b={...start},min=10;if(handle.includes('w')){b.x=Math.min(start.x+dx,start.x+start.width-min);b.width=start.width+start.x-b.x;}if(handle.includes('e'))b.width=Math.max(min,start.width+dx);if(handle.includes('n')){b.y=Math.min(start.y+dy,start.y+start.height-min);b.height=start.height+start.y-b.y;}if(handle.includes('s'))b.height=Math.max(min,start.height+dy);return b;}
  const api={bounds,children,descendants,eligible,group,ungroup,autoGroup,positions,translate,layout,resizeBounds};if(typeof module!=='undefined')module.exports=api;else root.CanvasGroups=api;

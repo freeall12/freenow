@@ -19,9 +19,20 @@
     "performance-rhythm@v3": "9ead0d0b",
     "platform-resize@v1": "897f4688",
     "previs@v3": "584fd5b2",
-    "product-kit@v1": "758d09b3",
+    "product-kit@v1": "bf378d28",
     "production-progress@v1": "acd4e750",
     "story-room@v1": "dae7d235",
     "website-design-picker@v1": "2a07bc2e"
+  },
+  "derivations": {
+    "product-kit@v1": {
+      "operation": "inline-local-demo-thumbnail",
+      "sourceFile": "src/features/agent-apps/resources/apps/product-kit@v1.758d09b3.html",
+      "sourceSha256": "758d09b3f06e99a6b4e47a782d33ef90b9f12935c140b8bdfe88ca41f76e2535",
+      "derivedFile": "src/features/agent-apps/resources/apps/product-kit@v1.bf378d28.html",
+      "derivedSha256": "bf378d28fe79d46390b75b4f5ab0d1cbc2bbf7ab46f360154c6de234c5d02234",
+      "assetFile": "assets/studio/library/chair-office.webp",
+      "assetSha256": "a9725ab50f95e875598d68a29afc30e9313b6a2e4abbab66c74302d208eaa98a"
+    }
   }
 }

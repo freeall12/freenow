@@ -5,7 +5,7 @@ function fixture(){
  const dom=new JSDOM('<body><div id="canvas"></div><div id="node-toolbar"></div><input id="outside"></body>'),window=dom.window,document=window.document;
  const core=require('../audio-core.js'),nodes=[{id:'a',type:'audio',title:'A',x:10,y:10,width:300,height:300,audioConfig:core.transition({prompt:'hello'},'seed-audio-1-0')},{id:'b',type:'audio',title:'B',x:10,y:10,width:300,height:300,audioConfig:core.transition({prompt:'other'},'seed-audio-1-0')},{id:'ref',type:'text',title:'参考文本',content:'text'}],state={nodes,selected:['a'],edges:[],view:{x:0,y:0,scale:1}},writes=[];
  document.querySelector('#canvas').getBoundingClientRect=()=>({left:0,top:0,right:1000,width:1000});
- Object.assign(window,{AudioCore:core,UI_ICONS:{},CanvasApp:{getState:()=>state,getNodeElement:()=>null,updateNode(id,patch){writes.push({id,patch});Object.assign(nodes.find(n=>n.id===id),patch);document.dispatchEvent(new window.Event('canvas:render'));},disconnect(){},saveSelection(){}},NodeActions:{notify(){},colors(){}},GenerationAPI:{getJobs:()=>[],subscribe(){}},VoiceInput:{bind(){}},LocalAssets:{}});
+ Object.assign(window,{AudioCore:core,UI_ICONS:{},CanvasApp:{projectIdentity:()=>({id:"audio-menu-test-project"}),getState:()=>state,getNodeElement:()=>null,updateNode(id,patch){writes.push({id,patch});Object.assign(nodes.find(n=>n.id===id),patch);document.dispatchEvent(new window.Event('canvas:render'));},disconnect(){},saveSelection(){}},NodeActions:{notify(){},colors(){}},GenerationAPI:{getJobs:()=>[],subscribe(){}},VoiceInput:{bind(){}},LocalAssets:{}});
  const source=fs.readFileSync(require.resolve('../audio-ui.js'),'utf8').replace(/import\([^)]*\)/g,'(new Promise(()=>{}))').replace('let voiceUI=null','let voiceUI=voiceMenuModule');
  vm.runInNewContext(source,{voiceMenuModule,window,document,AbortController,DOMException,Event:window.Event,structuredClone,console,innerWidth:1000,innerHeight:800,ResizeObserver:class{observe(){}disconnect(){}},setTimeout,clearTimeout,requestAnimationFrame(){},cancelAnimationFrame(){}});
  const trigger=label=>document.querySelector('.audio-editor').querySelector('[aria-label="'+label+'"]'),pop=()=>document.querySelector('.audio-popover'),key=(target,key,extra={})=>{const e=new window.KeyboardEvent('keydown',{key,bubbles:true,cancelable:true,...extra});target.dispatchEvent(e);return e;},render=()=>document.dispatchEvent(new window.Event('canvas:render'));
@@ -44,4 +44,26 @@ test('voice refresh retains a focused cached row or returns to search when it di
 });
 test('choosing a catalog ID persists it and carries it unchanged into node generation request',async()=>{
  const f=fixture();try{f.useVoice();f.window.AudioAPI.setVoiceProvider({listVoices:async()=>[{id:'provider-stable-123',name:'目录音色'}]});f.open('选择音色');await tick();f.pop().querySelector('[aria-label="目录音色"]').click();assert.equal(f.nodes[0].audioConfig.params.voice_id,'provider-stable-123');const request=await f.window.AudioAPI.buildRequest('a');assert.equal(request.parameters.voice_id,'provider-stable-123');assert.equal(request.parameters.model,'eleven_v3');}finally{f.close();}
+});
+test('custom Sound duration survives input then dismissal before change and keeps exact decimals',async()=>{
+ const f=fixture();try{
+  f.nodes[0].audioConfig=f.window.AudioCore.transition(f.nodes[0].audioConfig,'elevenlabs-v3','Sound');f.render();const p=f.open('音频参数'),input=p.querySelector('[aria-label="自定义音频时长"]');input.focus();input.value='1.25';input.dispatchEvent(new f.window.Event('input',{bubbles:true}));
+  assert.equal(f.trigger('音频参数').lastElementChild.textContent,'1.25s');assert.equal(input.isConnected,true);assert.equal(f.document.activeElement,input);assert.equal(p.querySelector('[data-focus-key="时长:null"]').getAttribute('aria-pressed'),'false');
+  // Capture-phase outside pointer closes the popover before native blur/change.
+  f.trigger('音频高级设置').dispatchEvent(new f.window.Event('pointerdown',{bubbles:true}));assert.equal(f.pop(),null);input.dispatchEvent(new f.window.Event('change',{bubbles:true}));f.trigger('音频高级设置').click();await new Promise(resolve=>setTimeout(resolve,220));
+  assert.equal(f.nodes[0].audioConfig.params.duration_seconds,1.25);assert.equal(f.trigger('音频参数').lastElementChild.textContent,'1.25s');const request=await f.window.AudioAPI.buildRequest('a');assert.equal(request.parameters.duration_seconds,1.25);
+ }finally{f.close();}
+});
+test('advanced numeric influence captures input before rebuilding and ignores stale events',async()=>{
+ const f=fixture();try{
+  f.nodes[0].audioConfig=f.window.AudioCore.transition(f.nodes[0].audioConfig,'elevenlabs-v3','Sound');f.render();f.trigger('音频高级设置').click();const numeric=f.trigger('提示词影响度数值');numeric.focus();numeric.value='.37';numeric.dispatchEvent(new f.window.Event('input',{bubbles:true}));assert.equal(f.trigger('提示词影响度').value,'0.37');
+  f.trigger('音频高级设置').click();numeric.dispatchEvent(new f.window.Event('change',{bubbles:true}));await new Promise(resolve=>setTimeout(resolve,220));assert.equal(f.nodes[0].audioConfig.params.prompt_influence,.37);
+  f.state.selected=['b'];f.render();numeric.value='.91';numeric.dispatchEvent(new f.window.Event('input',{bubbles:true}));numeric.dispatchEvent(new f.window.Event('change',{bubbles:true}));await new Promise(resolve=>setTimeout(resolve,220));assert.equal(f.nodes[0].audioConfig.params.prompt_influence,.37);assert.equal(f.nodes[1].audioConfig.params.prompt_influence,undefined);
+ }finally{f.close();}
+});
+test('empty and incomplete duration inputs preserve automatic or prior duration, including scaled music units',()=>{
+ const f=fixture();try{
+  f.nodes[0].audioConfig=f.window.AudioCore.transition(f.nodes[0].audioConfig,'elevenlabs-v3','Sound');f.render();let input=f.open('音频参数').querySelector('[aria-label="自定义音频时长"]');input.value='';input.dispatchEvent(new f.window.Event('change',{bubbles:true}));assert.equal(f.nodes[0].audioConfig.params.duration_seconds,undefined);input.value='.1';input.dispatchEvent(new f.window.Event('input',{bubbles:true}));assert.equal(f.trigger('音频参数').lastElementChild.textContent,'自动');f.key(input,'Escape');
+  f.nodes[0].audioConfig=f.window.AudioCore.transition(f.nodes[0].audioConfig,'elevenlabs-v3','Music');f.render();input=f.open('音频参数').querySelector('[aria-label="自定义音频时长"]');input.value='3.25';input.dispatchEvent(new f.window.Event('input',{bubbles:true}));input.dispatchEvent(new f.window.Event('change',{bubbles:true}));assert.equal(f.nodes[0].audioConfig.params.music_length_ms,3250);assert.equal(f.trigger('音频参数').lastElementChild.textContent,'3.25s');
+ }finally{f.close();}
 });

@@ -1,0 +1,15 @@
+const audit=[],events=new WeakSet(),sessionKey='qa-elevenlabs-sound-source';let sourceId=sessionStorage.getItem(sessionKey);
+const panel=document.createElement('aside');panel.style.cssText='position:fixed;z-index:2147483000;top:8px;left:110px;width:620px;max-width:70vw;background:#222;color:#eee;border:1px solid #888;padding:10px;font:12px system-ui;max-height:25vh;overflow:auto';
+panel.innerHTML='<strong>ElevenLabs Sound v2 原生合同 fixture · 非真实供应商</strong><p>隔离本机源与临时归档，正式画布/AudioAPI/GenerationAPI。仅返回真实正弦MP3，不证明模型质量。创建后通过正式音频参数入口选择自动/小数时长与循环，通过高级设置编辑影响度，再点击正式生成。</p><button id="qa-sound-create">创建测试音频节点</button> <button id="qa-sound-view">查看当前音频节点</button> <details><summary>实际回执 / 播放事件</summary><pre></pre></details>';
+document.body.append(panel);
+const log=(event,data={})=>{audit.push({at:new Date().toISOString(),event,...data});panel.querySelector('pre').textContent=JSON.stringify(audit,null,2);};
+const observeAudio=()=>{for(const audio of document.querySelectorAll('audio'))if(!events.has(audio)){events.add(audio);for(const event of ['loadedmetadata','playing','timeupdate','ended','pause','error'])audio.addEventListener(event,()=>log('native-audio-'+event,{duration:Number.isFinite(audio.duration)?audio.duration:null,currentTime:audio.currentTime,paused:audio.paused,ended:audio.ended,readyState:audio.readyState,errorCode:audio.error?.code}));}};
+new MutationObserver(observeAudio).observe(document.body,{childList:true,subtree:true});observeAudio();
+for(let i=0;i<200&&(!window.CanvasApp||!window.AudioAPI||!window.GenerationAPI);i++)await new Promise(resolve=>setTimeout(resolve,100));
+if(!window.CanvasApp||!window.AudioAPI||!window.GenerationAPI)throw Error('生产画布加载超时');
+const current=()=>window.CanvasApp.getState().nodes.find(n=>n.id===sourceId);
+window.elevenlabsSoundNativeQA={audit,getSourceId:()=>sourceId,getState:()=>window.CanvasApp.getState(),getJobs:()=>window.GenerationAPI.getJobs()};
+log('production-ready',{fixture:true,realSupplier:false,restoredSourceId:sourceId});
+panel.querySelector('#qa-sound-create').onclick=()=>{const config=window.AudioCore.transition({prompt:'轻柔海浪连续拍打礁石，带有远处海鸟的声音。本地合同fixture，非真实模型。'},'elevenlabs-v3','Sound');const node=window.CanvasApp.addNode('audio',{x:innerWidth*.4,y:innerHeight*.45},null,'QA ElevenLabs 音效源节点',{audioConfig:config});sourceId=node.id;sessionStorage.setItem(sessionKey,sourceId);log('source-created',{nodeId:sourceId,model:config.model});};
+panel.querySelector('#qa-sound-view').onclick=()=>{if(current())window.CanvasApp.focusNode(sourceId);else log('notice',{message:'源节点尚不存在或已经移除'});};
+window.GenerationAPI.subscribe(job=>{if(job.request?.nodeId!==sourceId)return;log('production-job',{jobId:job.id,status:job.status,remoteTaskId:job.remoteTaskId,parameters:job.request.parameters,applied:job.applied,applying:job.applying,applicationError:job.applicationError,resultIds:job.resultIds,outputs:job.outputs?.map(o=>({type:o.type,url:o.url}))});if(job.resultIds?.length){const node=current();log('applied-audio-node',{sourceId,nodeId:node?.id,audio:node?.audio,audioMode:node?.audioMode,options:node?.audioOptions?.length,resultIds:job.resultIds});}observeAudio();});

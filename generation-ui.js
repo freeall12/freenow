@@ -1,7 +1,7 @@
 (() => {
   'use strict';
   const app=window.CanvasApp;
-  let generationRequests,generationMedia,recognitionMedia,videoAnalysisMedia,extensionMedia,imageToolMedia,worldMedia,draftWorkflow,resultModules,resultWorkflow,failureBridge;
+  let generationRequests,generationMedia,recognitionMedia,videoAnalysisMedia,extensionMedia,imageToolMedia,maskedEditMedia,worldMedia,draftWorkflow,resultModules,resultWorkflow,failureBridge;
   const failureSources=new Map();
   const resultSubmissions=new Map();
   const draftGuards=new Map();
@@ -40,6 +40,11 @@
       imageToolMedia||=import('./src/features/image-editor/task-media.mjs');
       const nativeConfiguration=service.jobs.get(jobId)?.transport===localProvider?taskNativeConfigurations.get(signal):null;
       return (await imageToolMedia).prepareImageToolMedia(request,{signal,validateSources,localAssets:window.LocalAssets,baseUrl:document.baseURI,nativeConfiguration});
+    }
+    if(['image.erase','image.redraw','image.outpaint'].includes(request.kind)){
+      maskedEditMedia||=import('./src/features/image-editor/masked-edit-media.mjs');
+      const nativeConfiguration=service.jobs.get(jobId)?.transport===localProvider?taskNativeConfigurations.get(signal):null;
+      return (await maskedEditMedia).prepareMaskedEditMedia(request,{signal,validateSources,localAssets:window.LocalAssets,baseUrl:document.baseURI,nativeConfiguration});
     }
     if(request.kind==='video.extend'){
       extensionMedia||=import('./src/features/video-creation/media.mjs');

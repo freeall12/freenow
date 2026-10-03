@@ -8,7 +8,9 @@
 
 运行时使用现有 `prepareMediaInputs` 和 `createWorkflowMediaResolver` 读取实际本地图片。仅接受 asset/data/blob，拒绝 HTTP(S) 来源或解析结果。单源图8MiB、解码最大8192边和16M像素、实际预览最多500000字符；一次读取/解码30秒。fetch流按声明与实际字节双重限额，取消、超时或页面关闭中止读取。真实图片读取/解码失败不回退原站、示例或假产品。prepare后 `node_ref` 移入宿主来源元数据，官方payload中的 `product.thumbnail_url` 为实际像素生成的data图片。
 
-官方原始y_缩略图校验只接受HTTPS。宿主 `mcp-app-proxy.html` 中 `localizeProductKitTransport` 在加载product-kit@v1时先核对完整SHA和唯一原校验字串，才把这一个字段校验换为有界data:image/png/jpeg/webp。磁盘官方HTML原字节保留；其他UI与脚本保持原行为。篡改字节、重复校验目标或未知版本明确失败。官方演示thumbnail仍只存在于原始参考证据，不作为生产输入或回退。
+官方原始y_缩略图校验只接受HTTPS。宿主 `mcp-app-proxy.html` 中 `localizeProductKitTransport` 在加载product-kit@v1时核对完整SHA：原件须具有唯一原校验字串，才把这一个字段校验换为有界data:image/png/jpeg/webp；本地派生件须已具有唯一的本地校验字串，验证后原样传入。磁盘官方HTML原字节保留；其他UI与脚本保持原行为。篡改字节、重复校验目标或未知版本明确失败。
+
+独立演示页通过 `node scripts/derive-product-kit-demo.cjs --write` 从原件确定性派生，将官方演示thumbnail替换成已有 `assets/studio/library/chair-office.webp` 的内联data URI，同时应用上文的字段校验修正，确保独立打开也能通过校验。它是演示占位图片；原件的示例产品字段保持不变，不代表真实产品来源，也不作为嵌入工作流输入或回退。`resources/apps/manifest.json` 的 `widgets` 指向新文件名hash，`derivations` 明确记录原件、派生件和图片的完整SHA。脚本同步proxy的派生SHA校验，原始捕获文件与原SHA保持不变。嵌入工作流的thumbnail仍由真实当前节点读取、解码并注入。
 
 ## 状态与确认
 

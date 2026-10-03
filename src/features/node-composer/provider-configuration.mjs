@@ -22,13 +22,14 @@ export function resolveProviderConfiguration(metadata,request){
   return typeof id==='string'&&own(metadata.providers,id)?metadata.providers[id]:{protocol:'routed',configured:false,missing:[]};
 }
 
-const operationLabels={'text.generate':'文本生成','image.generate':'图片生成','video.generate':'视频生成','audio.generate':'音频生成','image.recognize':'焦点识别','image.remove-background':'图片抠图','image.upscale':'图片超分','image.skin':'皮肤增强','video.analyze':'分镜解析','video.upscale':'视频超分','model.generate':'3D 模型生成','world.generate':'3D 资源生成','panorama.edit':'全景编辑'};
+const operationLabels={'text.generate':'文本生成','image.generate':'图片生成','video.generate':'视频生成','audio.generate':'音频生成','image.recognize':'焦点识别','image.remove-background':'图片抠图','image.upscale':'图片超分','image.skin':'皮肤增强','image.erase':'图片擦除','image.redraw':'图片重绘','image.outpaint':'图片扩图','video.analyze':'分镜解析','video.upscale':'视频超分','model.generate':'3D 模型生成','world.generate':'3D 资源生成','panorama.edit':'全景编辑'};
 const nativeKinds={
   'openai-native':['text.generate','image.generate','audio.generate','image.recognize','video.analyze'],
   'ark-native':['video.generate'],'fal-native':['image.remove-background','image.upscale'],
   'minimax-native':['video.generate'],'tripo-native':['world.generate'],
   'elevenlabs-native':['audio.generate'],'marble-native':['world.generate'],
-  'minimax-music-native':['audio.generate'],'fal-video-native':['video.upscale']
+  'minimax-music-native':['audio.generate'],'fal-video-native':['video.upscale'],
+  'elevenlabs-sound-native':['audio.generate'],'openai-masked-edit-native':['image.erase','image.redraw','image.outpaint']
 };
 const object=value=>value&&typeof value==='object'&&!Array.isArray(value);
 const publicAlias=value=>typeof value==='string'&&value.trim()&&value.length<=200&&!/[\x00-\x1f\x7f]/.test(value);
