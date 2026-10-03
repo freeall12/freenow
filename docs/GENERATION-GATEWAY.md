@@ -237,4 +237,4 @@ Agent调用复用`generation_submit`，参数为`{kind:'video.generate',draftSou
 
 关键验证见 `tests/generation-recovery.test.cjs`、`tests/generation-recovery-integration.test.cjs`、`tests/generation-durable.test.cjs`。未调用实际供应商，未跑 E2E。
 
-原占位与新节点两种恢复都会等待画布保存；保存失败保留结果ID，再次尝试只保存当前图，不重放已应用的修改。取消/失败任务的显式清理同样只处理基准可验证的占位。完整接线记录见 [Agent任务恢复](../reference/agent-generation-recovery.md)。
+原占位与新节点两种恢复都会等待画布保存；保存失败保留结果ID，再次尝试只保存当前图，不重放已应用的修改。取消/失败任务的显式清理同样只处理基准可验证的占位。完整接线记录见 Agent任务恢复（开发机来源：`reference/agent-generation-recovery.md`）。

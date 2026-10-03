@@ -18,9 +18,9 @@
 
 ### 父运行持久恢复边界
 
-等待工具回执的检查点保留原 callId、多模态像素、输入和轮次，可通过原回执显式续轮；已落盘但尚未请求模型的 `planned` / `receipts_saved` 也可显式继续。请求过程中断恢复为 `unknown`，不推断成功或自动重发。配置改变阻断未完成运行；历史终态仍可查询。已保存的委派批次可恢复原子任务身份、调用、依赖与规范结论；完成结果只读复用，已知尚未发出的任务需要显式启动/继续，模型在途中断仍为unknown。旧记录缺少委派检查点时标记 `blocked / delegation_state_not_persisted`，不会猜测重建子任务。`delegated-state` 和 `delegated-result` 同样可无Key只读核对；修改和续轮仍需原配置。详见 [子任务恢复合同](../reference/agent-delegation-checkpoints-20261002.md)。
+等待工具回执的检查点保留原 callId、多模态像素、输入和轮次，可通过原回执显式续轮；已落盘但尚未请求模型的 `planned` / `receipts_saved` 也可显式继续。请求过程中断恢复为 `unknown`，不推断成功或自动重发。配置改变阻断未完成运行；历史终态仍可查询。已保存的委派批次可恢复原子任务身份、调用、依赖与规范结论；完成结果只读复用，已知尚未发出的任务需要显式启动/继续，模型在途中断仍为unknown。旧记录缺少委派检查点时标记 `blocked / delegation_state_not_persisted`，不会猜测重建子任务。`delegated-state` 和 `delegated-result` 同样可无Key只读核对；修改和续轮仍需原配置。详见 子任务恢复合同（开发机来源：`reference/agent-delegation-checkpoints-20261002.md`）。
 
-浏览器目前只提供“核对中断任务”的手动只读查询；没有自动恢复工具、自动重发或继续按钮。`canResumeWithReceipts` 只表示服务端协议具备续轮条件，不能代替原工具执行证据或授权。完整合同、聚焦验证与剩余工作见 [检查点接线](../reference/agent-checkpoint-integration-20261002.md) 和 [存储合同](AGENT-SESSION-STORE.md)。
+浏览器目前只提供“核对中断任务”的手动只读查询；没有自动恢复工具、自动重发或继续按钮。`canResumeWithReceipts` 只表示服务端协议具备续轮条件，不能代替原工具执行证据或授权。完整合同、聚焦验证与剩余工作见 检查点接线（开发机来源：`reference/agent-checkpoint-integration-20261002.md`） 和 [存储合同](AGENT-SESSION-STORE.md)。
 
 生成任务走独立 `GenerationAPI`，可以注入提供方或HTTP `/tasks` 协议。没有提供方时状态为 `configuration_required`，不会生成占位成功图像。
 
@@ -99,7 +99,7 @@ node --test tests/agent-server-stream.test.cjs tests/agent-stream.test.cjs tests
 - **Permissions**：无需再加一层写操作确认，真实选择/提交本身就是答题动作；回答不授权无关修改或调用。工具不读系统文件、不访问凭据、不提交生成。同批其他工具收到“未执行”，须在收到答案后的模型轮次重新决定。
 - **Failure modes**：缺答、题ID不匹配、重复/不存在的选项、单多选冲突、超长文本、重复提交均拒绝；关闭面板只回收视图，重开继续当前草稿。停止触发Abort并终止本轮；刷新标记interrupted和未回答，不恢复服务端会话或自动提交。服务端原30分钟session过期边界仍存在。
 - **Logging**：问题、草稿、实际提交或失败结果进入本机对话工具trace；答案通过`function_call_output`传给配置的LLM。UI未提交内容不进入SDK续轮；不增加服务端答案日志或任何Key日志。
-- **Tests**：既有`tests/agent.test.cjs`覆盖答案身份与完整性、真实异步等待、旧视图/重复提交、停止/刷新，以及同批工具屏障（含无效问题）。`node --test tests/agent.test.cjs tests/agent-browser-tools.test.cjs`本轮68/68通过。实际UI、官方源码依据及未验证边界见[问答记录](../reference/agent-questions.md)。无Key尚未实机验证真实模型触发production composer问答；隔离QA与SDK替身分别验证用户输入和协议。
+- **Tests**：既有`tests/agent.test.cjs`覆盖答案身份与完整性、真实异步等待、旧视图/重复提交、停止/刷新，以及同批工具屏障（含无效问题）。`node --test tests/agent.test.cjs tests/agent-browser-tools.test.cjs`本轮68/68通过。实际UI、官方源码依据及未验证边界见问答记录（开发机来源：`reference/agent-questions.md`）。无Key尚未实机验证真实模型触发production composer问答；隔离QA与SDK替身分别验证用户输入和协议。
 
 ```json
 {
@@ -128,7 +128,7 @@ node --test tests/agent-server-stream.test.cjs tests/agent-stream.test.cjs tests
 
 前端持久化 `imageHistory: [{id, createdAt, prompt, parameters, options: [{id, image, width, height, sourceFileId}]}]`，新批次在前，旧图片/版本保留。选择历史图片恢复对应提示词和参数，保留下一次生成的count/times；尺寸调整保持底边中心。批次预览不写图数据，复制到画布不继承历史。
 
-来源/参数/历史变更或删除后拒绝迟到结果，并记录任务的 `applicationError`；未配置服务仍返回 `configuration_required`，没有假图片。工作流回填保留当前引用顺序和绑定。云端历史查询尚未实现；供应商KEY仍需按统一任务协议接入或提供对应适配器。契约和UI验收见 [图片历史报告](../reference/image-history.md)。
+来源/参数/历史变更或删除后拒绝迟到结果，并记录任务的 `applicationError`；未配置服务仍返回 `configuration_required`，没有假图片。工作流回填保留当前引用顺序和绑定。云端历史查询尚未实现；供应商KEY仍需按统一任务协议接入或提供对应适配器。契约和UI验收见 图片历史报告（开发机来源：`reference/image-history.md`）。
 
 ### 逐对象时间轴补充
 
@@ -381,13 +381,13 @@ DeepSeek目录使用 `thinking_level: "OFF" | "MEDIUM" | "HIGH"`；OpenAI目录�
 
 ### 本地消息操作与分叉
 
-消息反馈仅保存在当前对话的 `feedback: 'up' | 'down' | null` 字段；无隐式反馈上报。分叉记录 `forkedFrom: {chatId,messageIndex}`，复制截至选定助手消息的历史，保留场景和模型选择，清空未发送草稿；不会执行复制来的工具记录。继续发送使用现有 `/api/agent/turn`，仍受服务端最近16条文本历史、单条20000字符的限制。完整历史显示不等于完整上下文已发送给模型。正文渲染不执行HTML或加载远程图片。见 [消息记录](../reference/agent-messages.md)。
+消息反馈仅保存在当前对话的 `feedback: 'up' | 'down' | null` 字段；无隐式反馈上报。分叉记录 `forkedFrom: {chatId,messageIndex}`，复制截至选定助手消息的历史，保留场景和模型选择，清空未发送草稿；不会执行复制来的工具记录。继续发送使用现有 `/api/agent/turn`，仍受服务端最近16条文本历史、单条20000字符的限制。完整历史显示不等于完整上下文已发送给模型。正文渲染不执行HTML或加载远程图片。见 消息记录（开发机来源：`reference/agent-messages.md`）。
 
 ### Queue 与执行恢复
 
 `queuedMessages` 保存在所属本地对话，项包含 `id/createdAt/text/composerDoc/refs/referencePins/skills/uploads/artifactRefs/quotedText/studioNodeId/selection`。`selection` 为排队当时的展示模型与思考选项，仍由原服务端映射校验，Key不进入前端。接口不新增生成API：轮到任务时继续调用 `/api/agent/turn` 与 `/continue`。
 
-`queuePauseReason` 表示本地失败/刷新暂停，编辑后重新发送会恢复调度。`activeRun` 仅记录浏览器已开始执行的提交ID/时间；刷新时不能据此推断远程生成已取消或完成，因此显示状态未恢复并不自动重放。停止当前运行后会按顺序接续排队项；取消排队仅取消未执行项。执行失败会保留余下队列。详见 [实现与官方行为边界](../reference/agent-queue.md)。
+`queuePauseReason` 表示本地失败/刷新暂停，编辑后重新发送会恢复调度。`activeRun` 仅记录浏览器已开始执行的提交ID/时间；刷新时不能据此推断远程生成已取消或完成，因此显示状态未恢复并不自动重放。停止当前运行后会按顺序接续排队项；取消排队仅取消未执行项。执行失败会保留余下队列。详见 实现与官方行为边界（开发机来源：`reference/agent-queue.md`）。
 
 ## 工具执行记录（2026-09-29）
 
@@ -401,13 +401,13 @@ DeepSeek目录使用 `thinking_level: "OFF" | "MEDIUM" | "HIGH"`；OpenAI目录�
 
 确认回调支持 `{allowed, args}`；编辑仅允许 prompt/model/aspect/imageSize/quality/count/duration/resolution/generateAudio/videoMode。目标、引用、类型与场景位置不能通过卡片更改。`originalArgs` 保留编辑前值，`args` 记录确认值，实际工具执行仍经过 AgentTools.parse。图片质量映射到现有 `outputQuality`，不会与历史分辨率字段 `quality` 混淆。
 
-`generationJob` 按实际 taskId 保存 status/progress/error/applied/applying/applicationError/resultIds；不存储媒体输出正文。供应商输出和本地结果应用结束分别通知。刷新不会自动恢复未完成的远端任务；已知终态可保留。生成卡片取代通用确认视图，审计参数仍在本地工具记录中，尚未增加卡片内原始JSON详情入口。见 [官方依据与验收边界](../reference/agent-generation.md)。
+`generationJob` 按实际 taskId 保存 status/progress/error/applied/applying/applicationError/resultIds；不存储媒体输出正文。供应商输出和本地结果应用结束分别通知。刷新不会自动恢复未完成的远端任务；已知终态可保留。生成卡片取代通用确认视图，审计参数仍在本地工具记录中，尚未增加卡片内原始JSON详情入口。见 官方依据与验收边界（开发机来源：`reference/agent-generation.md`）。
 
 ### 批量确认内部记录
 
 前端将相邻同参数同类且不同目标的生成调用组合为 `name: generation_batch` 的内部展示记录；该名称不在模型可调用工具目录里。`batchItems` 保存各原调用，`batchDraft` 保存编辑文本和 rejected，`confirmationDraft` 保存共享参数。后端仍只收到原 callId 对应的逐项结果，没有新增HTTP契约。
 
-确认返回 `{allowed,args:{decisions:[{callId,allowed,args?}]}}`，数量、顺序与callId必须完全匹配原批次。保留项在任何提交前完成schema及确认白名单校验；拒绝项不调用生成。停止只停止后续提交，已提交任务按实际taskId追踪；刷新对子项递归恢复，禁止自动重放。日志不包含密钥或媒体正文。测试与手工验收见 [批量记录](../reference/agent-generation-batch.md)。
+确认返回 `{allowed,args:{decisions:[{callId,allowed,args?}]}}`，数量、顺序与callId必须完全匹配原批次。保留项在任何提交前完成schema及确认白名单校验；拒绝项不调用生成。停止只停止后续提交，已提交任务按实际taskId追踪；刷新对子项递归恢复，禁止自动重放。日志不包含密钥或媒体正文。测试与手工验收见 批量记录（开发机来源：`reference/agent-generation-batch.md`）。
 
 ### Agent 音频确认参数
 
@@ -415,7 +415,7 @@ DeepSeek目录使用 `thinking_level: "OFF" | "MEDIUM" | "HIGH"`；OpenAI目录�
 
 用途：可编辑确认后真实提交音频。输入经共享schema与模型兼容性验证，输出仍为实际taskId/status。权限沿用已有生成确认与Act偏好，模型Key仅在服务端/适配器配置。未配置返回configuration_required，不能视为成功。日志保存原始/确认参数与实际任务关联，不含Key或媒体正文。
 
-默认音频参考取目标配置引用及输入连线，在调用展示前冻结。`originalArgs` 保留模型原请求；确认编辑不能换目标/引用。批量复用原逐项callId契约。`AudioAPI.listVoices()` 复用既有真实音色provider，返回 `{voices,configured}`，不制造默认音色。回归与UI验证见 [音频确认记录](../reference/agent-generation-audio.md)。
+默认音频参考取目标配置引用及输入连线，在调用展示前冻结。`originalArgs` 保留模型原请求；确认编辑不能换目标/引用。批量复用原逐项callId契约。`AudioAPI.listVoices()` 复用既有真实音色provider，返回 `{voices,configured}`，不制造默认音色。回归与UI验证见 音频确认记录（开发机来源：`reference/agent-generation-audio.md`）。
 
 ### 交互表单与后续修订
 
@@ -482,7 +482,7 @@ select选中动画并暂停在0；play已在播放时保持进度，结束后再
 
 ### Agent 样片生成正式片
 
-官方依据：[Seedance 样片/正式片审计](../reference/seedance-draft-final-gap.md)。通过现有 `generation_submit` 增加专属分支，不新增工具：
+官方依据：Seedance 样片/正式片审计（开发机来源：`reference/seedance-draft-final-gap.md`）。通过现有 `generation_submit` 增加专属分支，不新增工具：
 
 ```js
 // 保留样片并创建新的正式片节点
@@ -533,7 +533,7 @@ select选中动画并暂停在0；play已在播放时保持进度，结束后再
 
 ## 只读子 Agent 编排
 
-`agent_delegate` 的 Purpose 是按无环依赖图编排镜头规划、提示词准备和审查子任务。Inputs 为 `{tasks:[{id,title,instructions,dependsOn?}]}`，1–6项，ID唯一；Outputs 为服务器规范 `{status,tasks:[{taskId,title,dependsOn,status,response?:{text},error?,blockedBy?}]}`。详细 HTTP、预算和生命周期合同见 [接线记录](../reference/agent-delegation-integration.md) 与 [调度器合同](../reference/agent-delegation-server.md)。
+`agent_delegate` 的 Purpose 是按无环依赖图编排镜头规划、提示词准备和审查子任务。Inputs 为 `{tasks:[{id,title,instructions,dependsOn?}]}`，1–6项，ID唯一；Outputs 为服务器规范 `{status,tasks:[{taskId,title,dependsOn,status,response?:{text},error?,blockedBy?}]}`。详细 HTTP、预算和生命周期合同见 接线记录（开发机来源：`reference/agent-delegation-integration.md`） 与 调度器合同（开发机来源：`reference/agent-delegation-server.md`）。
 
 Permissions：子模型继承主模型配置，只有固定14项只读工具，不能生成、修改、问用户或再委派。父响应中的同批其他操作在结果返回前不执行。子结论是待审核建议，父 Agent 沿原确认模式操作；浏览器自称成功不能替代服务器回执。
 
@@ -557,29 +557,29 @@ Tests：13项聚焦父子Runtime/调度/客户端执行器回归通过，复用�
 
 新增 `depth_video_prepare`（只读）、`depth_video_convert` 与 `depth_video_recast`（沿用正常确认/Auto边界）。工具参数以 `agent-tools.js` 为准；不接受模型自报已确认/已查看。准备工具的真实帧随 `/continue` 传输，服务端核对来源、参考及真实表单提交；主宿主在成功续轮后才记查看证据。生成任务先保存ID再分发，输出实际解码后回填。
 
-Purpose：按深度视频工作流准备素材、转换和重演。Inputs：来源/深度节点ID，已选人物/环境或真实formCallId，以及目录支持的模型和选项。Outputs：实际taskId、节点ID、时长/尺寸与角色分工；无媒体不报成功。Permissions：只读准备；转换/重演受既有工具执行模式控制；不允许子Agent执行。Failure modes：未查看、表单未提交/跳过/被覆盖、来源变化、取消、缺配置、真实媒体解码及尺寸/时长不匹配。Logging：保留任务/节点/调用身份，不持久化视觉像素正文。Tests：真实宿主到AgentRuntime续轮的聚焦回归及本地FFmpeg验证，未跑E2E，未验证真实供应商质量。完整边界见 [接线记录](../reference/agent-depth-integration.md)。
+Purpose：按深度视频工作流准备素材、转换和重演。Inputs：来源/深度节点ID，已选人物/环境或真实formCallId，以及目录支持的模型和选项。Outputs：实际taskId、节点ID、时长/尺寸与角色分工；无媒体不报成功。Permissions：只读准备；转换/重演受既有工具执行模式控制；不允许子Agent执行。Failure modes：未查看、表单未提交/跳过/被覆盖、来源变化、取消、缺配置、真实媒体解码及尺寸/时长不匹配。Logging：保留任务/节点/调用身份，不持久化视觉像素正文。Tests：真实宿主到AgentRuntime续轮的聚焦回归及本地FFmpeg验证，未跑E2E，未验证真实供应商质量。完整边界见 接线记录（开发机来源：`reference/agent-depth-integration.md`）。
 
 ## 本地视频裁剪
 
 `video_trim({operationId,nodeId,start,end,timeBasis})` 与 `video_trim_retry_save({operationId})` 已接主执行循环；均沿用当前确认模式，不开放给只读子Agent。`timeBasis=node` 表示相对当前节点片段，`source` 表示底层源视频绝对秒。稳定operationId用于同参数重试、合并并发及验证已有持久结果，不能在不确定时换ID重复制作。
 
-Purpose：把指定片段实际导出成新的连接视频节点。Inputs：来源和明确秒范围/时间基准。Outputs：operationId/status/saved/applied/nodeIds及实际时长/尺寸/源范围；不返回媒体正文。Permissions：本机FFmpeg及当前画布素材保存，不调用生成提供方。Failure modes：来源变化、超时/取消、范围或真实输出不符、保存失败；保存失败返回完整applied回执，保留已创建节点。Logging：操作与输出provenance，原视频大体积data URL不重复写入。Tests：时间基准、真实解码边界、刷新复用、取消、保存重试及展示状态的聚焦回归。完整限制见 [接口文档](../reference/agent-video-trim.md)。
+Purpose：把指定片段实际导出成新的连接视频节点。Inputs：来源和明确秒范围/时间基准。Outputs：operationId/status/saved/applied/nodeIds及实际时长/尺寸/源范围；不返回媒体正文。Permissions：本机FFmpeg及当前画布素材保存，不调用生成提供方。Failure modes：来源变化、超时/取消、范围或真实输出不符、保存失败；保存失败返回完整applied回执，保留已创建节点。Logging：操作与输出provenance，原视频大体积data URL不重复写入。Tests：时间基准、真实解码边界、刷新复用、取消、保存重试及展示状态的聚焦回归。完整限制见 接口文档（开发机来源：`reference/agent-video-trim.md`）。
 
 ## 白模捕获与实际媒体交接
 
-`show_widget` 的隔离iframe现提供本地 `tapnow.createWhiteboxCapture` 与 `tapnow.uploadToCanvas`。前者实际截图/录像；后者提出待确认PNG/视频Blob，宿主用户按钮才添加到画布。不是通用工具桥，不接收任意URL/节点patch/位置。来源、nonce、代码/对话绑定、格式、实际解码、字节摘要和保存均验证。回执进入原trace.result.mediaOutputs；失败/取消不制造节点。保存失败只重试保存。视频转H264 30fps，实际时长调整如实显示。接口及验证限制见 [白模集成](../reference/agent-whitebox-handoff-integration.md)。
+`show_widget` 的隔离iframe现提供本地 `tapnow.createWhiteboxCapture` 与 `tapnow.uploadToCanvas`。前者实际截图/录像；后者提出待确认PNG/视频Blob，宿主用户按钮才添加到画布。不是通用工具桥，不接收任意URL/节点patch/位置。来源、nonce、代码/对话绑定、格式、实际解码、字节摘要和保存均验证。回执进入原trace.result.mediaOutputs；失败/取消不制造节点。保存失败只重试保存。视频转H264 30fps，实际时长调整如实显示。接口及验证限制见 白模集成（开发机来源：`reference/agent-whitebox-handoff-integration.md`）。
 
 `generation_video_models({model?,referenceCounts?:{image?,video?,audio?}})` 为只读本地目录查询：返回模型模式/参考预算及真实目录选项；不调用供应商，无Key可用。缺模型/非整数计数报错。输出明确 `liveProviderVerified:false`，不能视为服务已配置或真实模型效果证明。图/视频通用Agent提交也解析本地媒体真实字节，保留参考ID/顺序，并在分发前检查原节点身份和来源是否改变。
 
 
 ## 个人主体库
 
-新增 subjects_list/read/save/archive/apply。读取也开放给只读子 Agent；写入和导入沿用既有确认/Auto 模式。save 从实际节点快照保存，更新和归档需要内容版本；apply 使用明确世界坐标并复用一次画布事务。保存失败后的重试保持 operationId 和参数一致，检查 applied/saved/currentMatches。主体库修改不能由画布撤销恢复。完整 Purpose、Inputs、Outputs、Permissions、Failure modes、Logging 与验证范围见 [主体库合同](../reference/agent-subjects.md)。
+新增 subjects_list/read/save/archive/apply。读取也开放给只读子 Agent；写入和导入沿用既有确认/Auto 模式。save 从实际节点快照保存，更新和归档需要内容版本；apply 使用明确世界坐标并复用一次画布事务。保存失败后的重试保持 operationId 和参数一致，检查 applied/saved/currentMatches。主体库修改不能由画布撤销恢复。完整 Purpose、Inputs、Outputs、Permissions、Failure modes、Logging 与验证范围见 主体库合同（开发机来源：`reference/agent-subjects.md`）。
 
 
 ## 图片编辑器
 
-新增 image_editor_create/open/read/edit/save/export/close，调用现有 Fabric 编辑器。新建使用画布世界坐标；所有图层操作使用画板逻辑像素。修改和保存需要当前 sessionId/expectedRevision；read 支持图层与文本分页。保存保留完整图层及全分辨率合成，检查 applied/saved/currentMatches。工具未开放给子 Agent。Purpose、Inputs、Outputs、Permissions、Failure modes、Logging 和验证边界见 [图片编辑合同](../reference/agent-image-editor.md)。
+新增 image_editor_create/open/read/edit/save/export/close，调用现有 Fabric 编辑器。新建使用画布世界坐标；所有图层操作使用画板逻辑像素。修改和保存需要当前 sessionId/expectedRevision；read 支持图层与文本分页。保存保留完整图层及全分辨率合成，检查 applied/saved/currentMatches。工具未开放给子 Agent。Purpose、Inputs、Outputs、Permissions、Failure modes、Logging 和验证边界见 图片编辑合同（开发机来源：`reference/agent-image-editor.md`）。
 
 图片编辑追加：edit.crop 使用绝对源像素矩形，edit.erase 使用明确图层及画板路径；只有全部目标有效才提交蒙版。image_editor_export 导出 PNG/JPG/分层栅格 PSD，使用当前会话与版本及稳定 operationId；回执仅确认浏览器下载请求，不能证明磁盘落盘。导出既不保存编辑文档，也不授权生成模型。
 
@@ -587,7 +587,7 @@ Purpose：把指定片段实际导出成新的连接视频节点。Inputs：来�
 ## 2026-10-02 本地3D资源与技能管理
 
 - `world_read({nodeId?})`：官方采集模型目录与真实world节点参数、参考可用性；只读，不确认供应商实时支持。
-- `world_generate({nodeId,model?,prompt?,isPano?,material?,referenceIds?})`：独立3D节点生成。省略参考使用入边；空数组为无参考。等待真实持久回执才dispatch，返回taskId而非成品。结果状态沿用generation_status/wait。当前仅GLB可应用，原生splat未接入。见 [世界生成合同](../reference/agent-world-generation-20261002.md)。
+- `world_generate({nodeId,model?,prompt?,isPano?,material?,referenceIds?})`：独立3D节点生成。省略参考使用入边；空数组为无参考。等待真实持久回执才dispatch，返回taskId而非成品。结果状态沿用generation_status/wait。当前仅GLB可应用，原生splat未接入。见 世界生成合同（开发机来源：`reference/agent-world-generation-20261002.md`）。
 - `canvas_add` 现支持 `type:world`，位置仍是世界坐标。
 - `scene_import({sourceNodeId,sessionId,expectedRevision,sceneIndex?,properties?})`：把画布已有真实GLB导入打开的V2片场。参数的sessionId/revision必须来自刚读取的scene_read；properties旋转单位是弧度。
 - `scene_redo({sessionId,expectedRevision})`：真实片场历史重做；不会重发模型请求。V2环境可原子修改ground.grid及光照。保存失败若已应用会明确返回applied:true，不能盲目重做。见 [片场控制](AGENT-STUDIO-LOCAL-CONTROLS.md)。
@@ -601,4 +601,4 @@ Purpose：把指定片段实际导出成新的连接视频节点。Inputs：来�
 
 `agent_delegate` 接收1–6项 `{id,title,instructions,dependsOn?}`，支持乱序定义的无环依赖图。服务端以前置任务真实终态决定后续可否启动，并以实际记录传递有界结论；前置失败会产生 `skipped` / `blockedBy`，不能算完成。子Agent仍仅能读取和建议。
 
-新增 `POST /api/agent/delegated-state` 输入 `{sessionId,callId,taskId}`，为纯只读原会话状态查询。返回对应snapshot及started，未开始返回not_started；不创建会话/批次或调用SDK。它仅用于当前进程的丢回包核对，不提供跨服务重启恢复，也不授权重新启动任务。完整合同与验证见 [依赖接线](../reference/agent-delegation-integration.md)。
+新增 `POST /api/agent/delegated-state` 输入 `{sessionId,callId,taskId}`，为纯只读原会话状态查询。返回对应snapshot及started，未开始返回not_started；不创建会话/批次或调用SDK。它仅用于当前进程的丢回包核对，不提供跨服务重启恢复，也不授权重新启动任务。完整合同与验证见 依赖接线（开发机来源：`reference/agent-delegation-integration.md`）。
