@@ -4,7 +4,7 @@
 
 以 TapNow 官方界面与安装包为功能和交互参考，在本机实现前后端、资源与持久化。**项目仍在开发，尚未完成全站一比一验收。** 运行不需要 TapNow 账号或服务；生成能力通过独立供应商适配器接入。本项目与 TapNow 无隶属关系。
 
-[快速开始](#快速开始) · [当前能力](#当前能力) · [API 配置](#api-配置) · [未完成项](#未完成项) · [文档导航](docs/README.md)
+[快速开始](#快速开始) · [功能截图](#功能截图) · [当前能力](#当前能力) · [API 配置](#api-配置) · [未完成项](#未完成项) · [文档导航](docs/README.md)
 
 ## 快速开始
 
@@ -24,6 +24,22 @@ pnpm dev
 
 FFmpeg 已安装在其他位置时，可配置 `FFMPEG_PATH`、`FFPROBE_PATH`。组件预览位于 http://localhost:4173/component-library/ 。
 
+## 功能截图
+
+以下是 **2026-10-03 本地应用的实际界面**，复用正式画布、编辑器、Agent 和 WebGL 片场。使用隔离示例数据和仓库内模型；未调用生成模型。截图保留当前应用标识，品牌替换仍按功能完成后的计划执行。
+
+| 无限画布：文本、素材、连线和片场入口 | 图片编辑：图层、选区与变换工具 |
+| --- | --- |
+| ![本地无限画布及素材连线](docs/screenshots/canvas.jpg) | ![实际 Fabric 图片图层编辑器](docs/screenshots/image-editor.jpg) |
+| **3D 片场：本地 GLB 导入和场景树** | **Agent：欢迎建议、附件与模型控制** |
+| ![Three.js 片场中的办公椅模型](docs/screenshots/studio.jpg) | ![本地 Agent 对话页面](docs/screenshots/agent.jpg) |
+
+本机智能剪辑：实际 FFmpeg 输出、视频播放控件和来源连线。
+
+![本机智能剪辑得到三段真实视频](docs/screenshots/video-trim.jpg)
+
+截图证明对应页面的实际渲染，不代表全部功能已验收。[截图来源与复现步骤](docs/screenshots/README.md)。
+
 ## 当前能力
 
 下表描述已经接入的能力，不代表所有状态、菜单和视觉细节均通过最终验收。
@@ -39,7 +55,7 @@ FFmpeg 已安装在其他位置时，可配置 `FFMPEG_PATH`、`FFPROBE_PATH`。
 
 Agent 应用已登记 22 个版本 URI、20 个功能族，包含剧本、分镜、人物、学习、产品等工作流。**登记覆盖不等于全部页面和交互验收完成。**
 
-最新增量：原生蒙版擦除/重绘/扩图、ElevenLabs 音效、音频数字输入关闭保护、千节点布局优化，以及片场目录/分页焦点。定向浏览器操作与限制见 [本批验收](docs/LOCAL-MASKED-SOUND-AND-PERFORMANCE-20261003.md)。
+最新增量：视频手动/智能剪辑增加项目和来源保护，等待实际保存确认，保存失败可复用原结果重试；实际 FFmpeg、刷新回读与迟到拒绝见[剪辑验收](docs/VIDEO-TRIM-RESULT-RECOVERY-20261003.md)。此前的原生蒙版、ElevenLabs 音效及画布/片场性能优化见[上一批验收](docs/LOCAL-MASKED-SOUND-AND-PERFORMANCE-20261003.md)。
 
 ## API 配置
 
@@ -96,7 +112,7 @@ scripts/、tests/         构建、派生资源、定向检查与回归
 docs/                  配置、功能合同、验收证据与历史记录
 ```
 
-根目录旧业务模块仍是运行依赖，按修改范围逐步迁移，不要直接移动或删除。[结构约定](docs/PROJECT-STRUCTURE.md)
+根目录旧业务模块仍是运行依赖，按修改范围逐步迁移，不要直接移动或删除。[结构约定](docs/PROJECT-STRUCTURE.md) · [功能入口、构建与定向验证](docs/DEVELOPMENT-GUIDE.md)
 
 普通前端模块直接加载。修改对应编辑器入口后运行相应构建命令：
 
