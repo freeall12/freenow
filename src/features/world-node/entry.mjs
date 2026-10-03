@@ -1,6 +1,7 @@
 import {models, config, draft, references, prepare} from './model.mjs';
 import {captureWorldSourceGuard} from './media.mjs';
 import {worldProviderPresentation} from './provider-labels.mjs';
+import {worldRendererError} from './render-capabilities.mjs';
 import {icons} from '../canvas-connections/icons.mjs';
 import {controls} from './icons.mjs';
 import '../image-panorama/entry.mjs';
@@ -18,6 +19,7 @@ let activeId, panelKey, popover, popoverAnchor, selecting = false, composing = f
 let promptTimer;
 const pending = new Set();
 const get = id => app.getState().nodes.find(node => node.id === id);
+const submissionError = plan => worldRendererError(plan.model) || plan.error;
 function update(settings) {clearTimeout(promptTimer); const node = get(activeId), input = panel.querySelector('textarea'); if (node) {const next = {...config(node), ...(input ? {prompt: input.value} : {}), ...settings}; if (JSON.stringify(next) !== JSON.stringify(config(node))) app.updateNode(node.id, {worldConfig: next});}}
 function closePopover(restore = false) {popover?.remove(); popover = null; popoverAnchor?.setAttribute('aria-expanded', 'false'); if (restore && popoverAnchor?.isConnected) popoverAnchor.focus(); popoverAnchor = null;}
 function openPopover(anchor, title, items, width = 280) {
@@ -55,7 +57,7 @@ async function generate() {
   const node = get(id); if (!node || pending.has(node.id)) return;
   if (worldGenerationBusy(app, node.id, window.GenerationAPI)) {app.notify('此世界节点已有生成任务，请查询已有任务'); return;}
   const refs = references(node.id, app.getState()), plan = prepare(node, refs);
-  if (plan.error) {app.notify(plan.error); return;}
+  const error = submissionError(plan); if (error) {app.notify(error); return;}
   const sourceGuard = captureWorldSourceGuard(node, refs, {getNode: get, resolveReferences: () => references(id, app.getState())});
   let taskSignal;
   const guard = () => {if (taskSignal?.aborted) throw new DOMException('世界生成已取消', 'AbortError'); sourceGuard();};
@@ -100,7 +102,7 @@ function build(node, refs, plan) {
     const input = el('textarea', 'world-prompt'); input.ariaLabel = '3D 提示词'; input.placeholder = plan.model.outputType === 'asset' ? '描述一个 3D 资产...' : '想象一个 3D 世界...'; input.value = settings.prompt; input.disabled = busy;
     input.oncompositionstart = () => {composing = true;}; input.oncompositionend = () => {composing = false;};
     input.onchange = () => update({prompt: input.value});
-    input.oninput = () => {clearTimeout(promptTimer); const value = input.value, id = node.id; promptTimer = setTimeout(() => {const current = get(id); if (current && config(current).prompt !== value) app.updateNode(id, {worldConfig: {...config(current), prompt: value}});}, 300); const submit = panel.querySelector('.world-generate'); if (submit) {const plan = prepare({...node, worldConfig: {...settings, prompt: value}}, refs); submit.disabled = busy || !!plan.error; submit.title = plan.error || '生成';}};
+    input.oninput = () => {clearTimeout(promptTimer); const value = input.value, id = node.id; promptTimer = setTimeout(() => {const current = get(id); if (current && config(current).prompt !== value) app.updateNode(id, {worldConfig: {...config(current), prompt: value}});}, 300); const submit = panel.querySelector('.world-generate'); if (submit) {const plan = prepare({...node, worldConfig: {...settings, prompt: value}}, refs), error = submissionError(plan); submit.disabled = busy || !!error; submit.title = error || '生成';}};
     input.onkeydown = event => {if ((event.metaKey || event.ctrlKey) && event.key === 'Enter' && !composing) {event.preventDefault(); update({prompt: input.value}); void generate();}};
     panel.append(input);
   }
@@ -122,7 +124,9 @@ function build(node, refs, plan) {
     const pano = button('输入图片类型', () => openPopover(pano, '输入图片类型', [{label: '平面图', selected: !settings.isPano, run: () => update({isPano: false})}, {label: '全景图', selected: settings.isPano, run: () => update({isPano: true})}], 260));
     pano.textContent = settings.isPano ? '全景图' : '平面图'; pano.disabled = busy; footer.append(pano);
   }
-  const submit = button(busy ? '生成中' : '生成', generate); submit.classList.add('world-generate'); submit.disabled = busy || !!plan.error; submit.title = plan.error || '生成'; footer.append(submit); panel.append(footer);
+  const error = submissionError(plan), submit = button(busy ? '生成中' : '生成', generate); submit.classList.add('world-generate'); submit.disabled = busy || !!error; submit.title = error || '生成'; footer.append(submit); panel.append(footer);
+  const rendererError = worldRendererError(plan.model);
+  if (rendererError) {const message = el('p', 'world-prompt-disabled world-renderer-unavailable', rendererError); message.setAttribute('role', 'status'); panel.append(message);}
 }
 
 const covers = new WeakMap();
@@ -184,7 +188,7 @@ function refresh(event) {
   activeId = node.id; panel.hidden = selecting;
   const refs = references(node.id, state), plan = prepare(node, refs), {prompt, ...settings} = config(node), key = JSON.stringify([node.id, settings, refs, pending.has(node.id), selecting]);
   if (key !== panelKey) {panelKey = key; build(node, refs, plan);}
-  else {const input = panel.querySelector('textarea'); if (input && document.activeElement !== input) input.value = prompt; const submit = panel.querySelector('.world-generate'); if (submit && document.activeElement !== input) {submit.disabled = pending.has(node.id) || !!plan.error; submit.title = plan.error || '生成';}}
+  else {const input = panel.querySelector('textarea'); if (input && document.activeElement !== input) input.value = prompt; const submit = panel.querySelector('.world-generate'); if (submit && document.activeElement !== input) {const error = submissionError(plan); submit.disabled = pending.has(node.id) || !!error; submit.title = error || '生成';}}
   positionPanel(node, state);
 }
 document.addEventListener('canvas:render', refresh);

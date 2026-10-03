@@ -2,6 +2,7 @@ import {models,config,prepare,references,sourceReference} from '../world-node/mo
 import {captureWorldSourceGuard} from '../world-node/media.mjs';
 import {worldProviderPresentation} from '../world-node/provider-labels.mjs';
 import {assertWorkflowRequestBudget} from '../agent-workflows/media-transport.mjs';
+import {worldRendererCapabilities,worldRendererError,assertWorldRendererSupport} from '../world-node/render-capabilities.mjs';
 
 const active=new WeakMap();
 const fail=(code,message)=>Object.assign(Error(message),{code});
@@ -22,8 +23,8 @@ function resolveReferences(app,node,args){
 export function readWorld({nodeId}={}, {app,metadata}={}){
  const node=nodeId?target(app,nodeId):null;
  const refs=node?references(node.id,app.getState()):[];
- return {models:models.map(({icon,...model})=>({...model,modes:model.provider==='tripo'?['TEXT_TO_WORLD','IMAGE_TO_WORLD']:['TEXT_TO_WORLD','IMAGE_TO_WORLD','MULTI_IMAGE_TO_WORLD','PANORAMA_TO_WORLD','VIDEO_TO_WORLD'],maxImages:model.provider==='tripo'?1:8,maxVideos:model.provider==='tripo'?0:1,materials:model.provider==='tripo'?['geometry','texture','pbr']:[],promptWithImage:model.provider!=='tripo',configuration:{text:worldProviderPresentation(model,metadata),image:worldProviderPresentation(model,metadata,{image:true})}})),
-  source:'captured-official-catalog',liveProviderVerified:false,outputRenderer:{formats:['glb'],gaussianSplat:false},
+ return {models:models.map(({icon,...model})=>({...model,modes:model.provider==='tripo'?['TEXT_TO_WORLD','IMAGE_TO_WORLD']:['TEXT_TO_WORLD','IMAGE_TO_WORLD','MULTI_IMAGE_TO_WORLD','PANORAMA_TO_WORLD','VIDEO_TO_WORLD'],maxImages:model.provider==='tripo'?1:8,maxVideos:model.provider==='tripo'?0:1,materials:model.provider==='tripo'?['geometry','texture','pbr']:[],promptWithImage:model.provider!=='tripo',localRenderer:{supported:!worldRendererError(model),error:worldRendererError(model)},configuration:{text:worldProviderPresentation(model,metadata),image:worldProviderPresentation(model,metadata,{image:true})}})),
+  source:'captured-official-catalog',liveProviderVerified:false,outputRenderer:worldRendererCapabilities(),
   ...(node?{nodeId:node.id,settings:config(node),references:refs.map(({url,text,...ref})=>({...ref,available:ref.type==='text'?!!text?.trim():!!url})),resource:node.worldResource?{format:node.worldResource.format,name:node.worldResource.name,bytes:node.worldResource.bytes,outputType:node.outputType}:null}:{}),
   note:'配置原生 Tripo 或支持该操作的网关后可提交。MiniMax H3 是独立视频模型，不属于本 3D 目录。当前本地仅能应用 GLB；高斯泼溅原生格式尚不能预览，不会伪装为成功。'};
 }
@@ -37,7 +38,8 @@ export async function startWorldGeneration(args,{app,api,signal,onSubmitted,mate
  if(typeof settings.prompt!=='string'||settings.prompt.length>12000||typeof settings.isPano!=='boolean'||!['geometry','texture','pbr'].includes(settings.material))throw fail('invalid_world_settings','世界生成参数无效');
  const refs=resolveReferences(app,node,args);
  if(refs.some(ref=>ref.type!=='text'&&!ref.url))throw fail('missing_reference_media','参考节点尚无实际媒体，不能退回纯文字生成');
- const plan=prepare({...node,worldConfig:settings},refs);
+  const plan=prepare({...node,worldConfig:settings},refs);
+  assertWorldRendererSupport(plan.model);
  if(plan.error)throw fail('invalid_world_inputs',plan.error);
  if(plan.promptDisabled&&(settings.prompt.trim()||refs.some(ref=>ref.type==='text'&&ref.text?.trim())))throw fail('unsupported_world_prompt','此模型的图生3D不支持文字提示，请显式清空提示并移除文字参考');
  if(settings.isPano&&(plan.model.provider==='tripo'||plan.imageCount!==1||plan.videoCount))throw fail('invalid_panorama_input','全景输入仅适用于世界模型的一张图片');

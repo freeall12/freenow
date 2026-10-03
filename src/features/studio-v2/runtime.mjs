@@ -14,7 +14,7 @@ import { TransformControls } from 'three/addons/controls/TransformControls.js';
 import { GroundGrid } from './grid.mjs';
 import { Navigation } from './navigation.mjs';
 import {createViewportKeyHandler} from './viewport-shortcuts.mjs';
-import { primitive, exportGlb, loadSaved, disposeModel } from './model-io.mjs';
+import { primitive, exportGlb, loadSaved, disposeModel, disposeLoadedModel } from './model-io.mjs';
 import {planSceneRemoval} from './scene-removal.mjs';
 import {importSceneModel,redoScene} from './scene-import.mjs';
 export const defaultLighting={azimuth:Math.atan2(4,6)*180/Math.PI,elevation:Math.atan2(8,Math.hypot(4,6))*180/Math.PI};
@@ -90,7 +90,7 @@ export class SceneRuntime {
     catch(error){this.saveError=error;this.onChange?.('save-error');throw error;}
     finally{this.saving=null;}
   }
-  async add(kind,properties={}){let object;if(kind==='camera'){object=new THREE.PerspectiveCamera(50,16/9,.01,1000);object.name=properties.name||'镜头';}else if(kind==='model'){const gltf=await loadSaved(properties.modelUrl||properties.sourceUrl||properties.url);return this.addObject(gltf.scene,properties,gltf.animations);}else if(['actor','tree'].includes(kind)){const gltf=await loadSaved('/assets/studio/'+(kind==='actor'?'character':'tree')+'.glb');return this.addObject(gltf.scene,properties,gltf.animations);}else if(!['cube','sphere','pyramid','cylinder','cone'].includes(kind))throw Error('不支持的对象类型：'+kind);else object=primitive(kind,properties.name||{cube:'立方体',sphere:'球体',pyramid:'四棱锥'}[kind]||kind);return this.addObject(object,properties);}
+  async add(kind,properties={}){let object;if(kind==='camera'){object=new THREE.PerspectiveCamera(50,16/9,.01,1000);object.name=properties.name||'镜头';}else if(['model','actor','tree'].includes(kind)){const url=kind==='model'?(properties.modelUrl||properties.sourceUrl||properties.url):'/assets/studio/'+(kind==='actor'?'character':'tree')+'.glb',gltf=await loadSaved(url);try{return await this.addObject(gltf.scene,properties,gltf.animations);}finally{disposeLoadedModel(gltf,{retain:this.content});}}else if(!['cube','sphere','pyramid','cylinder','cone'].includes(kind))throw Error('不支持的对象类型：'+kind);else object=primitive(kind,properties.name||{cube:'立方体',sphere:'球体',pyramid:'四棱锥'}[kind]||kind);return this.addObject(object,properties);}
   async addObject(object,properties={},clips=[],{beforeApply}={}){
     this.assertReady();
     beforeApply?.();
@@ -99,7 +99,12 @@ export class SceneRuntime {
     const revision=this.revision,staging=new THREE.Group();staging.add(this.playback.document(),cloneDocument(object));await exportGlb(staging,[...this.animations,...clips]);if(this.closed)throw Error('片场已关闭');if(revision!==this.revision)throw Error('场景已被更新，本次未导入。请重试。');this.assertReady();
     beforeApply?.();this.beginEdit();this.content.add(object);this.animations.push(...clips);this.assignIds();this.resetMixer();this.syncShots();this.focus(this.content);this.select(object);this.commit();try{await this.flush();}catch(error){error.applied=true;throw error;}return {id:object.userData.studioId};
   }
-  async importPrepared(prepared,index){const scene=prepared.loaded.scenes[index];if(!scene?.children.length)throw Error('所选场景没有可导入的节点。');return this.addObject(scene,{},prepared.loaded.animations);}
+  async importPrepared(prepared,index){
+    const scene=prepared.loaded.scenes[index];if(!scene?.children.length)throw Error('所选场景没有可导入的节点。');
+    // Studio IDs belong to the source document; UUID animation bindings stay intact.
+    scene.traverse(object=>{delete object.userData.studioId;});
+    return this.addObject(scene,{},prepared.sceneAnimations?.[index]??prepared.loaded.animations);
+  }
   select(value){this.motion.close(false);if(this.exporting)throw Error('视频正在导出，请等待完成');this.playback.stop();const object=typeof value==='string'?this.find(value):value;this.selected=object||null;if(object?.isCamera&&this.shotId!==object.userData.studioId){this.shotId=object.userData.studioId;this.motionIndex=-1;}this.transform.detach();this.centeredTransform.detach();if(object){if(!this.animatedCamera(object)){this.centeredTransform.attach(object);this.transform.attach(this.centeredTransform.pivot);}this.box.setFromObject(object);}else this.box.visible=false;this.dirty=true;this.onChange?.('selection');}
   animatedCamera(object){return !!object?.isCamera&&this.playback.catalog().some(clip=>clip.cameraIds.includes(object.userData.studioId));}
   setMode(mode){this.assertReady();if(this.motion.open){this.motion.setMode(mode);return;}this.mode=mode;this.transform.setMode(mode);this.dirty=true;this.onChange?.('selection');}

@@ -7,6 +7,7 @@ import {DEFAULT_FOCAL, viewportFov, captureSize} from './preview-optics.mjs';
 import {previewEnvironment, previewLights} from './preview-environment.mjs';
 import {environmentControls} from './preview-environment-ui.mjs';
 import {previewNavigation} from './preview-navigation.mjs';
+import {assertWorldRendererSupport} from './render-capabilities.mjs';
 
 const app = window.CanvasApp;
 const el = (tag, cls, text) => {const node = document.createElement(tag); node.className = cls || ''; if (text !== undefined) node.textContent = text; return node;};
@@ -70,7 +71,7 @@ export async function importFile(file) {
 export async function materialize(output, outputType, options = {}) {
   const url = output?.url || output?.model;
   if (typeof url !== 'string' || !url) throw Error('3D 结果缺少实际模型地址');
-  if (output.format && output.format !== 'glb') throw Error('此 3D 结果格式的渲染器尚未接入；请保留任务结果，或由适配器返回 GLB');
+  assertWorldRendererSupport(output);
   assertReadableResultMedia(output);
   const scope = materializationScope(options);
   try {

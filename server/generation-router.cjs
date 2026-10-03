@@ -6,6 +6,7 @@ const {createFalProvider}=require('./generation-fal.cjs');
 const {createTripoProvider}=require('./generation-tripo.cjs');
 const {createMiniMaxProvider}=require('./generation-minimax.cjs');
 const {createElevenLabsProvider}=require('./generation-elevenlabs.cjs');
+const {createMarbleProvider}=require('./generation-marble.cjs');
 const {endpoint:tasksEndpoint,protectGenerationFetch}=require('./generation-endpoint-policy.cjs');
 const {rejectCredentials}=require('./generation-durable.cjs');
 const object=value=>value&&typeof value==='object'&&!Array.isArray(value);
@@ -97,9 +98,9 @@ function createGenerationRouter({providers={},routes={},fetchImpl=fetch,localPor
   if(typeof providers==='string')providers=JSON.parse(providers);if(typeof routes==='string')routes=JSON.parse(routes);
   if(!object(providers)||!object(routes)||Object.keys(providers).length>100||Object.keys(routes).length>100)throw Error();
   for(const [id,config]of Object.entries(providers)){
-   if(!providerPattern.test(id)||!object(config)||!['tasks-v1','openai-native','ark-native','fal-native','tripo-native','minimax-native','elevenlabs-native'].includes(config.protocol)||Object.keys(config).some(key=>!['protocol','baseUrl','apiKey','modelMap','client'].includes(key))||['baseUrl','apiKey'].some(key=>config[key]!==undefined&&typeof config[key]!=='string'))throw Error();
+   if(!providerPattern.test(id)||!object(config)||!['tasks-v1','openai-native','ark-native','fal-native','tripo-native','minimax-native','elevenlabs-native','marble-native'].includes(config.protocol)||Object.keys(config).some(key=>!['protocol','baseUrl','apiKey','modelMap','client'].includes(key))||['baseUrl','apiKey'].some(key=>config[key]!==undefined&&typeof config[key]!=='string'))throw Error();
    if(config.baseUrl)tasksEndpoint(config.baseUrl,{localPort});if(config.client?.baseURL)tasksEndpoint(config.client.baseURL,{localPort});
-   const provider=(config.protocol==='openai-native'?createOpenAINativeProvider:config.protocol==='ark-native'?createArkProvider:config.protocol==='fal-native'?createFalProvider:config.protocol==='tripo-native'?createTripoProvider:config.protocol==='minimax-native'?createMiniMaxProvider:config.protocol==='elevenlabs-native'?createElevenLabsProvider:createTasksProvider)({...config,fetchImpl});
+   const provider=(config.protocol==='openai-native'?createOpenAINativeProvider:config.protocol==='ark-native'?createArkProvider:config.protocol==='fal-native'?createFalProvider:config.protocol==='tripo-native'?createTripoProvider:config.protocol==='minimax-native'?createMiniMaxProvider:config.protocol==='elevenlabs-native'?createElevenLabsProvider:config.protocol==='marble-native'?createMarbleProvider:createTasksProvider)({...config,fetchImpl});
    if(config.protocol!=='tasks-v1'&&config.protocol!=='elevenlabs-native'){
     const map=provider.metadata.configurationError?{}:typeof config.modelMap==='string'?JSON.parse(config.modelMap):config.modelMap||{};
     provider.metadata={...provider.metadata,capabilities:{...provider.metadata.capabilities,models:Object.fromEntries(Object.entries(map).map(([alias,entry])=>{

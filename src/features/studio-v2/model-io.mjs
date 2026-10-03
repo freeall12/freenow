@@ -5,6 +5,7 @@ import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import {modelResourceLifecycle} from './model-resource-lifecycle.mjs';
+import {captureSceneAnimationBindings,cloneSceneAnimations} from './scene-animation-bindings.mjs';
 export const maxBytes=12*1024*1024;
 const fail=(message,code)=>Object.assign(new Error(message),{code});
 const dataUrl=file=>new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(r.result);r.onerror=()=>reject(r.error);r.readAsDataURL(file);});
@@ -40,15 +41,23 @@ export async function inspectModel(file,resources=[],{signal}={}){
   finally{signal?.removeEventListener('abort',onAbort);disposeDecoder();}
   lifecycle.transfer();
   try {
+  const {bindings,sourceBindings}=await captureSceneAnimationBindings(loaded);check();
   // Bind by UUID before restoring names: GLTFLoader disambiguates duplicate rig names.
-  for(const clip of loaded.animations)for(const track of clip.tracks){const parsed=THREE.PropertyBinding.parseTrackName(track.name);const object=loaded.scenes.map(scene=>THREE.PropertyBinding.findNode(scene,parsed.nodeName)).find(Boolean);if(object)track.name=object.uuid+'.'+parsed.propertyName;}
-  importEasing(loaded);
+  loaded.animations.forEach((clip,index)=>clip.tracks.forEach((track,trackIndex)=>{const name=sourceBindings[index][trackIndex];if(name)track.name=name;}));
+  // Three reduces parser associations per scene and cloned shared roots lose them.
+  // Animation dependencies are already loaded; use their cached source objects
+  // to recover sampler extras before cloning the scene-specific tracks.
+  const easingNodes=new Map();
+  for(const clip of json.animations||[])for(const channel of clip.channels||[])if(clip.samplers[channel.sampler]?.extras?.tapnow_easing_v1&&!easingNodes.has(channel.target.node))easingNodes.set(channel.target.node,await loaded.parser.getDependency('node',channel.target.node));
+  check();importEasing(loaded,easingNodes);
+  const sceneAnimations=cloneSceneAnimations(loaded.animations,bindings),defaultScene=Math.max(0,loaded.scenes.indexOf(loaded.scene));
+  loaded.animations=sceneAnimations[defaultScene];
   for(const scene of loaded.scenes)scene.traverse(object=>{const originalName=object.userData.studioDisplayName??json.nodes?.[loaded.parser.associations.get(object)?.nodes]?.name;if(originalName!==undefined)object.name=originalName;});
-  return {loaded,scenes:loaded.scenes.map((scene,index)=>({index,name:scene.name||'场景 '+(index+1)})),defaultScene:Math.max(0,loaded.scenes.indexOf(loaded.scene)),file};
+  return {loaded,sceneAnimations,scenes:loaded.scenes.map((scene,index)=>({index,name:scene.name||'场景 '+(index+1)})),defaultScene,file};
   }catch(error){disposeLoadedModel(loaded);throw error;}
 }
 export async function exportGlb(scene,animations=[]){scene.traverse(object=>{object.userData.studioDisplayName=object.name;});const {sampled,plugin}=exportEasing(scene,animations);const data=await new GLTFExporter().register(plugin).parseAsync(scene,{binary:true,animations:sampled,onlyVisible:false});if(data.byteLength>maxBytes)throw fail('文件或合并后的场景超过 12 MiB，请精简模型或纹理后重试。','size');return new Blob([data],{type:'model/gltf-binary'});}
-export async function loadSaved(url){const resolved=await window.LocalAssets.url(url),response=await fetch(resolved);if(!response.ok)throw Error('本地模型读取失败');const blob=await response.blob();return (await inspectModel(new File([blob],'scene.glb'))).loaded;}
+export async function loadSaved(url){const resolved=await window.LocalAssets.url(url),response=await fetch(resolved);if(!response.ok)throw Error('本地模型读取失败');const blob=await response.blob(),loaded=(await inspectModel(new File([blob],'scene.glb'))).loaded;disposeLoadedModel(loaded,{retain:loaded.scene});loaded.scenes=[loaded.scene];return loaded;}
 export function primitive(kind,name){const geometry=kind==='cube'?new THREE.BoxGeometry(1,1,1):kind==='sphere'?new THREE.SphereGeometry(.5,32,16):kind==='cylinder'?new THREE.CylinderGeometry(.5,.5,1,32):kind==='cone'?new THREE.ConeGeometry(.5,1,32):new THREE.ConeGeometry(Math.SQRT1_2,1,4);if(kind==='pyramid')geometry.rotateY(Math.PI/4);const object=new THREE.Mesh(geometry,new THREE.MeshStandardMaterial({color:new THREE.Color(.8,.8,.8),roughness:.8}));object.name=name;object.position.y=.5;object.castShadow=object.receiveShadow=true;return object;}
 export function disposeModel(root,{retain}={}){const geometries=new Set(),materials=new Set(),textures=new Set();root.traverse(o=>{if(o.geometry)geometries.add(o.geometry);for(const mat of o.material?Array.isArray(o.material)?o.material:[o.material]:[]){materials.add(mat);for(const value of Object.values(mat))if(value?.isTexture)textures.add(value);}});if(retain)retain.traverse(o=>{geometries.delete(o.geometry);for(const mat of o.material?Array.isArray(o.material)?o.material:[o.material]:[]){materials.delete(mat);for(const value of Object.values(mat))if(value?.isTexture)textures.delete(value);}});geometries.forEach(g=>g.dispose());materials.forEach(m=>m.dispose());textures.forEach(t=>t.dispose());}
-export function disposeLoadedModel(loaded){const scenes=new Set([loaded.scene,...(loaded.scenes||[])].filter(Boolean));disposeModel({traverse:callback=>{for(const scene of scenes)scene.traverse(callback);}});}
+export function disposeLoadedModel(loaded,{retain}={}){const scenes=new Set([loaded.scene,...(loaded.scenes||[])].filter(Boolean));disposeModel({traverse:callback=>{for(const scene of scenes)scene.traverse(callback);}},{retain});}

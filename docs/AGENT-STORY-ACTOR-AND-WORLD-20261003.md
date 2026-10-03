@@ -43,7 +43,7 @@
 
 已准备原生上传/五类输入/原operation恢复适配器，并补齐媒体预检查、SPZ世界元数据持久化与历史存档合同。世界完整LOD、语义尺度/地面偏移、可选碰撞网格与全景保持原样，不把SPZ当成GLB。
 
-当前没有向生产router注册`marble-native`，也没有启用SPZ生成按钮的新通路。真实Spark渲染依赖尚待新增生产依赖授权；现有世界预览/片场的保存、撤销、镜头渲染还需实际SPZ适配。仅填Key尚不能完成这部分。参见[原生适配合同](MARBLE-NATIVE-SETUP.md)和[渲染接线方案](SPARK-INTEGRATION-PLAN.md)。
+后续续批已向生产 router/gateway 注册 `marble-native`，支持原任务恢复及实际资源本机归档；Node/Agent 在派发前检查本地渲染能力，当前 SPZ 仍禁止提交。真实Spark渲染依赖尚待新增生产依赖授权；现有世界预览/片场的保存、撤销、镜头渲染还需实际SPZ适配。仅填Key尚不能完成这部分。参见[原生适配合同](MARBLE-NATIVE-SETUP.md)和[渲染接线方案](SPARK-INTEGRATION-PLAN.md)。
 
 ## 验证范围
 

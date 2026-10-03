@@ -1,4 +1,4 @@
-import {inspectModel, disposeModel, maxBytes} from './model-io.mjs';
+import {inspectModel, disposeLoadedModel, maxBytes} from './model-io.mjs';
 
 export function assertSceneBinding(runtime, args, {restoring = false} = {}) {
   runtime.assertReady();
@@ -63,7 +63,7 @@ export async function importSceneModel(runtime, args, {signal} = {}) {
     // Preserve source identity in the actual document and export alongside the model.
     object.userData.studioImport = {sourceNodeId: node.id, sourceAsset: source.url, sceneIndex};
     let result;
-    try { result = await runtime.addObject(object, properties, prepared.loaded.animations, {beforeApply: guard}); }
+    try { result = await runtime.addObject(object, properties, prepared.sceneAnimations?.[sceneIndex]??prepared.loaded.animations, {beforeApply: guard}); }
     catch (error) {
       if (object.parent === runtime.content) {
         adopted = true;
@@ -75,7 +75,7 @@ export async function importSceneModel(runtime, args, {signal} = {}) {
     return {...result, applied: true, version: 2, nodeId: runtime.nodeId, sessionId: runtime.sessionId,
       revision: runtime.revision, savedRevision: runtime.savedRevision, sourceNodeId: node.id, sourceAsset: source.url, sceneIndex};
   } finally {
-    for (const scene of prepared?.loaded.scenes || []) if (!adopted || !scene.parent) disposeModel(scene, {retain: runtime.content});
+    if(prepared)disposeLoadedModel(prepared.loaded,{retain:adopted?runtime.content:undefined});
   }
 }
 

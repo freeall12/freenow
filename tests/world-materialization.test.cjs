@@ -45,6 +45,7 @@ test('a late decoded model is disposed once when cancelled or guard rejects afte
 async function fixture({inspect, rendererFailure = false, setupFailure = false} = {}) {
   const THREE = await import('three'), {disposeLoadedModel, maxBytes} = await import('../src/features/studio-v2/model-io.mjs');
   const {assertReadableMediaSource, assertReadableResultMedia} = await import('../src/features/generation-results/media-ref.mjs');
+  const {assertWorldRendererSupport} = await import('../src/features/world-node/render-capabilities.mjs');
   const {materializationScope, readModelBlob} = await moduleReady, puts = [], disposed = [], geometry = new THREE.BoxGeometry(), material = new THREE.MeshStandardMaterial();
   geometry.addEventListener('dispose', () => disposed.push('geometry')); material.addEventListener('dispose', () => disposed.push('material'));
   const scene = new THREE.Scene(), other = new THREE.Scene(); scene.add(new THREE.Mesh(geometry, material)); other.add(new THREE.Mesh(geometry, material));
@@ -55,7 +56,7 @@ async function fixture({inspect, rendererFailure = false, setupFailure = false} 
     dispose() {disposed.push('renderer');} forceContextLoss() {disposed.push('context');}
   }
   const context = {THREE: {...THREE, WebGLRenderer: Renderer}, disposeLoadedModel, disposeModel() {assert.fail('must dispose all loaded scenes');}, maxBytes,
-    assertReadableMediaSource, assertReadableResultMedia, inspectModel: inspect || (async () => ({loaded})), materializationScope, readModelBlob, structuredClone, Blob, File, AbortController, DOMException, setTimeout, clearTimeout, setInterval, clearInterval, devicePixelRatio: 1,
+    assertReadableMediaSource, assertReadableResultMedia, assertWorldRendererSupport, inspectModel: inspect || (async () => ({loaded})), materializationScope, readModelBlob, structuredClone, Blob, File, AbortController, DOMException, setTimeout, clearTimeout, setInterval, clearInterval, devicePixelRatio: 1,
     previewLights() {if (setupFailure) throw Error('stage setup failed');}, DEFAULT_FOCAL: 35, viewportFov: () => 45,
     window: {CanvasApp: {}, LocalAssets: {url: async value => value, put: async value => {puts.push(value); return 'asset:' + puts.length;}}, LocalMedia: {asDataUrl: async () => 'data:image/png;base64,REAL'}},
     document: {createElement: () => ({toBlob: callback => callback(new Blob(['png'], {type: 'image/png'}))})}, fetch: async () => new Response(bytes)};
@@ -152,5 +153,6 @@ test('legacy TapNow GLB is rejected before fetch and a local SPZ never claims re
   const f = await fixture();let reads = 0;f.context.fetch = async () => {reads++;assert.fail('must not read remote or unsupported format');};
   await assert.rejects(f.context.materialize({type:'model',url:'https://files.tapnow.media/old.glb',format:'glb'}),{code:'media_localization_required'});
   await assert.rejects(f.context.materialize({type:'model',url:'/api/generation/media/12345678-1234-4234-8234-000000000001',format:'spz',representation:'gaussianSplat'}),/渲染器尚未接入/);
+  await assert.rejects(f.context.materialize({type:'model',url:'/api/generation/media/12345678-1234-4234-8234-000000000001',representation:'gaussianSplat'}),{code:'world_renderer_unavailable'});
   assert.equal(reads,0);assert.equal(f.puts.length,0);
 });

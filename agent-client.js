@@ -457,21 +457,31 @@
  }
  import('./src/features/agent-composer/shortcuts.mjs').then(({installAgentShortcut})=>installAgentShortcut(toggle)).catch(error=>notice('Agent快捷键加载失败：'+error.message));
  // Official welcome DOM and fresh-session card layout: reference/agent-welcome-official-dom-20261002.json.
- const suggestions=[['风格','把这个项目的风格做成 Skill','沉淀题材、视觉关键词和镜头语言。','palette'],['Brainstorm','体验 Brainstorm 模式打开故事方向','提出差异明显、适合影像化的可能性。','brainstorm'],['记忆','帮我学习我的创作偏好','学习题材、风格、节奏和镜头偏好。','palette'],['下一步','帮我按我的风格继续创作','贴近我的画面气质和语言节奏推进。','palette']];let offset=0;
+ let welcomeModule=null,offset=0;
+ import('./src/features/agent-welcome/suggestions.mjs').then(module=>{welcomeModule=module;if(panel&&!draft().messages.length)render();}).catch(error=>notice('创作建议加载失败：'+error.message));
+ async function selectWelcomeSuggestion(id,d){
+  await composerReady;
+  if(!composerModule||!welcomeModule||!panel||draft()!==d||pageLeaving)return;
+  const input=welcomeModule.getWelcomeSuggestionInput(id);if(!input)return;
+  const doc=composerModule.textDocument(input.text),paragraph=doc.content[0];
+  if(input.references.length)paragraph.content=[...input.references.flatMap(ref=>[{type:'referenceMention',attrs:{...ref,scope:'personal'}},{type:'text',text:' '}]),...(paragraph.content||[])];
+  composerModule.applyComposerSnapshot(d,{doc});save();render();focusComposer();
+ }
  function welcomeImage(source,className=''){const image=el('img',className);image.src=source;image.alt='';image.draggable=false;image.setAttribute('aria-hidden','true');return image;}
  function updateWelcomeInput(d){const content=panel?.querySelector('.agent-welcome');if(content)content.hidden=Boolean(d.text?.trim());}
  function canvasWelcome(d){
   const space=el('div','agent-welcome-space'),welcome=el('section','agent-welcome'),hi=el('div','agent-hi');
   hi.append(welcomeImage('assets/agent-motion-slow.webp'),el('h2','','Hi New Tapper!'));welcome.append(hi,el('p','agent-welcome-question','今天一起创作点什么？'));
   const suggestionsWrap=el('div','agent-welcome-suggestions'),cards=el('div','agent-suggestions');
-  for(let i=0;i<2;i++){
-   const [type,title,desc,icon]=suggestions[(offset+i)%suggestions.length],card=btn(null,title,()=>{d.text=title;save();render();focusComposer();},'agent-suggestion'),heading=el('span','agent-suggestion-heading');
-   card.dataset.type=type;heading.append(welcomeImage(icon==='brainstorm'?'assets/agent-brainstorm.svg':'assets/agent-welcome-palette.svg','agent-suggestion-icon '+icon),el('strong','',title));
-   card.append(el('span','agent-suggestion-glow'),welcomeImage('assets/agent-welcome-arrow.svg','agent-suggestion-arrow'),heading,el('p','',desc));
+  const page=welcomeModule?.getCanvasWelcomeSuggestionPage({offset,size:2});
+  for(const item of page?.items||[]){
+   const {title,icon,icon_category}=welcomeModule.getWelcomeSuggestionCard(item.id),input=welcomeModule.getWelcomeSuggestionInput(item.id),card=btn(null,title,()=>{void selectWelcomeSuggestion(item.id,d);},'agent-suggestion'),heading=el('span','agent-suggestion-heading');
+   card.dataset.type=icon_category;heading.append(welcomeImage(input.references.length?'assets/agent-brainstorm.svg':icon,'agent-suggestion-icon '+(input.references.length?'brainstorm':'palette')),el('strong','',title));
+   card.append(el('span','agent-suggestion-glow'),welcomeImage('assets/agent-welcome-arrow.svg','agent-suggestion-arrow'),heading,el('p','',input.text));
    card.onpointermove=event=>{const rect=card.getBoundingClientRect();card.style.setProperty('--mouse-x',(event.clientX-rect.left)+'px');card.style.setProperty('--mouse-y',(event.clientY-rect.top)+'px');};
    card.onpointerleave=()=>{card.style.removeProperty('--mouse-x');card.style.removeProperty('--mouse-y');};cards.append(card);
   }
-  const refresh=btn(null,'换一组建议',()=>{offset=(offset+2)%suggestions.length;render();},'agent-refresh');refresh.append(welcomeImage('assets/agent-welcome-refresh.svg'));suggestionsWrap.append(cards,refresh);welcome.append(suggestionsWrap);welcome.hidden=Boolean(d.text?.trim());space.append(welcome);return space;
+  const refresh=btn(null,'换一组建议',()=>{if(page){offset=page.nextOffset;render();panel?.querySelector('.agent-refresh')?.focus();}},'agent-refresh');refresh.disabled=!page;refresh.append(welcomeImage('assets/agent-welcome-refresh.svg'));suggestionsWrap.append(cards,refresh);welcome.append(suggestionsWrap);welcome.hidden=Boolean(d.text?.trim());space.append(welcome);return space;
  }
  function refreshSceneContext(){
   if(!panel)return;const d=draft(),compose=panel.querySelector('.agent-composer');if(!compose)return;

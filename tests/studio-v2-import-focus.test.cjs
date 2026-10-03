@@ -9,6 +9,7 @@ test('completed imports restore their origin trigger even when runtime moves foc
   for(const {kind,applied,replace} of [{kind:'sphere'},{kind:null},{kind:'sphere',applied:true},{kind:'sphere',replace:true},{kind:null,applied:true,replace:true}]){
     const calls=[],origin={querySelector:()=>({value:'2'})},context={popup:origin,prepared:{defaultScene:0},importing:false,modelFile:{},resources:[],error:'',
       renderImport:()=>calls.push('render'),closePopup:restore=>calls.push(['close',restore]),notice:message=>calls.push(['notice',message])};
+    context.releasePrepared=()=>{context.prepared=null;calls.push('release');};
     const execute=async()=>{
       // Runtime adds select/focus the new object. Returning focus must not depend on
       // whether the popover still owns document.activeElement at completion.

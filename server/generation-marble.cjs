@@ -2,6 +2,7 @@
 const {createHash}=require('node:crypto');
 const {inlineImage}=require('./generation-image-input.cjs');
 const {rejectCredentials}=require('./generation-durable.cjs');
+const {publicMediaUrl}=require('./generation-media-download.cjs');
 const object=value=>value!==null&&typeof value==='object'&&!Array.isArray(value);
 const own=(value,key)=>Object.hasOwn(value,key);
 const failure=(message,code='unsupported_generation')=>Object.assign(Error(message),{code});
@@ -12,9 +13,7 @@ const resolutions=['500k','100k','150k','full_res'];
 const validId=value=>typeof value==='string'&&value!=='.'&&value!=='..'&&/^[A-Za-z0-9._:-]{1,200}$/.test(value);
 const canonical=value=>JSON.stringify(value,(_key,item)=>object(item)?Object.fromEntries(Object.keys(item).sort().map(key=>[key,item[key]])):item);
 function publicUrl(value){
- let url;try{if(typeof value!=='string'||value.length>8192)throw Error();url=new URL(value);}catch{throw localFailure('Marble 素材或资源需要有效的公网 HTTPS 地址');}
- const host=url.hostname.toLowerCase();
- if(url.protocol!=='https:'||url.username||url.password||host==='localhost'||host.endsWith('.localhost')||host.endsWith('.local')||host.includes(':')||/^(?:0|10|127|169\.254|192\.168)\./.test(host)||/^172\.(?:1[6-9]|2\d|3[01])\./.test(host))throw localFailure('Marble 地址须为不含凭据的公网 HTTPS 地址');
+ let url;try{url=publicMediaUrl(value);if(url.protocol!=='https:')throw Error();}catch{throw localFailure('Marble 素材或资源需要有效的公网 HTTPS 地址');}
  return url.href;
 }
 function parseMarbleModelMap(value){
@@ -50,8 +49,11 @@ function createMarbleProvider({baseUrl='',apiKey='',modelMap,fetchImpl=fetch}={}
  }catch{configurationError='configuration_invalid';mapping={};}
  const missing=[...(!apiKey?['GENERATION_API_KEY']:[]),...(!Object.keys(mapping).length?['GENERATION_MODEL_MAP']:[])],configured=!configurationError&&!missing.length;
  const fingerprint=createHash('sha256').update(canonical({protocol:'marble-native',endpoint,mapping})).digest('hex');
- const worldGeneration=Object.fromEntries(Object.entries(mapping).map(([alias,entry])=>[alias,{modes:entry.modes,displayModel:entry.displayModel,maxCount:1,maxImages:entry.modes.includes('MULTI_IMAGE_TO_WORLD')?8:entry.modes.some(mode=>['IMAGE_TO_WORLD','PANORAMA_TO_WORLD'].includes(mode))?1:0,maxImagesWithoutReconstruction:4,maxVideos:entry.modes.includes('VIDEO_TO_WORLD')?1:0,maxAudios:0,inlineImageMimeTypes:['image/png','image/jpeg','image/webp'],inlineVideoMimeTypes:['video/mp4','video/quicktime','video/webm','video/x-msvideo'],maxImageBytes:20*1024*1024,maxVideoBytes:40*1024*1024,splatResolutions:resolutions}]));
- const metadata={configured,protocol:'marble-native',missing,configurationError,capabilities:{kinds:Object.keys(mapping).length?['world.generate']:[],models:Object.fromEntries(Object.entries(mapping).map(([alias,entry])=>[alias,{kind:entry.kind,label:entry.displayModel}])),worldGeneration,references:true,remoteRecovery:true,remoteCancellation:false,verified:'official-schema-and-local-contract'}};
+ const worldGeneration=Object.fromEntries(Object.entries(mapping).map(([alias,entry])=>{
+  const multiple=entry.modes.includes('MULTI_IMAGE_TO_WORLD'),images=multiple||entry.modes.some(mode=>['IMAGE_TO_WORLD','PANORAMA_TO_WORLD'].includes(mode)),videos=entry.modes.includes('VIDEO_TO_WORLD');
+  return [alias,{modes:entry.modes,displayModel:entry.displayModel,maxCount:1,maxImages:multiple?8:images?1:0,maxImagesWithoutReconstruction:multiple?4:images?1:0,maxVideos:videos?1:0,maxAudios:0,inlineImageMimeTypes:images?['image/png','image/jpeg','image/webp']:[],inlineVideoMimeTypes:videos?['video/mp4','video/quicktime','video/webm','video/x-msvideo']:[],maxImageBytes:images?20*1024*1024:0,maxVideoBytes:videos?40*1024*1024:0,splatResolutions:resolutions}];
+ }));
+ const metadata={configured,protocol:'marble-native',missing,configurationError,capabilities:{kinds:Object.keys(mapping).length?['world.generate']:[],models:Object.fromEntries(Object.entries(mapping).map(([alias,entry])=>[alias,{kind:entry.kind,label:entry.displayModel}])),worldGeneration,references:Object.values(worldGeneration).some(profile=>profile.maxImages>0||profile.maxVideos>0),textReferences:false,output:{type:'model',format:'spz',representation:'gaussianSplat',coordinateSystem:'marble_raw_opencv'},remoteRecovery:true,remoteCancellation:false,verified:'official-schema-and-local-contract'}};
  function resolve(request){
   if(!configured)throw failure('Marble 尚未配置，请检查服务端 Key 与真实型号映射','configuration_required');
   rejectCredentials(request);
@@ -68,6 +70,7 @@ function createMarbleProvider({baseUrl='',apiKey='',modelMap,fetchImpl=fetch}={}
   if(request.references?.length)throw localFailure('Marble 参考素材须完整展开为 inputs');
   const inputs=request.inputs??[];
   if(!Array.isArray(inputs)||inputs.some(input=>!object(input)||!['image','video'].includes(input.type)||typeof input.url!=='string'||input.clip!=null||input.trim!=null))throw localFailure('Marble 仅支持已完整处理的图片或视频素材；裁切须先物化');
+  for(const input of inputs)if(input.sourceRange!==undefined){const range=input.sourceRange;if(input.type!=='video'||!object(range)||Object.keys(range).sort().join(',')!=='end,start'||!Number.isFinite(range.start)||!Number.isFinite(range.end)||range.start<0||range.end<=range.start)throw localFailure('Marble 已物化视频的来源范围无效，未上传或提交生成');}
   const images=inputs.filter(input=>input.type==='image'),videos=inputs.filter(input=>input.type==='video');
   if(images.length&&videos.length||videos.length>1||images.length>8)throw localFailure('Marble 不支持图片视频混用、多个视频或超过 8 张图片');
   if(p.isPano!==undefined&&![true,false,'auto'].includes(p.isPano))throw localFailure('Marble 全景标识无效');
@@ -132,6 +135,7 @@ function createMarbleProvider({baseUrl='',apiKey='',modelMap,fetchImpl=fetch}={}
   if(world.world_prompt?.type!==undefined&&world.world_prompt.type!==expectedType)throw failure('Marble 世界输入模式未确认','provider_identity_mismatch');
   let output;try{
    const assets=world.assets,splats=assets?.splats,semantics=splats?.semantics_metadata;
+   if(!object(assets)||assets.mesh!=null&&!object(assets.mesh)||assets.imagery!=null&&!object(assets.imagery))throw Error();
    if(!object(splats?.spz_urls)||!own(splats.spz_urls,stored.resolution)||!object(semantics)||!Number.isFinite(semantics.metric_scale_factor)||semantics.metric_scale_factor<=0||!Number.isFinite(semantics.ground_plane_offset))throw Error();
    const spzUrls={};for(const [lod,url]of Object.entries(splats.spz_urls)){if(!resolutions.includes(lod))throw Error();spzUrls[lod]=publicUrl(url);if(/\.(?:glb|gltf|ply|obj)$/i.test(new URL(url).pathname))throw Error();}
    const optionalUrl=url=>url==null?undefined:publicUrl(url),mesh={};
@@ -149,7 +153,7 @@ function createMarbleProvider({baseUrl='',apiKey='',modelMap,fetchImpl=fetch}={}
    let url,headers;try{
     if(!validId(value.media_asset?.media_asset_id)||value.media_asset.kind!==file.kind||value.media_asset.extension!==file.extension||value.upload_info?.upload_method!=='PUT')throw Error();
     url=publicUrl(value.upload_info.upload_url);headers=value.upload_info.required_headers??{};
-    if(!object(headers)||Object.entries(headers).some(([key,value])=>!/^[-A-Za-z0-9]+$/.test(key)||typeof value!=='string'||/[\r\n\x00]/.test(value)||/^(authorization|cookie|wlt-api-key|host|content-length)$/i.test(key)))throw Error();
+    if(!object(headers)||Object.keys(headers).length>24||new Set(Object.keys(headers).map(key=>key.toLowerCase())).size!==Object.keys(headers).length||Object.entries(headers).reduce((total,[key,value])=>total+key.length+(typeof value==='string'?value.length:0),0)>16384||Object.entries(headers).some(([key,value])=>!/^[-A-Za-z0-9]{1,80}$/.test(key)||typeof value!=='string'||/[\x00-\x1f\x7f]/.test(value)||/^(authorization|proxy-authorization|cookie|set-cookie|wlt-api-key|host|content-length|transfer-encoding|connection|upgrade|expect|te|trailer)$/i.test(key)||value.includes(apiKey)))throw Error();
     const contentType=Object.entries(headers).find(([key])=>key.toLowerCase()==='content-type');if(contentType&&contentType[1]!==file.mime)throw Error();if(!contentType)headers={...headers,'Content-Type':file.mime};
    }catch{throw failure('Marble 上传回执无效；未提交生成任务','unknown');}
    // The storage PUT uses only the signed upload headers, never the World API key.
