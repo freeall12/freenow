@@ -9,6 +9,12 @@
  const seed={referenceWidth:1400,referenceHeight:900,nodes,edges:[{id:'qa-audio-edge',source:nodes[0].id,target:nodes[1].id}]};
  Object.defineProperty(window,'CANVAS_DATA',{get:()=>seed,set:()=>{}});
  const state=window.NodeAudioRepairMainFixture={namespace:prefix,selectedId:nodes[0].id,otherId:nodes[1].id,fetches:[],externalAttempts:[],originalRef:old};
+ const Context=window.AudioContext||window.webkitAudioContext,nativeDecode=Context?.prototype.decodeAudioData;
+ if(nativeDecode)Context.prototype.decodeAudioData=function(...args){
+  const hold=state.holdNextDecode;state.holdNextDecode=false;const decoded=nativeDecode.apply(this,args);
+  if(!hold)return decoded;
+  return decoded.then(buffer=>new Promise(resolve=>{state.heldDecode={duration:buffer.duration,release:()=>{state.heldDecode=null;resolve(buffer);window.dispatchEvent(new Event('qa:audio-upload'));}};window.dispatchEvent(new Event('qa:audio-upload'));}));
+ };
  window.fetch=async(input,options={})=>{
   const url=new URL(typeof input==='string'?input:input instanceof URL?input.href:input.url,location.href);
   if(url.origin!==location.origin&&!['blob:','data:'].includes(url.protocol)){state.externalAttempts.push(url.hostname);throw Error('独立主壳修复 QA 禁止外部请求');}

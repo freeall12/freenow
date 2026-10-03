@@ -50,7 +50,27 @@
   return {wrap,audio,dispose(){disposed=true;audio.pause();audio.removeAttribute('src');audio.load();observer.disconnect();cancelAnimationFrame(frame);}};
  }
  async function localize(src){if(src.startsWith('asset:'))return src;const response=await fetch(src);if(!response.ok)throw Error('生成音频下载失败');const blob=await response.blob();if(!blob.size||blob.size>50*1024*1024)throw Error('生成音频为空或超过50MB');const url=URL.createObjectURL(blob);try{await decode(url);}finally{URL.revokeObjectURL(url);analysis.delete(url);}return window.LocalAssets.put(blob);}
- async function upload(node){const input=el('input');input.type='file';input.accept='.mp3,.wav,.ogg,.m4a,.aac,.flac,.webm,audio/*';input.onchange=async()=>{const file=input.files[0];if(!file)return;try{core.validateFile(file);const url=URL.createObjectURL(file);let meta;try{meta=await decode(url);}finally{URL.revokeObjectURL(url);analysis.delete(url);}const asset=await window.LocalAssets.put(file);app.updateNode(node.id,{audio:asset,audioMode:'upload',title:file.name,audioDuration:meta.duration,width:300,height:300});}catch(e){window.NodeActions.notify(e.message);}};input.click();}
+ const uploadAttempts=new WeakMap();let uploadPageEpoch=0;
+ const uploadGuardReady=import('./src/features/audio-upload/guard.mjs');
+ window.addEventListener('pagehide',()=>{uploadPageEpoch++;});
+ function upload(node){
+  const attempt={projectId:app.projectIdentity().id,snapshot:structuredClone(node),pageEpoch:uploadPageEpoch,selection:0,cancelled:false};uploadAttempts.set(node,attempt);
+  const input=el('input');input.type='file';input.accept='.mp3,.wav,.ogg,.m4a,.aac,.flac,.webm,audio/*';input.hidden=true;document.body.append(input);
+  const current=selection=>!attempt.cancelled&&uploadAttempts.get(node)===attempt&&attempt.pageEpoch===uploadPageEpoch&&attempt.selection===selection;
+  const dispose=()=>{input.remove();};
+  input.oncancel=()=>{attempt.cancelled=true;dispose();};
+  input.onchange=async()=>{
+   const selection=++attempt.selection,file=input.files[0];
+   if(!file){attempt.cancelled=true;dispose();return;}
+   try{
+    const {applyAudioUpload}=await uploadGuardReady;
+    const result=await applyAudioUpload({file,target:node,snapshot:attempt.snapshot,projectId:attempt.projectId,app,isLatest:()=>current(selection),validateFile:core.validateFile,assets:window.LocalAssets,getJobs:()=>window.GenerationAPI?.getJobs()||[],decodeFile:async file=>{const url=URL.createObjectURL(file);try{return await decode(url);}finally{URL.revokeObjectURL(url);analysis.delete(url);}}});
+    if(result.applied&&!result.persisted&&current(selection)&&app.projectIdentity().id===attempt.projectId)app.notify('本地音频已应用，自动保存尚未确认：'+result.saveError+'。请保留页面，从画布菜单重试保存。');
+   }catch(error){if(error.code!=='audio_upload_stale'&&current(selection)&&app.projectIdentity().id===attempt.projectId&&app.getState().nodes.includes(node))app.notify(error.message);}
+   finally{dispose();}
+  };
+  input.click();
+ }
  function preview(node){const d=el('dialog','audio-preview'),header=el('header'),player=makePlayer(node.audio);header.append(el('strong','',node.title),button('关闭音频预览','close',()=>d.close()));d.append(header,player.wrap);document.body.append(d);d.onclose=()=>{player.dispose();d.remove();};d.showModal();}
  async function download(node){try{const url=await window.LocalAssets.url(node.audio),blob=await(await fetch(url)).blob(),ext=blob.type.includes('wav')?'wav':blob.type.includes('ogg')?'ogg':blob.type.includes('webm')?'webm':'mp3';window.LocalMedia.download(blob,/\.(mp3|wav|ogg|m4a|aac|flac|webm)$/i.test(node.title)?node.title:node.title+'.'+ext);}catch(e){window.NodeActions.notify(e.message);}}
  function persist(){if(!current)return;const id=current.id;clearTimeout(saveTimers.get(id));saveTimers.delete(id);drafts.delete(id);writeConfig(id,structuredClone(config));}

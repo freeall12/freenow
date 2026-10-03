@@ -8,6 +8,13 @@ if(!fs.existsSync(tone)){
  for(let index=0;index<length;index++)buffer.writeInt16LE(Math.round(Math.sin(index*2*Math.PI*440/rate)*8192),44+index*2);
  fs.writeFileSync(tone,buffer);
 }
+const newerTone=path.join(root,'qa/node-audio-upload-newer.wav');
+if(!fs.existsSync(newerTone)){
+ const rate=48000,length=rate*3,buffer=Buffer.alloc(44+length*2);
+ buffer.write('RIFF',0);buffer.writeUInt32LE(buffer.length-8,4);buffer.write('WAVE',8);buffer.write('fmt ',12);buffer.writeUInt32LE(16,16);buffer.writeUInt16LE(1,20);buffer.writeUInt16LE(1,22);buffer.writeUInt32LE(rate,24);buffer.writeUInt32LE(rate*2,28);buffer.writeUInt16LE(2,32);buffer.writeUInt16LE(16,34);buffer.write('data',36);buffer.writeUInt32LE(length*2,40);
+ for(let index=0;index<length;index++)buffer.writeInt16LE(Math.round(Math.sin(index*2*Math.PI*660/rate)*8192),44+index*2);
+ fs.writeFileSync(newerTone,buffer);
+}
 const html=fs.readFileSync(path.join(root,'index.html'),'utf8')
  .replace('<head>','<head><base href="/"><script src="/src/features/local-resource-migration/qa/node-audio-repair-main-fixture.js"></script>')
  .replace('</body>','<script type="module" src="/src/features/local-resource-migration/qa/node-audio-repair-main-controls.mjs"></script></body>');

@@ -8,7 +8,7 @@ function row(node){
  const element=app.getNodeElement(node.id),audio=element?.querySelector('audio'),player=element?.querySelector('.audio-player'),wave=element?.querySelector('.audio-wave');
  return {id:node.id,audio:node.audio,audioMode:node.audioMode,audioDuration:node.audioDuration,durationMs:node.durationMs,width:node.width,height:node.height,title:node.title,provenance:node.provenance,sourceJournal:node.sourceJournal,repairButton:!!element?.querySelector('.audio-source-repair .audio-upload'),waveform:player?.dataset.waveform,waveDuration:wave?.getAttribute('aria-valuemax'),player:audio?{src:audio.getAttribute('src'),readyState:audio.readyState,duration:audio.duration,currentTime:audio.currentTime,paused:audio.paused,ended:audio.ended}:null};
 }
-function draw(){output.textContent=JSON.stringify({ready,namespace:fixture.namespace,projectId:app.projectIdentity().id,live:app.getState().nodes.map(row),saved:saved?.nodes?.map(({id,audio,audioMode,audioDuration,durationMs,provenance,sourceJournal})=>({id,audio,audioMode,audioDuration,durationMs,provenance,sourceJournal})),edges:app.getState().edges,savedEdges:saved?.edges,history:app.historyState(),externalAttempts:fixture.externalAttempts,blobReads:fixture.fetches.filter(ref=>ref==='blob:local-byte-read').length,lastError},null,2);}
+function draw(){output.textContent=JSON.stringify({ready,namespace:fixture.namespace,projectId:app.projectIdentity().id,live:app.getState().nodes.map(row),saved:saved?.nodes?.map(({id,audio,audioMode,audioDuration,durationMs,provenance,sourceJournal})=>({id,audio,audioMode,audioDuration,durationMs,provenance,sourceJournal})),edges:app.getState().edges,savedEdges:saved?.edges,history:app.historyState(),externalAttempts:fixture.externalAttempts,blobReads:fixture.fetches.filter(ref=>ref==='blob:local-byte-read').length,ordinaryId:fixture.ordinaryId,heldDecodeDuration:fixture.heldDecode?.duration,holdNextDecode:!!fixture.holdNextDecode,lastError},null,2);}
 function action(label,run){const button=document.createElement('button');button.textContent=label;button.style.margin='4px 6px 0 0';button.disabled=true;button.onclick=async()=>{try{lastError=null;await run();}catch(error){lastError=error.message;app.notify(error.message);}draw();};bar.append(button);buttons.push(button);}
 bar.append(heading,instruction);
 action('保存并实际回读',async()=>{await app.saveProject();saved=await window.CanvasStore.load();app.notify('实际 CanvasStore 记录已回读');});
@@ -16,8 +16,13 @@ action('只回读持久记录',async()=>{saved=await window.CanvasStore.load();}
 action('撤销一次并保存',async()=>{app.undo();await app.saveProject();saved=await window.CanvasStore.load();});
 action('重做一次并保存',async()=>{app.undo(true);await app.saveProject();saved=await window.CanvasStore.load();});
 action('刷新复验',()=>location.reload());
+action('新建普通空音频节点',()=>{const node=app.addTypedNode('audio');fixture.ordinaryId=node.id;app.select(node.id);});
+action('打开普通上传选择器',()=>{const node=app.getState().nodes.find(node=>node.id===fixture.ordinaryId);if(!node)throw Error('请先新建普通空音频节点');window.AudioAPI.upload(node);});
+action('暂停下一次真实解码结果',()=>{if(fixture.heldDecode)throw Error('请先释放已暂停的真实结果');fixture.holdNextDecode=true;});
+action('释放旧真实解码结果',()=>{if(!fixture.heldDecode)throw Error('尚未有暂停的真实解码结果');fixture.heldDecode.release();});
 const details=document.createElement('details'),summary=document.createElement('summary');summary.textContent='展开音频修复诊断';summary.style.cursor='pointer';details.append(summary,output);bar.append(details);document.body.append(bar);
 document.addEventListener('canvas:render',()=>queueMicrotask(draw));
+window.addEventListener('qa:audio-upload',draw);
 for(const event of ['loadedmetadata','loadeddata','timeupdate'])document.addEventListener(event,()=>draw(),true);
 document.addEventListener('load',event=>{if(event.target instanceof HTMLImageElement)draw();},true);
 window.NodeAudioRepairMainQA={app,snapshot:()=>app.projectSnapshot(),saved:()=>structuredClone(saved),diagnostics:()=>JSON.parse(output.textContent),read:async()=>{saved=await window.CanvasStore.load();draw();return structuredClone(saved);}};

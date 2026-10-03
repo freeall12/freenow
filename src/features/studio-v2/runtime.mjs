@@ -18,24 +18,24 @@ import { primitive, exportGlb, loadSaved, disposeModel, disposeLoadedModel } fro
 import {planSceneRemoval} from './scene-removal.mjs';
 import {importSceneModel,redoScene} from './scene-import.mjs';
 import {prepareSavedScene} from './save-recovery.mjs';
+import {ScenePicker,bindScenePicking,sceneChangeHandler} from './scene-picker.mjs';
 export const defaultLighting={azimuth:Math.atan2(4,6)*180/Math.PI,elevation:Math.atan2(8,Math.hypot(4,6))*180/Math.PI};
 export class SceneRuntime {
   constructor(canvas,{node,onChange,onError}){
     this.projectId=window.CanvasProjects?.id()||window.CanvasApp.projectIdentity?.().id||'canvas';this.projectApp=window.CanvasApp;this.projectStore=window.CanvasStore;this.assetStore=window.LocalAssets;this.projectDatabase=window.CANVAS_DB_NAME||'tapnow-canvas-replica';this.reloading=false;
-    this.nodeId=node.id;this.hostNode=node;this.sessionId=crypto.randomUUID();this.saved=structuredClone(node.studioV2||{});this.onChange=onChange;this.onError=onError;this.closed=false;this.loadStatus='loading';this.loadError=null;this.saveError=null;this.lighting={...defaultLighting,...this.saved.lighting};this.revision=0;this.savedRevision=0;this.undoStack=[];this.redoStack=[];this.animations=[];this.selected=null;this.mode='translate';this.abort=new AbortController();this.dirty=true;this.displayMaterials=new DisplayMaterials();
+    this.nodeId=node.id;this.hostNode=node;this.sessionId=crypto.randomUUID();this.saved=structuredClone(node.studioV2||{});this.onChange=sceneChangeHandler(this,onChange);this.onError=onError;this.closed=false;this.loadStatus='loading';this.loadError=null;this.saveError=null;this.lighting={...defaultLighting,...this.saved.lighting};this.revision=0;this.savedRevision=0;this.undoStack=[];this.redoStack=[];this.animations=[];this.selected=null;this.mode='translate';this.abort=new AbortController();this.dirty=true;this.displayMaterials=new DisplayMaterials();
     this.scene=new THREE.Scene();this.scene.background=new THREE.Color('#050505');this.content=new THREE.Scene();this.content.name='Scene';this.scene.add(this.content);this.shotId=this.saved.shotId||null;this.motionIndex=Number.isInteger(this.saved.motionIndex)?this.saved.motionIndex:-1;this.shotRatios={...this.saved.shotRatios};this.playback=new ScenePlayback(this);
     this.camera=new THREE.PerspectiveCamera(50,1,.01,10000);this.camera.position.set(6,4,8);this.camera.lookAt(0,0,0);
     if(this.saved.viewer){this.camera.position.fromArray(this.saved.viewer.position);this.camera.quaternion.fromArray(this.saved.viewer.quaternion);}
-    this.renderer=new THREE.WebGLRenderer({canvas,antialias:true,preserveDrawingBuffer:true});this.renderer.setPixelRatio(Math.min(devicePixelRatio,2));this.renderer.shadowMap.enabled=true;this.renderer.shadowMap.type=THREE.PCFShadowMap;
+    this.renderer=new THREE.WebGLRenderer({canvas,antialias:true,preserveDrawingBuffer:true});this.renderer.setPixelRatio(Math.min(devicePixelRatio,2));this.renderer.shadowMap.enabled=true;this.renderer.shadowMap.type=THREE.PCFShadowMap;this.picker=new ScenePicker(this.renderer);this.pickRevision=0;
     this.grid=new GroundGrid();this.grid.visible=this.saved.grid!==false;this.scene.add(this.grid);
     this.sun=new THREE.DirectionalLight(0xffffff,3);this.sun.position.set(6,10,8);this.sun.castShadow=true;this.sun.shadow.mapSize.set(2048,2048);this.sun.shadow.bias=-.0001;this.scene.add(this.sun,this.sun.target,new THREE.HemisphereLight(0xe4f1ff,0x73706a,2));
     this.centeredTransform=new CenteredTransform(this.scene);this.controls=new Navigation(this.camera,canvas);this.transform=new TransformControls(this.camera,canvas);this.transform.setSpace('local');this.transform.setSize(.85);this.scene.add(this.transform.getHelper());this.box=new SelectionBox();this.box.visible=false;this.scene.add(this.box);this.motion=new MotionEditor(this);this.cameraPresentations=new CameraPresentations(this);
     this.transform.addEventListener('dragging-changed',e=>{this.controls.enabled=!e.value;this.controls.reset();if(this.motion.open){if(e.value)this.motion.beginGesture();else this.motion.endGesture();}else if(e.value)this.beginTransformGesture();else this.endTransformGesture();});
     this.transform.addEventListener('objectChange',()=>{if(this.motion.open){try{this.motion.transform();}catch(error){this.onError?.(error);}return;}this.centeredTransform.apply();this.dirty=true;if(this.selected)this.box.setFromObject(this.selected);this.onChange?.('transform');});
     this.resize=new ResizeObserver(()=>{const r=canvas.getBoundingClientRect();this.renderer.setSize(r.width,r.height,false);this.camera.aspect=r.width/Math.max(1,r.height);this.camera.updateProjectionMatrix();this.dirty=true;});this.resize.observe(canvas);
-    const options={signal:this.abort.signal};window.addEventListener('beforeunload',event=>{if(this.savedRevision!==this.revision){event.preventDefault();event.returnValue='';}},options);let start=null;
-    canvas.addEventListener('pointerdown',e=>{start={x:e.clientX,y:e.clientY};},options);
-    canvas.addEventListener('pointerup',e=>{if(this.exporting||this.reloading)return;if(!start||Math.hypot(e.clientX-start.x,e.clientY-start.y)>4||this.transform.dragging||this.transform.axis)return;const r=canvas.getBoundingClientRect();if(this.motion.pick(e.clientX,e.clientY,r))return;const ray=new THREE.Raycaster();ray.setFromCamera(new THREE.Vector2((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1),this.camera);const targets=[];for(const root of [this.content,this.cameraPresentations.layer])root.traverseVisible(object=>{if(object.isMesh)targets.push(object);});const hit=ray.intersectObjects(targets,false)[0]?.object;let cameraId;for(let object=hit;object;object=object.parent)if(object.userData.studioCameraId){cameraId=object.userData.studioCameraId;break;}this.select(cameraId?this.find(cameraId):hit||null);},options);
+    const options={signal:this.abort.signal};window.addEventListener('beforeunload',event=>{if(this.savedRevision!==this.revision){event.preventDefault();event.returnValue='';}},options);
+    bindScenePicking(canvas,this,this.abort.signal);
     const viewportKeys=createViewportKeyHandler(this);canvas.addEventListener('keydown',event=>{if(this.reloading){event.preventDefault();return;}viewportKeys(event);},options);
     let previous=performance.now();this.renderer.setAnimationLoop(now=>{if(this.closed)return;const dt=Math.min(.05,(now-previous)/1000);previous=now;const before=this.camera.matrixWorld.clone();this.controls.update(dt);this.camera.updateMatrixWorld();this.playback.update(dt);if(this.dirty||!before.equals(this.camera.matrixWorld)){this.cameraPresentations.update();this.updateLighting();this.grid.update(this.camera,this.renderer.getPixelRatio());this.displayMaterials.render(this.content,()=>this.renderer.render(this.scene,this.camera));this.shotRenderer?.render();this.dirty=false;}});
   }
@@ -70,7 +70,7 @@ export class SceneRuntime {
   beginEdit(){this.assertReady();this.recordHistory(this.snapshot());this.motion.close(false);this.playback.stop();}
   beginTransformGesture(){this.assertReady();const snapshot=this.snapshot();this.motion.close(false);this.playback.stop();const object=this.selected;if(!object)return;object.updateMatrix();this.transformGesture={snapshot,object,matrix:object.matrix.clone()};}
   endTransformGesture(){const gesture=this.transformGesture;this.transformGesture=null;if(!gesture||gesture.object!==this.selected)return;gesture.object.updateMatrix();if(gesture.matrix.elements.every((value,index)=>Math.abs(value-gesture.object.matrix.elements[index])<=1e-12))return;this.recordHistory(gesture.snapshot);this.commit();}
-  commit(){if(this.reloading)throw Error('正在重新加载已保存场景，请等待完成');this.revision++;this.dirty=true;this.onChange?.('scene');clearTimeout(this.saveTimer);this.saveTimer=setTimeout(()=>this.flush().catch(this.onError),500);}
+  commit(){if(this.reloading)throw Error('正在重新加载已保存场景，请等待完成');this.invalidatePick(true);this.revision++;this.dirty=true;this.onChange?.('scene');clearTimeout(this.saveTimer);this.saveTimer=setTimeout(()=>this.flush().catch(this.onError),500);}
   async flush(){
     if(this.reloading)throw Error('正在重新加载已保存场景，请等待完成');if(this.loadStatus!=='ready')return;if(this.saving)return this.saving;
     this.saving=Promise.resolve().then(async()=>{
@@ -96,7 +96,7 @@ export class SceneRuntime {
     this.assertReady();this.assertTargetNode();
     if(this.saving)throw Error('场景正在保存，请等待完成后再放弃修改');
     if(this.transform.dragging||this.transformGesture||this.motion.gesture||this.restoring||this.capturing)throw Error('请先结束当前调整或拍摄，再放弃修改');
-    clearTimeout(this.saveTimer);this.saveTimer=null;this.reloading=true;
+    this.invalidatePick();clearTimeout(this.saveTimer);this.saveTimer=null;this.reloading=true;
     const controlsEnabled=this.controls.enabled,transformEnabled=this.transform.enabled;this.controls.enabled=this.transform.enabled=false;this.controls.reset();this.onChange?.('reload-start');
     let prepared,hostBefore,hostChanged=false,hostCommitted=false;
     try{
@@ -125,7 +125,7 @@ export class SceneRuntime {
       this.camera.near=.01;this.camera.far=10000;this.camera.updateProjectionMatrix();this.camera.updateMatrixWorld(true);
       this.controls.speed=3;this.assignIds();this.syncShots();
       this.cameraPresentations=new CameraPresentations(this);this.displayMaterials=new DisplayMaterials();
-      this.revision++;this.savedRevision=this.revision;this.saveError=null;this.dirty=true;
+      this.invalidatePick(true);this.revision++;this.savedRevision=this.revision;this.saveError=null;this.dirty=true;
       if(this.playback.selectedMotion())this.playback.select(this.motionIndex,'camera',{play:false});
       disposeModel(oldContent,{retain:this.content});this.onChange?.('scene');
     }catch(error){
@@ -149,13 +149,35 @@ export class SceneRuntime {
     scene.traverse(object=>{delete object.userData.studioId;});
     return this.addObject(scene,{},prepared.sceneAnimations?.[index]??prepared.loaded.animations);
   }
-  select(value){if(this.reloading)throw Error('正在重新加载已保存场景，请等待完成');this.motion.close(false);if(this.exporting)throw Error('视频正在导出，请等待完成');this.playback.stop();const object=typeof value==='string'?this.find(value):value;this.selected=object||null;if(object?.isCamera&&this.shotId!==object.userData.studioId){this.shotId=object.userData.studioId;this.motionIndex=-1;}this.transform.detach();this.centeredTransform.detach();if(object){if(!this.animatedCamera(object)){this.centeredTransform.attach(object);this.transform.attach(this.centeredTransform.pivot);}this.box.setFromObject(object);}else this.box.visible=false;this.dirty=true;this.onChange?.('selection');}
+  select(value){if(this.reloading)throw Error('正在重新加载已保存场景，请等待完成');this.invalidatePick();this.motion.close(false);if(this.exporting)throw Error('视频正在导出，请等待完成');this.playback.stop();const object=typeof value==='string'?this.find(value):value;this.selected=object||null;if(object?.isCamera&&this.shotId!==object.userData.studioId){this.shotId=object.userData.studioId;this.motionIndex=-1;}this.transform.detach();this.centeredTransform.detach();if(object){if(!this.animatedCamera(object)){this.centeredTransform.attach(object);this.transform.attach(this.centeredTransform.pivot);}this.box.setFromObject(object);}else this.box.visible=false;this.dirty=true;this.onChange?.('selection');}
+  invalidatePick(materials=false){this.pickRevision=(this.pickRevision||0)+1;if(materials)this.picker?.invalidate();}
+  async pick(x,y){
+    if(this.closed||this.exporting||this.reloading||this.restoring||this.loadStatus!=='ready')return false;
+    const token=++this.pickRevision,content=this.content,revision=this.revision,rect=this.renderer.domElement.getBoundingClientRect();
+    if(!rect.width||!rect.height||x<rect.left||x>=rect.right||y<rect.top||y>=rect.bottom)return false;
+    if(this.motion.pick(x,y,rect))return true;
+    this.camera.updateMatrixWorld(true);
+    const pose=this.camera.matrixWorld.clone(),projection=this.camera.projectionMatrix.clone(),canvas=this.renderer.domElement,width=canvas.width,height=canvas.height;
+    const playback={index:this.playback.index,target:this.playback.target,time:this.playback.time,playing:this.playback.playing};
+    const nodeForObject=object=>{
+      for(let node=object;node;node=node.parent)if(node.userData.studioCameraId)return node.userData.studioCameraId;
+      for(let node=object;node&&node!==content;node=node.parent)if(node.userData.studioId)return node.userData.studioId;
+    };
+    try{
+      this.assertTargetNode();
+      const id=await this.picker.pick(this.scene,content,this.camera,(x-rect.left)/rect.width,(y-rect.top)/rect.height,nodeForObject,[this.cameraPresentations.layer]);
+      if(this.closed||this.exporting||this.reloading||this.restoring||token!==this.pickRevision||content!==this.content||revision!==this.revision)return false;
+      this.camera.updateMatrixWorld(true);const current=canvas.getBoundingClientRect();
+      if(!pose.equals(this.camera.matrixWorld)||!projection.equals(this.camera.projectionMatrix)||width!==canvas.width||height!==canvas.height||['left','top','width','height'].some(key=>rect[key]!==current[key])||Object.keys(playback).some(key=>key!=='time'&&playback[key]!==this.playback[key])||!playback.playing&&playback.time!==this.playback.time)return false;
+      this.assertTargetNode();if(id!==null&&!this.find(id))return false;this.select(id);return true;
+    }catch(error){if(!this.closed&&token===this.pickRevision)this.onError?.(error);return false;}
+  }
   animatedCamera(object){return !!object?.isCamera&&this.playback.catalog().some(clip=>clip.cameraIds.includes(object.userData.studioId));}
   setMode(mode){this.assertReady();if(this.motion.open){this.motion.setMode(mode);return;}this.mode=mode;this.transform.setMode(mode);this.dirty=true;this.onChange?.('selection');}
   update(id,patch,{history=true,notify=true}={}){const object=this.find(id);if(!object)throw Error('对象不存在');const unsupported=Object.keys(patch).filter(key=>!['name','position','rotation','scale','visible'].includes(key));if(this.animatedCamera(object)&&['position','rotation','scale'].some(field=>patch[field]!==undefined))throw Error('镜头包含运镜，请通过关键帧编辑姿态');if(unsupported.length)throw Error('这些属性尚未接入 3D 片场 2.0：'+unsupported.join(', '));if(history)this.beginEdit();if(patch.name!==undefined)object.name=patch.name;if(patch.position)object.position.fromArray(patch.position);if(patch.rotation)object.rotation.set(...patch.rotation.map(THREE.MathUtils.degToRad));if(patch.scale)object.scale.fromArray(patch.scale);if(patch.visible!==undefined)object.visible=patch.visible;object.updateMatrixWorld(true);if(this.selected){this.box.setFromObject(this.selected);this.centeredTransform.attach(this.selected);}if(notify)this.commit();else this.dirty=true;return this.objects().find(o=>o.id===id);}
   remove(id){this.assertReady();const object=this.find(id);if(!object)throw Error('对象不存在');const plan=planSceneRemoval(this.content,object,this.animations);this.beginEdit();this.select(null);object.removeFromParent();this.animations=plan.animations;this.motionIndex=plan.indices.get(this.motionIndex)??-1;this.motion.index=plan.indices.get(this.motion.index)??-1;for(const removedId of plan.removedIds)delete this.shotRatios[removedId];disposeModel(object,{retain:this.content});this.syncShots();this.commit();return {deleted:id};}
   async undo(redo=false,{beforeApply}={}){
-    this.assertReady();if(this.restoring)return;const source=redo?this.redoStack:this.undoStack,target=redo?this.undoStack:this.redoStack;if(!source.length)return;this.restoring=true;
+    this.assertReady();if(this.restoring)return;const source=redo?this.redoStack:this.undoStack,target=redo?this.undoStack:this.redoStack;if(!source.length)return;this.restoring=true;this.invalidatePick();
     const revision=this.revision,snapshot=source.at(-1);try{const restored=await new THREE.ObjectLoader().parseAsync(snapshot.content);if(this.closed||revision!==this.revision){disposeModel(restored);throw Error('场景已更新，请重新撤销');}
       try{beforeApply?.();}catch(error){disposeModel(restored);throw error;}
       target.push(this.snapshot());source.pop();this.select(null);this.resetMixer();this.content.removeFromParent();disposeModel(this.content);this.content=restored;this.scene.add(restored);this.animations=snapshot.animations.map(clip=>clip.clone());this.grid.visible=snapshot.grid;this.lighting={...snapshot.lighting};this.shotId=snapshot.shotId;this.motionIndex=snapshot.motionIndex??-1;this.shotRatios={...snapshot.shotRatios};this.resetMixer();this.assignIds();this.syncShots();this.select(snapshot.selectedId);this.motion.restoreContext(snapshot.motion);this.commit();
@@ -175,5 +197,5 @@ export class SceneRuntime {
   async exportMotion(args={},onProgress=()=>{},options={}){return exportSceneMotion(this,args,onProgress,options);}
   async capture(){return captureScene(this);}
   async export(){await this.flush();return exportGlb(this.playback.document(),this.animations);}
-  async close(){if(this.reloading)throw Error('正在重新加载已保存场景，请等待完成');clearTimeout(this.saveTimer);if(this.closed)return;if(this.exporting)throw Error('视频正在导出，请等待完成');if(this.loadStatus==='ready'){if(JSON.stringify(this.saved.viewer)!==JSON.stringify(this.read().viewer))this.revision++;await this.flush();}this.closed=true;this.abort.abort();this.resize.disconnect();this.renderer.setAnimationLoop(null);this.shotRenderer?.dispose();this.controls.dispose();this.motion.dispose();this.cameraPresentations.dispose();this.centeredTransform.dispose();this.resetMixer();this.transform.dispose();this.box.dispose();this.grid.dispose();this.displayMaterials.dispose();disposeModel(this.content);this.sun.shadow.dispose();this.renderer.dispose();}
+  async close(){if(this.reloading)throw Error('正在重新加载已保存场景，请等待完成');clearTimeout(this.saveTimer);if(this.closed)return;if(this.exporting)throw Error('视频正在导出，请等待完成');if(this.loadStatus==='ready'){if(JSON.stringify(this.saved.viewer)!==JSON.stringify(this.read().viewer))this.revision++;await this.flush();}this.closed=true;this.invalidatePick();this.abort.abort();this.resize.disconnect();this.renderer.setAnimationLoop(null);await this.picker?.dispose();this.shotRenderer?.dispose();this.controls.dispose();this.motion.dispose();this.cameraPresentations.dispose();this.centeredTransform.dispose();this.resetMixer();this.transform.dispose();this.box.dispose();this.grid.dispose();this.displayMaterials.dispose();disposeModel(this.content);this.sun.shadow.dispose();this.renderer.dispose();}
 }
