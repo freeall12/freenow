@@ -54,14 +54,27 @@
       for(let attempt=0;attempt<3;attempt++){
        const authoritative=await store.readRecord(recordKey),original=authoritative||structuredClone(captured);
        const result=await migrate(structuredClone(original)),candidate=result?.snapshot;
-       // Prove that the migration changed only the declared typed upload slots.
+       // Prove that migration only changed media slots. Actor previews have a
+       // separate display contract; their tool arguments and bindings stay exact.
        const expected=structuredClone(original);
        for(const change of result?.changes||[]){
         const match=change.path?.match(/^\$\.chats\[(\d+)\](?:\.(messages|queuedMessages)\[(\d+)\])?\.uploads\[(\d+)\]\.(asset|image)$/);
-        if(!match||typeof change.ref!=='string'||!/^asset:[^\s]+$/.test(change.ref))throw Error('会话迁移改变了非附件字段，未保存');
-        const chat=expected.chats?.[Number(match[1])],container=match[2]?chat?.[match[2]]?.[Number(match[3])]:chat,upload=container?.uploads?.[Number(match[4])];
-        if(!upload||!['image','video'].includes(upload.type))throw Error('会话迁移附件位置无效，未保存');
-        upload[match[5]]=change.ref;
+        if(match){
+         if(typeof change.ref!=='string'||!/^asset:[^\s]+$/.test(change.ref))throw Error('会话迁移改变了非附件字段，未保存');
+         const chat=expected.chats?.[Number(match[1])],container=match[2]?chat?.[match[2]]?.[Number(match[3])]:chat,upload=container?.uploads?.[Number(match[4])];
+         if(!upload||!['image','video'].includes(upload.type))throw Error('会话迁移附件位置无效，未保存');
+         upload[match[5]]=change.ref;continue;
+        }
+        const actor=change.path?.match(/^\$\.chats\[(\d+)\]\.messages\[(\d+)\]\.result\.response\.actor\.reference_nodes\[(\d+)\]\.preview_url$/);
+        if(!actor)throw Error('会话迁移改变了非附件字段，未保存');
+        const [{isActorPreviewDataUrl},{prepareActorEmotion,actorEmotionUri}]=await Promise.all([import('./src/features/local-resource-migration/actor-previews.mjs'),import('./src/features/agent-apps/actor-emotion.mjs')]);
+        const trace=expected.chats?.[Number(actor[1])]?.messages?.[Number(actor[2])];
+        if(!isActorPreviewDataUrl(change.ref)||trace?.name!=='show_app'||trace.status!=='done'||trace.error||trace.result?.error||trace.result?.kind!=='mcp_app'||trace.args?.resource_uri!==actorEmotionUri||trace.result.resource_uri!==actorEmotionUri)throw Error('会话迁移改变了非附件字段，未保存');
+        const validate=response=>{const {version,title,summary,...data}=response||{},prepared=prepareActorEmotion(data,title);if(version!==1||summary!==prepared.summary)throw Error('人物预览记录无效，未保存');};
+        validate(trace.result.response);
+        const reference=trace.result.response.actor.reference_nodes[Number(actor[3])];
+        if(!reference)throw Error('人物预览位置无效，未保存');
+        reference.preview_url=change.ref;validate(trace.result.response);
        }
        if(!candidate||JSON.stringify(candidate)!==JSON.stringify(expected))throw Error('会话迁移改变了非附件字段，未保存');
        const summary=result.summary||null,diagnostics=(result.unresolved||[]).map(({path,code})=>({path,code}));

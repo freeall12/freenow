@@ -51,6 +51,8 @@ Creative 校验 saved signature、draft、initial inputs 及 host locale；Motio
 
 ## 编辑与预览入口
 
+后续本地补充：已导入状态增加「编辑 HTML」，从真实 binding 打开 latest editable，CAS 保存并保留原模板来源；新增本地源码编辑器不是官方界面证据。模板卡另提供可选「在对话中讨论」callback 供主客户端使用实际 latest revision 加入对话。事务内来源守卫、交互、接线和合成正向测试边界详见 `AGENT-TEMPLATE-EDITING-20261003.md`。
+
 `createAppController()` 可注入 `templateSourceRuntime/onOpenTemplateArtifact`；真实 Creative、Website、Motion card 自动挂载 controls，render 刷新，dispose 清理。主客户端提供 namespace 相同的 artifact store、真实 conversation save 和现有 preview 入口。
 
 打开按钮传最新 metadata，主客户端重新读取 artifact；沿用 `openHtmlPreview` / `createHtmlExportSession` 的隔离 iframe、资源迁移、版本守卫和派生导出。导入步骤不直接执行 HTML；原文不被离线包装覆盖。

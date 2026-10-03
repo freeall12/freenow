@@ -45,9 +45,14 @@ export function createStore({ namespace = 'tapnow-canvas-replica', indexedDB = g
       return verifyStoredTemplateSource(file);
     },
     async read({ artifact_path, offset, limit }) { return readSlice(await api.get(artifact_path), offset, limit); },
-    async write(input) {
+    async write(input,{guard=()=>true}={}) {
       // Revision check and write share one IndexedDB transaction, including across tabs.
-      const document = await transaction('readwrite', current => nextDocument(current, input));
+      const document = await transaction('readwrite', current => {
+        if(guard()===false)throw Error('产物保存来源已变化');
+        const next=nextDocument(current,input);
+        if(guard()===false)throw Error('产物写入前来源已变化');
+        return next;
+      });
       const file = document.files.find(item => item.artifact_path === input.artifact_path);
       notify(metadata(file)); channel?.postMessage({ changed: true });
       return metadata(file);

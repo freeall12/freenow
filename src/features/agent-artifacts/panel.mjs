@@ -77,7 +77,7 @@ export function createPanel({ store, anchor, onAdd, onDiscuss, onError, onShare,
       if (!element || closing || version !== selectionEpoch) return;
       if (file.content_type === 'html') {
         previewPath=path;
-        preview=openHtmlPreview({file,onShare,onError,getCurrentFile:()=>store.get(path),isCurrent:()=>!!element&&!closing&&version===selectionEpoch,getResourceOptions:getHtmlResourceOptions});return true;
+        preview=openHtmlPreview({file,onShare,onDiscuss,onError,getCurrentFile:()=>store.get(path),isCurrent:()=>!!element&&!closing&&version===selectionEpoch,getResourceOptions:getHtmlResourceOptions});return true;
       }
       selectedPath = path; layout.mode(true); await render();
       syncCollapse();

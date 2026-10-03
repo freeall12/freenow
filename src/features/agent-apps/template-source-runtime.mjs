@@ -1,4 +1,5 @@
 import {acceptedTemplateIdentity,sha256Bytes,verifyTemplateBytes,templatePickerUris} from './template-source.mjs';
+import {createTemplateEditSession} from './template-edit-session.mjs';
 const clone=value=>structuredClone(value),same=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
 const descriptionGuards=new WeakMap();
 export function isTemplateSourceDescriptionCurrent(description){
@@ -76,5 +77,14 @@ export function createTemplateSourceRuntime({getContext,store,persistConversatio
    throw error;
   }finally{active.delete(key);notify();}
  }
- return {describe,importFile,isDescriptionCurrent:isTemplateSourceDescriptionCurrent,subscribe(listener){listeners.add(listener);return()=>listeners.delete(listener);},dispose(){disposed=true;unsubscribe?.();listeners.clear();}};
+ async function openEditSession(trace,{signal}={}){
+  const binding=bind(trace),guard=()=>binding.guard({idle:true,signal});guard();
+  const description=await describe(trace);guard();
+  if(description.status!=='imported'||!isTemplateSourceDescriptionCurrent(description))throw Error(description.reason||'请先导入所选原模板正文');
+  const storage=await ready;guard();
+  const source=await storage.get(description.source.artifact_path);guard();
+  const artifact=await storage.get(description.artifact.artifact_path);guard();
+  return createTemplateEditSession({store:storage,source,artifact,sourceIdentity:binding.identity,receiptStatus:description.receipt_status,guard});
+ }
+ return {describe,importFile,openEditSession,isDescriptionCurrent:isTemplateSourceDescriptionCurrent,subscribe(listener){listeners.add(listener);return()=>listeners.delete(listener);},dispose(){disposed=true;unsubscribe?.();listeners.clear();}};
 }

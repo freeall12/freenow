@@ -1,6 +1,7 @@
 import {hashSource as digestSource,isStaticAssetRef,validateResourceIndex} from './index-format.mjs';
 import {loadResourceIndex} from './canvas-load.mjs';
 import {importIndexedAsset} from './import-asset.mjs';
+import {createActorPreviewMigration} from './actor-previews.mjs';
 
 const object=value=>value&&typeof value==='object'&&!Array.isArray(value);
 export function validateConversationSnapshot(value){
@@ -26,8 +27,8 @@ function uploads(snapshot){
 
 // Actual uploads use asset for the submitted media, and the queue may read an
 // optional image cover. Tool arguments, journals and app bindings are not slots.
-export function createConversationMigration({assets,fetchImpl=globalThis.fetch,index,loadIndex=()=>loadResourceIndex({fetchIndex:fetchImpl}),hashSource=digestSource,hashBytes,importAsset=importIndexedAsset}={}){
- const imported=new Map();
+export function createConversationMigration({assets,fetchImpl=globalThis.fetch,index,loadIndex=()=>loadResourceIndex({fetchIndex:fetchImpl}),hashSource=digestSource,hashBytes,importAsset=importIndexedAsset,decodeActorPreview}={}){
+ const imported=new Map(),migrateActorPreviews=createActorPreviewMigration({assets,fetchImpl,hashSource,hashBytes,importAsset,...(decodeActorPreview?{decodePreview:decodeActorPreview}:{})});
  return async original=>{
   validateConversationSnapshot(original);
   const snapshot=structuredClone(original),slots=uploads(snapshot),loaded=index?{index,state:'ready'}:await loadIndex();
@@ -55,6 +56,7 @@ export function createConversationMigration({assets,fetchImpl=globalThis.fetch,i
    const saved=await imported.get(cacheKey);if(typeof saved!=='string'||!/^asset:[^\s]+$/.test(saved))throw Error('会话附件未保存为真实本地素材');
    upload[key]=saved;changes.push({path:at,ref:saved});
   }
+  const actor=await migrateActorPreviews(snapshot,table);changes.push(...actor.changes);unresolved.push(...actor.unresolved);references+=actor.summary.references;alreadyLocal+=actor.summary.alreadyLocal;
   return {snapshot,changes,unresolved,status:unresolved.length?'pending_import':'ready',summary:{references,changed:changes.length,unresolved:unresolved.length,alreadyLocal}};
  };
 }

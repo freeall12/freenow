@@ -44,3 +44,5 @@ CUA 新建独立标签页，在本机 `localhost:4173` 的生产入口按「AI �
 证据截图：`reference/creative-family-retired-restoration-20261003.jpg`；更多实际入口截图见本批后续记录。官方 Creative 原HTML SHA256 仍为 `2a07bc2e7e3874c49f012f1022cbf838939bf8ea502ca33af31b277986dadcc9`，新回归测试核对完整字节哈希和46个模板引用表。
 
 补充截图：`reference/creative-family-hardware-entry-20261003.jpg` 显示hardware8无预选；`reference/creative-family-manager-restored-20261003.jpg` 为生产页面重新导航加载后打开原会话：保存的art入口卡仍显示16项/无预选，实际卡数1。此项证明生产入口卡身份/args恢复，未验证已修改draft/input经生产浏览器刷新恢复。
+
+后续链条审计已确认正常 awaiting-content 交接、model latest HTML read/write 和预览/导出合同已存在；补充了已验证导入后的**本地**源码编辑/保存及模板讨论 callback。此入口不宣称为官方已证实的源码编辑器；5 项新增机制/UI 定向测试均通过，关联批次 24/24。因为仍无精确官方正文，positive fixture 明示合成内容与 mock digest，仍不构成官方模板后续编辑/模型生成的实机验收。详见 `AGENT-TEMPLATE-EDITING-20261003.md`。

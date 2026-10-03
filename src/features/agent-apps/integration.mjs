@@ -86,7 +86,7 @@ export function createCutlistAssemblyRoute({getContext,getSourceContext,executor
  };
 }
 
-export function createAppController({getContext,onQueuePrompt,onSaveState,getActorSourceContext,onSaveExpressionGuide,getProductionSourceContext,onProductionProgressQuery,getLibrarySourceContext,onLibraryAddToCanvas,getColorAdjustSourceContext,onApplyColorAdjust,onColorAdjustContext,getPlatformResizeSourceContext,onPlatformResizeApply,getCutlistSourceContext,getAnimaticV1SourceContext,getCharacterBlockingSourceContext,getProductKitSourceContext,getAdReviewSourceContext,getLayerComposerSourceContext,onApplyLayerComposer,onLayerComposerContext,getGenerationAppSourceContext,onGenerationAppTool,onGenerationAppContext,onValidateAppReply,onAppReply,onAppReplyRunStatus,templateSourceRuntime,onOpenTemplateArtifact,onError=()=>{}}){
+export function createAppController({getContext,onQueuePrompt,onSaveState,getActorSourceContext,onSaveExpressionGuide,getProductionSourceContext,onProductionProgressQuery,getLibrarySourceContext,onLibraryAddToCanvas,getColorAdjustSourceContext,onApplyColorAdjust,onColorAdjustContext,getPlatformResizeSourceContext,onPlatformResizeApply,getCutlistSourceContext,getAnimaticV1SourceContext,getCharacterBlockingSourceContext,getProductKitSourceContext,getAdReviewSourceContext,getLayerComposerSourceContext,onApplyLayerComposer,onLayerComposerContext,getGenerationAppSourceContext,onGenerationAppTool,onGenerationAppContext,onValidateAppReply,onAppReply,onAppReplyRunStatus,templateSourceRuntime,onOpenTemplateArtifact,onDiscussTemplateArtifact,onError=()=>{}}){
  const records=new Map();
  async function validateGenerationSource(record){const source=record.generationContext;if(!source)throw Error('生成应用缺少真实来源绑定');await source.guard();await source.validateSourcesCurrent?.();}
  async function validateWorkflowSource(record){const source=record.workflowContext;if(!source)throw Error('应用缺少真实来源绑定');if(record.resourceUri===productKitUri){await source.guard();await source.validateSourceCurrent();}else await source.guard(record.resourceUri===adReviewUri?{verifyBytes:true}:undefined);}
@@ -268,7 +268,7 @@ export function createAppController({getContext,onQueuePrompt,onSaveState,getAct
    }}});
   }
   if(generationAppUris.includes(record.resourceUri)&&record.generationResult!==trace.result){record.generationContext?.dispose?.();record.generationContext=getGenerationAppSourceContext?.(trace.result.response,trace,record.chat);record.generationResult=trace.result;record.stateWork=Promise.resolve();record.stateError=null;}
-  if(templateSourceRuntime&&templatePickerUris.includes(record.resourceUri)&&!record.templateControls){record.templateControls=createTemplateSourceControls({trace,runtime:templateSourceRuntime,onOpenArtifact:onOpenTemplateArtifact,onError});record.card.element.append(record.templateControls.element);}
+  if(templateSourceRuntime&&templatePickerUris.includes(record.resourceUri)&&!record.templateControls){record.templateControls=createTemplateSourceControls({trace,runtime:templateSourceRuntime,onOpenArtifact:onOpenTemplateArtifact,onDiscussArtifact:onDiscussTemplateArtifact,onError});record.card.element.append(record.templateControls.element);}
   void record.templateControls?.refresh();
   record.card.update(trace,{policy,runActive:!!context.streaming,locale:'zh-CN'});syncPrevisReplyStatus(record);return record.card.element;
  }
