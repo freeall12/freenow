@@ -105,15 +105,16 @@ test('an actual checkpoint save failure prevents the dispatch boundary, while a 
 
 test('new composer and widget submissions cannot start a queue during recovery preparation', () => {
   const fs = require('node:fs'), vm = require('node:vm'), sourceCode = fs.readFileSync(require.resolve('../agent-client.js'), 'utf8');
-  const chat = {text: '新的排队任务', interruptedRuns: [{submissionId: 'original'}], queuedMessages: []}, notices = [];
+  const trace = {role: 'tool', name: 'show_widget', status: 'done', result: {}};
+  const chat = {text: '新的排队任务', messages: [trace], interruptedRuns: [{submissionId: 'original'}], queuedMessages: []}, notices = [];
   let drains = 0;
-  const context = vm.createContext({recoveryRunning: true, appQueueSaving: false, conversationsLoaded: true, draft: () => chat, pendingQuestion: () => null,
+  const context = vm.createContext({recoveryRunning: true, appQueueSaving: false, conversationsLoaded: true, pageLeaving: false, panel: {}, draft: () => chat, pendingQuestion: () => null,
     notice: text => notices.push(text), queueModule: {}, queueRunner: {drain: () => drains++}, clone: () => {throw Error('must not replace existing task identity');}});
   const sendStart = sourceCode.indexOf(' function send(){'), sendEnd = sourceCode.indexOf(' async function runSubmission', sendStart);
   const widgetStart = sourceCode.indexOf(' function queueWidgetPrompt('), widgetEnd = sourceCode.indexOf(' function send(){', widgetStart);
   vm.runInContext(sourceCode.slice(sendStart, sendEnd) + sourceCode.slice(widgetStart, widgetEnd), context);
   const original = chat.interruptedRuns[0]; context.send();
-  assert.equal(context.queueWidgetPrompt('new', {}, chat, {}), false);
+  assert.equal(context.queueWidgetPrompt('new', trace, chat, {}), false);
   assert.equal(drains, 0); assert.equal(chat.interruptedRuns[0], original); assert.equal(chat.queuedMessages.length, 0);
   assert.match(notices[0], /中断任务正在继续/);
 });

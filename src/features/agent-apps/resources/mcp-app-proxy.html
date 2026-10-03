@@ -155,6 +155,18 @@
       // 结论)。当前模板虽为一方构建产物, 但按对抗性输入标准处理, M3 第三方模板可直接复用。
       // DOMParser 惰性解析不执行脚本, 拿真实 <head> 前置 CSP meta 后整体序列化,
       // CSP 必然先于文档内任何脚本生效。
+      // Native key events do not cross the two sandboxed browsing contexts.
+      // Defer until every app handler can consume Escape without granting tools.
+      function presentationEscapeBridge() {
+        window.addEventListener("keydown", function (event) {
+          if (event.key !== "Escape" || event.isTrusted !== true || event.isComposing || event.keyCode === 229 || event.repeat) return;
+          window.setTimeout(function () {
+            if (event.defaultPrevented) return;
+            window.parent.postMessage({jsonrpc: "2.0", method: "tapnow/presentationDismiss", params: {reason: "escape"}}, "*");
+          }, 0);
+        }, true);
+      }
+
       function buildSrcdocWithCsp(html, policy) {
         var doc = new DOMParser().parseFromString(html, "text/html");
         var head = doc.head;
@@ -162,6 +174,9 @@
         meta.setAttribute("http-equiv", "Content-Security-Policy");
         meta.setAttribute("content", policy);
         head.insertBefore(meta, head.firstChild);
+        var bridge = doc.createElement("script");
+        bridge.textContent = "(" + presentationEscapeBridge.toString() + ")();";
+        head.insertBefore(bridge, meta.nextSibling);
         return "<!doctype html>" + doc.documentElement.outerHTML;
       }
 
@@ -263,6 +278,11 @@
             if (name !== "animatic" || version !== "v2") return templateHtml;
             var errors = await import("../animatic-local-errors.mjs");
             return errors.localizeAnimaticErrors(templateHtml, name, version);
+          })
+          .then(async function (templateHtml) {
+            if (name !== "actor-emotion" || version !== "v1") return templateHtml;
+            var resources = await import("../actor-emotion-local-resources.mjs");
+            return resources.localizeActorEmotionResources(templateHtml, name, version);
           })
           .then(function (templateHtml) {
             inner.srcdoc = buildSrcdocWithCsp(templateHtml, buildCspPolicy(params.csp));

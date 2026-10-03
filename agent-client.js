@@ -8,7 +8,7 @@
  let panel=null,current=0,chats=[],skills=[],controller=null,busy=false,sessionId=null,pendingResolve=null,pendingTraceId=null;
  let messageRows=new WeakMap(),activeStream=null,streamSaveTimer=0,pageLeaving=false,appQueueSaving=false,migratingConversationAssets=false;
  let recoveryModule=null,recoveryController=null,recoveryEpoch=0,recoveryChatId=null,recoveryRunning=false,recoveryPreparing=false;
- const recoveryReady=Promise.all([import('./src/features/agent-recovery/model.mjs'),import('./src/features/agent-recovery/view.mjs'),import('./src/features/agent-recovery/journal.mjs'),import('./src/features/agent-recovery/generation-settlement.mjs')]).then(([model,view,journal,settlement])=>{recoveryModule={...model,...view,...journal,...settlement};const style=el('link');style.rel='stylesheet';style.href='src/features/agent-recovery/styles.css';document.head.append(style);recoveryController=model.createRecoveryController({request:data=>request('state',data),isCurrent:(record,scope)=>!pageLeaving&&!!panel&&!busy&&recoveryEpoch===scope.epoch&&project.id===scope.projectId&&draft()===scope.chat&&chats.includes(scope.chat)&&scope.chat.interruptedRuns?.includes(record),persist:async()=>{if(!save())throw Error('核对记录未能保存');await flushConversation();},changed:()=>{if(panel)render();}});return recoveryModule;});
+ const recoveryReady=Promise.all([import('./src/features/agent-recovery/model.mjs'),import('./src/features/agent-recovery/view.mjs'),import('./src/features/agent-recovery/journal.mjs'),import('./src/features/agent-recovery/generation-settlement.mjs'),import('./src/features/agent-recovery/terminal-delegation.mjs')]).then(([model,view,journal,settlement,delegation])=>{recoveryModule={...model,...view,...journal,...settlement,...delegation};const style=el('link');style.rel='stylesheet';style.href='src/features/agent-recovery/styles.css';document.head.append(style);recoveryController=model.createRecoveryController({request:data=>request('state',data),isCurrent:(record,scope)=>!pageLeaving&&!!panel&&!busy&&recoveryEpoch===scope.epoch&&project.id===scope.projectId&&draft()===scope.chat&&chats.includes(scope.chat)&&scope.chat.interruptedRuns?.includes(record),persist:async()=>{if(!save())throw Error('核对记录未能保存');await flushConversation();},changed:()=>{if(panel)render();}});return recoveryModule;});
  recoveryReady.catch(error=>notice('中断任务核对加载失败：'+error.message));
  let artifactCards=null,reconcileMessages=null;
  let searchResultView=null;
@@ -779,6 +779,26 @@
   await flushConversation();
   if(!ownsAgentRun(chat,run)||controller?.signal.aborted)throw new DOMException('任务上下文已离开','AbortError');
  }
+ function synchronizeTerminalDelegationTrace(chat,record,plan){
+  const origin=record.journal?.receipts?.origin;
+  if(origin?.kind!=='server_terminal_delegation'||chat.id!==record.binding?.conversationId||
+   !recoveryModule.sameBinding(plan.binding,record.binding)||origin.sessionId!==record.sessionId||origin.round!==plan.round||
+   plan.pending?.length!==1||plan.pending[0].name!=='agent_delegate'||plan.pending[0].callId!==origin.callId||
+   plan.results?.length!==1||plan.results[0].callId!==origin.callId)return false;
+  const matches=chat.messages.filter(trace=>trace.role==='tool'&&trace.name==='agent_delegate'&&trace.callId===origin.callId&&trace.runId===record.submissionId);
+  if(matches.length!==1)return false;
+  const trace=matches[0],result=plan.results[0].result;
+  if(!['completed','partial_failure','failed','cancelled'].includes(result?.status)||!Array.isArray(result.tasks))return false;
+  // Preserve the browser's interruption history and actual local tool steps;
+  // only the checked complete server receipt replaces task conclusions.
+  trace.recoveredDelegation??={origin:{...origin},recoveredAt:Date.now(),previous:{status:trace.status,error:trace.error,resultError:trace.result?.error,endedAt:trace.endedAt,
+   tasks:(trace.delegates||[]).map(task=>({taskId:task.taskId,status:task.status,error:task.error}))}};
+  const previous=new Map((trace.delegates||[]).map(task=>[task.taskId,task]));
+  trace.result=structuredClone(result);trace.status='done';delete trace.error;
+  trace.delegates=result.tasks.map(task=>{const original=previous.get(task.taskId),row={...original,...structuredClone(task),text:task.response?.text||'',calls:original?.calls||[]};
+   delete row.reason;if(task.error===undefined)delete row.error;if(task.blockedBy===undefined)delete row.blockedBy;return row;});
+  return true;
+ }
  async function recoverySourceVersion(chat,{persistCanvas=false}={}){
   if(chat.studioNodeId){if(window.StudioAPI?.getState()?.nodeId!==chat.studioNodeId)throw Error('请先打开原任务对应的片场，再继续执行');await window.StudioAPI.prepareAgentContext();}
   if(persistCanvas)await app.saveProject();
@@ -806,7 +826,13 @@
    await executionReady;assertPreparation();await persistPreparation();
    const fresh=await request('state',{sessionId:record.sessionId,binding:record.binding},runController.signal,{chat:d});
    assertPreparation();record.state=recoveryModule.checkedSummary(record,fresh);record.checkedAt=Date.now();await persistPreparation();
+   if(recoveryModule.terminalDelegationEligibility(record,scope).allowed){
+    const sourceVersion=await recoverySourceVersion(d);assertPreparation();
+    await recoveryModule.prepareTerminalDelegationReceipt(record,{scope,sourceVersion,signal:runController.signal,isCurrent:ownsPreparation,request:(action,data)=>request(action,data,runController.signal,{chat:d})});
+    assertPreparation();await persistPreparation();
+   }
    const plan=await recoveryModule.buildResumePlan(record,scope,await recoverySourceVersion(d));assertPreparation();
+   if(synchronizeTerminalDelegationTrace(d,record,plan))await persistPreparation();
    const item=record.journal.submission;validateSubmission(d,item);
    if(await recoverySourceVersion(d)!==plan.sourceVersion)throw Error('继续前来源版本再次变化，任务已暂停');
    const depthHost=await depthHostFor(d);assertPreparation();depthHost.beginTurn(item.id);
@@ -816,6 +842,7 @@
    run.journal.phase='continue_requested';await persistRunCheckpoint(d,run);render();
    const seenCallIds=new Set(plan.seenCallIds);
    if(await recoverySourceVersion(d)!==plan.sourceVersion)throw Error('保存恢复记录期间来源版本已变化，未发送模型请求');
+   if(!ownsAgentRun(d,run)||runController.signal.aborted)throw new DOMException('恢复执行上下文已离开','AbortError');
    const response=await request('continue',{sessionId:plan.sessionId,binding:plan.binding,results:plan.results},runController.signal,{chat:d,seenCallIds});
    recoveryModule.assertResumeResponse(response,plan);
    completed=await runToolLoop(d,item,run,response,{depthHost,seenCallIds,runController});

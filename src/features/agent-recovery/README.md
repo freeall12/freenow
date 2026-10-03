@@ -31,7 +31,17 @@
 
 来源签名覆盖本项目完整 nodes/edges、有效图片/视频生成配置、产物路径与 revision、当前片场绑定/版本/对象信息、图片编辑器 session/revision/document、内置/个人技能及停用集、素材库/主体库和真实表单提交。忽略画布平移、缩放和选中状态。准备完成前关闭面板会取消准备；提交为正常 activeRun 后收起面板沿用原后台执行习惯，保持原 chat/project/run，真实结果仍保存，等待确认的操作须重开面板。Stop/pagehide 可中断；pagehide 保留原身份和已提交 journal。
 
-限制：历史任务没有 journal 不能补造；部分工具已执行而完整回执未保存不能恢复执行；原始媒体结果只在 journal 成功持久化后可跨刷新补交。来源改变会保守拒绝，包括重新打开产生新 session 的片场或编辑器。子 Agent/DAG 中途尚未获得完整父调用回执时，前端仍仅核对其状态，不从子任务摘要续跑。深度工作流的内存准备缓存不重建；下一轮若引用旧准备身份，真实工具可能要求重新读取/准备。服务端、真实模型/供应商质量和整体验收由主线验证。
+限制：历史任务没有 journal 不能补造；普通工具部分已执行而完整回执未保存不能恢复执行；原始媒体结果只在 journal 成功持久化后可跨刷新补交。来源改变会保守拒绝，包括重新打开产生新 session 的片场或编辑器。子 Agent/DAG 未全部终态时只核对状态，不重新派发；完整终态结果可按下述专用合同读取原父回执，不能用子任务摘要替代正文。深度工作流的内存准备缓存不重建；下一轮若引用旧准备身份，真实工具可能要求重新读取/准备。服务端、真实模型/供应商质量和整体验收由主线验证。
+
+## 完整终态委派回执
+
+`terminal-delegation.mjs` 只支持已核对的父 `waiting_tools`：当前唯一待办必须是原 `agent_delegate`，与 journal 的原轮次、callId、名称、seen ID 和绑定匹配；所有子任务必须真实处于 completed/failed/cancelled/limited/skipped，依赖无环且跳过原因来自失败前序。unknown、运行中、等待工具、未启动或缺少原 journal 均阻断，没有子任务 POST 重试。
+
+`terminalDelegationEligibility(record, scope)` 提供按钮状态与提示：“子任务已全部结束；继续前只读取服务端完整结果并保存原父回执，不重新执行子任务。”实际恢复调用 `prepareTerminalDelegationReceipt(record, {scope, sourceVersion, request, isCurrent, signal})`。它核验原提交和来源签名，仅发送一次 `delegated-result {sessionId,binding,callId}` 读取完整服务端聚合，核对 taskId/title/dependsOn/status/blockedBy 以及结果正文，然后建立原父工具的完整 transport receipt 和来源标记。读取不请求模型，也不将 state 的摘要补造成结论。服务端对提供的 binding 严格校验；父 `/continue` 再从服务端终态 settle 聚合，客户端不能替换真实结论。失败/上限/跳过保留事实，不能描述为全体成功。
+
+当前主线接线顺序：恢复准备阶段重新读 state → 若终态资格成立，调用上述 helper → 保存并 flush 原 interrupted record 的 journal → 再次核对来源 → `buildResumePlan` → 进入原 activeRun 后按现有显式 `/continue` 和工具循环执行。helper 只准备回执，不自行持久化、调用 `/continue` 或执行工具。未读取完整回执时 `buildResumePlan` 返回 `resume_delegation_receipt_required`，安全保留原任务。完整回执校验后仅同步唯一匹配的原委派卡，展示真实子任务状态和完整正文；保留历史中断文本与本地工具步骤，无匹配卡不新建。同步也先持久保存，再进入续轮。
+
+聚焦回归：`node --test tests/agent-recovery-terminal-delegation.test.cjs tests/agent-recovery-lifecycle.test.cjs`。前者通过实际 AgentRuntime 和内存检查点验证完整父回执与显式父续轮、失败及因果跳过、未知状态零请求、身份/来源/伪结果/迟到读取阻断；后者执行真实恢复控制函数验证准备期关闭、正式执行后收起，以及激活保存期间来源变化。无真实模型、浏览器或生产存储。
 
 追加聚焦验证：`node --test tests/agent-recovery.test.cjs tests/agent-recovery-journal.test.cjs tests/agent-recovery-fixture.test.cjs tests/agent-generation-settlement.test.cjs`。结算测试执行真实 Agent 续轮边界及真实应用 runner，覆盖异步落图、签名后编辑拒绝、取消/切换、身份冲突、超时与订阅清理。不使用模型、Key、浏览器 E2E，也不改用户存储。
 
@@ -43,3 +53,5 @@
 2. 对话内点击“核对中断任务”→“继续中断任务”，允许下一轮新操作。左侧刷新统计应原调用节点数 1、后续新调用节点数 1；原 callId 不再执行。
 3. 新 session URL 重做首个操作，断线后点击左侧“修改原调用来源以验证阻断”，再核对→继续。应提示来源版本变化，继续请求不增加、后续新调用节点数 0。
 4. 下拉另外提供 `receipts_saved`、初始 `planned`、未知结果、缺回执、旧回包场景。每个场景使用新 session，避免已有记录混合；不删除旧数据。
+
+2026-10-03 Computer Use 已验证 `terminal_delegation` 隔离场景：真实发送 → 执行通道中断 → 刷新并重开助手 → 核对 → 显式继续；turn/start/result/continue 均为 1，state 为 2，未创建节点或重启子任务。原委派卡更新为两项真实模拟 completed 和完整模拟正文，再次刷新保持。此证据使用明确标注的固定 QA 响应，不能代替真实模型质量或后端断电恢复验收。

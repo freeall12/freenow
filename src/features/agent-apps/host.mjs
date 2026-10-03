@@ -284,6 +284,9 @@ export function createMcpAppHost(options) {
       if (toolResult !== null) notify('ui/notifications/tool-result', toolResultParams());
       sendPresentation();if(appReplyStatus)notify('tapnow/updateData',appReplyStatus);if (conversationActive !== undefined) notify('tapnow/updateData', {conversation_run_active: conversationActive});callbacks.onReady?.();return;
     }
+    // Presentation dismissal grants no tool authority and only belongs to the
+    // currently focused, expanded frame, including after reload or suspension.
+    if (data.method === 'tapnow/presentationDismiss' && ready && expanded && live() && iframe.ownerDocument?.activeElement === iframe && data.params?.reason === 'escape') {callbacks.onDismiss?.();return;}
     if (data.method === 'ui/notifications/size-changed' && ready && Number.isFinite(data.params?.height) && data.params.height > 0) callbacks.onSizeChanged?.(data.params.height);
   }
   function loaded() {

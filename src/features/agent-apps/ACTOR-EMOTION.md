@@ -24,7 +24,15 @@ Failure modes：不匹配的mode/来源/绑定/face，缺失已提交状态或�
 
 Logging：show_app trace保留appState、actorExpressionGuide、widgetOrigin和handoff；真实图片节点provenance保留调用ID、来源快照、图片哈希。图片工具重试按调用ID和内容核对；相同来源与相同灰模字节的新调用可复用已保存真实节点；重复相同确认按稳定内容handoffId去重，改变voice/face/正文/guide字节则产生新交接。节点ID保留在可读交接中，重建同一字节图片不会仅因节点ID不同而绕过去重。
 
-展示策略严格采用官方`{allowExpanded:true,autoExpandOnReady:false}`，无maxInlineHeight。官方actor CSP只开放imgDomains：tap-testing.tamaredge.top、tap-testing2.tamaredge.top、files-testing.tapnow.art/media/top、files.tapnow.art/media/ai/top（均https）；没有mediaDomains。data:内嵌图片/模型仍沿官方proxy规则处理，不能因此开放任意外部资源。
+展示策略严格采用官方`{allowExpanded:true,autoExpandOnReady:false}`，无maxInlineHeight。原站证据`vendor-packages-CN3JnHbF.js`的`_ae(actor-emotion)`配置imgDomains：tap-testing.tamaredge.top、tap-testing2.tamaredge.top、files-testing.tapnow.art/media/top、files.tapnow.art/media/ai/top（均https）；没有mediaDomains。这是官方宿主的域名配置记录。
+
+当前本地离线sandbox使用`img-src data: blob:`、`media-src blob:`、`connect-src 'none'`；上述原站HTTPS域名不在当前页面白名单中。人物参考由宿主从真实节点像素生成data URI；内嵌GLB和纹理在本页本地解码。双iframe继续只允许`allow-scripts`，保留opaque origin。
+
+## 本地纹理加载派生
+
+官方内嵌GLB包含真实JPEG纹理`FBHead_baked_tex`。现代浏览器的官方ImageBitmapLoader会对GLTFLoader创建的`blob:null/...`调用fetch，受到当前`connect-src 'none'`拦截；`blob:null`表示opaque origin，并不表示图片不存在。旧路径会让人偶纹理加载失败，即使模型几何已显示。
+
+`actor-emotion-local-resources.mjs`仅对actor-emotion@v1、完整HTML SHA256 `63ee986bdf5b9572cad5edc838da540eda6147007ab3f011604959467616437f`和唯一精确替换点生效，将加载器选择切到官方已有TextureLoader，通过`<img>`读取现行`img-src blob:`允许的本地纹理。修复只作用于proxy写入srcdoc前的内存派生内容；官方HTML文件字节未变，GLB、JPEG纹理、材质和交互保持原资源内容。没有扩大connect-src或增加外部网络权限。outer proxy加载该专属静态模块需要其精确路径的匿名CORS读取；内层页面策略继续全禁网络连接。
 
 ## 验收
 
@@ -34,4 +42,6 @@ node --test tests/agent-actor-emotion.test.cjs
 
 测试独立提取官方`IT/Db/eT/GQ/sE`原文，验证两语言与图像/视频模式、真实PNG与WebP输入、CRC/字节哈希、预算、未保存/假来源/假guide/注入拒绝及内容去重。PNG结构校验不能替代实际图片解码；生产runtime另有解码、素材和提交保存回归。
 
-`/src/features/agent-apps/qa/actor-emotion.html`使用生产controller/host/runtime，独立IndexedDB `tapnow-qa-actor-emotion-v1`，真实本地输入图片和图节点适配器。它必须从未修改官方页面渲染并捕获灰模，实际解码/保存后才展示图片回执与队列；刷新恢复保存结果，普通重绘不能重复排队。没有模型或生成API调用。本页fixture和本地适配器用于宿主路径验收，不能代替用户项目与真实模型的生成验收。
+`/src/features/agent-apps/qa/actor-emotion.html`使用生产controller/host/runtime，独立IndexedDB `tapnow-qa-actor-emotion-v1`，真实本地输入图片和图节点适配器。它加载原始捕获页面并应用上述哈希限定纹理派生，真实渲染并捕获灰模，实际解码/保存后才展示图片回执与队列；刷新恢复保存结果，普通重绘不能重复排队。没有模型或生成API调用。本页fixture和本地适配器用于宿主路径验收，不能代替用户项目与真实模型的生成验收。
+
+2026-10-03主任务CUA复验：新浏览器页无warn/error，灰模及原纹理完整可见；使用原生键盘选择“喜悦”并确认，实际已保存guide从2张增至3张，队列为3项。新guide图片SHA256为`5c76d227075d9c87cf201b4fb5a87624384ab94710c8cea031774329d595e57e`。刷新后3张保存图片均可实际解码为512×512。纹理修复的4项聚焦测试此前已通过；此文档更新未重复运行测试。截图：[真实纹理浏览器验收](/tmp/freenow-actor-local-texture-20261003.png)。

@@ -1,4 +1,5 @@
 import {canCheck, sameBinding} from './model.mjs';
+import {terminalDelegationEligibility} from './terminal-delegation.mjs';
 
 const fail = (code, message) => {throw Object.assign(Error(message), {code});};
 const canonical = value => JSON.stringify(value, (_key, item) => item && typeof item === 'object' && !Array.isArray(item) ? Object.fromEntries(Object.keys(item).sort().map(key => [key, item[key]])) : item);
@@ -64,6 +65,10 @@ export function resumeEligibility(record, scope) {
     if (state.round !== 0 || state.pending.length || journal.round !== 0 || journal.pending.length || journal.seenCallIds.length || !['initial_planned', 'continue_requested'].includes(journal.phase)) return {allowed: false, reason: '计划状态与原提交记录不匹配，无法安全继续。'};
   } else {
     const receipts = journal.receipts;
+    if (!receipts) {
+      const delegation = terminalDelegationEligibility(record, scope);
+      if (delegation.allowed) return delegation;
+    }
     if (!receipts || !['receipts_ready', 'continue_requested'].includes(journal.phase) || !exactReceipts(receipts.results, receipts.pending) || !sameCalls(receipts.pending, journal.pending) || receipts.round !== journal.round || state.round !== journal.round) return {allowed: false, reason: journal.executedCallIds?.length ? '工具可能已部分执行，但未保存完整原始回执；请检查现有结果，不能重放工具。' : '未保存当前轮次的完整原始工具回执，不能继续或重放工具。'};
     if (state.status === 'waiting_tools' && !sameCalls(state.pending, receipts.pending)) return {allowed: false, reason: '服务端待办调用与已保存回执不匹配，不能继续。'};
     if (state.status === 'receipts_saved' && state.pending.length) return {allowed: false, reason: '服务端回执状态与待办列表不一致，不能继续。'};
@@ -75,6 +80,7 @@ export async function buildResumePlan(record, scope, sourceVersion) {
   const eligibility = resumeEligibility(record, scope);
   if (!eligibility.allowed) fail('resume_blocked', eligibility.reason);
   const journal = record.journal;
+  if (record.state.status !== 'planned' && !journal.receipts) fail('resume_delegation_receipt_required', '请先读取并保存服务端完整委派结果，不能从子任务状态摘要继续');
   if (journal.sourceVersion !== sourceVersion || journal.receipts && journal.receipts.sourceVersion !== sourceVersion) fail('resume_source_changed', '画布、素材、片场或编辑器来源版本已变化，已拒绝继续原任务。请检查现有结果后发起新需求。');
   if (await fingerprint(journal.submission) !== journal.submissionHash) fail('resume_submission_changed', '原始提交记录已变化，不能继续此任务');
   const results = record.state.status === 'planned' ? [] : journal.receipts.results;

@@ -1,5 +1,7 @@
 # TapNow 无限画布本地复刻
 
+2026-10-03 补齐终态委派断线恢复、原子任务卡状态同步、嵌套应用 Escape 及人物灰模本地纹理加载，并优化纯视口工具栏选中扫描。真实浏览器已验证恢复不重复派发、参考图导出与刷新、多选缩放。全站功能与最终 freenow 品牌仍未完成，见[本批交付与边界](docs/LOCAL-RECOVERY-AND-INTERACTIONS-20261003.md)及[最终本地化验收清单](docs/FREENOW-LOCALIZATION-ACCEPTANCE.md)。
+
 2026-10-03 追加 Marble 生产路由与本机资源归档、3D 多场景动画/资源释放、Agent 完整本地建议。第二场景播放及刷新恢复、SPZ 提交前拦截、应用引用草稿保存已通过 Computer Use；高斯渲染、精确模板和最终品牌仍开放。见[本批实现与验证](docs/LOCAL-WORLD-AND-SCENE-20261003.md)。
 
 2026-10-03 接通两类历史 Agent 应用，manifest 22/22 版本 URI 已登记（仅接线覆盖）；追加 ElevenLabs 原生 TTS、真实本机音频归档与播放。历史站位/分镜保存交接及隔离合同音频已做浏览器操作，仍不代表全部交互或真实供应商质量完成。见[本批记录](docs/HISTORICAL-APPS-AND-NATIVE-TTS-20261003.md)。

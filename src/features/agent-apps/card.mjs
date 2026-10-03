@@ -45,7 +45,7 @@ export function createMcpAppCard({trace,policy={},createHost,hostOptions={},auto
   stopResizeReset();if(value){restoreFocus=document.activeElement;ignoreResize=true;window.dispatchEvent(new window.CustomEvent(expandedEvent,{detail:{cardId}}));}
   expanded=value;sync();notifyPresentation();
   if(value){if(state==='ready'&&dialog.isConnected)dialog.focus({preventScroll:true});}
-  else {const target=restoreFocus;restoreFocus=null;resizeFrames.push(raf(()=>{resizeFrames.push(raf(()=>{ignoreResize=false;resizeFrames=[];}));}));if(restore&&target?.isConnected)target.focus?.({preventScroll:true});}
+  else {const target=restoreFocus?.isConnected?restoreFocus:expand;restoreFocus=null;resizeFrames.push(raf(()=>{resizeFrames.push(raf(()=>{ignoreResize=false;resizeFrames=[];}));}));if(restore&&target?.isConnected)target.focus?.({preventScroll:true});}
   return true;
  }
  function scheduleRetry(){
@@ -60,6 +60,7 @@ export function createMcpAppCard({trace,policy={},createHost,hostOptions={},auto
    onReady(){if(!live())return;state='ready';failure=null;wasReady=true;stopRetry();retryRemaining=null;sync();host?.updateConversationRunActive?.(!!options.runActive);if(wantsAutoExpand&&currentPolicy.autoExpandOnReady&&!autoExpanded&&!suspended){autoExpanded=true;setExpanded(true);}else if(expanded&&dialog.isConnected)dialog.focus({preventScroll:true});callbacks.onReady?.();},
    onError(value){if(!live())return;fail(value,version);callbacks.onError?.(value);},
    onSizeChanged(height){if(!live()||ignoreResize||typeof height!=='number'||!Number.isFinite(height))return;const max=currentPolicy.maxInlineHeight;inlineHeight=Math.max(height,100);if(Number.isFinite(max))inlineHeight=Math.min(inlineHeight,Math.max(max,100));sync();callbacks.onSizeChanged?.(height);},
+   onDismiss(){if(!live()||!actionCurrent()||!expanded)return false;return setExpanded(false);},
    async onSendPrompt(text,meta,isSourceCurrent=()=>true){if(!live()||!actionCurrent()||!isSourceCurrent()||!callbacks.onSendPrompt)return false;const current=()=>live()&&actionCurrent()&&isSourceCurrent();const accepted=await callbacks.onSendPrompt(text,meta,current);if(!current())return false;if(accepted!==false&&currentPolicy.collapseOnSendMessage)setExpanded(false);return accepted;}
   };
  }
@@ -80,7 +81,7 @@ export function createMcpAppCard({trace,policy={},createHost,hostOptions={},auto
   return element;
  }
  function keydown(event){
-  if(!expanded||suspended||destroyed)return;if(event.key==='Escape'){event.preventDefault();setExpanded(false);return;}
+  if(!expanded||!actionCurrent())return;if(event.key==='Escape'){if(event.isTrusted!==true||event.defaultPrevented||event.isComposing||event.keyCode===229||!dialog.contains(event.target))return;event.preventDefault();event.stopPropagation();setExpanded(false);return;}
   const keys=currentPolicy.presentationShortcuts;if(!(keys===true?['ArrowLeft','ArrowRight','Enter']:keys??[]).includes(event.key)||event.defaultPrevented||event.isComposing||event.keyCode===229||event.ctrlKey||event.metaKey||event.altKey||event.key==='Enter'&&event.repeat)return;
   if(!dialog.contains(event.target)||event.target.closest?.('button,a,input,textarea,select,[contenteditable]:not([contenteditable="false"]),[role="button"],[role="radio"],[role="radiogroup"],[role="slider"]'))return;
   if(host?.sendPresentationShortcut){event.preventDefault();host.sendPresentationShortcut(event.key);}

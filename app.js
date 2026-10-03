@@ -266,7 +266,7 @@
     styleValue(grid,'background-image','radial-gradient(circle, #555 0.7px, transparent 0.9px)');styleValue(grid,'background-size',`${step}px ${step}px`);styleValue(grid,'background-position',`${view.x}px ${view.y}px`);styleValue(grid,'opacity',view.scale>.5?Math.min(.5,(view.scale-.5)/2):0);
     scheduleEmptyHint();scheduleViewSave();
     window.CanvasMinimap?.update({nodes,selected:[...selected],view,viewportOnly},byId,piles);
-    toolbar();
+    toolbar(viewportOnly);
     document.dispatchEvent(new CustomEvent('canvas:render',{detail:{viewportOnly,scaleChanged}}));
   }
   function saveView(){clearTimeout(viewSaveTimer);viewSaveTimer=0;if(window.CanvasProjects&&!graphLoaded)return;const value=JSON.stringify(view);if(value===lastSavedView)return;try{localStorage.setItem(viewStorageKey,value);lastSavedView=value;}catch{if(graphLoaded){const pending=persist();pending?.then(()=>{if(JSON.stringify(view)===value)lastSavedView=value;},()=>{});}}}
@@ -278,8 +278,11 @@
   function returnToNodes(){flushGesture();const target=window.CanvasNavigation.fit(nodes,{width:canvas.clientWidth,height:canvas.clientHeight},'latest');if(!target)return;clearTimeout(emptyHintTimer);emptyHintTimer=0;emptyCandidate=false;$('#empty-view').hidden=true;animateView(target,500);}
   window.addEventListener('pagehide',saveView);
   function zoomAt(scale,x=canvas.clientWidth/2,y=canvas.clientHeight/2){cancelViewportAnimation();scale=Math.max(.15,Math.min(2,scale));const ratio=scale/view.scale;view.x=x-(x-view.x)*ratio;view.y=y-(y-view.y)*ratio;view.scale=scale;render({viewportOnly:true});}
-  function toolbar(){
-    const bar=$('#node-toolbar');const picked=nodes.filter(n=>selected.has(n.id));if(window.WorldNode?.toolbar(picked,bar,{nodes,view,canvas}))return;if(window.CanvasPlaylist?.toolbar(picked,bar))return;if(window.CanvasPilesUI.toolbar(picked,bar,{nodes,view,canvas}))return;if(window.CanvasGroupsUI.toolbar(picked,bar,{nodes,edges,view,canvas}))return;if(window.CanvasTextUI.toolbar(picked,bar,{nodes,view,canvas}))return;bar.classList.remove('group-toolbar','multiselect-toolbar');bar.hidden=!picked.length||picked.length===1&&picked[0].type==='studio';if(bar.hidden)return;
+  let toolbarPicked=null;
+  function toolbar(viewportOnly=false){
+    // Pure viewport passes keep graph and selection unchanged. Retain raw node
+    // identities and graph order; all content/selection passes refresh the list.
+    const bar=$('#node-toolbar');const picked=viewportOnly&&toolbarPicked?toolbarPicked:(toolbarPicked=nodes.filter(n=>selected.has(n.id)));if(window.WorldNode?.toolbar(picked,bar,{nodes,view,canvas}))return;if(window.CanvasPlaylist?.toolbar(picked,bar))return;if(window.CanvasPilesUI.toolbar(picked,bar,{nodes,view,canvas}))return;if(window.CanvasGroupsUI.toolbar(picked,bar,{nodes,edges,view,canvas}))return;if(window.CanvasTextUI.toolbar(picked,bar,{nodes,view,canvas}))return;bar.classList.remove('group-toolbar','multiselect-toolbar');bar.hidden=!picked.length||picked.length===1&&picked[0].type==='studio';if(bar.hidden)return;
     const key=picked.map(n=>n.id).join(',');
     if(bar.dataset.key!==key){bar.dataset.key=key;bar.replaceChildren();
       if(picked.length>1){const count=document.createElement('span');count.className='count';count.textContent=`${picked.length} 个节点`;bar.append(count);}
