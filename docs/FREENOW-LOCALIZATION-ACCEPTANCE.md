@@ -52,3 +52,7 @@
 - 运行边界：`server/server.cjs`、`server/generation-endpoint-policy.cjs`、`server/outbound-client.cjs`、`local-resource-migration/origin-policy.mjs`、`agent-messages/markdown.mjs`。
 - 接线/兼容：`agent-apps/registry.mjs`（product-kit 已注册）、`agent-apps/card.mjs`、`canvas-menus.js`、`project-context.js`；它们的本地标识不按联网次数计数。
 - 细项合同：[HTML 派生](HTML-RESOURCE-DERIVATION.md)、[Widget](widget-html-resource-localization.md)、[会话附件](AGENT-CONVERSATION-RESOURCE-MIGRATION.md)、[本地运行边界](LOCAL-RUNTIME-BOUNDARIES-20261003.md)、[精确创意模板](AGENT-CREATIVE-FAMILY-20261003.md)、[世界/SPZ 最新补记](AGENT-STORY-ACTOR-AND-WORLD-20261003.md)、[供应商配置/验收](MULTI-PROVIDER-SETUP.md)。
+
+## 2026-10-03 本批增量
+
+MiniMax Music / fal 视频增强独立适配及 GLB 实际导出已推进，音乐本机回填与播放、GLB 坐标/轨道和迟到保护已有新鲜 Computer Use 证据。详细范围与限制见[本批交付](LOCAL-NATIVE-MEDIA-AND-SCENE-EXPORT-20261003.md)。未勾选全站功能/外连/品牌终验；无真实 Key，不证明供应商访问权或模型质量。

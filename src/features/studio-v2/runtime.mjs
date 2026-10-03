@@ -19,6 +19,7 @@ import {planSceneRemoval} from './scene-removal.mjs';
 import {importSceneModel,redoScene} from './scene-import.mjs';
 import {prepareSavedScene} from './save-recovery.mjs';
 import {ScenePicker,bindScenePicking,sceneChangeHandler} from './scene-picker.mjs';
+import {exportSceneDocument} from './scene-export.mjs';
 export const defaultLighting={azimuth:Math.atan2(4,6)*180/Math.PI,elevation:Math.atan2(8,Math.hypot(4,6))*180/Math.PI};
 export class SceneRuntime {
   constructor(canvas,{node,onChange,onError}){
@@ -196,6 +197,6 @@ export class SceneRuntime {
   async controlMotion(args){return controlSceneMotion(this,args);}
   async exportMotion(args={},onProgress=()=>{},options={}){return exportSceneMotion(this,args,onProgress,options);}
   async capture(){return captureScene(this);}
-  async export(){await this.flush();return exportGlb(this.playback.document(),this.animations);}
+  async export(){return exportSceneDocument(this);}
   async close(){if(this.reloading)throw Error('正在重新加载已保存场景，请等待完成');clearTimeout(this.saveTimer);if(this.closed)return;if(this.exporting)throw Error('视频正在导出，请等待完成');if(this.loadStatus==='ready'){if(JSON.stringify(this.saved.viewer)!==JSON.stringify(this.read().viewer))this.revision++;await this.flush();}this.closed=true;this.invalidatePick();this.abort.abort();this.resize.disconnect();this.renderer.setAnimationLoop(null);await this.picker?.dispose();this.shotRenderer?.dispose();this.controls.dispose();this.motion.dispose();this.cameraPresentations.dispose();this.centeredTransform.dispose();this.resetMixer();this.transform.dispose();this.box.dispose();this.grid.dispose();this.displayMaterials.dispose();disposeModel(this.content);this.sun.shadow.dispose();this.renderer.dispose();}
 }

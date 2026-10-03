@@ -1,6 +1,8 @@
 import {audioIcons} from './audio-assets.mjs';
-// Official Agent UT registry and Xw/uZe schema, release eb1c357. Node UI keeps its own limits.
+import {videoModels} from './video-catalog.mjs';
+// Official Agent registry/schema, release eb1c357; MiniMax follows the verified native API extension.
 export const audioModels=[
+ {id:'minimax-music-26',name:'MiniMax Music 2.6',icon:videoModels.find(model=>model.id==='MiniMax-H3').icon,virtual:'minimax-music-26',scenes:{Music:'music-2.6'}},
  {id:'elevenlabs',name:'ElevenLabs V3',icon:audioIcons.ELEVENLAB,virtual:'elevenlabs-v3',scenes:{'Text-to-Speech':'eleven_v3',Music:'music_v1',Sound:'eleven_sound_effect'}},
  {id:'sonilo',name:'Sonilo Music',icon:audioIcons.SONILO,virtual:'sonilo-music',scenes:{Music:'sonilo-music',Sound:'sonilo-sfx'}},
  {id:'doubao-seed-audio',name:'Seed audio 1.0',icon:audioIcons.SEEDANCE,virtual:'seed-audio-1-0',scenes:{'Text-to-Speech':'doubao-seed-audio-1-0'}}
@@ -10,6 +12,7 @@ export const sceneNames={'Text-to-Speech':'文字转语音',Music:'音乐',Sound
 export const audioFields=['audioScene','lyricsMode','lyrics','voice','stability','promptInfluence','loop','subtitle','audioFormat','sampleRate','speechRate','pitchRate','loudnessRate'];
 const rates=[-50,-25,0,25,50,100];
 const spec={
+ 'music-2.6':{limit:2000,lyricsLimit:3500,customWithoutPrompt:true,preserveLyrics:true,defaults:{lyricsMode:'auto',lyrics:'',audioFormat:'mp3',sampleRate:44100},options:{lyricsMode:['auto','custom','instrumental'],audioFormat:['mp3','wav'],sampleRate:[16000,24000,32000,44100]}},
  eleven_v3:{limit:3000,defaults:{stability:.5},options:{stability:[0,.5,1]},voice:true},
  music_v1:{limit:4100,defaults:{lyricsMode:'auto',lyrics:'',duration:null},options:{lyricsMode:['auto','custom','instrumental'],duration:[null,30,60]},duration:{min:3,max:300,step:1,key:'music_length_ms',scale:1000}},
  eleven_sound_effect:{limit:1000,defaults:{duration:null,loop:false,promptInfluence:.3},options:{duration:[null,1,5],loop:[false,true],promptInfluence:Array.from({length:11},(_,i)=>i/10)},duration:{min:1,max:22,step:1,key:'duration_seconds'}},
@@ -33,7 +36,8 @@ export function normalizeAudio(draft){
  // Null is an explicit automatic duration, distinct from an omitted override.
  if(s.duration&&draft.duration===null)next.duration=null;
  if(s.duration&&next.duration!==null&&(next.duration<s.duration.min||next.duration>s.duration.max))next.duration=s.defaults.duration;
- if(next.lyricsMode!=='custom')next.lyrics='';
+ // Native MiniMax rejects residual lyrics in auto/instrumental mode; keep user input visible.
+ if(next.lyricsMode!=='custom'&&!s.preserveLyrics)next.lyrics='';
  if(!('lyricsMode'in next))delete next.lyrics;
  return next;
 }
@@ -44,6 +48,7 @@ export function createAudioDraft(args,nodes=[]){
  const model=audioModel(base.model),wire=aliases[args.model]||args.model;
  if(args.model)base.audioScene=args.audioScene||Object.entries(model?.scenes||{}).find(([,id])=>id===wire)?.[0]||(model?.scenes[base.audioScene]?base.audioScene:undefined);
  const same=audioWire(normalizeAudio(base))===source.model;
+ if(same&&source.model==='music-2.6'&&params.lyric_mode&&params.force_instrumental)throw Error('源音频的自定义歌词与纯音乐参数冲突，请先修正歌词模式');
  if(same){for(const [key,param]of Object.entries(paramKeys))if(params[param]!==undefined)base[key]=params[param];const d=audioSpec(normalizeAudio(base))?.duration;if(d)base.duration=params[d.key]==null?null:params[d.key]/(d.scale||1);base.lyricsMode=params.force_instrumental?'instrumental':params.lyric_mode?'custom':'auto';base.lyrics=params.lyrics||'';}
  return normalizeAudio({...base,...structuredClone(args)});
 }
@@ -57,10 +62,11 @@ export function validateAudioDraft(draft,refs=[]){
  const s=audioSpec(draft);if(!s)throw Error('音频模型或场景未识别');
  const reason=audioCompatibility(draft,{image:refs.filter(n=>n.type==='image').length,video:refs.filter(n=>n.type==='video').length,audio:refs.filter(n=>n.type==='audio').length});if(reason)throw Error(reason);
  const prompt=[...refs.filter(n=>n.type==='text').map(n=>n.content),draft.prompt].filter(Boolean).join('\n');
- if(!prompt.trim()&&!refs.some(n=>n.type==='video'&&s.video))throw Error('请输入生成内容或连接参考视频');
+ if(!prompt.trim()&&!(s.customWithoutPrompt&&draft.lyricsMode==='custom')&&!refs.some(n=>n.type==='video'&&s.video))throw Error('请输入生成内容或连接参考视频');
  if(prompt.length>s.limit)throw Error('文字超过 '+s.limit+' 字限制');
  if(draft.lyricsMode==='custom'&&!draft.lyrics?.trim())throw Error('请输入自定义歌词');
- if(draft.lyrics?.length>12000)throw Error('歌词不能超过 12000 字');
+ if(draft.lyrics?.length>(s.lyricsLimit||12000))throw Error('歌词不能超过 '+(s.lyricsLimit||12000)+' 字');
+ if(s.preserveLyrics&&draft.lyricsMode!=='custom'&&draft.lyrics?.trim())throw Error('自动歌词或纯音乐模式含有自定义歌词，请清空歌词或选择自定义');
  for(const [key,values]of Object.entries(s.options||{})){
   const value=draft[key];if(key==='duration')continue;
   const range=({speechRate:[-50,100],pitchRate:[-12,12],loudnessRate:[-50,100],promptInfluence:[0,1]})[key];
@@ -70,6 +76,7 @@ export function validateAudioDraft(draft,refs=[]){
 }
 export function audioRequestConfig(core,current,overrides){
  const draft=createAudioDraft(overrides,[{id:overrides.nodeId,audioConfig:current}]);
+ if(audioWire(draft)==='music-2.6'&&draft.lyricsMode!=='custom'&&draft.lyrics?.trim())throw Error('自动歌词或纯音乐模式含有自定义歌词，请清空歌词或选择自定义');
  const model=audioModel(draft.model);if(!model)throw Error('音频模型未识别，请选择支持的模型');const target=core.transition({},model.virtual,draft.audioScene);target.prompt=draft.prompt;
  for(const [key,param]of Object.entries(paramKeys))if(draft[key]!==undefined)target.params[param]=draft[key];
  if(draft.lyricsMode){target.params.lyric_mode=draft.lyricsMode==='custom';target.params.force_instrumental=draft.lyricsMode==='instrumental';target.params.lyrics=draft.lyricsMode==='custom'?draft.lyrics:'';}

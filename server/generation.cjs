@@ -14,6 +14,8 @@ const {createTripoProvider}=require('./generation-tripo.cjs');
 const {createMiniMaxProvider}=require('./generation-minimax.cjs');
 const {createElevenLabsProvider}=require('./generation-elevenlabs.cjs');
 const {createMarbleProvider}=require('./generation-marble.cjs');
+const {createMiniMaxMusicProvider}=require('./generation-minimax-music.cjs');
+const {createFalVideoProvider}=require('./generation-fal-video.cjs');
 const {createGenerationRouter}=require('./generation-router.cjs');
 const {localVideoErrorMessage}=require('./video-analysis-errors.cjs');
 
@@ -24,8 +26,8 @@ function createGenerationGateway({baseUrl = '', apiKey = '', fetchImpl = fetch, 
   fetchImpl=protectGenerationFetch(fetchImpl);
   let invalidEndpoint=false;
   if(!routed){try{if(baseUrl)tasksEndpoint(baseUrl,{localPort});if(client?.baseURL)tasksEndpoint(client.baseURL,{localPort});}catch{invalidEndpoint=true;}}
-  const native=routed?createGenerationRouter({providers,routes,fetchImpl,localPort}):invalidEndpoint?null:protocol==='openai-native'?createOpenAINativeProvider({baseUrl,apiKey,modelMap,client,fetchImpl}):protocol==='ark-native'?createArkProvider({baseUrl,apiKey,modelMap,fetchImpl}):protocol==='fal-native'?createFalProvider({baseUrl,apiKey,modelMap,fetchImpl}):protocol==='tripo-native'?createTripoProvider({baseUrl,apiKey,modelMap,fetchImpl}):protocol==='minimax-native'?createMiniMaxProvider({baseUrl,apiKey,modelMap,fetchImpl}):protocol==='elevenlabs-native'?createElevenLabsProvider({baseUrl,apiKey,modelMap,fetchImpl}):protocol==='marble-native'?createMarbleProvider({baseUrl,apiKey,modelMap,fetchImpl}):null;
-  const invalidProtocol=!routed&&!['tasks-v1','openai-native','ark-native','fal-native','tripo-native','minimax-native','elevenlabs-native','marble-native'].includes(protocol);
+  const native=routed?createGenerationRouter({providers,routes,fetchImpl,localPort}):invalidEndpoint?null:protocol==='openai-native'?createOpenAINativeProvider({baseUrl,apiKey,modelMap,client,fetchImpl}):protocol==='ark-native'?createArkProvider({baseUrl,apiKey,modelMap,fetchImpl}):protocol==='fal-native'?createFalProvider({baseUrl,apiKey,modelMap,fetchImpl}):protocol==='tripo-native'?createTripoProvider({baseUrl,apiKey,modelMap,fetchImpl}):protocol==='minimax-native'?createMiniMaxProvider({baseUrl,apiKey,modelMap,fetchImpl}):protocol==='elevenlabs-native'?createElevenLabsProvider({baseUrl,apiKey,modelMap,fetchImpl}):protocol==='marble-native'?createMarbleProvider({baseUrl,apiKey,modelMap,fetchImpl}):protocol==='minimax-music-native'?createMiniMaxMusicProvider({baseUrl,apiKey,modelMap,fetchImpl}):protocol==='fal-video-native'?createFalVideoProvider({baseUrl,apiKey,modelMap,fetchImpl}):null;
+  const invalidProtocol=!routed&&!['tasks-v1','openai-native','ark-native','fal-native','tripo-native','minimax-native','elevenlabs-native','marble-native','minimax-music-native','fal-video-native'].includes(protocol);
   if(!routed&&protocol==='tasks-v1'&&baseUrl){try{baseUrl=tasksEndpoint(baseUrl,{localPort});}catch{invalidEndpoint=true;}}
   const prepareRequest = async (request,context={}) => {
     assertIndependentMediaInputs(request);

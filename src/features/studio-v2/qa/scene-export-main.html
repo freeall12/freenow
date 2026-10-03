@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <base href="/">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' blob: data:; img-src 'self' blob: data:; media-src 'self' blob: data:; font-src 'self' data:; worker-src 'self' blob:; frame-src 'none'; object-src 'none'; form-action 'none'; base-uri 'self'">
+  <script src="src/features/studio-v2/qa/scene-export-fixture.js"></script>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="dark"><title>片场GLB导出 · 隔离 QA</title>
+  <link rel="stylesheet" href="style.css?v=studio-agent-26"><link rel="stylesheet" href="panels.css?v=studio-agent-26">
+  <link rel="stylesheet" href="advanced-tools.css?v=studio-agent-26">
+<link rel="stylesheet" href="node-actions.css?v=studio-agent-26">
+<link rel="stylesheet" href="studio.css?v=studio-agent-26"><link rel="stylesheet" href="studio-panorama.css"><link rel="stylesheet" href="agent.css?v=studio-agent-26"><script type="importmap">{"imports":{"three":"/node_modules/three/build/three.module.js","three/addons/":"/node_modules/three/examples/jsm/"}}</script>
+<link rel="stylesheet" href="audio.css?v=1"><link rel="stylesheet" href="voice-input.css"><link rel="stylesheet" href="src/features/canvas-search/styles.css"><link rel="stylesheet" href="feedback.css"><link rel="stylesheet" href="canvas-groups.css"><link rel="stylesheet" href="workflow.css"><link rel="stylesheet" href="canvas-piles.css"><link rel="stylesheet" href="canvas-text.css"><link rel="stylesheet" href="canvas-menus.css"><link rel="stylesheet" href="component-library/ui.css"><link rel="stylesheet" href="canvas-playlist.css"><link rel="stylesheet" href="canvas-commands.css"><link rel="stylesheet" href="image-editor.css"><link rel="stylesheet" href="src/features/canvas-projects/styles.css"></head>
+<body>
+  <main id="canvas" aria-label="无限画布" tabindex="0">
+    <div id="grid"></div><div id="world"><svg id="edges" aria-label="节点连线"></svg><div id="nodes"></div></div>
+    <div id="selection-box" hidden></div>
+  </main>
+  <header class="project-bar">
+    <img src="assets/tap-logo.webp" alt="TapNow" width="24" height="24">
+    <span class="divider"></span><button id="project-title" title="切换画布，双击重命名" aria-label="切换画布" aria-expanded="false">未命名画布</button>
+    <button class="icon-btn" data-icon="15" id="project-menu" aria-label="画布菜单"></button>
+  </header>
+  <nav class="top-actions" aria-label="项目操作" hidden>
+    <button class="credit deferred" data-tip="额度 · 后续接入"><span data-icon="10"></span><span>0</span></button>
+    <button class="community deferred" data-tip="社区 · 后续复刻"><span data-icon="11"></span><span>社区</span></button>
+    <button class="icon-btn share deferred" data-icon="12" aria-label="分享 · 后续复刻" data-tip="分享 · 后续复刻"></button>
+  </nav>
+  <nav class="side-tools" aria-label="画布工具">
+    <button class="icon-btn add" id="add" data-icon="0" aria-label="添加节点" data-tip="添加节点"><i class="dot"></i></button>
+    <button class="icon-btn" id="search" data-icon="1" aria-label="节点搜索" data-tip="节点搜索  ⌘F"></button>
+    <button class="icon-btn deferred" data-icon="2" aria-label="素材库 · 后续复刻" data-tip="素材库 · 后续复刻"><i class="dot"></i></button>
+    <button class="icon-btn deferred" data-icon="3" aria-label="模板 · 后续复刻" data-tip="模板 · 后续复刻"></button>
+    <button class="icon-btn deferred" data-icon="4" aria-label="评论 · 后续复刻" data-tip="评论 · 后续复刻"></button>
+    <button class="icon-btn deferred" data-icon="5" aria-label="历史 · 后续复刻" data-tip="历史 · 后续复刻"></button>
+    <span class="side-divider"></span><button class="avatar deferred" data-tip="个人账号 · 后续复刻" aria-label="个人账号">N</button>
+  </nav>
+  <aside id="minimap" aria-label="画布小地图" tabindex="0"></aside>
+  <nav class="view-controls" aria-label="视图控制">
+    <button class="icon-btn active" id="toggle-map" aria-label="显示或隐藏小地图" data-tip="小地图"><svg viewBox="0 0 24 24"><path d="m3 5 6-2 6 2 6-2v16l-6 2-6-2-6 2zM9 3v16M15 5v16"/></svg></button>
+    <button class="icon-btn" id="toggle-edges" data-icon="6" aria-label="隐藏节点连线" aria-pressed="false" data-tip="隐藏节点连线"></button>
+    <button class="icon-btn" id="toggle-snap" data-icon="7" aria-label="网格吸附" aria-pressed="false" data-tip="网格吸附"></button>
+    <button class="icon-btn" id="reset" data-icon="8" aria-label="重置视图" data-tip="重置视图  0"></button>
+    <input id="zoom" type="range" min="0.15" max="2" step="0.01" value="0.23" aria-label="画布缩放">
+    <output id="zoom-label">23%</output>
+  </nav>
+  <button id="help" class="icon-btn help" data-icon="9" aria-label="操作帮助" data-tip="操作帮助  ?"></button>
+  <button class="agent deferred" aria-label="AI 助手 · 后续复刻" data-tip="AI 助手 · 后续复刻"><img src="assets/agent.webp" alt=""></button>
+  <div id="node-toolbar" class="node-toolbar" hidden></div>
+  <div id="menu" class="menu" role="menu" hidden></div>
+  <div id="empty-view" hidden><span>当前视窗没有节点，可点击按钮快速回到内容区域</span><button id="return-nodes">回到节点</button></div>
+  <dialog id="search-dialog"><div class="dialog-heading"><h2>节点搜索</h2><button class="close" aria-label="关闭搜索">×</button></div><p>按标题搜索画布节点。</p><input id="search-input" placeholder="搜索节点…" autocomplete="off"><div class="filter-row"><button class="chosen" data-filter="all">全部</button><button data-filter="image">图片</button><button data-filter="video">视频</button><button data-filter="text">文本</button></div><div id="search-results"></div></dialog>
+  <dialog id="preview-dialog"><button class="close" aria-label="关闭预览">×</button><img id="preview-image" alt=""><p id="preview-title"></p></dialog>
+  <dialog id="help-dialog"><div class="dialog-heading"><h2>画布操作</h2><button class="close" aria-label="关闭帮助">×</button></div><dl><dt>平移画布</dt><dd>滚轮 / 中键拖动 / 空格拖动</dd><dt>缩放画布</dt><dd>双指捏合 / Ctrl + 滚轮，或左下滑杆</dd><dt>移动节点</dt><dd>拖动图片</dd><dt>多选节点</dt><dd>拖动空白处框选 / Shift 点击</dd><dt>预览图片</dt><dd>双击节点</dd><dt>搜索节点</dt><dd>⌘F / Ctrl+F</dd><dt>重置视图</dt><dd>0</dd><dt>撤销 / 重做</dt><dd>⌘Z / ⇧⌘Z</dd><dt>取消选择</dt><dd>Esc</dd></dl></dialog>
+  <input id="upload" type="file" accept="image/*" multiple hidden>
+  <script>window.addEventListener("error",e=>console.error(e.message));</script><script src="defaults/canvas-data.js"></script><script src="icons.js?v=studio-agent-26"></script><script src="ui-icons.js?v=studio-agent-26"></script><script src="stage-icons.js"></script><script src="icon-controls.js"></script><script src="defaults/editor-data.js"></script><script src="defaults/sidebar-data.js"></script><script src="src/features/canvas-projects/core.js"></script><script src="project-context.js"></script><script src="canvas-store.js?v=studio-agent-26"></script><script src="canvas-geometry.js"></script><script src="src/features/canvas-search/icons.js"></script><script src="src/features/canvas-search/core.js"></script><script src="studio-node.js"></script><script src="assets/dagre-local.js"></script><script src="canvas-piles.js"></script><script src="canvas-navigation.js"></script><script src="canvas-navigation-icons.js"></script><script src="canvas-pile-motion.js"></script><script src="pile-archive.js"></script><script src="canvas-groups.js"></script><script src="canvas-group-icons.js"></script><script src="canvas-groups-ui.js"></script><script src="assets/text-editor.js"></script><script src="canvas-text.js"></script><script src="canvas-text-icons.js"></script><script src="canvas-text-ui.js"></script><script src="canvas-piles-ui.js"></script><script src="canvas-clipboard.js"></script><script src="canvas-menu-icons.js"></script><script src="app.js?v=studio-agent-26"></script><script src="src/features/canvas-projects/icons.js"></script><script src="src/features/canvas-projects/ui.js"></script><script src="src/features/canvas-search/ui.js"></script><script src="feedback.js"></script><script src="generation-api.js?v=studio-agent-26"></script><script src="generation-ui.js?v=studio-agent-26"></script><script src="defaults/versions-data.js"></script><script src="voice-core.js"></script><script src="voice-input.js"></script><script src="node-editor.js?v=studio-agent-26"></script><script src="agent-tools.js?v=studio-agent-26"></script><script src="agent-client.js?v=studio-agent-26"></script><script src="sidebars.js?v=studio-agent-26"></script>
+  <script src="advanced-tools.js?v=studio-agent-26"></script><script src="node-actions.js?v=studio-agent-26"></script><script src="video-tools.js?v=studio-agent-26"></script>
+<script src="local-assets.js"></script><script src="media-tools.js"></script><script src="studio-camera.js?v=studio-agent-26"></script><script src="studio-state.js?v=studio-agent-26"></script><script src="studio-data.js?v=studio-agent-26"></script><script type="module" src="studio.mjs?v=studio-agent-26"></script>
+<script src="audio-core.js"></script><script src="audio-ui.js"></script><script src="text-generation-ui.js"></script><script src="workflow-core.js"></script><script src="templates-core.js"></script><script src="template-capture-icons.js"></script><script src="workflow-ui.js"></script><script src="templates-ui.js"></script><script src="component-library/ui.js"></script><script src="canvas-menus.js"></script><script src="canvas-command-icons.js"></script><script src="canvas-playlist.js"></script><script src="canvas-playlist-ui.js"></script><script src="image-editor-icons.js"></script><script src="image-editor-fonts.js"></script><script src="assets/image-editor.js"></script><script src="canvas-commands.js"></script><script type="module" src="src/features/world-node/entry.mjs"></script><script type="module" src="src/features/studio-v2/qa/scene-export-controls.mjs"></script></body>
+</html>
