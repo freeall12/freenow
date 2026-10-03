@@ -22,14 +22,16 @@
     setProvider(provider){if(provider&&typeof provider.generate!=='function')throw new TypeError('Provider.generate is required');this.provider=provider;}
     subscribe(fn){this.listeners.add(fn);return()=>this.listeners.delete(fn);}
     emit(job){for(const fn of this.listeners)fn({...job,controller:undefined});}
-    submit(request,{beforeDispatch,beforeDispatchReady}={}){
+    submit(request,{beforeDispatch,beforeDispatchReady,beforeTransportReady}={}){
       if(!request?.kind)throw new TypeError('Task kind is required');
       if(beforeDispatch!==undefined&&typeof beforeDispatch!=='function')throw new TypeError('beforeDispatch must be a host function');
       if(beforeDispatchReady!==undefined&&typeof beforeDispatchReady!=='function')throw new TypeError('beforeDispatchReady must be a host function');
+      if(beforeTransportReady!==undefined&&typeof beforeTransportReady!=='function')throw new TypeError('beforeTransportReady must be a host function');
       const job={id:crypto.randomUUID(),request:structuredClone(request),status:'queued',progress:0,createdAt:Date.now(),controller:new AbortController()};
       // Closures are host-only: never serialize them into task requests or public snapshots.
       Object.defineProperty(job,'beforeDispatch',{value:beforeDispatch});
       Object.defineProperty(job,'beforeDispatchReady',{value:beforeDispatchReady});
+      Object.defineProperty(job,'beforeTransportReady',{value:beforeTransportReady});
       Object.defineProperty(job,'transport',{value:this.provider,writable:true,configurable:true});
       this.jobs.set(job.id,job);this.emit(job);queueMicrotask(()=>this.run(job));return job;
     }
@@ -56,6 +58,10 @@
           if(job.controller.signal.aborted)return;validateSources();
           if(configured===false){job.status='configuration_required';job.error='尚未配置生成服务，请连接 API 后重试';this.emit(job);return;}
           await prepare(this.prepareInputs);if(job.controller.signal.aborted)return;
+          // The final materialized request needs its own durable fingerprint;
+          // an earlier receipt cannot authorize a different transport body.
+          await job.beforeTransportReady?.({jobId:job.id,signal:job.controller.signal});
+          if(job.controller.signal.aborted)return;
           validateSources();
         }
         catch(error){if(job.controller.signal.aborted)return;job.status=error.code==='configuration_required'?'configuration_required':'failed';job.code=error.code;if(error.providerDispatched===false)job.providerDispatched=false;job.error=error.message||'生成参数无效';this.emit(job);return;}
@@ -95,13 +101,15 @@
       const promise=Promise.resolve().then(async()=>{
         check();if(typeof provider?.lookup!=='function')throw Error('当前生成适配器不支持任务恢复');
         const existing=this.jobs.get(id);
-        if(existing&&['queued','running','succeeded','cancelled'].includes(existing.status))return existing;
+        if(existing&&['queued','running','succeeded','cancelled'].includes(existing.status)){await beforeRestore?.(existing);check();return existing;}
         const remote=await provider.lookup(id,{signal:controller.signal});check();
         if(!remote?.request?.kind||!remote.id||!['queued','running','unknown','succeeded','failed','cancelled','configuration_required'].includes(remote.status))throw Error('恢复记录缺少有效的原始请求或状态');
         if(remote.status==='succeeded')this.validateResult(remote);
         let job=existing?{...existing}:{id,request:structuredClone(remote.request),createdAt:remote.createdAt,controller:new AbortController(),recovered:true};
         if(job.controller.signal.aborted)throw Object.assign(Error('任务已取消'),{name:'AbortError'});
-        Object.assign(job,{status:remote.status,progress:remote.progress||0,remoteTaskId:remote.id,recovery:remote.recovery,error:remote.error,outputs:remote.outputs,providerDispatched:true},taskMediaState(remote));
+        // Validate the actual persisted transport request, including for an
+        // existing unknown job; retaining its older body would mask corruption.
+        Object.assign(job,{request:structuredClone(remote.request),status:remote.status,progress:remote.progress||0,remoteTaskId:remote.id,recovery:remote.recovery,error:remote.error,outputs:remote.outputs,providerDispatched:true},taskMediaState(remote));
         Object.defineProperty(job,'transport',{value:provider,writable:true,configurable:true});
         await beforeRestore?.(job);check();
         if(job.controller.signal.aborted)throw Object.assign(Error('任务已取消'),{name:'AbortError'});
@@ -123,7 +131,7 @@
       const receipt={id,outcome:'cancel_requested',status:'cancelled',localCancellationRequested:true,lateResultBlocked:true,providerCancellation:job.providerDispatched?'unconfirmed':'not_requested'};
       job.cancellation={...receipt,requestedAt:Date.now()};job.status='cancelled';job.controller.abort();if(!job.providerActive&&job.remoteTaskId&&job.transport?.cancel)void job.transport.cancel(job.remoteTaskId).catch(()=>{});this.emit(job);return receipt;
     }
-    retry(id){const job=this.jobs.get(id);if(job&&['queued','running','unknown','succeeded'].includes(job.status))throw Error('请先查询或应用已有任务，不能重复生成');return job?this.submit(job.request,{beforeDispatch:job.beforeDispatch,beforeDispatchReady:job.beforeDispatchReady}):null;}
+    retry(id){const job=this.jobs.get(id);if(job&&['queued','running','unknown','succeeded'].includes(job.status))throw Error('请先查询或应用已有任务，不能重复生成');return job?this.submit(job.request,{beforeDispatch:job.beforeDispatch,beforeDispatchReady:job.beforeDispatchReady,beforeTransportReady:job.beforeTransportReady}):null;}
   }
   function normalizeApiBaseUrl(baseUrl){
     let base;try{base=new URL(baseUrl);}catch{throw new Error('请输入完整的 HTTP API 基础地址');}

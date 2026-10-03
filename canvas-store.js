@@ -25,23 +25,30 @@
         tx.onabort=()=>reject(tx.error||new Error('本地记录读取中断'));
       });
     },
-    writeRecord(key,value) {
+    writeRecord(key,value,{expectedRevision,canCommit}={}) {
       if(typeof key!=='string'||!(/^(agent|comments)-/).test(key))throw Error('本地记录标识无效');
       if(value===null||typeof value!=='object')throw Error('本地记录必须为对象');
+      if(expectedRevision!==undefined&&(!Number.isSafeInteger(expectedRevision)||expectedRevision<0))throw TypeError('本地记录版本无效');
+      if(canCommit!==undefined&&typeof canCommit!=='function')throw TypeError('本地记录提交检查必须为函数');
       const snapshot=structuredClone(value),previous=latestSave;
       latestSave=previous.catch(()=>{}).then(()=>database).then(db=>new Promise((resolve,reject)=>{
         const tx=db.transaction('documents','readwrite'),store=tx.objectStore('documents'),request=store.get(key);
         let conflict=null,nextRevision=null;
         request.onsuccess=()=>{
-          const expected=revisions.get(key),actual=revisionOf(request.result);
+          // A journal owns its loaded baseline; unrelated readers must not advance it.
+          const expected=expectedRevision===undefined?revisions.get(key):expectedRevision,actual=revisionOf(request.result);
           if((expected===undefined&&request.result!==undefined)||(expected!==undefined&&expected!==actual)){
             const comments=key.startsWith('comments-');
             conflict=new Error('另一窗口已更新此项目的'+(comments?'评论':' Agent 会话')+'，当前修改尚未保存。请保留此页面并先处理版本冲突');conflict.name=comments?'CanvasCommentsConflictError':'AgentConversationConflictError';tx.abort();return;
           }
-          nextRevision=actual+1;snapshot.storageRevision=nextRevision;store.put(snapshot,key);
+          try{
+            if(canCommit&&canCommit()!==true)throw Object.assign(new Error('本地记录提交资格已失效，修改尚未保存'),{name:'CanvasRecordCommitRejectedError'});
+            if(!Number.isSafeInteger(actual+1))throw Error('本地记录版本超出范围');
+            nextRevision=actual+1;snapshot.storageRevision=nextRevision;store.put(snapshot,key);
+          }catch(error){conflict=error;tx.abort();}
         };
         request.onerror=()=>reject(request.error);
-        tx.oncomplete=()=>{revisions.set(key,nextRevision);resolve();};tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(conflict||tx.error||new Error('本地记录保存中断'));
+        tx.oncomplete=()=>{revisions.set(key,nextRevision);resolve({storageRevision:nextRevision});};tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(conflict||tx.error||new Error('本地记录保存中断'));
       }));
       return latestSave;
     },

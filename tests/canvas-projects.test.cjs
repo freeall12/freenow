@@ -23,6 +23,31 @@ function page({id='canvas',href='http://localhost:4173/?session=keep',values=new
 }
 const graph=(id,title)=>({version:1,nodes:[{id,type:'image',x:1,y:2,width:100,height:100,title}],edges:[]});
 
+test('explicit record revision cannot be advanced by an unrelated newer read',async()=>{
+  const key='agent-workflow-runs:a',values=new Map([[key,{storageRevision:3,runs:['old']}]]),f=page({values});
+  await f.store.readRecord(key);
+  values.set(key,{storageRevision:4,runs:['new']});await f.store.readRecord(key);
+  await assert.rejects(f.store.writeRecord(key,{runs:['stale']},{expectedRevision:3}),{name:'AgentConversationConflictError'});
+  assert.equal(f.transactions.length,0);assert.deepEqual(values.get(key).runs,['new']);
+});
+test('explicit record revision returns only its committed revision and captures the input',async()=>{
+  const key='agent-workflow-runs:a',f=page(),value={runs:['original']};let committed=false;
+  const saving=f.store.writeRecord(key,value,{expectedRevision:0,canCommit:()=>true}).then(result=>{committed=true;return result;});
+  value.runs.push('later');await tick();assert.equal(committed,false);assert.deepEqual(f.transactions[0].snapshot.runs,['original']);f.commit();
+  assert.equal((await saving).storageRevision,1);
+  const again=f.store.writeRecord(key,{runs:[]},{expectedRevision:1});await tick();f.commit(1);assert.equal((await again).storageRevision,2);
+});
+test('record commit guard runs at transaction time and rejects false, async and thrown guards',async()=>{
+  for(const guard of [()=>false,()=>Promise.resolve(true),()=>{throw Error('ownership changed');}]){
+    const f=page();await assert.rejects(f.store.writeRecord('agent-workflow-runs:a',{runs:[]},{expectedRevision:0,canCommit:guard}));assert.equal(f.transactions.length,0);assert.equal(f.values.size,0);
+  }
+  const f=page();let current=true;const write=f.store.writeRecord('agent-workflow-runs:a',{runs:[]},{expectedRevision:0,canCommit:()=>current});current=false;await assert.rejects(write,{name:'CanvasRecordCommitRejectedError'});assert.equal(f.transactions.length,0);
+});
+test('explicit record revision validates host options before queuing writes',()=>{
+  const f=page();for(const revision of [-1,1.5,NaN,Infinity,'0',null])assert.throws(()=>f.store.writeRecord('agent-workflow-runs:a',{}, {expectedRevision:revision}),/版本无效/);
+  assert.throws(()=>f.store.writeRecord('agent-workflow-runs:a',{}, {canCommit:true}),/必须为函数/);assert.equal(f.transactions.length,0);
+});
+
 test('default identity preserves legacy document URL options and original storage keys',()=>{
   const f=page();assert.equal(f.projects.id(),'canvas');assert.equal(f.projects.current().title,'未命名画布');assert.equal(f.projects.storageKey('tapnow-canvas-view-v1'),'tapnow-canvas-view-v1');assert.equal(f.projects.namespace('assets'),'assets');assert.equal(new URL(f.projects.url('new')).searchParams.get('session'),'keep');assert.equal(new URL(f.projects.url('canvas')).searchParams.has('project'),false);
 });

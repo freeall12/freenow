@@ -6,8 +6,8 @@ const request={kind:'audio.generate',nodeId:'origin',prompt:'不能当作字幕'
 const appSource=fs.readFileSync(require.resolve('../app.js'),'utf8'),uiSource=fs.readFileSync(require.resolve('../generation-ui.js'),'utf8');
 function fixture(){
  const audio={id:'result',type:'audio',audio:'asset:accepted',x:400,y:-50,width:300},c={window:{},nodes:[audio],edges:[],TextEncoder,crypto:require('node:crypto'),history:[],flushGesture(){},remember(){c.history.push(structuredClone({nodes:c.nodes,edges:c.edges}));},rebuildAndPersist(){}};
- vm.createContext(c);vm.runInContext('var api={'+appSource.slice(appSource.indexOf('    applyAudioSubtitle('),appSource.indexOf('    async commitGenerationPlan('))+'};',c);
- const app={getState:()=>({nodes:c.nodes,edges:c.edges}),applyAudioSubtitle:(...args)=>c.api.applyAudioSubtitle(...args),saveProject:async()=>{}};
+ vm.createContext(c);vm.runInContext('var api={'+appSource.slice(appSource.indexOf('    applyAudioSubtitle('),appSource.indexOf('    async commitGenerationPlan('))+appSource.slice(appSource.indexOf('    updateNode(id,patch)'),appSource.indexOf('    insertGraph(graph)'))+'};',c);
+ const app={getState:()=>({nodes:c.nodes,edges:c.edges}),applyAudioSubtitle:(...args)=>c.api.applyAudioSubtitle(...args),updateNode:(...args)=>c.api.updateNode(...args),saveProject:async()=>{}};
  return {c,audio,app,job:{id:'job',request,status:'succeeded',outputs:[{type:'audio',audio:'data:audio/wav;base64,AA==',subtitle:{text:' 合同字幕\nSecond line '}}],resultIds:[audio.id]}};
 }
 test('explicit Seed subtitle contract gates accepted request, preserves text and never guesses prompt/text output',async()=>{
@@ -49,10 +49,10 @@ test('save failure retains receipt; retry does not duplicate, while edit/undo ne
  }
 });
 async function production(){
- const core=await coreReady,f=fixture(),recovery=await import('../src/features/generation-results/recovery.mjs'),application=await import('../src/features/generation-results/application.mjs');
+ const core=await coreReady,ordinary=await import('../src/features/audio-generation/application.mjs'),f=fixture(),recovery=await import('../src/features/generation-results/recovery.mjs'),application=await import('../src/features/generation-results/application.mjs');
  f.c.nodes=[{id:'origin',type:'audio',title:'request',x:10,y:20,width:300}];const service=new TaskService(),maps={audioSubtitleReceipts:new Map(),audioSubtitleBindings:new Map(),audioSubtitleMedia:new Map(),latestAudioSubmissions:new WeakMap()};let project='qa',localizes=0,saved=null,saveHook=async()=>{};
  Object.assign(f.app,{projectIdentity:()=>({id:project}),notify:message=>f.notices.push(message),createConnected:(sourceId,outputs)=>outputs.map((o,index)=>{const n={...o,id:'created-'+(f.c.nodes.length+index),x:450,y:20,width:300};f.c.nodes.push(n);return n;}),saveProject:async()=>{await saveHook();saved=structuredClone(f.app.getState());}});f.notices=[];
- const c={...maps,app:f.app,service,window:{AudioAPI:{localize:async()=>{localizes++;return 'asset:localized-'+localizes;}},CanvasStore:{save:async state=>{await saveHook();saved=structuredClone(state);}}},audioSubtitlePageEpoch:0,audioSubtitleReady:Promise.resolve(core),provenanceReady:Promise.resolve({resultProvenance:()=>({})}),validateOutputMedia:async()=>{},draftGuards:new Map(),inPlace:new Map(),videoTargets:new Map(),imageTargets:new Map(),derivedTargets:new Map(),resultWorkflow:null,structuredClone,Promise,Map,WeakMap,Object,JSON,recovery};
+ const c={...maps,app:f.app,service,window:{AudioAPI:{inspectAudio:async()=>({duration:2}),hasPendingEdits:()=>false,localize:async()=>{localizes++;return 'asset:localized-'+localizes;}},CanvasStore:{save:async state=>{await saveHook();saved=structuredClone(state);}}},audioSubtitlePageEpoch:0,audioSubtitleReady:Promise.resolve(core),ordinaryAudioReady:Promise.resolve(ordinary),provenanceReady:Promise.resolve({resultProvenance:()=>({})}),validateOutputMedia:async()=>{},draftGuards:new Map(),inPlace:new Map(),videoTargets:new Map(),imageTargets:new Map(),derivedTargets:new Map(),resultWorkflow:null,structuredClone,Promise,Map,WeakMap,Object,JSON,recovery};
  vm.createContext(c);let code=uiSource.slice(uiSource.indexOf('  const audioSourceSignature='),uiSource.indexOf('  const applicationReady='));
  code+=uiSource.slice(uiSource.indexOf('  async function applyResults('),uiSource.indexOf('  function applicationChanged(')).replaceAll("import('./src/features/generation-results/recovery.mjs')",'Promise.resolve(recovery)');code+='\nglobalThis.applyUnderTest=applyResults;';vm.runInContext(code,c);
  const runner=application.createApplicationRunner({getJob:id=>service.jobs.get(id),apply:c.applyUnderTest});
@@ -62,8 +62,8 @@ async function production(){
  return {...f,runtime:c,service,runner,maps,submit,settle,saveHook:fn=>{saveHook=fn;},setProject:value=>{project=value;},localizes:()=>localizes,saved:()=>saved};
 }
 test('production TaskService → generation applyResults → application runner retains actual refs on save retry',async()=>{
- const f=await production(),job=f.submit();f.saveHook(async()=>{throw Error('save failed');});const first=await f.settle(job);assert.equal(first.applied,false);assert.equal(f.c.nodes.length,3);assert.equal(f.c.history.length,1);assert.equal(f.localizes(),1);
- f.saveHook(async()=>{});const retry=await f.runner.run(job.id);assert.equal(retry.applied,true);assert.equal(f.c.nodes.length,3);assert.equal(f.localizes(),1);assert.equal(f.saved().nodes.find(n=>n.type==='text').sourceAudioNodeId,job.resultIds[0]);
+ const f=await production(),job=f.submit();f.saveHook(async()=>{throw Error('save failed');});const first=await f.settle(job);assert.equal(first.applied,false);assert.equal(f.c.nodes.length,1);assert.equal(f.c.history.length,1);assert.equal(f.localizes(),1);
+ f.saveHook(async()=>{});const retry=await f.runner.run(job.id);assert.equal(retry.applied,true);assert.equal(f.c.nodes.length,2);assert.equal(f.c.nodes[0].id,'origin');assert.equal(f.localizes(),1);assert.equal(f.saved().nodes.find(n=>n.type==='text').sourceAudioNodeId,job.resultIds[0]);
 });
 test('production recovered new_nodes captures before persist; refreshed retained graph never blindly rebinds',async()=>{
  const f=await production(),job=f.submit();await f.settle(job);const output=job.outputs;f.c.nodes.splice(1);f.c.edges=[];

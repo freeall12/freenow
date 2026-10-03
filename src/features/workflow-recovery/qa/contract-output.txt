@@ -1,0 +1,2 @@
+本机合同夹具输出：这是显式合成文本，未调用真实模型或供应商。
+Workflow durability contract replay — synthetic output.

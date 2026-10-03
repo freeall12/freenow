@@ -8,7 +8,7 @@
 
 本地标准生成合同保留 `outputs` 数组。每个实际 `type:'audio'` 输出可选 `subtitle:{text:string}`；只允许 `text` 键，UTF-8 最多 32768 字节，保留原始换行与空格。空白字幕省略；普通文字输出、prompt 和旧 envelope 不推断字幕。后端合同见 [GENERATION-AUDIO-SUBTITLE-CONTRACT-20261003.md](GENERATION-AUDIO-SUBTITLE-CONTRACT-20261003.md)。
 
-官方默认原位完成音频并绑定原音频 ID；本地普通 UI/Agent 生成创建音频结果节点。因此本地绑定每项真正成功的 `resultIds[index]`，不将字幕挂到原空请求节点。没有重写既有音频结果布局。
+普通 UI/Agent 音频来源现与官方一致：真实本地化/解码后原位更新原音频 ID，首项 live 音频字幕绑定此原 ID；多项输出的其余字幕随各音频选项保存，不轮流覆盖同一文字。`runInPlace`、derived 与显式恢复仍按其实际成功的 `resultIds` 绑定；本批普通原位修正见 [AUDIO-GENERATION-IN-PLACE-20261003.md](AUDIO-GENERATION-IN-PLACE-20261003.md)。
 
 ## 应用、保存与迟到保护
 
@@ -36,9 +36,9 @@
 
 页面由当前 `index.html` 生成，使用正式 `app.js`、TaskService、音频验证/本地化及 CanvasStore，独立 IndexedDB 和内存偏好。供应商夹具只返回已验证的本机 `qa/node-audio-repair-tone.wav`（2 秒 PCM）及显式 `subtitle.text`；这是结果合同回放，非 ASR、非模型生成。页面禁止外部网络和模型 API；不会调用模型。可用正式音频 UI 生成按钮或「Agent 同入口请求并生成」控件。
 
-验收顺序：生成 → 实际音频播放 → 查看纯文字与 right/left 连线和 gap80 → 保存并实际回读 → 刷新复验 → 撤销/重做。已有字幕更新控件通过真实 `runInPlace`，用于验证同一实际音频 ID 的更新路径。保存阻断控件明确模拟一次 `saveProject` 确认失败；生产自动保存可能已保存图，不能把此控件当真实磁盘故障。QA 提供任务状态、接受参数、真实媒体引用、节点/连线、撤销和存储回读诊断。
+验收顺序：生成 → 实际音频播放 → 查看纯文字与 right/left 连线和 gap80 → 保存并实际回读 → 刷新复验 → 撤销/重做。已有字幕更新控件现通过第二次普通 `submit`，用于验证普通 UI/Agent 同一实际音频 ID 的更新路径。保存阻断控件明确模拟一次 `saveProject` 确认失败；生产自动保存可能已保存图，不能把此控件当真实磁盘故障。QA 提供任务状态、接受参数、真实媒体引用、节点/连线、撤销和存储回读诊断。
 
-主代理已在 `subtitle-live-1003` 完成真实主壳 CUA：
+前一批主代理曾在 `subtitle-live-1003` 完成真实主壳 CUA（当时默认音频新建结果节点；下列 ID/坐标为历史证据，当前普通原位行为见新文档）：
 
 - 点击「Agent 同入口请求并生成」，实际 `AudioAPI.buildRequest` 接受 `model:'doubao-seed-audio-1-0'` 与 `enable_subtitle:true`，TaskService/application 成功应用。真实 2 秒 WAV 从本机 blob 播放，`readyState:4`，播放时间观察到 `0.151086` 秒。
 - 音频节点 `64b212ae-cd17-4d5d-b6af-84288729ae25` 位于 `(500,140)`、宽 300；字幕节点 `48a89c66-2e0b-489d-8502-c04ed402ec0d` 位于 `(880,140)`、300×200、pure，`sourceAudioNodeId` 正确绑定实际音频。字幕首尾空格与换行保留。
