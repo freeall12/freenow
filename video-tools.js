@@ -1,10 +1,21 @@
 (() => {
   'use strict';
   const app=window.CanvasApp,ui=window.NodeActions,$=s=>document.querySelector(s);
+  const mediaDisplayReady=window.CanvasResourceDisplayReady||import('./src/features/local-resource-migration/display-media.mjs');
+  mediaDisplayReady.catch(()=>{});
+  const unavailableMedia='原站资源已停用，请重新导入本地资源';
   const {el,btn,select,slider,toggle,start,place,close,popup,closePop,colors,footer,notify}=ui;
   const panel=$('.node-action-panel');let media=null,hoveredId=null,hoverTimer=null,lastView=null,movingUntil=0;const players=new Map(),hoverBodies=new WeakSet();let muted=true,toolbarNode=null;
   const source=n=>n.video||window.EDITOR_DATA?.nodes[n.id]?.video;
-  function player(n){const video=el('video','video-tool-preview');video.controls=true;video.playsInline=true;video.preload='metadata';video.src=source(n)||'';video.poster=n.image||'';video.crossOrigin='anonymous';return video;}
+  function player(n){const video=el('video','video-tool-preview');video.controls=true;video.playsInline=true;video.preload='metadata';video.crossOrigin='anonymous';return video;}
+  async function downloadVideo(n){
+    try{
+      const policy=await mediaDisplayReady,src=policy.displayMediaRef(source(n)||n.image);if(!src)throw Error(unavailableMedia);
+      if(n.clip){notify('正在本地导出剪辑…');const result=await window.LocalMedia.trim(n);window.LocalMedia.download(result.blob,n.title+'.mp4');notify('剪辑已导出');return;}
+      const url=policy.displayMediaRef(await window.LocalAssets.url(src));if(!url)throw Error(unavailableMedia);
+      const a=document.createElement('a');a.href=url;a.download=n.title+(src.startsWith('data:video/webm')?'.webm':'.mp4');a.click();
+    }catch(error){notify(error.message);}
+  }
   async function extend(n){try{const ui=await import('./video-creation-ui.mjs');ui.openExtend(n);}catch(e){notify(e.message);}}
   let enhancementModule;
   function upscale(n,existing=false){
@@ -15,6 +26,7 @@
   async function capture(n,mode='current'){
     if(capturing.has(n.id))return;
     const src=source(n),clip=JSON.stringify(n.clip||null),preview=players.get(n.id)?.video;
+    try{const policy=await mediaDisplayReady;if(!policy.displayMediaRef(src))throw Error(unavailableMedia);}catch(error){app.notify(error.message);return;}
     if(!preview||preview.readyState<2){app.notify('视频尚未准备好');return;}
     preview.pause();const currentTime=preview.currentTime;let reader;
     capturing.add(n.id);document.querySelector('#node-toolbar [data-video-action="保存当前帧"]')?.setAttribute('disabled','');app.notify('正在截取画面...');
@@ -82,9 +94,20 @@
     video.tabIndex=0;video.setAttribute('aria-label','视频画面');video.onloadedmetadata=()=>{video.currentTime=n.clip?.start||0;sync();};video.onloadeddata=()=>{video.classList.add('ready');if(hoveredId===n.id&&!editing())video.play().catch(()=>{});};
     video.ontimeupdate=()=>{if(n.clip&&!document.body.classList.contains('video-trimming')&&video.currentTime>=n.clip.end){video.currentTime=n.clip.start;}sync();};
     for(const event of ['play','pause','ended','volumechange','durationchange'])video.addEventListener(event,sync);
-    video.onerror=()=>{video.classList.remove('ready');if(wrap.querySelector('.video-player-error'))return;const error=el('div','video-player-error');error.append(el('p','','视频预览加载失败'),btn('重试',()=>{error.remove();video.load();}));wrap.append(error);};
-    const src=source(n);if(src?.startsWith('asset:')){video.removeAttribute('src');window.LocalAssets.url(src).then(url=>{if(wrap.isConnected){video.src=url;video.load();}}).catch(e=>notify(e.message));}
-    $(`.node[data-id="${n.id}"] .node-body`).append(wrap);const entry={id:n.id,src,clip:JSON.stringify(n.clip||null),video,wrap,sync};players.set(n.id,entry);sync();return entry;
+    const showError=(message='视频预览加载失败',retry=true)=>{video.classList.remove('ready');if(wrap.querySelector('.video-player-error'))return;const error=el('div','video-player-error');error.append(el('p','',message));if(retry)error.append(btn('重试',()=>{error.remove();video.load();}));wrap.append(error);};
+    video.onerror=()=>showError();
+    const src=source(n);
+    $(`.node[data-id="${n.id}"] .node-body`).append(wrap);const entry={id:n.id,src,clip:JSON.stringify(n.clip||null),video,wrap,sync};players.set(n.id,entry);sync();
+    const current=()=>players.get(n.id)===entry&&wrap.isConnected&&source(app.getState().nodes.find(item=>item.id===n.id)||{})===src;
+    mediaDisplayReady.then(async policy=>{
+      if(!current())return;
+      const safe=policy.displayMediaRef(src);if(!safe){showError(unavailableMedia,false);return;}
+      const poster=policy.displayMediaRef(n.image);
+      if(poster){window.LocalAssets.url(poster).then(url=>{if(current()){const checked=policy.displayMediaRef(url);if(checked)video.poster=checked;}}).catch(()=>{});}
+      const url=policy.displayMediaRef(await window.LocalAssets.url(safe));if(!url)throw Error(unavailableMedia);
+      if(current()){video.src=url;video.load();}
+    }).catch(error=>{if(current())showError(error.message,false);});
+    return entry;
   }
   function editing(){return !!document.querySelector('body.video-trimming,body.video-masking,body.video-reshoot-active,body.video-creation-active,body.pile-gallery-active,body.video-history-open,dialog[open]');}
   function disposePlayer(p){p.video.pause();p.video.onerror=null;p.video.onloadeddata=null;p.video.removeAttribute('src');p.video.load();p.wrap.remove();players.delete(p.id);if(media===p)media=null;}
@@ -107,7 +130,7 @@
   function toolIcon(label){const map={'剪辑':'videoTrim','视频增强':'videoUpscale','主体替换':'videoReplace','物体移除':'videoErase','延长视频':'videoExtend','视频编辑':'videoEdit','保存当前帧':'videoCapture','更多操作':'videoMore','Pin':'videoPin','保存到素材库':'videoFolder','下载视频':'videoDownload','预览':'videoExpand'};return window.CANVAS_MENU_ICONS[map[label]];}
   let lastTool=null;
   function positionToolbar(){const bar=$('#node-toolbar');if(bar.hidden||!bar.firstElementChild?.dataset.videoAction)return;const r=bar.getBoundingClientRect();if(r.right>innerWidth)bar.style.left=Math.max(10,innerWidth-r.width-10)+'px';}
-  function render(event){const state=app.getState();if(event?.detail?.viewportOnly){trackViewport(state.view);if(lastTool)$('#node-toolbar').hidden=true;return;}reconcilePlayers(state);const n=state.selected.length===1?state.nodes.find(n=>n.id===state.selected[0]):null;if(n?.type!=='video'){media=null;lastTool=null;toolbarNode=null;return;}if(n.tool==='video-upscale'){const body=$(`.node[data-id="${n.id}"] .placeholder`);if(body)body.textContent='配置参数生成高清视频';if(lastTool!==n.id){lastTool=n.id;upscale(n,true);}if(source(n))media=inlinePlayer(n);else if(media)disposePlayer(media);$('#node-toolbar').hidden=true;return;}lastTool=null;media=inlinePlayer(n);const bar=$('#node-toolbar');bar.dataset.videoFor=n.id;if(toolbarNode===n&&bar.firstElementChild?.dataset.videoAction==='剪辑'){positionToolbar();return;}toolbarNode=n;bar.replaceChildren();const items=[['剪辑','✂',()=>trim(n)],['视频增强','▣',()=>upscale(n)],['主体替换','⇄',()=>edit(n,'replace')],['物体移除','▱',()=>edit(n,'erase')],['延长视频','◷',()=>extend(n)],['视频编辑','✎',()=>edit(n)],['保存当前帧','▧',b=>captureMenu(n,b)],['更多操作','⋯',b=>more(n,b)],['Pin','⚑',b=>colors(n,b)],['保存到素材库','⊞',()=>app.saveSelection()],['下载视频','↓',async()=>{const a=document.createElement('a');if(n.clip){try{notify('正在本地导出剪辑…');const result=await window.LocalMedia.trim(n);window.LocalMedia.download(result.blob,n.title+'.mp4');notify('剪辑已导出');}catch(error){notify(error.message);}return;}a.href=source(n)||n.image;a.download=n.title+((source(n)||'').startsWith('data:video/webm')?'.webm':'.mp4');a.click();}],['预览','⛶',()=>app.preview(n)]];for(const [label,icon,fn]of items){const b=btn('',()=>fn(b),'icon-btn');b.innerHTML=toolIcon(label);b.dataset.videoAction=label;b.setAttribute('aria-label',label);b.dataset.tooltip=label;if(['延长视频','视频编辑'].includes(label))b.append(el('i','video-new-dot'));if(label==='保存当前帧')b.disabled=capturing.has(n.id);if(['更多操作','保存当前帧'].includes(label)){b.setAttribute('aria-haspopup','menu');b.setAttribute('aria-expanded','false');}bar.append(b);}positionToolbar();}
+  function render(event){const state=app.getState();if(event?.detail?.viewportOnly){trackViewport(state.view);if(lastTool)$('#node-toolbar').hidden=true;return;}reconcilePlayers(state);const n=state.selected.length===1?state.nodes.find(n=>n.id===state.selected[0]):null;if(n?.type!=='video'){media=null;lastTool=null;toolbarNode=null;return;}if(n.tool==='video-upscale'){const body=$(`.node[data-id="${n.id}"] .placeholder`);if(body)body.textContent='配置参数生成高清视频';if(lastTool!==n.id){lastTool=n.id;upscale(n,true);}if(source(n))media=inlinePlayer(n);else if(media)disposePlayer(media);$('#node-toolbar').hidden=true;return;}lastTool=null;media=inlinePlayer(n);const bar=$('#node-toolbar');bar.dataset.videoFor=n.id;if(toolbarNode===n&&bar.firstElementChild?.dataset.videoAction==='剪辑'){positionToolbar();return;}toolbarNode=n;bar.replaceChildren();const items=[['剪辑','✂',()=>trim(n)],['视频增强','▣',()=>upscale(n)],['主体替换','⇄',()=>edit(n,'replace')],['物体移除','▱',()=>edit(n,'erase')],['延长视频','◷',()=>extend(n)],['视频编辑','✎',()=>edit(n)],['保存当前帧','▧',b=>captureMenu(n,b)],['更多操作','⋯',b=>more(n,b)],['Pin','⚑',b=>colors(n,b)],['保存到素材库','⊞',()=>app.saveSelection()],['下载视频','↓',()=>downloadVideo(n)],['预览','⛶',()=>app.preview(n)]];for(const [label,icon,fn]of items){const b=btn('',()=>fn(b),'icon-btn');b.innerHTML=toolIcon(label);b.dataset.videoAction=label;b.setAttribute('aria-label',label);b.dataset.tooltip=label;if(['延长视频','视频编辑'].includes(label))b.append(el('i','video-new-dot'));if(label==='保存当前帧')b.disabled=capturing.has(n.id);if(['更多操作','保存当前帧'].includes(label)){b.setAttribute('aria-haspopup','menu');b.setAttribute('aria-expanded','false');}bar.append(b);}positionToolbar();}
   document.addEventListener('canvas:video-history-open',()=>{clearTimeout(hoverTimer);for(const p of players.values()){p.video.pause();p.sync();}});
   import('./media-preview-ui.mjs').catch(e=>notify(e.message));
   import('./video-history-ui.mjs').catch(e=>notify(e.message));

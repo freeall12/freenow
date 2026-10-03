@@ -1,3 +1,5 @@
+import {prepareAnimaticV1,animaticV1Uri,animaticV1Policy} from './animatic-v1.mjs';
+import {prepareCharacterBlockingV1,characterBlockingV1Uri,characterBlockingV1Policy} from './character-blocking-v1.mjs';
 import {prepareAnimatic,animaticUri,animaticPolicy} from './animatic.mjs';
 import {preparePrevis,previsUri,previsPolicy} from './previs.mjs';
 import {prepareEcommercePhotoset,ecommercePhotosetUri,ecommercePhotosetPolicy} from './ecommerce-photoset.mjs';
@@ -33,10 +35,12 @@ const definitions = [
  {resourceUri:platformResizeUri,title:'平台尺寸',policy:platformResizePolicy},
  {resourceUri:cutlistReviewUri,title:'粗剪审片',policy:cutlistReviewPolicy},
  {resourceUri:characterBlockingUri,title:'人物站位',policy:characterBlockingPolicy},
+ {resourceUri:characterBlockingV1Uri,title:'人物站位',policy:characterBlockingV1Policy},
  {resourceUri:productKitUri,title:'Product Kit',policy:productKitPolicy},
  {resourceUri:adReviewUri,title:'广告创意审核',policy:adReviewPolicy},
  {resourceUri:layerComposerUri,title:'多图层合成',policy:layerComposerPolicy},
  {resourceUri:animaticUri,title:'动态分镜',policy:animaticPolicy},
+ {resourceUri:animaticV1Uri,title:'动态分镜',policy:animaticV1Policy},
  {resourceUri:previsUri,title:'镜头预演',policy:previsPolicy},
  {resourceUri:ecommercePhotosetUri,title:'电商一键组图',policy:ecommercePhotosetPolicy,stateLimit:128*1024},
 ];
@@ -51,9 +55,9 @@ export function prepareApp(args){
   if(args.original_request!==undefined||args.recommended_template_id!==undefined)throw Error('导演批注不使用模板选择参数');
   return {kind:'mcp_app',resource_uri:entry.resourceUri,request:{title:args.title||entry.title},response:prepareDirectorMarkup(args.data,args.title||entry.title)};
  }
- if([performanceRhythmUri,storyRoomUri,actorEmotionUri,productionProgressUri,interactiveLearningUri,libraryPickerUri,colorAdjustUri,platformResizeUri,cutlistReviewUri,characterBlockingUri,productKitUri,adReviewUri,layerComposerUri,animaticUri,previsUri,ecommercePhotosetUri].includes(entry.resourceUri)){
+ if([animaticV1Uri,characterBlockingV1Uri,performanceRhythmUri,storyRoomUri,actorEmotionUri,productionProgressUri,interactiveLearningUri,libraryPickerUri,colorAdjustUri,platformResizeUri,cutlistReviewUri,characterBlockingUri,productKitUri,adReviewUri,layerComposerUri,animaticUri,previsUri,ecommercePhotosetUri].includes(entry.resourceUri)){
   if(args.original_request!==undefined||args.recommended_template_id!==undefined)throw Error('工作流应用不使用模板选择参数');
-  const prepare=new Map([[performanceRhythmUri,preparePerformanceRhythm],[storyRoomUri,prepareStoryRoom],[actorEmotionUri,prepareActorEmotion],[productionProgressUri,prepareProductionProgress],[interactiveLearningUri,prepareInteractiveLearning],[libraryPickerUri,prepareLibraryPicker],[colorAdjustUri,prepareColorAdjust],[platformResizeUri,preparePlatformResize],[cutlistReviewUri,prepareCutlistReview],[characterBlockingUri,prepareCharacterBlocking],[productKitUri,prepareProductKit],[adReviewUri,prepareAdReview],[layerComposerUri,prepareLayerComposer],[animaticUri,prepareAnimatic],[previsUri,preparePrevis],[ecommercePhotosetUri,prepareEcommercePhotoset]]).get(entry.resourceUri);
+  const prepare=new Map([[animaticV1Uri,prepareAnimaticV1],[characterBlockingV1Uri,prepareCharacterBlockingV1],[performanceRhythmUri,preparePerformanceRhythm],[storyRoomUri,prepareStoryRoom],[actorEmotionUri,prepareActorEmotion],[productionProgressUri,prepareProductionProgress],[interactiveLearningUri,prepareInteractiveLearning],[libraryPickerUri,prepareLibraryPicker],[colorAdjustUri,prepareColorAdjust],[platformResizeUri,preparePlatformResize],[cutlistReviewUri,prepareCutlistReview],[characterBlockingUri,prepareCharacterBlocking],[productKitUri,prepareProductKit],[adReviewUri,prepareAdReview],[layerComposerUri,prepareLayerComposer],[animaticUri,prepareAnimatic],[previsUri,preparePrevis],[ecommercePhotosetUri,prepareEcommercePhotoset]]).get(entry.resourceUri);
   return {kind:'mcp_app',resource_uri:entry.resourceUri,request:{title:args.title||entry.title},response:prepare(args.data,args.title||entry.title)};
  }
  if(args.data!==undefined)throw Error('模板选择器不接受批注正文');

@@ -2,6 +2,9 @@ const test=require('node:test'),assert=require('node:assert/strict'),fs=require(
 const audio=require('../audio-core.js');
 const {validateSpeechProfile,speechCapabilities,prepareSpeechRequest,submitSpeech,MAX_AUDIO_BYTES}=require('../server/generation-openai-speech.cjs');
 const {createDurableGenerationService}=require('../server/generation-durable.cjs');
+const fsp=require('node:fs/promises'),os=require('node:os');
+const {createGenerationMediaStore}=require('../server/generation-media-store.cjs');
+const {createGenerationMediaMaterializer}=require('../server/generation-media-materializer.cjs');
 const profile={kind:'audio.generate',scene:'Text-to-Speech',model:'gpt-4o-mini-tts',defaultVoice:'coral',voiceMap:{narrator:'coral',neutral:'alloy'},formatMap:{wav:'wav',mp3:'mp3'},defaultFormat:'wav',speedMap:{'-50':.5,0:1,25:1.25,100:2},defaultSpeed:1,wavSampleRate:24000,maxCount:1};
 const seed=audio.transition({prompt:'你好'},'seed-audio-1-0','Text-to-Speech');
 const request={kind:'audio.generate',prompt:audio.validate(seed),inputs:[],parameters:{...seed.params,model:seed.model,scene:seed.scene,virtualModel:seed.virtualModel}};
@@ -10,8 +13,19 @@ const wav=wave(),mp3=fs.readFileSync(path.join(__dirname,'fixtures/speech-tone.m
 const output=(bytes=wav,type='audio/wav',headers={})=>new Response(bytes,{status:200,headers:{'content-type':type,...headers}});
 const sdkFor=callback=>({audio:{speech:{create:callback}}});
 const tick=()=>new Promise(resolve=>setImmediate(resolve));
-async function settled(service,id){for(let i=0;i<30;i++){const job=await service.get(id);if(!['queued','running'].includes(job.status))return job;await tick();}assert.fail('speech task did not settle');}
+async function settled(service,id){for(let i=0;i<200;i++){const job=await service.get(id);if(!['queued','running'].includes(job.status))return job;await new Promise(resolve=>setTimeout(resolve,10));}assert.fail('speech task did not settle');}
 function memoryStore(){const records=new Map();return {readAll:async()=>[...records.values()],write:async value=>records.set(value.id,structuredClone(value))};}
+async function speechMedia(t){
+ const directory=await fsp.mkdtemp(path.join(os.tmpdir(),'speech-receipts-')),store=createGenerationMediaStore({directory});
+ t.after(async()=>{await store.close();await fsp.rm(directory,{recursive:true,force:true});});
+ return {directory,store,materializer:createGenerationMediaMaterializer({store})};
+}
+async function assertSavedAudio(store,job,bytes){
+ assert.equal(job.localization.state,'ready');assert.match(job.outputs[0].url,/^\/api\/generation\/media\/[a-f0-9-]{36}$/);
+ const resourceId=job.outputs[0].url.split('/').at(-1),saved=await store.open(resourceId,{taskId:job.id});
+ try{assert.equal(saved.info.bytes,bytes.length);assert.deepEqual(await saved.handle.readFile(),bytes);}finally{await saved.handle.close();}
+ assert.deepEqual(job.localization.resources,[resourceId]);
+}
 
 test('real Seed UI and Agent neutral TTS contracts map only model, builtin voice, format and speed',async()=>{
  const {audioRequestConfig}=await import('../src/features/agent-generation/audio.mjs');
@@ -69,11 +83,23 @@ test('uncertain 429 never retries and abort/timeout interrupt binary consumption
  let release;const timeout=submitSpeech(prepared,{sdk:sdkFor(()=>new Promise(resolve=>release=resolve)),timeoutMs:10});await assert.rejects(timeout,{code:'unknown'});release(output());
 });
 
-test('durable Speech receipts preserve success/unknown idempotency and cancelled late outputs',async()=>{
+test('durable Speech receipts preserve success/unknown idempotency and cancelled late outputs',async t=>{
  for(const uncertain of [false,true]){
   let attempts=0;const store=memoryStore(),sdk=sdkFor(async()=>{attempts++;if(uncertain)throw Error('lost');return output();}),provider={configured:true,fingerprint:'speech-profile-only',prepare:value=>{prepareSpeechRequest(value,profile);return value;},submit:(value,{signal})=>submitSpeech(prepareSpeechRequest(value,profile),{sdk,signal})};
-  let service=createDurableGenerationService({store,provider});const first=await service.submit(request,{idempotencyKey:'speech-idempotency'}),job=await settled(service,first.id);assert.equal(job.status,uncertain?'unknown':'succeeded');await service.close();service=createDurableGenerationService({store,provider});assert.equal((await service.lookup('speech-idempotency')).status,job.status);assert.equal((await service.submit(request,{idempotencyKey:'speech-idempotency'})).id,first.id);assert.equal(attempts,1);await service.close();
+  const media=await speechMedia(t);let service=createDurableGenerationService({store,provider,mediaMaterializer:media.materializer});
+  try{
+   const first=await service.submit(request,{idempotencyKey:'speech-idempotency'}),job=await settled(service,first.id);assert.equal(job.status,uncertain?'unknown':'succeeded');
+   if(uncertain)assert.equal(job.outputs,undefined);else await assertSavedAudio(media.store,job,wav);
+   await service.close();service=createDurableGenerationService({store,provider,mediaMaterializer:media.materializer});
+   const restarted=await service.lookup('speech-idempotency');assert.equal(restarted.status,job.status);
+   if(!uncertain){await assertSavedAudio(media.store,restarted,wav);assert.equal(restarted.outputs[0].url,job.outputs[0].url);}
+   assert.equal((await service.submit(request,{idempotencyKey:'speech-idempotency'})).id,first.id);assert.equal(attempts,1);
+  }finally{await service.close();}
  }
  let release,started;const began=new Promise(resolve=>started=resolve),sdk=sdkFor(()=>{started();return new Promise(resolve=>release=resolve);}),provider={configured:true,fingerprint:'speech-cancel',prepare:value=>{prepareSpeechRequest(value,profile);return value;},submit:(value,{signal})=>submitSpeech(prepareSpeechRequest(value,profile),{sdk,signal})};
- const service=createDurableGenerationService({store:memoryStore(),provider}),first=await service.submit(request,{idempotencyKey:'speech-cancel'});await began;assert.equal((await service.cancel(first.id)).cancellation.providerCancellation,'unconfirmed');release(output());await tick();await tick();const last=await service.get(first.id);assert.equal(last.status,'cancelled');assert.equal(last.outputs,undefined);await service.close();
+ const media=await speechMedia(t),service=createDurableGenerationService({store:memoryStore(),provider,mediaMaterializer:media.materializer});
+ try{
+  const first=await service.submit(request,{idempotencyKey:'speech-cancel'});await began;assert.equal((await service.cancel(first.id)).cancellation.providerCancellation,'unconfirmed');release(output());await tick();await tick();const last=await service.get(first.id);assert.equal(last.status,'cancelled');assert.equal(last.outputs,undefined);
+  await service.close();assert.deepEqual((await fsp.readdir(media.directory)).filter(name=>name.endsWith('.json')),[]);
+ }finally{await service.close();}
 });

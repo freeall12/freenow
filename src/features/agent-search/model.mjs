@@ -1,9 +1,11 @@
-// Links are public DNS destinations only. The app never fetches result URLs.
+import {isOriginalServiceHost} from '../local-resource-migration/origin-policy.mjs';
+// Result links can leave the main page's CSP. Keep original-service destinations
+// out of both provider search filters and clickable citations.
 export function safePublicUrl(value) {
  if(typeof value!=='string'||value.length>4096||/[\u0000-\u0020\u007f\\]/u.test(value))return null;
  try {
   const url=new URL(value),host=url.hostname.toLowerCase();
-  if(!['https:','http:'].includes(url.protocol)||url.username||url.password||url.port||host.includes(':')||/^\d[\d.]*$/.test(host))return null;
+  if(!['https:','http:'].includes(url.protocol)||url.username||url.password||url.port||host.includes(':')||/^\d[\d.]*$/.test(host)||isOriginalServiceHost(host))return null;
   if(!/^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z][a-z0-9-]{1,62}$/.test(host)||/(?:^|\.)(?:localhost|local|internal|lan|test|invalid|onion)$/.test(host))return null;
   return url.href;
  }catch{return null;}

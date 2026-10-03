@@ -1,5 +1,6 @@
 import {hashSource as defaultHash, validateResourceIndex, isStaticAssetRef} from './index-format.mjs';
 import {isGenerationMediaRef} from '../generation-results/media-ref.mjs';
+import {isOriginalMediaRef} from './display-media.mjs';
 
 const mediaFields = ['image', 'fullImage', 'video', 'audio', 'poster', 'thumbnail'];
 const object = value => value && typeof value === 'object' && !Array.isArray(value);
@@ -113,6 +114,8 @@ async function migrateSnapshot(value, {index, hashSource = defaultHash} = {}, ki
   }
   return {snapshot, changes, unresolved, summary: {references: slots.length, changed: changes.length, unresolved: unresolved.length, alreadyLocal: slots.length - changes.length - unresolved.length}};
 }
+
+export function originalCanvasResourceDiagnostics(value){return resourceSlots(value).filter(slot=>isOriginalMediaRef(slot.target[slot.key])).map(({path})=>({path,code:'original_service_import_required'}));}
 
 export async function migrateCanvasSnapshot(value, options) {
   if (!object(value) || !Array.isArray(value.nodes) || !Array.isArray(value.edges)) throw Error('画布迁移需要完整快照');

@@ -11,6 +11,12 @@
   let history = [], future = [], filter = 'all', graphLoaded = false, graphReadFailed = false, localChanges = 0, focusRevision = 0, viewportFrame = 0, saveRevision = 0;
   let generationPlanModule;
   let resourceMigrationStatus=null;
+  window.CanvasResourceDisplayReady=import('./src/features/local-resource-migration/display-media.mjs').then(policy=>{window.CanvasResourceDisplay=policy;return policy;}).catch(()=>null);
+  const displayMediaRef=value=>window.CanvasResourceDisplay?.displayMediaRef(value)??(typeof value==='string'&&!/^(?:\s*https?:|\s*[\/\\]{2})/i.test(value)?value:'');
+  const pendingMedia=node=>window.CanvasResourceDisplay?.nodeHasPendingOriginalMedia(node)??['image','fullImage','video','audio','poster','thumbnail'].some(key=>node?.[key]&&!displayMediaRef(node[key]));
+  const actionMediaRef=node=>node?.type==='video'?displayMediaRef(node.video||window.EDITOR_DATA?.nodes[node.id]?.video):node?.type==='audio'?displayMediaRef(node.audio):displayMediaRef(node?.fullImage)||displayMediaRef(node?.image);
+  const blockedPrimaryMedia=node=>['image','video','audio'].includes(node?.type)&&!actionMediaRef(node)&&pendingMedia(node);
+  const mediaDisplayNode=node=>{if(!['image','video','audio'].includes(node?.type))return node;const source=actionMediaRef(node);return {...node,image:displayMediaRef(node.image)||(node.type==='image'?source:''),fullImage:node.type==='image'?source:displayMediaRef(node.fullImage),video:node.type==='video'?source:displayMediaRef(node.video),audio:displayMediaRef(node.audio),poster:displayMediaRef(node.poster),thumbnail:displayMediaRef(node.thumbnail)};};
   const generationRuns = new Map();
   let searchFocusTimer=0,searchFocusElement=null;
   const initial = !data.nodes.length||window.CanvasProjects&&!window.CanvasProjects.isDefault()?{x:0,y:0,scale:1}:{x: -11821.75458177424, y: 1093.1602809876204, scale: 0.22841067612171173};
@@ -109,9 +115,12 @@
     const text=document.createElement('span');text.className='title-text';text.textContent=n.title;title.append(text);
     if(n.restricted){const badge=document.createElement('span');badge.className='restricted';badge.textContent=' · 规格受限';title.append(badge);}
     const body=document.createElement('div');body.className='node-body';
-    if(n.image){const img=document.createElement('img');img.src=n.type==='image'&&n.fullImage?n.fullImage:n.image;img.onerror=()=>{img.onerror=null;if(img.getAttribute('src')!==n.image)img.src=n.image;};img.alt=n.title;img.draggable=false;body.append(img);}
+    const imageRef=displayMediaRef(n.type==='image'&&n.fullImage?n.fullImage:n.image)||displayMediaRef(n.image);
+    if(imageRef){const img=document.createElement('img');img.src=imageRef;img.onerror=()=>{img.onerror=null;const fallback=displayMediaRef(n.image);if(fallback&&img.getAttribute('src')!==fallback)img.src=fallback;};img.alt=n.title;img.draggable=false;body.append(img);}
+    else if(pendingMedia(n)){const placeholder=document.createElement('div');placeholder.className='placeholder';placeholder.textContent='原站媒体待导入本地';placeholder.setAttribute('role','status');placeholder.title='旧媒体引用已保留，请重新导入本地素材后替换';body.append(placeholder);}
     else if(n.type==='text'){}
     else body.innerHTML=`<div class="placeholder">${svg('image')}</div>`;
+    if(pendingMedia(n)){el.dataset.mediaStatus='pending_import';body.title='原站媒体待导入本地；旧引用已保留。请重新导入本地素材后替换。';}
     const left=document.createElement('button');left.className='port left';left.dataset.port='left';left.textContent='+';left.setAttribute('aria-label','输入连接点');
     const right=left.cloneNode(true);right.className='port right';right.dataset.port='right';right.setAttribute('aria-label','输出连接点');
     el.append(title,body,left,right);if(n.type==='text')window.CanvasTextUI.renderNode(n,el);if(n.type==='studio')window.StudioNode.render(n,el);if(n.type==='world')window.WorldNode?.render(n,el);if(n.type==='group')window.CanvasGroupsUI.renderNode(n,el);if(n.type==='pile')window.CanvasPilesUI.renderNode(n,el,nodes);$('#nodes').insertBefore(el,before);nodeElements.set(n.id,el);nodeRecords.set(n.id,{node:n,content:nodeContentKey(n)});
@@ -304,9 +313,11 @@
     nodes=nodes.filter(n=>!removed.has(n.id));edges=edges.filter(e=>!removed.has(e.source)&&!removed.has(e.target));selected.clear();rebuildAndPersist();
   }
   function nodeMenu(x,y){if(window.CanvasMenus)return window.CanvasMenus.node(x,y);const picked=nodes.filter(n=>selected.has(n.id));if(picked.length===1&&picked[0].type==='pile'){menu(x,y,[{label:'取消堆叠',run:()=>window.CanvasApp.unstack(picked[0].id)},{label:'下载全部',run:()=>window.CanvasPilesUI.downloadAll(picked[0].id).catch(e=>notify(e.message))},null,{label:'副本',key:'⌘D',run:duplicate},{label:'删除',key:'⌫',run:removeSelected,danger:true}]);return;}if(picked.length===1&&picked[0].type==='group')return;if(picked.some(n=>n.type==='studio')){menu(x,y,[{label:'复制',key:'⌘C'}, {label:'粘贴',key:'⌘V'}, {label:'副本'},null,{label:'删除',key:'⌫,del',run:removeSelected},null,{label:'反馈问题',run:()=>window.FeedbackAPI.open(picked.map(n=>n.id))}]);return;}menu(x,y,[{label:'重命名',run:()=>rename(nodes.find(n=>selected.has(n.id)))},{label:'下载图片',run:()=>download(nodes.find(n=>selected.has(n.id)))},null,{label:'副本',key:'⌘D',run:duplicate},{label:'删除',key:'⌫',run:removeSelected,danger:true}]);}
-  function download(n){if(window.CanvasMenus)return window.CanvasMenus.download(n).catch(e=>notify(e.message));if(!n?.image)return;const a=document.createElement('a');a.href=n.fullImage||n.image;const ext=a.href.startsWith('data:image/png')?'png':a.href.startsWith('data:image/webp')?'webp':a.href.split(/[?#]/)[0].match(/\.(png|webp|jpe?g)$/i)?.[1]||'jpg';a.download=(n.title||'image')+'.'+ext;a.click();}
+  function download(n){if(blockedPrimaryMedia(n)){notify('原站媒体待导入本地；旧引用已保留。请重新导入后下载。');return;}if(window.CanvasMenus)return window.CanvasMenus.download(mediaDisplayNode(n)).catch(e=>notify(e.message));if(!n?.image)return;const ref=actionMediaRef(n);if(!ref)return;const a=document.createElement('a');a.href=ref;const ext=a.href.startsWith('data:image/png')?'png':a.href.startsWith('data:image/webp')?'webp':a.href.split(/[?#]/)[0].match(/\.(png|webp|jpe?g)$/i)?.[1]||'jpg';a.download=(n.title||'image')+'.'+ext;a.click();}
   function preview(n){
+    if(blockedPrimaryMedia(n)){notify('原站媒体待导入本地；旧引用已保留。请重新导入后预览。');return;}
     if(n.tool==='image-editor'&&window.CanvasImageEditor){window.CanvasImageEditor.open(n);return;}
+    n=mediaDisplayNode(n);
     if(n.type==='playlist'){window.CanvasPlaylist?.open(n.id);return;}if(n.type==='group')return;if(n.type==='pile'){window.CanvasPilesUI.open(n.id);return;}
     if(n.type==='audio'&&n.audio){window.AudioAPI?.preview(n);return;}
     if(n.type==='studio'){window.StudioAPI?.open(n.id);return;}if(n.type==='world'){window.WorldNode?.preview(n.id);return;}
@@ -592,9 +603,11 @@
     setRightPanel(width){cancelViewportAnimation();document.documentElement.style.setProperty('--agent-width',width+'px');canvas.style.right=width+'px';render({viewportOnly:true});}
   };
   rebuild();
+  window.CanvasResourceDisplayReady.then(policy=>{if(policy&&!graphLoaded&&!localChanges){nodeRecords.clear();rebuild();}});
   import('./src/features/canvas-minimap/entry.mjs').then(module=>{window.CanvasMinimap=module.install(window.CanvasApp);render();}).catch(error=>{console.error('Canvas minimap:',error);notify('小地图加载失败，请刷新页面');});
   import('./src/features/canvas-connections/entry.mjs').then(module=>{window.CanvasConnections=module.install(window.CanvasApp);render();}).catch(error=>{console.error('Canvas connections:',error);notify('连线控件加载失败，请刷新页面');});
   window.CanvasStore.load().then(async saved=>{
+    await window.CanvasResourceDisplayReady;
     let valid=saved?.version===1&&Array.isArray(saved.nodes)&&Array.isArray(saved.edges)&&saved.nodes.every(n=>typeof n.id==='string'&&[n.x,n.y,n.width,n.height].every(Number.isFinite)&&n.width>0&&n.height>0)&&new Set(saved.nodes.map(n=>n.id)).size===saved.nodes.length&&saved.edges.every(e=>typeof e.id==='string'&&typeof e.source==='string'&&typeof e.target==='string');
     if(saved!=null&&!valid)throw Error('本地画布数据格式无效');
     if(window.CanvasProjects&&!window.CanvasProjects.isDefault()&&saved==null)throw Error('未找到此本地画布，不能保存到不存在的项目');
@@ -623,7 +636,8 @@
     if(valid&&!localChanges){nodes=saved.nodes;edges=saved.edges;nodes.forEach(n=>{
       const recovery=n.generationRecovery,recoverable=recovery?.version===1&&recovery.runId===n.generationRun?.runId&&recovery.kind===n.pendingOperation&&recovery.signature===generationSignature(n);
       // A pending saved placeholder must not inherit media from the seed graph.
-      if(!recoverable&&!n.fullImage&&original.get(n.id)?.fullImage)n.fullImage=original.get(n.id).fullImage;
+      const seedFullImage=original.get(n.id)?.fullImage;
+      if(!recoverable&&!n.fullImage&&seedFullImage&&displayMediaRef(seedFullImage))n.fullImage=seedFullImage;
     });clearOrphanGenerationState({allowRecovery:true});rebuild();}
     graphLoaded=true;if(localChanges)persist();
   }).catch(error=>{graphLoaded=false;graphReadFailed=true;storageError(error,'load');});

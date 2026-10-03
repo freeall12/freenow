@@ -1,4 +1,4 @@
-import {migrateCanvasSnapshot} from './snapshot.mjs';
+import {migrateCanvasSnapshot,originalCanvasResourceDiagnostics} from './snapshot.mjs';
 import {validateResourceIndex} from './index-format.mjs';
 
 export function validCanvasSnapshot(value){
@@ -25,18 +25,19 @@ export async function migrateLoadedCanvas({saved,store,id,indexState,canCommit=(
   if(!validCanvasSnapshot(saved))throw Error('本地画布数据格式无效');
   const resourceIndex=indexState||{index:null,state:'index_unavailable'};
   let current=saved,conflicts=0;
-  const interrupted=summary=>({snapshot:current,status:'local_edits',persisted:false,summary:summary||null});
+  const displayStatus=report=>({...report,pendingOriginal:originalCanvasResourceDiagnostics(report.snapshot)});
+  const interrupted=summary=>displayStatus({snapshot:current,status:'local_edits',persisted:false,summary:summary||null});
   for(;;){
     if(!canCommit())return interrupted();
-    if(resourceIndex.state!=='ready')return {snapshot:current,status:resourceIndex.state,persisted:false,summary:null,diagnostics:[]};
+    if(resourceIndex.state!=='ready'){const pendingOriginal=originalCanvasResourceDiagnostics(current);return {snapshot:current,status:resourceIndex.state,persisted:false,summary:null,diagnostics:pendingOriginal,pendingOriginal};}
     const result=await migrate(current,{index:resourceIndex.index});
     const diagnostics=result.unresolved.map(({path,code})=>({path,code}));
     if(!canCommit())return interrupted(result.summary);
-    if(!result.changes.length)return {snapshot:current,status:result.unresolved.length?'pending_import':'ready',persisted:false,summary:result.summary,diagnostics};
+    if(!result.changes.length)return displayStatus({snapshot:current,status:result.unresolved.length?'pending_import':'ready',persisted:false,summary:result.summary,diagnostics});
     try{
       await store.save(result.snapshot,id,{preserveSnapshot:true,beforeCommit:canCommit});
-      if(!canCommit())return {snapshot:result.snapshot,status:'local_edits',persisted:true,summary:result.summary,diagnostics};
-      return {snapshot:result.snapshot,status:result.unresolved.length?'pending_import':'ready',persisted:true,summary:result.summary,diagnostics};
+      if(!canCommit())return displayStatus({snapshot:result.snapshot,status:'local_edits',persisted:true,summary:result.summary,diagnostics});
+      return displayStatus({snapshot:result.snapshot,status:result.unresolved.length?'pending_import':'ready',persisted:true,summary:result.summary,diagnostics});
     }catch(error){
       // The app must handle this explicitly; silently hydrating a pre-edit
       // snapshot after the transaction gate refused it would erase local edits.
@@ -51,12 +52,12 @@ export async function migrateLoadedCanvas({saved,store,id,indexState,canCommit=(
 
 export function migrationNoticeText(report){
   const count=report?.summary?.unresolved||0;
-  if(report?.status==='index_missing')return '本地资源迁移待修复：资源索引尚未生成，已有引用已保留。';
-  if(report?.status==='index_invalid')return '本地资源迁移待修复：资源索引格式无效，已有引用已保留。';
-  if(report?.status==='index_unavailable')return '本地资源迁移待修复：资源索引暂时无法读取，已有引用已保留。';
+  if(report?.status==='index_missing')return '本地资源迁移待修复：资源索引尚未生成，已有引用已保留；原站媒体显示待导入占位。';
+  if(report?.status==='index_invalid')return '本地资源迁移待修复：资源索引格式无效，已有引用已保留；原站媒体显示待导入占位。';
+  if(report?.status==='index_unavailable')return '本地资源迁移待修复：资源索引暂时无法读取，已有引用已保留；原站媒体显示待导入占位。';
   if(report?.status==='local_edits')return '本地资源迁移已暂停：当前画布已有新修改，原有引用已保留。';
   if(report?.status==='migration_failed')return '本地资源迁移尚未保存：读取或保存失败，已停止恢复以保护原有画布。';
-  if(count)return `本地资源迁移待修复：${count} 项媒体引用没有可确认的本地资源，已保留原引用。请导入本地素材后替换。`;
+  if(count)return `本地资源迁移待修复：${count} 项媒体引用没有可确认的本地资源，已保留原引用；原站媒体显示待导入占位。请导入本地素材后替换。`;
   return '';
 }
 

@@ -4,7 +4,7 @@
 
 ## 模块边界
 
-- `registry.mjs`：二十个已接通的版本 URI、模板 ID 范围、展示策略与状态校验。
+- `registry.mjs`：二十二个已接通的版本 URI、模板 ID 范围、展示策略与状态校验。
 - `director-markup.mjs`：真实剧本文本输入、官方 DM1 批注解码、已保存正文/位置/批注核对与稳定交接 ID。
 - `performance-rhythm.mjs`：固定时长、实际驱动力曲线/节拍与PS1确认核对，合同见 [表演节奏](PERFORMANCE-RHYTHM.md)。
 - `story-room.mjs`：来源场景、按幕排列、新增/废弃与NS1确认核对，合同见 [剧本结构板](STORY-ROOM.md)。
@@ -18,6 +18,8 @@
 - `character-blocking.mjs`、`character-blocking-runtime.mjs`：真实人物引用与局部头像裁图、positions/facings保存、精确CB3与真实来源交接，见[人物站位合同](CHARACTER-BLOCKING.md)。
 - `product-kit.mjs`、`product-kit-runtime.mjs`：真实产品源图、配色/调性/禁令与规格确认、精确PK1及来源绑定，见[产品素材合同](product-kit.md)。
 - `ad-review.mjs`、`ad-review-runtime.mjs`：真实图片/视频与审核阶段、marks/notes保存、精确AR1及来源绑定，见[广告审核合同](AD-REVIEW.md)。
+- `animatic-v1.mjs`、`animatic-v1-runtime.mjs`：历史只读故事板播放器、实际本地图片裁切/运镜、保存镜头/总览状态与精确 AN1 交接，见 [v1 合同](animatic-v1.md)。
+- `character-blocking-v1.mjs`、`character-blocking-v1-runtime.mjs`：历史文字人物站位、坐标/目标/比例保存与精确 CB1 交接，见 [v1 合同](CHARACTER-BLOCKING-V1.md)。
 - `animatic.mjs`、`animatic-runtime.mjs`：真实图板/图片、分镜编辑、AN1正常队列与真实九格变体任务。
 - `previs.mjs`、`previs-runtime.mjs`：已存镜头/选图与精确预验回复、真实Agent队列身份、缺图板正常生成及只读恢复，见[预演合同](PREVIS.md)。
 - `ecommerce-photoset.mjs`、`ecommerce-photoset-runtime.mjs`：真实产品来源与计划行，Amazon精确用户确认提交任务，freeform进入正常用户队列，见[商品组图合同](ecommerce-photoset.md)。
@@ -30,7 +32,7 @@
 
 Purpose：在Agent会话显示二十个已集成官方应用：三个选择器、导演批注、表演节奏、剧本结构、人物情绪、制作进度、互动学习、个人素材选择、调色、平台裁切、拼装审阅、人物站位、产品素材板、广告审核、图层合成、动态分镜、镜头预演和电商组图。可编辑应用保存实际状态并通过正常消息队列交接；制作进度只读取真实制作任务。
 
-Inputs：三个选择器 `resource_uri`（motion-picker@v1、creative-picker@v1、website-design-picker@v1），可选title、original_request、recommended_template_id。另外十七个工作流使用各自data（素材选择可省略data），拒绝混用模板选择参数及任意工具参数：
+Inputs：三个选择器 `resource_uri`（motion-picker@v1、creative-picker@v1、website-design-picker@v1），可选title、original_request、recommended_template_id。另外十九个版本工作流使用各自data（素材选择可省略data），拒绝混用模板选择参数及任意工具参数：
 
 - director-markup@v1：`data:{draft,locale?}`，正文非空且最多8000 UTF-16字符，支持中/英/日/韩/法。
 - performance-rhythm@v3：固定duration_ms、真实scene、曲线点curve和节拍beats，详见 [输入与状态合同](PERFORMANCE-RHYTHM.md)。
@@ -81,7 +83,7 @@ Tests：host/card/registry、各工作流协议/来源/保存、widget queue与s
 
 ## 尚未完成
 
-对照当前manifest与registry，版本URI已接20/22，功能族已接20/20。剩余未接仅历史URI animatic@v1和character-blocking@v1；同族当前v2/v3已经接线，二者不算新增功能族。完整艺术/硬件模板逐项交互、精确模板文件获取/哈希校验/产物编辑链仍待补齐。计数仅证明接线存在，不能作为完整视觉、交互、真实生成或本地化验收。有KEY也不能自动补齐尚未实现的工作流。应用交接已按官方hidden标志隐藏聊天行，原文和widgetOrigin仍保留于历史，修改工具仍需正常确认；运行中不接受新的应用交接。验收见 `reference/agent-hidden-handoff-20260930.md`。
+对照当前manifest与registry，版本URI已接22/22，功能族已接20/20。历史URI animatic@v1和character-blocking@v1已各自接入独立输入/状态/来源合同，并非v2/v3的无条件别名；历史版本没有新增生成工具权限。完整艺术/硬件模板逐项交互、精确模板文件获取/哈希校验/产物编辑链仍待补齐。计数仅证明接线存在，不能作为完整视觉、交互、真实生成或本地化验收。有KEY也不能自动补齐尚未实现的工作流。应用交接已按官方hidden标志隐藏聊天行，原文和widgetOrigin仍保留于历史，修改工具仍需正常确认；运行中不接受新的应用交接。验收见 `reference/agent-hidden-handoff-20260930.md`。
 
 ## 导演画线批注
 

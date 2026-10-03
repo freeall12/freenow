@@ -38,6 +38,28 @@ test('unsafe URLs and URL-shaped domain filters are rejected before provider inv
  for(const domain of ['localhost','127.0.0.1','https://openai.com','openai.com/path','user@example.com'])assert.throws(()=>validateSearchInput({query:'q',allowed_domains:[domain]}));
  let count=0;const service=createWebSearch({model:'fixture',client:{responses:{create:()=>{count++;}}}});await assert.rejects(service.search({query:'x',allowed_domains:['localhost']}));assert.equal(count,0);
 });
+test('original-service filters cannot invoke a provider while independent filters remain available',async()=>{
+ const {safePublicUrl,validateSearchInput}=await import('../src/features/agent-search/model.mjs');
+ const domains=['tapnow.media','files.tapnow.media','tapnow.ai','tapnow.art','tapnow.top','tapnow.zone','tapnow.plus','tapnow.tv','tamaredge.top','conversation-service-131786869360.asia-northeast1.run.app'];
+ let calls=0;const service=createWebSearch({model:'fixture',client:{responses:{create:async()=>{calls++;return fixture();}}}});
+ for(const domain of domains){
+  assert.equal(safePublicUrl('https://'+domain+'/source'),null,domain);
+  assert.equal(safePublicUrl('https://'+domain.toUpperCase()+'.../source'),null,domain);
+  assert.throws(()=>validateSearchInput({query:'q',allowed_domains:[domain]}));
+  await assert.rejects(service.search({query:'q',allowed_domains:[domain]}));
+ }
+ assert.equal(calls,0);
+ assert.equal(safePublicUrl('https://tapnow.media.example.org/source'),'https://tapnow.media.example.org/source');
+ await service.search({query:'q',allowed_domains:['openai.com']});assert.equal(calls,1);
+});
+test('provider original-service citations and sources are filtered without changing factual text',async()=>{
+ const response=fixture(),part=response.output[1].content[0];
+ part.annotations.push({type:'url_citation',url:'https://app.tapnow.media/source',title:'Original service',start_index:0,end_index:8});
+ response.output[0].action.sources.push({url:'https://files.tapnow.media/source'},{url:'https://tapnow.ai/source'});
+ const result=await normalizeSearchResponse(response,{query:'q',model:'fixture'});
+ assert.equal(result.text,'Evidence [1]\n\nMore [2]');assert.equal(result.sources.length,2);assert.equal(result.citations.length,2);assert.equal(result.droppedSources,5);
+ assert.ok(result.sources.every(source=>!source.url.includes('tapnow')));
+});
 test('abort rejects late provider result and unsupported errors expose no provider body/secrets',async()=>{
  let release;const controller=new AbortController(),service=createWebSearch({model:'fixture',client:{responses:{create:()=>new Promise(resolve=>{release=resolve;})}}});
  const promise=service.search({query:'q'},{signal:controller.signal});while(!release)await new Promise(resolve=>setImmediate(resolve));controller.abort();release(fixture());await assert.rejects(promise,{name:'AbortError'});

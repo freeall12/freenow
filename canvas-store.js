@@ -97,6 +97,8 @@
       return latestSave;
     },
     async listProjects() {
+      await window.CanvasResourceDisplayReady;
+      const displayRef=value=>window.CanvasResourceDisplay?.displayMediaRef(value)??(typeof value==='string'&&!/^(?:\s*https?:|\s*[\/\\]{2})/i.test(value)?value:'');
       const db=await database;
       return new Promise((resolve,reject)=>{
         const tx=db.transaction('documents'),request=tx.objectStore('documents').openCursor(),projects=[];
@@ -109,7 +111,8 @@
           const key=cursor.key,id=key==='canvas'?'canvas':typeof key==='string'&&key.startsWith('project:')?key.slice(8):null;
           if(id&&/^[A-Za-z0-9_-]{1,100}$/.test(id)){
             const value=cursor.value,metadata=value?.project||{},nodes=Array.isArray(value?.nodes)?value.nodes:[];
-            projects.push({id,title:metadata.title||(id==='canvas'?'Waste to energy (copy)':'未命名画布'),createdAt:metadata.createdAt||null,updatedAt:metadata.updatedAt||null,nodeCount:nodes.length,thumbnail:nodes.find(node=>typeof node.image==='string'&&!node.image.startsWith('blob:'))?.image||null});
+            const images=nodes.filter(node=>typeof node.image==='string'&&!node.image.startsWith('blob:')),thumbnail=images.map(node=>displayRef(node.image)).find(Boolean)||null,thumbnailPendingImport=images.some(node=>!displayRef(node.image));
+            projects.push({id,title:metadata.title||(id==='canvas'?'Waste to energy (copy)':'未命名画布'),createdAt:metadata.createdAt||null,updatedAt:metadata.updatedAt||null,nodeCount:nodes.length,thumbnail,thumbnailPendingImport});
           }
           cursor.continue();
         };

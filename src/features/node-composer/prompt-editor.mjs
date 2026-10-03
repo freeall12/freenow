@@ -8,11 +8,17 @@ import {documentText,promptDocument,mentionItems} from './prompt-state.mjs';
 import {referenceIcons} from '../agent-composer/reference-icons.mjs';
 import {referencePreviews} from './reference-preview.mjs';
 import {icons,musicIcon} from './icons.mjs';
+import {displayMediaRef,pendingImportMessage} from '../local-resource-migration/display-media.mjs';
 const el=(tag,cls,text)=>{const e=document.createElement(tag);e.className=cls;if(text!==undefined)e.textContent=text;return e;};
 function mentionDOM(attrs,onRemove) {
   const root=el('span','composer-mention mention-'+attrs.type);root.contentEditable='false';root.dataset.promptToken=attrs.token;root.dataset.referenceKey=attrs.key;
   const thumb=el('span','composer-mention-icon');
-  if(attrs.thumbnail&&['image','video'].includes(attrs.type)){const img=el('img','');img.alt='';Promise.resolve(window.LocalAssets?.url(attrs.thumbnail)||attrs.thumbnail).then(url=>{if(root.isConnected)img.src=url;});thumb.append(img);}
+  if(attrs.thumbnail&&['image','video'].includes(attrs.type)){
+    const placeholder=()=>{thumb.replaceChildren();thumb.innerHTML=referenceIcons[attrs.type+'Type']||'';root.title=pendingImportMessage;root.classList.add('empty-reference');};
+    const safe=displayMediaRef(attrs.thumbnail);
+    if(!safe)placeholder();
+    else{const img=el('img','');img.alt='';thumb.append(img);Promise.resolve().then(()=>window.LocalAssets?.url(safe)||safe).then(url=>{if(!root.isConnected)return;const checked=displayMediaRef(url);if(checked)img.src=checked;else placeholder();}).catch(()=>{if(root.isConnected)placeholder();});}
+  }
   else thumb.innerHTML=attrs.type==='subject'?subjectIcons.subject:attrs.type==='audio'?musicIcon:referenceIcons[attrs.type+'Type']||'';
   root.append(thumb);if(onRemove){const remove=el('button','composer-mention-remove');remove.type='button';remove.tabIndex=-1;remove.ariaLabel='移除引用 '+attrs.label;remove.innerHTML=icons.close;remove.onpointerdown=event=>event.preventDefault();remove.onclick=event=>{event.preventDefault();event.stopPropagation();onRemove();};root.append(remove);}root.append(el('span','composer-mention-label',attrs.label));return root;
 }

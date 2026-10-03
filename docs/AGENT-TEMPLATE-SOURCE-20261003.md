@@ -68,6 +68,6 @@ node --test tests/agent-template-source.test.cjs tests/agent-creative-family.tes
 
 验收页：`/src/features/agent-apps/qa/template-source.html`。它使用官方 picker/host/controller、专用 IndexedDB 会话和真正 IndexedDB artifact store；提供不匹配文件检查、独立自由 HTML 保存、busy/save failure 开关。页面不接模型。4173 listener 的工作目录与该 checkout 相符，验收页 HTTP 200。
 
-当前 CUA inventory 的 `browsers` 为空，打开 IAB 不可用；因此本批尚无新真实浏览器截图/刷新验收，HTTP 200 和 jsdom 不能替代这一项。接到真实匹配本地文件后，仍需验证：生产卡片导入 → 实际 HTML read/edit → 修改后整页刷新 → 当前 revision 预览/导出。未知依赖资源仍遵守现有离线导出合同，不能因为正文已导入就声称资源已全部本地化。
+初次 CUA inventory 的 `browsers` 为空，IAB 暂不可用；后续 root 恢复实机浏览器并完成此 QA 页验证：打开真实 picker，搜索「字符花房」并点击「使用此模板」，确认 `missing/can_import:true` 和真实 handoff 入队；点击「检验不匹配 HTML」明确显示 SHA256 不符、未导入且 artifacts 为空；保存自由 HTML 后整页 reload，仍准确显示原模板 missing，同时真实 handoff 与 `free-creation.html` revision 1 均恢复。双层 iframe 的 click 接口失效，采用浏览器 native Tab + Return 完成真实按钮操作。截图：`/tmp/freenow-template-source-20261003.png`。这证明负向摘要检查、自由创作及会话/产物刷新链，不是原模板 positive import 验收。接到真实匹配本地文件后，仍需验证：生产卡片导入 → 实际 HTML read/edit → 修改后整页刷新 → 当前 revision 预览/导出。未知依赖资源仍遵守现有离线导出合同，不能因为正文已导入就声称资源已全部本地化。
 
 验收页后续发现同源 localStorage quota exceeded；会话已切换至独立 QA IndexedDB `tapnow-template-source-qa-chat-v2`，save 只在事务提交后成功，并串行保留调用时快照。旧专用 QA key 仅首次读取以保留历史，不写入、不清除任何 localStorage，也不修改产品数据库 schema。

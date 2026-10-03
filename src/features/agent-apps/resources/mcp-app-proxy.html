@@ -259,7 +259,8 @@
             return localizePrevisBilling(templateHtml, name, version);
           })
           .then(async function (templateHtml) {
-            if (name !== "animatic") return templateHtml;
+            // Only v2 has variant submission errors; historical v1 is read-only.
+            if (name !== "animatic" || version !== "v2") return templateHtml;
             var errors = await import("../animatic-local-errors.mjs");
             return errors.localizeAnimaticErrors(templateHtml, name, version);
           })

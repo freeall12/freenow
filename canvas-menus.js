@@ -57,9 +57,11 @@
   }
   function keepMain(n) { if(n.type==='image'&&window.ImageHistory?.hasHistory(n)){app.updateNode(n.id,window.ImageHistory.keepPrimary(n));return;}if(n.type==='video'&&window.VideoHistory){app.updateNode(n.id,window.VideoHistory.keepPrimary(n));return;}app.updateNode(n.id,{versions:[{image:n.fullImage||n.image,video:n.video,label:n.title}]}); }
   async function mediaBlob(n) {
-    const source=n.type==='video'?(n.video||window.EDITOR_DATA?.nodes[n.id]?.video):n.type==='audio'?n.audio:n.fullImage||n.image;
-    if(!source)throw Error('节点没有可下载的媒体');
-    const url=source.startsWith('asset:')?await window.LocalAssets.url(source):source;
+    await window.CanvasResourceDisplayReady;
+    const displayRef=value=>window.CanvasResourceDisplay?.displayMediaRef(value)??(typeof value==='string'&&!/^(?:\s*https?:|\s*[\/\\]{2})/i.test(value)?value:''),primary=n.type==='video'?(n.video||window.EDITOR_DATA?.nodes[n.id]?.video):n.type==='audio'?n.audio:n.fullImage||n.image;
+    const source=n.type==='video'||n.type==='audio'?displayRef(primary):displayRef(n.fullImage)||displayRef(n.image);
+    if(!source){if(primary)throw Error('原站媒体待导入本地；旧引用已保留，请重新导入后下载或复制');throw Error('节点没有可下载的媒体');}
+    const url=displayRef(source.startsWith('asset:')?await window.LocalAssets.url(source):source);if(!url)throw Error('原站媒体待导入本地；旧引用已保留，请重新导入后下载或复制');
     const response=await fetch(url);if(!response.ok)throw Error('媒体读取失败');return response.blob();
   }
   async function download(n) {

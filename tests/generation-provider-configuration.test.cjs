@@ -110,3 +110,10 @@ test('existing API dialog renders per-operation readiness and missing names and 
  assert.equal(dialog.open,true);assert.match(rendered,/图片生成 · open · 已就绪/);assert.match(rendered,/视频生成 · missing · 待配置 · 缺少 ARK_API_KEY/);assert.ok(!rendered.includes('image-alias'));assert.equal(elements.filter(element=>element.tag==='input').length,2);assert.ok(elements.some(element=>element.tag==='button'&&element.textContent==='保存配置'));
  await elements.find(element=>element.tag==='button'&&element.textContent==='使用本机服务').onclick();assert.equal(dialog.open,false);
 });
+
+test('direct ElevenLabs readiness is limited to the actual configured audio alias',async()=>{
+ const {providerConfigured}=await import('../src/features/node-composer/provider-configuration.mjs');
+ const metadata={configured:true,protocol:'elevenlabs-native',capabilities:{kinds:['audio.generate'],models:{eleven_v3:{kind:'audio.generate'}}}};
+ assert.equal(providerConfigured(metadata,{kind:'audio.generate',parameters:{model:'eleven_v3'}}),true);
+ for(const request of [{kind:'audio.generate',parameters:{model:'mureka-v8'}},{kind:'text.generate',parameters:{model:'eleven_v3'}},{kind:'audio.generate'}])assert.equal(providerConfigured(metadata,request),false);
+});
