@@ -1,0 +1,7 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>未知节点图片人工修复 QA</title><link rel="stylesheet" href="conversations.css"></head>
+<body><main><h1>未知节点图片人工修复 QA</h1><p>独立测试画布与素材数据库，不接触个人画布。两个合成旧节点使用未知原站引用；不会读取原站。选择本机 PNG 是用户替换样本，不是原件恢复证明。</p>
+<nav><button id="initialize">初始化独立画布</button><button id="open" disabled>打开修复对话框</button><button id="sample" disabled>打开并填入本机 QA 图片</button><button id="read" disabled>回读保存画布</button><button id="undo" disabled>撤销测试替换</button><button id="reload">刷新复验</button></nav>
+<p><label><input id="fail-save" type="checkbox">下一次画布保存失败（验证已应用但未确认保存与重试）</label></p>
+<p id="status" role="status" aria-live="polite">正在回读独立画布…</p><section><h2>实际节点图片</h2><div id="previews"></div></section><section><h2>保存与来源诊断</h2><pre id="diagnostics">尚未初始化</pre></section></main>
+<script src="node-image-repair-bootstrap.js"></script><script src="../../../../canvas-store.js"></script><script src="../../../../local-assets.js"></script><script type="module" src="node-image-repair.mjs"></script></body></html>

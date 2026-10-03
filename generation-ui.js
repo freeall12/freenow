@@ -77,24 +77,28 @@
   service.setProvider(localProvider);
   function refreshServerConfiguration(){return fetch('/api/generation/config',{signal:AbortSignal.timeout(5000)}).then(response=>response.ok?response.json():null).then(value=>{if(typeof value?.configured!=='boolean')return null;serverConfigured=value.configured;return value;}).catch(()=>null);}
   let serverConfiguration=refreshServerConfiguration();
-  localProvider.isConfigured=async({request,signal}={})=>{
+  localProvider.isConfigured=async({request,signal,operationOnly=false}={})=>{
     const configuration=serverConfiguration=refreshServerConfiguration();
     const [metadata,routing]=await Promise.all([configuration,providerConfigurationReady]);
     if(signal?.aborted)throw signal.reason;
     const selected=routing.resolveProviderConfiguration(metadata,request);
     if(signal&&request?.kind){taskNativeConfigurations.set(signal,selected);if(typeof metadata?.configurationId==='string')taskConfigurationIds.set(signal,metadata.configurationId);}
-    return routing.providerConfigured(metadata,request);
+    const status=routing.providerConfigurationStatus(metadata,request,{operationOnly});
+    if(status.configured===false)throw Object.assign(new Error(status.message),{code:'configuration_required',providerDispatched:false});
+    return status.configured;
   };
   async function availability({signal,kind,request}={}){
     const scopedRequest=request?structuredClone(request):kind?{kind}:undefined;
     for(;;){
       if(signal?.aborted)throw signal.reason;
       const provider=service.provider;
-      const configured=provider?(typeof provider.isConfigured==='function'?await provider.isConfigured({request:scopedRequest,signal}):true):false;
+      let configured,reason;
+      try{configured=provider?(typeof provider.isConfigured==='function'?await provider.isConfigured({request:scopedRequest,signal,...(provider===localProvider?{operationOnly:!request&&!!kind}:{})}):true):false;}
+      catch(error){if(error?.code!=='configuration_required')throw error;configured=false;reason=error.message;}
       if(signal?.aborted)throw signal.reason;
       // Configuration belongs to a provider, so a switch during its asynchronous
       // lookup must be re-evaluated before reporting availability to an Agent.
-      if(provider===service.provider)return {configured:typeof configured==='boolean'?configured:null};
+      if(provider===service.provider)return {configured:typeof configured==='boolean'?configured:null,...(reason?{reason}:{})};
     }
   }
   async function configuration(){

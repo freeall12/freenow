@@ -9,7 +9,8 @@ const ark={configured:true,protocol:'ark-native',missing:[],capabilities:{kinds:
 const metadata=()=>({protocol:'routed',configured:true,providers:{open:structuredClone(open),ark:structuredClone(ark),missing:{configured:false,protocol:'ark-native',missing:['ARK_API_KEY'],capabilities:{kinds:['video.generate']}}},routes:{'image.generate':{default:'open',models:{'image-alias':'missing'}},'image.recognize':{default:'open',models:{}},'video.analyze':{default:'open',models:{}},'video.generate':{default:'ark',models:{blocked:'missing'}},'text.generate':{models:{available:'open'}}}});
 async function harness(config){
  const routing=await routingReady,localProvider={generate:async()=>output},service=new TaskService(),taskNativeConfigurations=new WeakMap();service.setProvider(localProvider);
- const context={localProvider,service,taskNativeConfigurations,serverConfiguration:Promise.resolve(config),providerConfigurationReady:Promise.resolve(routing),structuredClone};
+ const context={localProvider,service,taskNativeConfigurations,taskConfigurationIds:new WeakMap(),serverConfiguration:Promise.resolve(config),providerConfigurationReady:Promise.resolve(routing),structuredClone};
+ context.refreshServerConfiguration=()=>context.serverConfiguration;
  vm.runInNewContext(ui.slice(ui.indexOf('  localProvider.isConfigured='),ui.indexOf('  function submitJob(')),context);
  return {...context,context,availability:context.availability};
 }
@@ -61,6 +62,11 @@ test('local availability keeps overall noarg behavior and scopes request/kind re
  assert.equal((await f.availability({kind:'video.analyze'})).configured,true);
  assert.equal((await f.availability({kind:'audio.generate'})).configured,false);
  assert.equal((await f.availability({request:{kind:'video.generate',parameters:{modelId:'blocked'}}})).configured,false);
+ assert.equal((await f.availability({kind:'video.generate'})).configured,true);
+ assert.equal((await f.availability({kind:'text.generate'})).configured,true);
+ const unmapped=await f.availability({request:{kind:'video.generate',parameters:{modelId:'not-mapped'}}});
+ assert.equal(unmapped.configured,false);assert.match(unmapped.reason,/modelMap/);assert.match(unmapped.reason,/seedance-2\.0/);
+ assert.equal((await f.availability({request:{kind:'video.generate'}})).configured,false);
  let release;f.service.setProvider({isConfigured:()=>new Promise(resolve=>release=resolve),generate:async()=>output});
  const pending=f.availability({kind:'video.generate'});await tick();f.service.setProvider({isConfigured:()=>false,generate:async()=>output});release(true);assert.equal((await pending).configured,false);
 });
@@ -104,7 +110,7 @@ test('existing API dialog renders per-operation readiness and missing names and 
  const routing=await routingReady,m=metadata(),elements=[];
  const el=(tag,cls='',text)=>{const value={tag,className:cls,textContent:text||'',children:[],isConnected:true,append(...children){this.children.push(...children);},replaceChildren(...children){this.children=[...children];},setAttribute(){},showModal(){this.open=true;},close(){this.open=false;this.onclose?.();},remove(){this.isConnected=false;}};elements.push(value);return value;};
  const body=el('body'),button=(text,fn)=>Object.assign(el('button','',text),{onclick:fn});
- const context={el,button,document:{body,querySelector:()=>null},providerConfigurationReady:Promise.resolve(routing),serverConfiguration:Promise.resolve(m),refreshServerConfiguration:()=>Promise.resolve(m),service:{setProvider(){}},localProvider:{}};
+ const context={el,button,document:{body,querySelector:()=>null},providerConfigurationReady:Promise.resolve(routing),serverConfiguration:Promise.resolve(m),refreshServerConfiguration:()=>Promise.resolve(m),configurationClientReady:Promise.resolve({saveLocalGenerationConfiguration:async input=>{assert.deepEqual({...input},{mode:'environment'});return m;}}),service:{setProvider(){}},localProvider:{},AbortSignal};
  vm.runInNewContext(ui.slice(ui.indexOf('  function configure('),ui.indexOf('  function runInPlace(')),context);context.configure();await tick();
  const dialog=body.children[0],readiness=dialog.children[2],rendered=readiness.children.map(row=>row.textContent).join('\n');
  assert.equal(dialog.open,true);assert.match(rendered,/图片生成 · open · 已就绪/);assert.match(rendered,/视频生成 · missing · 待配置 · 缺少 ARK_API_KEY/);assert.ok(!rendered.includes('image-alias'));assert.equal(elements.filter(element=>element.tag==='input').length,2);assert.ok(elements.some(element=>element.tag==='button'&&element.textContent==='保存配置'));

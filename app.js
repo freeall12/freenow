@@ -11,11 +11,19 @@
   let history = [], future = [], filter = 'all', graphLoaded = false, graphReadFailed = false, localChanges = 0, focusRevision = 0, viewportFrame = 0, saveRevision = 0;
   let generationPlanModule;
   let resourceMigrationStatus=null;
+  const localImageReady=import('./src/features/local-resource-migration/display-image.mjs');
+  const localImageBindings=new WeakMap();
   window.CanvasResourceDisplayReady=import('./src/features/local-resource-migration/display-media.mjs').then(policy=>{window.CanvasResourceDisplay=policy;return policy;}).catch(()=>null);
   const displayMediaRef=value=>window.CanvasResourceDisplay?.displayMediaRef(value)??(typeof value==='string'&&!/^(?:\s*https?:|\s*[\/\\]{2})/i.test(value)?value:'');
   const pendingMedia=node=>window.CanvasResourceDisplay?.nodeHasPendingOriginalMedia(node)??['image','fullImage','video','audio','poster','thumbnail'].some(key=>node?.[key]&&!displayMediaRef(node[key]));
   const actionMediaRef=node=>node?.type==='video'?displayMediaRef(node.video||window.EDITOR_DATA?.nodes[node.id]?.video):node?.type==='audio'?displayMediaRef(node.audio):displayMediaRef(node?.fullImage)||displayMediaRef(node?.image);
   const blockedPrimaryMedia=node=>['image','video','audio'].includes(node?.type)&&!actionMediaRef(node)&&pendingMedia(node);
+  async function repairNodeImage(id){
+    const projectId=window.CanvasProjects?.id?.(),node=nodes.find(item=>item.id===id);
+    const isCurrent=()=>window.CanvasProjects?.id?.()===projectId&&nodes.includes(node);
+    try{const {openNodeImageRepair}=await import('./src/features/local-resource-migration/node-image-repair-ui.mjs');if(isCurrent())await openNodeImageRepair({app:window.CanvasApp,nodeId:id,isCurrent});}
+    catch(error){if(isCurrent())notify(error.message);}
+  }
   const mediaDisplayNode=node=>{if(!['image','video','audio'].includes(node?.type))return node;const source=actionMediaRef(node);return {...node,image:displayMediaRef(node.image)||(node.type==='image'?source:''),fullImage:node.type==='image'?source:displayMediaRef(node.fullImage),video:node.type==='video'?source:displayMediaRef(node.video),audio:displayMediaRef(node.audio),poster:displayMediaRef(node.poster),thumbnail:displayMediaRef(node.thumbnail)};};
   const generationRuns = new Map();
   let searchFocusTimer=0,searchFocusElement=null;
@@ -104,6 +112,7 @@
   }
   function removeNodeElement(id) {
     const element=nodeElements.get(id);if(!element)return;
+    element.querySelectorAll('.node-body > img').forEach(image=>localImageBindings.get(image)?.dispose());
     window.CanvasPilesUI.disposeMediaTree(element);
     element.querySelectorAll('video,audio').forEach(media=>media.pause());
     element.remove();nodeElements.delete(id);nodeRecords.delete(id);
@@ -116,11 +125,12 @@
     if(n.restricted){const badge=document.createElement('span');badge.className='restricted';badge.textContent=' · 规格受限';title.append(badge);}
     const body=document.createElement('div');body.className='node-body';
     const imageRef=displayMediaRef(n.type==='image'&&n.fullImage?n.fullImage:n.image)||displayMediaRef(n.image);
-    if(imageRef){const img=document.createElement('img');img.src=imageRef;img.onerror=()=>{img.onerror=null;const fallback=displayMediaRef(n.image);if(fallback&&img.getAttribute('src')!==fallback)img.src=fallback;};img.alt=n.title;img.draggable=false;body.append(img);}
+    if(imageRef){const img=document.createElement('img'),fallback=displayMediaRef(n.image);img.alt=n.title;img.draggable=false;body.append(img);if(imageRef.startsWith('asset:')||fallback?.startsWith('asset:')){localImageReady.then(({bindLocalImage})=>{const isCurrent=()=>nodeElements.get(n.id)===el&&img.isConnected;if(isCurrent())localImageBindings.set(img,bindLocalImage(img,{source:imageRef,fallback,isCurrent}));}).catch(error=>{if(img.isConnected)img.title=error.message;});}else{img.src=imageRef;img.onerror=()=>{img.onerror=null;if(fallback&&img.getAttribute('src')!==fallback)img.src=fallback;};}}
     else if(pendingMedia(n)){const placeholder=document.createElement('div');placeholder.className='placeholder';placeholder.textContent='原站媒体待导入本地';placeholder.setAttribute('role','status');placeholder.title='旧媒体引用已保留，请重新导入本地素材后替换';body.append(placeholder);}
     else if(n.type==='text'){}
     else body.innerHTML=`<div class="placeholder">${svg('image')}</div>`;
     if(pendingMedia(n)){el.dataset.mediaStatus='pending_import';body.title='原站媒体待导入本地；旧引用已保留。请重新导入本地素材后替换。';}
+    if(n.type==='image'&&[n.image,n.fullImage].some(value=>value&&!displayMediaRef(value))){const repair=document.createElement('button');repair.className='node-media-repair';repair.type='button';repair.textContent='导入本地图片';repair.setAttribute('aria-label','为 '+(n.title||'图片节点')+' 导入本地图片');repair.onpointerdown=event=>event.stopPropagation();repair.ondblclick=event=>event.stopPropagation();repair.onclick=event=>{event.stopPropagation();void repairNodeImage(n.id);};body.append(repair);}
     const left=document.createElement('button');left.className='port left';left.dataset.port='left';left.textContent='+';left.setAttribute('aria-label','输入连接点');
     const right=left.cloneNode(true);right.className='port right';right.dataset.port='right';right.setAttribute('aria-label','输出连接点');
     el.append(title,body,left,right);if(n.type==='text')window.CanvasTextUI.renderNode(n,el);if(n.type==='studio')window.StudioNode.render(n,el);if(n.type==='world')window.WorldNode?.render(n,el);if(n.type==='group')window.CanvasGroupsUI.renderNode(n,el);if(n.type==='pile')window.CanvasPilesUI.renderNode(n,el,nodes);$('#nodes').insertBefore(el,before);nodeElements.set(n.id,el);nodeRecords.set(n.id,{node:n,content:nodeContentKey(n)});
