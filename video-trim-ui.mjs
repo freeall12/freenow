@@ -1,5 +1,6 @@
 import {initialRange,constrainRange,moveRange,resizeRange,pointerTime,keyboardRange,frameSignature,cutDistance,segmentsFromCuts} from './video-trim-core.mjs';
 import {openVideoFrames} from './video-frames.mjs';
+import {captureTrimOwner,createTrimResultTransaction} from './src/features/video-trim/result-transaction.mjs';
 const app=window.CanvasApp, $=(q,root=document)=>root.querySelector(q), make=(tag,cls,text)=>{const e=document.createElement(tag);e.className=cls||'';if(text!==undefined)e.textContent=text;return e;};
 const icons=window.CANVAS_MENU_ICONS, source=n=>n.video||window.EDITOR_DATA?.nodes[n.id]?.video;
 const shortcuts=[['Arrow Left / Arrow Right','移动选区'],['Arrow Left / Arrow Right','扩展/收缩选区'],['Shift + Arrow Left / Arrow Right','精确微调 (0.01s)'],['Ctrl/Cmd + Arrow Left / Arrow Right','快速调整 (1s)'],['I / O','设置入点/出点'],['Enter','确认剪辑'],['Esc','取消'],['Space','播放/暂停预览'],['Hold Shift','精确模式（禁用吸附）']];
@@ -8,6 +9,7 @@ const button=(label,icon,fn,cls='')=>{const b=make('button',cls);b.type='button'
 class TrimEditor {
   constructor(node){
     this.id=node.id;this.src=source(node);this.sourceClip=JSON.stringify(node.clip||null);this.base=node.clip?.start||0;this.node=node;this.visible=true;this.busy=false;this.alive=true;
+    this.owner=captureTrimOwner(app,node,source);this.pageController=new AbortController();window.addEventListener('pagehide',()=>this.cancel(),{signal:this.pageController.signal});
     this.listeners=new AbortController();this.decodeController=new AbortController();this.range={start:0,end:0};this.duration=0;
     this.root=make('section','video-trim-editor');this.root.tabIndex=0;this.root.setAttribute('aria-label','视频剪辑选区');
     this.exit=button('退出剪辑','trimExit',()=>this.close(),'video-trim-exit');this.confirm=button('确认裁剪','trimConfirm',()=>this.exportRanges([this.range]),'video-trim-confirm');this.confirm.disabled=true;
@@ -31,7 +33,7 @@ class TrimEditor {
     this.place();this.root.focus({preventScroll:true});this.ready=this.load().catch(e=>{if(e.name!=='AbortError')this.error(e.message);});
   }
   async load(){
-    const url=await window.LocalAssets.url(this.src);this.reader=await openVideoFrames(url,this.decodeController.signal);if(!this.alive){this.reader.dispose();return;}
+    this.owner.assertCurrent(this.decodeController.signal);const url=await window.LocalAssets.url(this.src);this.owner.assertCurrent(this.decodeController.signal);this.reader=await openVideoFrames(url,this.decodeController.signal);if(!this.alive){this.reader.dispose();return;}this.owner.assertCurrent(this.decodeController.signal);
     this.duration=Math.max(0,Math.min(this.node.clip?.end??this.reader.duration,this.reader.duration)-this.base);if(!Number.isFinite(this.duration)||this.duration<=0)throw Error('无效的视频时长');
     this.range=initialRange(this.duration);this.fit();this.paint();this.seek(this.range.start);
     const tiles=[];for(let i=0;i<10;i++){const frame=await this.reader.at(this.base+this.duration*i/10,160);if(!this.alive)return;const tile=make('div');tile.style.backgroundImage=`url("${frame.toDataURL('image/jpeg',.7)}")`;tiles.push(tile);this.film.append(tile);}
@@ -82,19 +84,35 @@ class TrimEditor {
     document.body.append(this.help);this.help.showModal();this.help.querySelector('button').focus();
   }
   error(message){if(!this.alive)return;this.status.hidden=false;this.status.textContent=message;}
-  assertSource(){const n=app.getState().nodes.find(n=>n.id===this.id);if(!n||source(n)!==this.src||JSON.stringify(n.clip||null)!==this.sourceClip)throw Error('来源视频已变化，请重新剪辑');return n;}
+  assertSource(){return this.owner.assertCurrent(this.jobController?.signal);}
   progress(text){if(this.visible){this.status.hidden=false;this.status.textContent=text;}if(this.jobLabel)this.jobLabel.textContent=text;}
-  beginJob(){this.busy=true;this.video.pause();this.confirm.disabled=this.smart.disabled=true;this.confirm.innerHTML=icons.trimLoading;this.confirm.classList.add('is-loading');this.jobController=new AbortController();this.job=make('section','video-trim-job');this.jobLabel=make('span','','正在处理…');this.job.append(this.jobLabel,button('停止视频处理','trimExit',()=>this.cancel()));document.body.append(this.job);}
-  endJob(){this.busy=false;this.job?.remove();this.confirm.classList.remove('is-loading');this.confirm.innerHTML=icons.trimConfirm;this.confirm.disabled=!this.loaded||this.duration<1;this.smart.disabled=!this.loaded;}
-  async inputBlob(){const url=await window.LocalAssets.url(this.src),response=await fetch(url,{signal:this.jobController.signal});if(!response.ok)throw Error('视频读取失败');const blob=await response.blob();if(blob.size>80*1024*1024)throw Error('本地剪辑暂支持不超过 80 MB 的视频');return blob;}
-  async buildOutputs(ranges,blob,reader){const outputs=[];for(const [i,range]of ranges.entries()){this.assertSource();this.progress(`正在处理 ${i+1}/${ranges.length}…`);const result=await window.LocalMedia.process('trim',blob,{start:this.base+range.start,end:this.base+range.end,signal:this.jobController.signal});const frame=await reader.at(this.base+range.start,320);outputs.push({type:'video',title:`剪辑结果 (${(range.end-range.start).toFixed(2)}s)`,video:await window.LocalMedia.asDataUrl(result),image:frame.toDataURL('image/jpeg',.85),width:this.node.width,height:this.node.height,originalVideo:this.src,clipParams:{start:this.base+range.start,end:this.base+range.end}});}return outputs;}
-  async exportRanges(ranges){if(this.busy||!this.loaded||ranges.some(r=>r.end-r.start<1))return;this.beginJob();let reader;try{const blob=await this.inputBlob();reader=await openVideoFrames(await window.LocalAssets.url(this.src),this.jobController.signal);const outputs=await this.buildOutputs(ranges,blob,reader);this.assertSource();if(this.jobController.signal.aborted)return;this.endJob();this.close();app.createConnected(this.id,outputs);app.notify('视频剪辑成功');}catch(e){if(e.name!=='AbortError'){this.error(e.message);if(!this.visible)app.notify(e.message);}}finally{reader?.dispose();this.endJob();if(!this.visible)this.dispose();}}
-  async analyze(){if(this.busy||!this.loaded)return;this.beginJob();let reader;try{const blob=await this.inputBlob();reader=await openVideoFrames(await window.LocalAssets.url(this.src),this.jobController.signal);const cuts=[];let previous;const step=.2;for(let time=0;time<this.duration;time+=step){const frame=await reader.at(this.base+time,96),signature=frameSignature(frame.getContext('2d').getImageData(0,0,frame.width,frame.height).data);if(previous&&cutDistance(previous,signature)>.55)cuts.push(time);previous=signature;this.progress(`正在分析 ${Math.min(99,Math.round(time/this.duration*100))}% · 点击空白处可退出`);}
+  beginJob(){this.assertSource();this.busy=true;this.video.pause();this.confirm.disabled=this.smart.disabled=true;this.confirm.innerHTML=icons.trimLoading;this.confirm.classList.add('is-loading');this.jobController=new AbortController();this.job=make('section','video-trim-job');this.job.setAttribute('role','status');this.jobLabel=make('span','','正在处理…');this.stopButton=button('停止视频处理','trimExit',()=>this.cancel());this.job.append(this.jobLabel,this.stopButton);document.body.append(this.job);}
+  endJob(){this.busy=false;if(!this.commit?.status().applied||this.commit.status().persisted)this.job?.remove();this.confirm.classList.remove('is-loading');this.confirm.innerHTML=icons.trimConfirm;this.confirm.disabled=!this.loaded||this.duration<1;this.smart.disabled=!this.loaded;}
+  async inputBlob(){this.assertSource();const url=await window.LocalAssets.url(this.src);this.assertSource();const response=await fetch(url,{signal:this.jobController.signal});this.assertSource();if(!response.ok)throw Error('视频读取失败');const blob=await response.blob();this.assertSource();if(blob.size>80*1024*1024)throw Error('本地剪辑暂支持不超过 80 MB 的视频');return blob;}
+  async buildOutputs(ranges,blob,reader){const outputs=[];for(const [i,range]of ranges.entries()){this.assertSource();this.progress(`正在处理 ${i+1}/${ranges.length}…`);const result=await window.LocalMedia.process('trim',blob,{start:this.base+range.start,end:this.base+range.end,signal:this.jobController.signal});this.assertSource();const frame=await reader.at(this.base+range.start,320);this.assertSource();const video=await window.LocalMedia.asDataUrl(result);this.assertSource();outputs.push({type:'video',title:`剪辑结果 (${(range.end-range.start).toFixed(2)}s)`,video,image:frame.toDataURL('image/jpeg',.85),width:this.node.width,height:this.node.height,originalVideo:this.src,clipParams:{start:this.base+range.start,end:this.base+range.end}});}return outputs;}
+  async applyOutputs(outputs,message){this.assertSource();this.commit=createTrimResultTransaction({app,owner:this.owner,sourceId:this.id,signal:this.jobController.signal});this.successMessage=message;await this.commit.apply(outputs);this.close();if(this.alive)app.notify(message);}
+  jobError(error){
+    if(error.name==='AbortError'||!this.alive)return;
+    this.error(error.message);this.progress(error.message);
+    if(!this.visible&&this.owner.sameProject())app.notify(error.message);
+    if(this.commit?.status().applied&&!this.commit.status().persisted&&!this.retryButton){
+      this.stopButton.setAttribute('aria-label','关闭保存提示');this.stopButton.title='关闭保存提示';
+      this.retryButton=button('重试保存剪辑结果','trimConfirm',async()=>{
+        if(this.retryButton.disabled)return;this.retryButton.disabled=true;
+        try{await this.commit.retrySave();this.job?.remove();this.dispose();app.notify(this.successMessage);}
+        catch(error){this.progress(error.message);}
+        finally{this.retryButton.disabled=false;}
+      });
+      this.job.append(this.retryButton);
+    }
+  }
+  async exportRanges(ranges){if(this.busy||!this.loaded||this.commit?.status().applied||ranges.some(r=>r.end-r.start<1))return;this.beginJob();let reader;try{const blob=await this.inputBlob();const url=await window.LocalAssets.url(this.src);this.assertSource();reader=await openVideoFrames(url,this.jobController.signal);this.assertSource();const outputs=await this.buildOutputs(ranges,blob,reader);await this.applyOutputs(outputs,'视频剪辑成功');}catch(e){this.jobError(e);}finally{reader?.dispose();this.endJob();if(!this.visible&&!this.job?.isConnected)this.dispose();}}
+  async analyze(){if(this.busy||!this.loaded||this.commit?.status().applied)return;this.beginJob();let reader;try{const blob=await this.inputBlob();const url=await window.LocalAssets.url(this.src);this.assertSource();reader=await openVideoFrames(url,this.jobController.signal);this.assertSource();const cuts=[];let previous;const step=.2;for(let time=0;time<this.duration;time+=step){this.assertSource();const frame=await reader.at(this.base+time,96);this.assertSource();const signature=frameSignature(frame.getContext('2d').getImageData(0,0,frame.width,frame.height).data);if(previous&&cutDistance(previous,signature)>.55)cuts.push(time);previous=signature;this.progress(`正在分析 ${Math.min(99,Math.round(time/this.duration*100))}% · 点击空白处可退出`);}
       const ranges=segmentsFromCuts(this.duration,cuts);this.assertSource();if(ranges.length===1){this.progress('未检测到明显镜头切换');if(!this.visible)app.notify('未检测到明显镜头切换');return;}
-      const outputs=await this.buildOutputs(ranges,blob,reader);this.assertSource();if(this.jobController.signal.aborted)return;this.endJob();this.close();app.createConnected(this.id,outputs);app.notify(`智能剪辑完成，已生成 ${outputs.length} 个片段`);
-    }catch(e){if(e.name!=='AbortError'){this.error(e.message);if(!this.visible)app.notify(e.message);}}finally{reader?.dispose();this.endJob();if(!this.visible)this.dispose();}}
-  cancel(){this.jobController?.abort();this.busy=false;this.close();this.dispose();}
-  dispose(){this.alive=false;this.decodeController.abort();this.reader?.dispose();}
+      const outputs=await this.buildOutputs(ranges,blob,reader);await this.applyOutputs(outputs,`智能剪辑完成，已生成 ${outputs.length} 个片段`);
+    }catch(e){this.jobError(e);}finally{reader?.dispose();this.endJob();if(!this.visible&&!this.job?.isConnected)this.dispose();}}
+  cancel(){this.jobController?.abort();this.busy=false;this.job?.remove();this.close();this.dispose();}
+  dispose(){this.alive=false;this.pageController.abort();this.decodeController.abort();this.reader?.dispose();}
   close(){if(!this.visible)return;this.visible=false;this.listeners.abort();clearInterval(this.hintTimer);clearTimeout(this.hintDelay);this.video.pause();this.video.controls=this.originalControls;this.controls.remove();this.closeHelp(false);this.root.remove();document.body.classList.remove('video-trimming');if(current===this)current=null;if(!this.busy)this.dispose();app.render();}
 }
 export function open(node){if(!source(node))throw Error('没有可剪辑的视频');current?.close();window.NodeActions.close();window.NodeActions.closePop();window.NodeEditor.closePopover();current=new TrimEditor(node);return current;}

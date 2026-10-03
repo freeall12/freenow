@@ -1,0 +1,11 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><title>本机视频剪辑保存与恢复 QA</title></head><body><p>正在载入隔离生产画布…</p><script>
+(async()=>{
+ const response=await fetch('/index.html');if(!response.ok)throw Error('生产画布入口不可读取');
+ let html=await response.text();
+ if(!html.includes('<head>')||!/<script src="canvas-store\.js[^\"]*"><\/script>/.test(html))throw Error('生产画布入口结构已变化');
+ html=html.replace('<head>','<head><base href="/"><script src="/src/features/video-trim/qa/fixture.js"><\/script>');
+ html=html.replace(/(<script src="canvas-store\.js[^\"]*"><\/script>)/,'$1<script src="/src/features/video-trim/qa/store-bootstrap.js"><\/script>');
+ html=html.replace('</body>','<script type="module" src="/src/features/video-trim/qa/controls.mjs"><\/script></body>');
+ document.open();document.write(html);document.close();
+})().catch(error=>{document.body.textContent='本机剪辑 QA 加载失败：'+error.message;});
+</script></body></html>
