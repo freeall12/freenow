@@ -1,0 +1,67 @@
+{
+  "purpose": "合成时长边界媒体，不是模型生成结果",
+  "created": "2026-10-03",
+  "source": "ffmpeg lavfi color=c=0x947040:s=64x48:r=20, exact frame counts, libx264 ultrafast crf38 yuv420p faststart, no audio",
+  "files": [
+    {
+      "file": "1-9.mp4",
+      "duration": 1.9,
+      "bytes": 2015,
+      "sha256": "8db1d5592c85d0f404065da5db552604a73ba556d7cae8dfa65ecc31b6556332",
+      "codec_name": "h264",
+      "width": 64,
+      "height": 48,
+      "r_frame_rate": "20/1"
+    },
+    {
+      "file": "15-1.mp4",
+      "duration": 15.1,
+      "bytes": 5738,
+      "sha256": "9b9c7f51025b12c9b9956b4635adc47de7bd76b70003b5aed6f8a9a3c41d2dda",
+      "codec_name": "h264",
+      "width": 64,
+      "height": 48,
+      "r_frame_rate": "20/1"
+    },
+    {
+      "file": "15-15.mp4",
+      "duration": 15.15,
+      "bytes": 5752,
+      "sha256": "4733edd72527a3c5a970e8a4adafa9aed479231e518a06796c9cac4c00cee97c",
+      "codec_name": "h264",
+      "width": 64,
+      "height": 48,
+      "r_frame_rate": "20/1"
+    },
+    {
+      "file": "2.mp4",
+      "duration": 2.0,
+      "bytes": 2043,
+      "sha256": "7ed2c1eadbea8a2655881107e9644f961bf9b1cfde3278d396506bf405f96bcc",
+      "codec_name": "h264",
+      "width": 64,
+      "height": 48,
+      "r_frame_rate": "20/1"
+    },
+    {
+      "file": "30-2.mp4",
+      "duration": 30.2,
+      "bytes": 9993,
+      "sha256": "6904cd693174d9375de42c80764111e4e9de195d3baaa51ed79cb3957ec51763",
+      "codec_name": "h264",
+      "width": 64,
+      "height": 48,
+      "r_frame_rate": "20/1"
+    },
+    {
+      "file": "30-25.mp4",
+      "duration": 30.25,
+      "bytes": 10007,
+      "sha256": "8ad484cca683b59fa2edd244f3d8c5cc87ae5bbe0dd92df2a6743cf4529e2215",
+      "codec_name": "h264",
+      "width": 64,
+      "height": 48,
+      "r_frame_rate": "20/1"
+    }
+  ]
+}

@@ -12,6 +12,12 @@
   const taskConfigurationIds=new WeakMap();
   const configurationClientReady=import('./src/features/generation-config/client.mjs');
   const provenanceReady=import('./src/features/media-preview/provenance.mjs');
+  const audioSubtitleReady=import('./src/features/audio-subtitles/core.mjs');
+  const audioSubtitleReceipts=new Map(),audioSubtitleBindings=new Map(),audioSubtitleMedia=new Map(),latestAudioSubmissions=new WeakMap();let audioSubtitlePageEpoch=0;
+  window.addEventListener('pagehide',()=>{audioSubtitlePageEpoch++;});
+  const audioSourceSignature=node=>JSON.stringify(Object.fromEntries(Object.entries(node).filter(([key])=>!['x','y','selected'].includes(key))));
+  function audioReceipt(request,source){return {request:structuredClone(request),source,signature:source&&audioSourceSignature(source),projectId:app.projectIdentity().id,pageEpoch:audioSubtitlePageEpoch};}
+  function audioReceiptCurrent(receipt,id,content=false){return !!receipt?.source&&receipt.projectId===app.projectIdentity().id&&receipt.pageEpoch===audioSubtitlePageEpoch&&app.getState().nodes.includes(receipt.source)&&latestAudioSubmissions.get(receipt.source)===id&&(!content||audioSourceSignature(receipt.source)===receipt.signature);}
   const applicationReady=import('./src/features/generation-results/application.mjs').then(module=>module.createApplicationRunner({getJob:id=>service.jobs.get(id),apply:applyResults,changed:applicationChanged}));
   const service=new GenerationCore.TaskService({prepareRequest:async(request,{jobId,signal})=>{
     if(!['image.generate','video.generate','text.generate'].includes(request.kind))return request;
@@ -129,7 +135,10 @@
       return gate({beforeDispatchReady:previous}).beforeDispatchReady(context);
     };
     historyReadinessOriginals.set(beforeDispatchReady,previous);
-    return service.submit(request,{...options,beforeDispatchReady});
+    const receipt=request.kind==='audio.generate'?audioReceipt(request,app.getState().nodes.find(node=>node.id===request.nodeId)):null;
+    const job=service.submit(request,{...options,beforeDispatchReady});
+    if(receipt){audioSubtitleReceipts.set(job.id,receipt);if(receipt.source)latestAudioSubmissions.set(receipt.source,job.id);}
+    return job;
   }
   const el=(tag,cls,text)=>{const e=document.createElement(tag);e.className=cls||'';if(text!==undefined)e.textContent=text;return e;};
   const button=(text,fn)=>{const b=el('button','',text);b.onclick=fn;return b;};
@@ -144,31 +153,60 @@
   async function validateOutputMedia(output){return (await mediaValidationReady).validateResultMedia(output);}
   async function applyResults(job){
     const stored=service.jobs.get(job.id);
+    if(stored.recovered&&stored.request.kind==='audio.generate'&&!audioSubtitleReceipts.has(stored.id)){
+      const receipt=audioReceipt(stored.request,app.getState().nodes.find(node=>node.id===(stored.recoverySourceId||stored.request.nodeId)));
+      audioSubtitleReceipts.set(stored.id,receipt);if(receipt.source)latestAudioSubmissions.set(receipt.source,stored.id);
+    }
+    const receipt=audioSubtitleReceipts.get(stored.id),subtitles=stored.request.kind==='audio.generate'?await audioSubtitleReady:null;
+    const subtitlesEnabled=subtitles?.audioSubtitleEnabled(receipt?.request);
+    const audioGuard=()=>{if(subtitlesEnabled&&!audioReceiptCurrent(receipt,stored.id,true))throw Error('音频字幕来源或任务版本已变化，旧结果未应用');};
+    if(!stored.resultIds)audioGuard();
+    let retainedWithoutSubtitleReceipt=false;
+    const captureSubtitleBindings=()=>{
+      if(!subtitlesEnabled)return;
+      if(!audioSubtitleBindings.has(stored.id)){
+        if(!audioReceiptCurrent(receipt,stored.id))throw Error('音频字幕来源或画布已变化');
+        const nodes=app.getState().nodes;
+        audioSubtitleBindings.set(stored.id,stored.outputs.map((output,index)=>{
+          if(subtitles.subtitleText(output)===null)return null;
+          const accepted=audioSubtitleMedia.get(stored.id)?.[index],source=nodes.find(node=>node.id===stored.resultIds?.[index]);
+          if(!accepted||accepted.node!==source)throw Error('无法验证字幕对应的实际音频结果');
+          return subtitles.captureSubtitleBinding(source,nodes,accepted.audio);
+        }));
+      }
+    };
+    const recordSubtitleMedia=media=>{if(!subtitlesEnabled)return;audioSubtitleMedia.set(stored.id,media);captureSubtitleBindings();};
+    const applySubtitles=async()=>{
+      if(!subtitlesEnabled)return;
+      if(retainedWithoutSubtitleReceipt){app.notify('音频结果已保留；缺少原字幕绑定收据，保留现有字幕，不自动重新绑定。');return;}
+      captureSubtitleBindings();
+      await subtitles.applyAudioSubtitles({job:{...stored,request:receipt.request},app,bindings:audioSubtitleBindings.get(stored.id),isCurrent:()=>audioReceiptCurrent(receipt,stored.id)});
+    };
     const {resultProvenance}=await provenanceReady;
     if(stored.recovered){
       if(stored.recoveryMode==='existing'){const {applyRecoveredPlan}=await import('./src/features/generation-results/recovery.mjs');await applyRecoveredPlan(stored,{app,workflow:resultWorkflow,validateMedia:validateOutputMedia,persist:()=>{const state=app.getState();return window.CanvasStore.save({version:1,nodes:state.nodes,edges:state.edges});}});}
-      else if(stored.recoveryMode==='new_nodes'){const {importRecoveredOutputs}=await import('./src/features/generation-results/recovery.mjs');await importRecoveredOutputs(stored,{app,sourceId:stored.recoverySourceId,validateMedia:validateOutputMedia,localizeAudio:url=>window.AudioAPI.localize(url),persist:()=>{const state=app.getState();return window.CanvasStore.save({version:1,nodes:state.nodes,edges:state.edges});}});}
+      else if(stored.recoveryMode==='new_nodes'){const {importRecoveredOutputs}=await import('./src/features/generation-results/recovery.mjs');await importRecoveredOutputs(stored,{app,sourceId:stored.recoverySourceId,validateMedia:validateOutputMedia,localizeAudio:url=>window.AudioAPI.localize(url),onApplied:(ids,{created,audioRefs})=>{if(!subtitlesEnabled)return;if(created)recordSubtitleMedia(ids.map((id,index)=>({node:app.getState().nodes.find(node=>node.id===id),audio:audioRefs[index]})));else if(!audioSubtitleBindings.has(stored.id))retainedWithoutSubtitleReceipt=true;},persist:()=>{const state=app.getState();return window.CanvasStore.save({version:1,nodes:state.nodes,edges:state.edges});}});}
       else throw Error('任务已取回，请明确选择原占位或新节点应用方式');
-      return;
+      await applySubtitles();return;
     }
     {
       draftGuards.get(job.id)?.();
       const originalTarget=inPlace.get(job.id),target=originalTarget&&{...originalTarget,guard(){originalTarget.guard();draftGuards.get(job.id)?.();}};
       if(target&&!stored.resultIds){
-        target.guard();
-        if(target.applyBatch){if(job.outputs.some(o=>o.type!==target.type))throw Error('批次结果类型与节点类型不一致');await Promise.all(job.outputs.map(validateOutputMedia));target.guard();const applied=await target.applyBatch(job.outputs.map(o=>({...o,...resultProvenance(job,o)})));stored.resultIds=Array.isArray(applied)?applied.map(n=>n.id):[job.request.nodeId];target.didApply?.();}
+        target.guard();audioGuard();
+        if(target.applyBatch){if(job.outputs.some(o=>o.type!==target.type))throw Error('批次结果类型与节点类型不一致');await Promise.all(job.outputs.map(validateOutputMedia));target.guard();audioGuard();const applied=await target.applyBatch(job.outputs.map(o=>({...o,...resultProvenance(job,o)})));stored.resultIds=Array.isArray(applied)?applied.map(n=>n.id):[job.request.nodeId];recordSubtitleMedia(stored.resultIds.map((id,index)=>({node:app.getState().nodes.find(node=>node.id===id),audio:applied?.[index]?.audio})));target.didApply?.();}
         else{if(job.outputs.length!==1||job.outputs[0].type!==target.type)throw Error('工作流需要一个与节点类型一致的结果');
         const o=job.outputs[0];await validateOutputMedia(o);let patch;
         if(o.type==='audio')patch={audio:await window.AudioAPI.localize(o.audio||o.url)};
         else if(o.type==='text')patch={content:o.text};
         else if(o.type==='video')patch={video:o.video||o.url,...(o.poster?{image:o.poster}:{} )};
         else patch={image:o.image||o.url||o.fullImage,fullImage:o.fullImage||o.image||o.url};
-        target.guard();
+        target.guard();audioGuard();
         if(o.type==='video'&&!target.apply){const history=await import('./video-history-core.mjs'),n=app.getState().nodes.find(n=>n.id===job.request.nodeId);target.guard();patch=history.record({...n,video:n.video||window.EDITOR_DATA?.nodes[n.id]?.video},job,window.NodeEditor.getConfig(n));window.NodeEditor.invalidate();}
         if(o.type==='image'&&!target.apply){const history=await import('./image-history-core.mjs'),n=app.getState().nodes.find(n=>n.id===job.request.nodeId);target.guard();patch=history.record(n,job,window.NodeEditor.getConfig(n),window.VERSION_DATA?.[n.id]);window.NodeEditor.invalidate();}
         if(!target.apply&&patch.generation&&target.patch?.generation)patch.generation={...patch.generation,...target.patch.generation};
         const applied=target.apply?await target.apply({...o,...resultProvenance(job,o)}):app.updateNode(job.request.nodeId,{...target.patch,...patch});
-        stored.resultIds=Array.isArray(applied)?applied.map(n=>n.id):[job.request.nodeId];target.didApply?.();}
+        stored.resultIds=Array.isArray(applied)?applied.map(n=>n.id):[job.request.nodeId];recordSubtitleMedia(stored.resultIds.map((id,index)=>({node:app.getState().nodes.find(node=>node.id===id),audio:target.apply?(Array.isArray(applied)?applied[index]?.audio:applied?.audio):patch.audio})));target.didApply?.();}
       }
       if(!stored.resultIds&&resultWorkflow?.has(job.id))stored.resultIds=await resultWorkflow.apply(job,validateOutputMedia);
       if(!stored.resultIds&&videoTargets.has(job.id)){
@@ -188,15 +226,17 @@
       if(!stored.resultIds&&derivedTargets.has(job.id)){
         const target=derivedTargets.get(job.id);target.guard();
         await Promise.all(job.outputs.map(validateOutputMedia));target.guard();
-        const outputs=job.outputs.map(o=>({...o,...resultProvenance(job,o),image:o.image||(o.type==='image'?o.url:o.poster),video:o.video||(o.type==='video'?o.url:null),content:o.text,...(o.type==='text'?{textMode:'pure'}:{}),title:o.title||job.request.label}));
-        stored.resultIds=app.createConnected(job.request.nodeId,outputs,target.options).map(n=>n.id);target.didApply?.();
+        audioGuard();const outputs=await Promise.all(job.outputs.map(async o=>({...o,...resultProvenance(job,o),image:o.image||(o.type==='image'?o.url:o.poster),video:o.video||(o.type==='video'?o.url:null),audio:o.type==='audio'?await window.AudioAPI.localize(o.audio||o.url):undefined,content:o.text,...(o.type==='text'?{textMode:'pure'}:{}),title:o.title||job.request.label})));target.guard();audioGuard();
+        const results=app.createConnected(job.request.nodeId,outputs,target.options);stored.resultIds=results.map(n=>n.id);recordSubtitleMedia(results.map((node,index)=>({node,audio:outputs[index].audio||outputs[index].url})));target.didApply?.();
       }
       if(!stored.resultIds){
         await Promise.all(job.outputs.map(validateOutputMedia));
         if(!stored.materializedOutputs)stored.materializedOutputs=await Promise.all(job.outputs.map(async o=>o.type==='audio'?{...o,audio:await window.AudioAPI.localize(o.audio||o.url),audioMode:'upload'}:o));
-        const results=app.createConnected(job.request.nodeId,stored.materializedOutputs.map(o=>({...o,...resultProvenance(job,o),image:o.image||(o.type==='image'?o.url:o.poster),video:o.video||(o.type==='video'?o.url:null),audio:o.audio||(o.type==='audio'?o.url:null),content:o.text,...(o.type==='text'?{textMode:'pure'}:{}),title:o.title||job.request.label||'生成结果'})));
+        audioGuard();const results=app.createConnected(job.request.nodeId,stored.materializedOutputs.map(o=>({...o,...resultProvenance(job,o),image:o.image||(o.type==='image'?o.url:o.poster),video:o.video||(o.type==='video'?o.url:null),audio:o.audio||(o.type==='audio'?o.url:null),content:o.text,...(o.type==='text'?{textMode:'pure'}:{}),title:o.title||job.request.label||'生成结果'})));
         stored.resultIds=results.map(n=>n.id);
+        recordSubtitleMedia(results.map((node,index)=>({node,audio:stored.materializedOutputs[index].audio})));
       }
+      await applySubtitles();
       if(job.request.kind==='model.generate'&&app.getState().nodes.some(n=>n.id===job.request.nodeId&&n.type==='studio')){
         if(!window.StudioAPI)throw Error('片场仍在加载，请稍后重试放置');
         stored.sceneResult=await window.StudioAPI.acceptGeneration(job);

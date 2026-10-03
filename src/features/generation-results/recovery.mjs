@@ -1,6 +1,6 @@
 // Explicit recovery imports never invoke a model or restore lost in-place guards.
 import {resultProvenance} from '../media-preview/provenance.mjs';
-export async function importRecoveredOutputs(job,{app,validateMedia,localizeAudio,persist,sourceId=job.request.nodeId}) {
+export async function importRecoveredOutputs(job,{app,validateMedia,localizeAudio,persist,onApplied,sourceId=job.request.nodeId}) {
   if(job.request.kind==='image.recognize')throw Error('焦点识别结果绑定原编辑会话，不能作为普通节点恢复');
   const outputs=job.outputs;
   if(job.status!=='succeeded'||!outputs?.length)throw Error('任务尚未返回可恢复的结果');
@@ -10,7 +10,7 @@ export async function importRecoveredOutputs(job,{app,validateMedia,localizeAudi
   if(retained.length){
     const ordered=outputs.map((_,index)=>retained.filter(node=>node.recoveredGeneration.index===index));
     if(retained.length!==outputs.length||ordered.some(nodes=>nodes.length!==1))throw Error('恢复结果曾被修改或部分移除；为避免重复节点，未再次导入');
-    job.resultIds=ordered.map(nodes=>nodes[0].id);await persist();return job.resultIds;
+    job.resultIds=ordered.map(nodes=>nodes[0].id);onApplied?.(job.resultIds,{created:false});await persist();return job.resultIds;
   }
   if(job.resultIds?.length)throw Error('上次已创建的恢复节点不再完整，未重复创建');
   await Promise.all(outputs.map(validateMedia));
@@ -25,6 +25,9 @@ export async function importRecoveredOutputs(job,{app,validateMedia,localizeAudi
   if(!app.getState().nodes.some(node=>node.id===sourceId))throw Error('来源节点已移除，请指定当前画布的连接来源');
   if(matching().length)throw Error('该任务已在其他操作中导入，请重新读取结果');
   const nodes=app.createConnected(sourceId,materialized);job.resultIds=nodes.map(node=>node.id);
+  // Capture downstream source ownership in the same synchronous turn as the
+  // graph mutation, before persistence gives user edits a chance to interleave.
+  onApplied?.(job.resultIds,{created:true,audioRefs:materialized.map(output=>output.type==='audio'?output.audio:null)});
   await persist();return job.resultIds;
 }
 

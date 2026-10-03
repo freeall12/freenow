@@ -43,3 +43,5 @@ node src/features/studio-v2/qa/picking-verify.mjs
 fixture CSP 仅追加 `wasm-unsafe-eval` 支持本机 WASM；不加入 JavaScript `unsafe-eval`。正式主入口 CSP 本身允许 `unsafe-eval`。初次浏览器报告的 WebAssembly CSP 拒绝来自 `model-io.mjs` 静态导入的 MeshoptDecoder：Three `libs/meshopt_decoder.module.js:30` 在模块加载时就实例化内嵌 WASM，即使本 fixture 不导入 GLB；不是 picking GPU shader 的依赖。
 
 开发阶段已通过语法检查、JSON/ObjectLoader 回读合同检查和 diff 检查。开发者未运行浏览器；GPU 样例结果由根任务实际点击、诊断和截图确认。未覆盖任意自定义 shader、transmission、宽线、alphaHash/alphaToCoverage 等扩展；不得据此称完整一比一。
+
+2026-10-03 根任务实机反馈：DPR 2 的 fixture Y 对齐后，trusted pointer 在 `[439,284]` 命中 Line、`[348,441]` 命中虚线实段、`[392,441]` 命中空档后景、`[828,360]` 命中 Points、`[848,380]` 命中透明角后景，`[640,655]` 空白清除为 null。截图 `/tmp/freenow-gpu-lines-points-final-20261003.png`。这是合成线的位置对齐，生产线宽未扩大。morph/skin 六探针均通过；动画实心点击的实际诊断为 `time=.8755, playing=true` → `qa-animated, time=0, index=-1, playing=false`。此记录来自根任务已完成的 CUA，未重新测试。

@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' blob:; media-src 'self' blob: data:; img-src 'self' blob: data:">
+  <title>视频参考 · 真实媒体校验诊断</title>
+  <style>
+    body{margin:28px;background:#141414;color:#eee;font:14px/1.6 system-ui,sans-serif}main{max-width:1400px;margin:auto}h1{font-size:24px;margin:0}p{color:#bbb}button{background:#292929;color:#eee;border:1px solid #666;padding:7px 10px;cursor:pointer}button:focus-visible{outline:2px solid #d2aa66}button:disabled{opacity:.5;cursor:wait}table{width:100%;border-collapse:collapse;margin-top:20px}th,td{text-align:left;border-bottom:1px solid #444;padding:10px;vertical-align:top}th{color:#bbb}td:first-child{min-width:150px}td:nth-child(3){min-width:125px}td:nth-child(3),td:nth-child(4),td:nth-child(7){white-space:pre-line}.trace{max-width:410px;overflow-wrap:anywhere}.ok{color:#badeaf}.bad{color:#f5ad98}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#1d1d1d;padding:14px}video{width:192px;height:144px;background:#947040}small{display:block;color:#aaa}#error{color:#f5ad98}.scroll{overflow:auto}
+  </style>
+  <script>
+    const qaSession=new URLSearchParams(location.search).get('session')||'manual';
+    window.LOCAL_ASSETS_DB_NAME='video-reference-qa:'+qaSession+':assets';
+    const qaPreferences=new Map();
+    Object.defineProperty(window,'localStorage',{value:{getItem:key=>qaPreferences.get(key)??null,setItem:(key,value)=>qaPreferences.set(key,String(value)),removeItem:key=>qaPreferences.delete(key)}});
+  </script>
+  <script src="/local-assets.js"></script>
+  <script src="/generation-api.js"></script>
+</head>
+<body>
+  <main>
+    <h1>视频参考 · 真实媒体校验诊断</h1>
+    <p>合成本地 H.264 MP4，经真实 LocalAssets、浏览器原生解码、生产请求准备与 TaskService 验证。捕获适配器仅记录准备后的请求并明确停止，未调用模型、未生成视频结果。</p>
+    <p>规则：每段 2–30 秒，上限容差 0.2 秒，总上限 30.2 秒。偏好只在本页内存；素材使用独立 IndexedDB。刷新不会改变用户或其他验收存储。</p>
+    <button id="run-all" type="button">运行全部真实媒体诊断</button>
+    <p id="error" role="alert"></p>
+    <div class="scroll"><table><thead><tr><th>场景</th><th>操作</th><th>浏览器解码实测</th><th>生产准备计数</th><th>捕获 modelType</th><th>元素保留</th><th>实际任务 / 诊断</th></tr></thead><tbody id="cases"></tbody></table></div>
+    <h2>最后一次请求摘要</h2>
+    <pre id="payload" aria-label="最后请求摘要">尚未执行</pre>
+    <h2>合成媒体预览</h2>
+    <video controls muted preload="metadata" src="./media/2.mp4" aria-label="2 秒合成 MP4"></video>
+    <small>64×48 棕色静态画面，20 FPS，2 秒，无音轨。用于解码与时长边界验收，不是视频生成质量样本。</small>
+  </main>
+  <script type="module" src="./reference-validation.mjs"></script>
+</body>
+</html>

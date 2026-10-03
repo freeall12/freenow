@@ -4,6 +4,7 @@ import {createWorkflowMediaResolver} from '../agent-workflows/media-resolver.mjs
 import {prepareWorkflowInputs,assertWorkflowRequestBudget} from '../agent-workflows/media-transport.mjs';
 import {resolveProviderConfiguration,requestModelAlias} from './provider-configuration.mjs';
 import {prepareMinimaxNativeInputs,assertMinimaxNativeMedia} from '../video-generation/minimax-native.mjs';
+import {assertVideoReferenceDurations} from '../video-generation/reference-validation.mjs';
 
 // Subject/library IDs name immutable submitted assets, not live canvas nodes. Canvas
 // identity checks belong to the submit-time host guard, never synthetic subject IDs.
@@ -49,11 +50,9 @@ export async function prepareGenerationMediaRequest(request,{
   if(minimaxNative)assertMinimaxNativeMedia(resolved,{baseUrl,decoded:true,profile:minimaxProfile});
   if(prepared.kind==='video.generate'){
     const variant=configuration(prepared.parameters||{},resolved)?.variant;
-    for(const type of ['video','audio']){
-      const range=variant?.['reference'+type[0].toUpperCase()+type.slice(1)+'DurationRange'];if(!range)continue;
-      const durations=resolved.filter(input=>input.type===type).map(input=>input.duration),tolerance=range.maxTolerance||0;
-      if(durations.some(value=>!Number.isFinite(value)||value<(range.min||0)-tolerance||value>(range.max??Infinity)+tolerance)||durations.reduce((sum,value)=>sum+value,0)>(range.totalMax??Infinity)+tolerance)throw Error('实际'+(type==='video'?'视频':'音频')+'参考时长超出模型限制，未自动截短');
-    }
+    // This is the authoritative boundary: resolveMedia has read the actual bytes.
+    // Missing/invalid duration must fail, never substitute the requested output length.
+    assertVideoReferenceDurations(variant,resolved,{useDurationMs:false});
   }
   const indexPairs=originals.map((original,index)=>({original,index}));
   function alignSnapshots(inputs){

@@ -47,6 +47,18 @@ test('recovered placeholder save failure retries persistence without replaying a
  nodes[0].content='user edit';fail=false;await applyRecoveredPlan(job,options);assert.equal(applies,1);assert.equal(nodes[0].content,'user edit');
  nodes.pop();await assert.rejects(applyRecoveredPlan(job,options),/不再完整/);assert.equal(applies,1);
 });
+test('audio recovery captures created media ownership before asynchronous persistence without rebinding retained output',async()=>{
+ const {importRecoveredOutputs}=await import('../src/features/generation-results/recovery.mjs');
+ const nodes=[{id:'source',type:'audio'}],calls=[],job={id:'audio-recovery',status:'succeeded',request:{kind:'audio.generate',nodeId:'source'},outputs:[{type:'audio',url:'/api/generation/media/audio'}]};
+ let captured;
+ const options={app:{getState:()=>({nodes}),createConnected:(_,values)=>{const created=values.map((value,index)=>({...value,id:'result-'+index}));nodes.push(...created);return created;}},
+  validateMedia:async()=>{},localizeAudio:async()=> 'asset:original-audio',
+  onApplied:(ids,receipt)=>{calls.push({ids:[...ids],...receipt});if(receipt.created)captured=nodes.find(node=>node.id===ids[0]).audio;},
+  persist:async()=>{assert.equal(captured,'asset:original-audio');nodes[1].audio='asset:later-user-audio';}};
+ await importRecoveredOutputs(job,options);assert.deepEqual(calls[0],{ids:['result-0'],created:true,audioRefs:['asset:original-audio']});
+ await importRecoveredOutputs({...job,resultIds:undefined},options);assert.deepEqual(calls[1],{ids:['result-0'],created:false});
+ assert.equal(nodes.length,2);assert.equal(nodes[1].audio,'asset:later-user-audio');
+});
 test('recovering media persists original request provenance and keeps analyzed clips free of a generation model',async()=>{
  const {importRecoveredOutputs}=await import('../src/features/generation-results/recovery.mjs'),preview=await import('../media-preview-core.mjs');
  for(const kind of ['video.generate','video.analyze']){

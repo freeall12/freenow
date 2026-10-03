@@ -2,7 +2,7 @@
 const {TaskService, httpProvider} = require('../generation-api.js');
 const {randomUUID,createHash}=require('node:crypto');
 const {createGenerationSessionConfiguration}=require('./generation-session-config.cjs');
-const {endpoint:tasksEndpoint,protectGenerationFetch}=require('./generation-endpoint-policy.cjs');
+const {endpoint:tasksEndpoint,protectGenerationFetch,assertIndependentMediaInputs}=require('./generation-endpoint-policy.cjs');
 const path=require('node:path');
 const {createGenerationMediaStore}=require('./generation-media-store.cjs');
 const {createGenerationMediaHttp}=require('./generation-media-http.cjs');
@@ -28,9 +28,10 @@ function createGenerationGateway({baseUrl = '', apiKey = '', fetchImpl = fetch, 
   const invalidProtocol=!routed&&!['tasks-v1','openai-native','ark-native','fal-native','tripo-native','minimax-native','elevenlabs-native','marble-native'].includes(protocol);
   if(!routed&&protocol==='tasks-v1'&&baseUrl){try{baseUrl=tasksEndpoint(baseUrl,{localPort});}catch{invalidEndpoint=true;}}
   const prepareRequest = async (request,context={}) => {
+    assertIndependentMediaInputs(request);
     const captured=context.provider===undefined?native:context.provider;
     const capturedProtocol=context.protocol||protocol;
-    if(request.kind==='video.depth'){const {prepareDepthTaskRequest}=await import('../src/features/agent-workflows/depth-video.mjs');return prepareDepthTaskRequest(request);}
+    if(request.kind==='video.depth'){const {prepareDepthTaskRequest}=await import('../src/features/agent-workflows/depth-video.mjs');return assertIndependentMediaInputs(prepareDepthTaskRequest(request));}
     if (request.kind !== 'video.generate') return request;
     // Enforce the same draft/final wire contract for direct HTTP clients. The
     // browser owns graph validation; the gateway never guesses an alternate job.
@@ -48,7 +49,7 @@ function createGenerationGateway({baseUrl = '', apiKey = '', fetchImpl = fetch, 
       const wireChanged=Object.entries(before.providerParameters||{}).some(([key,value])=>value!==after.providerParameters?.[key]);
       if(changed||wireChanged)throw Object.assign(Error('所选视频参数不受支持，未更换规格或提交模型'),{code:'unsupported_generation'});
     }
-    return prepared;
+    return assertIndependentMediaInputs(prepared);
   };
   // The production server always supplies directory. Omitting it retains the
   // legacy nonpersistent adapter contract, which does not localize media.

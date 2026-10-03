@@ -1,6 +1,7 @@
 import {videoModels} from '../agent-generation/video-catalog.mjs';
 import {isDraftConfig,isFinalConfig} from './draft-final.mjs';
 import {assertMinimaxVideoChoices,isMinimaxH3} from './minimax-native.mjs';
+import {videoSubmissionMode,videoReferenceDurationViolation,assertVideoReferenceDurations} from './reference-validation.mjs';
 export const modelFor=value=>videoModels.find(m=>m.id===value||m.name===value||m.aliases.includes(value));
 export function shapeOf(inputs=[]){return Object.fromEntries(['image','video','audio'].map(type=>[type,new Set(inputs.filter(i=>i.type===type).map(i=>i.id||i.nodeId||i.key||i.url)).size]));}
 export function supports(variant,shape){
@@ -47,13 +48,20 @@ export function configuration(config,inputs=[]){
   const modeOptions=modes.map(label=>({label,disabled:emptyMinimax&&label==='全能参考'||!variantsFor(model,label,shape).some(v=>supports(v,shape))}));
   const hints=[...new Set(model.variants.filter(v=>family(v.modelType)==='全能参考').map(v=>['image','video','audio'].map(type=>{const r=v['reference'+type[0].toUpperCase()+type.slice(1)+'Range'];return r?.max?`最多${r.max}${{image:'张图',video:'个视频',audio:'段音频'}[type]}`:null;}).filter(Boolean).join(' + ')).filter(Boolean))];
   const hint=hints.length>1?'支持以下任一种模式：\n'+hints.map(value=>'• '+value).join('\n'):hints[0]||'';
-  return {model,variant,options,settings,modeOptions,hint,error:supports(variant,shape)?'':'所选生成方式不支持当前参考素材'};
+  // Editor inputs often have not been decoded yet. Only resolved seconds can
+  // prove an early violation; subject durationMs snapshots may be stale.
+  const durationViolation=videoReferenceDurationViolation(variant,inputs,{allowUnknown:true,useDurationMs:false});
+  return {model,variant,options,settings,modeOptions,hint,error:!supports(variant,shape)?'所选生成方式不支持当前参考素材':durationViolation?.message||''};
 }
 export function prepareVideoRequest(request){
   if(request.kind!=='video.generate')return request;
   if((Object.hasOwn(request.parameters||{},'draftVideoId')||Object.hasOwn(request.parameters?.providerParameters||{},'draft_video_id'))&&!isFinalConfig(request.parameters))throw Object.assign(new Error('正式片需要有效的 Seedance 2.5 样片引用'),{code:'draft_reference_unavailable'});
-  const data=configuration(request.parameters||{},request.inputs||[]);if(!data)return request;
+  let data=configuration(request.parameters||{},request.inputs||[]);if(!data)return request;
   assertMinimaxVideoChoices(request.parameters||{},data);
+  if(!isFinalConfig(data.settings)&&videoSubmissionMode(request,data.variant.modelType)!==data.variant.modelType){
+    data=configuration({...data.settings,mode:'首尾帧',videoMode:'TEXT_TO_VIDEO'},request.inputs||[]);
+  }
+  if(!isFinalConfig(data.settings))assertVideoReferenceDurations(data.variant,request.inputs||[],{allowUnknown:true,useDurationMs:false});
   if(data.error)throw Error(data.error);
   const s=data.settings;
   if(isFinalConfig(s)){
@@ -65,6 +73,9 @@ export function prepareVideoRequest(request){
     return prepared;
   }
   const providerParameters=Object.fromEntries(Object.entries({model:data.model.id,modelType:s.videoMode,variant:s.variant,aspectRatio:s.ratio,resolution:s.quality,duration:s.duration,generateAudio:s.audio,generateMode:s.generateMode,times:s.count??1,...isDraftConfig(s)?{draft:true}:{}}).filter(([,value])=>value!==undefined));
+  // Empty-media element requests are still references. Rebuilding the ordinary
+  // wire projection must retain the bindings that prevented text-mode fallback.
+  for(const key of ['elementRefs','element_refs'])if(Object.hasOwn(request.parameters?.providerParameters||{},key))providerParameters[key]=structuredClone(request.parameters.providerParameters[key]);
   const draftEstimateMedia=isDraftConfig(s)?Object.fromEntries(['image','video','audio'].map(type=>[type+'s',(request.inputs||[]).filter(input=>input.type===type).map(input=>input.url||input[type]).filter(url=>typeof url==='string'&&url.trim())])):undefined;
   return {...request,parameters:wireSettings({...s,modelId:data.model.id,providerParameters,...draftEstimateMedia?{draftEstimateMedia}:{}})};
 }

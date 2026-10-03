@@ -1,0 +1,17 @@
+(()=>{
+ 'use strict';
+ const session=new URLSearchParams(location.search).get('session')||'manual';
+ if(!/^[A-Za-z0-9_-]{1,80}$/.test(session))throw Error('Video history QA session 无效');
+ const namespace='qa-video-history:'+session+':',preferences=new Map(),nativeFetch=window.fetch.bind(window);
+ Object.defineProperty(window,'localStorage',{value:{getItem:key=>preferences.get(key)??null,setItem:(key,value)=>preferences.set(key,String(value)),removeItem:key=>preferences.delete(key),clear:()=>preferences.clear(),key:index=>[...preferences.keys()][index]??null,get length(){return preferences.size;}}});
+ window.CANVAS_DB_NAME=namespace+'canvas';window.LOCAL_ASSETS_DB_NAME=namespace+'assets';
+ preferences.set('tapnow-canvas-view-v1',JSON.stringify({x:200,y:80,scale:.7}));preferences.set('tapnow-playlist-intro-hidden','true');
+ const seed={referenceWidth:1400,referenceHeight:900,nodes:[],edges:[]};Object.defineProperty(window,'CANVAS_DATA',{get:()=>seed,set:()=>{}});
+ const state=window.VideoHistoryFixture={session,namespace,synthetic:true,reads:[],externalAttempts:[],blockedAPIs:[],errors:[]};
+ function allowed(input){const url=new URL(typeof input==='string'?input:input instanceof URL?input.href:input.url,location.href);if(url.origin!==location.origin&&!['blob:','data:'].includes(url.protocol)){state.externalAttempts.push(url.hostname);throw Error('Video history QA 禁止外部网络请求');}return url;}
+ window.fetch=async(input,options={})=>{const url=allowed(input);if(['/api/generation/config','/api/agent/config'].includes(url.pathname))return Response.json({configured:false,protocol:'routed',providers:{},routes:{},missing:[],configurationError:null,capabilities:{kinds:[]}});if(url.pathname==='/api'||url.pathname.startsWith('/api/')){state.blockedAPIs.push(url.pathname);throw Error('Video history QA 禁止模型和其他 API');}if(url.pathname.startsWith('/src/features/video-history/qa/'))state.reads.push(url.pathname);return nativeFetch(input,options);};
+ const open=XMLHttpRequest.prototype.open;XMLHttpRequest.prototype.open=function(method,input,...rest){const url=allowed(input);if(url.pathname==='/api'||url.pathname.startsWith('/api/'))throw Error('Video history QA 禁止其他 API');return open.call(this,method,input,...rest);};
+ for(const name of ['WebSocket','EventSource'])window[name]=class{constructor(input){allowed(input);throw Error('Video history QA 禁止服务连接');}};
+ navigator.sendBeacon=input=>{allowed(input);throw Error('Video history QA 禁止服务请求');};
+ window.addEventListener('error',event=>state.errors.push(event.message));window.addEventListener('unhandledrejection',event=>state.errors.push(String(event.reason?.message||event.reason)));
+})();

@@ -2,6 +2,8 @@
 const {randomUUID,createHash}=require('node:crypto');
 const {createGenerationStore}=require('./generation-store.cjs');
 const {localVideoErrorMessage}=require('./video-analysis-errors.cjs');
+const {assertIndependentMediaInputs}=require('./generation-endpoint-policy.cjs');
+const {checkedAudioSubtitle}=require('./generation-audio-subtitle.cjs');
 const terminal=new Set(['succeeded','failed','cancelled','configuration_required']);
 const secretKey=/^(api[-_]?key|authorization|access[-_]?token|refresh[-_]?token|token|password|secret|secret[-_]?key|client[-_]?secret|credentials)$/i;
 const failure=(message,code,status=400)=>Object.assign(Error(message),{code,status});
@@ -47,7 +49,7 @@ function checkedWorld(output,{localOnly=false}={}){
  return structuredClone(world);
 }
 function checkedOutputMetadata(output,{localOnly=false}={}){
- const metadata={};
+ const metadata={},subtitle=checkedAudioSubtitle(output);if(subtitle!==undefined)metadata.subtitle=subtitle;
  if(output.format!==undefined){if(output.type!=='model'||!['glb','spz'].includes(output.format))throw outputFailure();metadata.format=output.format;outputResourceUrl(output.url||output.model,{localOnly});}
  if(output.representation!==undefined){if(output.type!=='model'||!['mesh','gaussianSplat'].includes(output.representation)||output.format==='glb'&&output.representation!=='mesh'||output.format==='spz'&&output.representation!=='gaussianSplat')throw outputFailure();metadata.representation=output.representation;}
  if(output.filename!==undefined){if(typeof output.filename!=='string'||!output.filename.trim()||output.filename.length>255||/[\x00-\x1f\x7f/\\]/.test(output.filename)||['.','..'].includes(output.filename)||output.format&&!output.filename.toLowerCase().endsWith('.'+output.format))throw outputFailure();metadata.filename=output.filename;}
@@ -176,7 +178,8 @@ function createDurableGenerationService({directory,store=null,baseUrl='',apiKey=
   const controller=new AbortController();controllers.set(id,controller);let job=jobs.get(id);if(closing||job.status!=='queued')return;
   try{
    const transport=selected(job),captured=transport?.provider;
-   const prepared=await prepareRequest(structuredClone(job.request),{provider:captured,protocol:transport?.metadata?.protocol});rejectCredentials(prepared);canonical(prepared);if(!prepared||prepared.kind!==job.request.kind)throw failure('生成请求准备失败','invalid_prepared_request');
+   assertIndependentMediaInputs(job.request);
+   const prepared=await prepareRequest(structuredClone(job.request),{provider:captured,protocol:transport?.metadata?.protocol});assertIndependentMediaInputs(prepared);rejectCredentials(prepared);canonical(prepared);if(!prepared||prepared.kind!==job.request.kind)throw failure('生成请求准备失败','invalid_prepared_request');
    if(captured?.configured)await captured.prepare?.(prepared);
    job=await update(id,current=>current.status==='cancelled'?null:{...current,preparedRequest:prepared});
   }catch(error){if(error.code==='storage_error')throw error;const localError=protocolFor(job)==='openai-native'&&job.request.kind==='video.analyze'?localVideoErrorMessage(error.code):null;await update(id,current=>current.status==='cancelled'?null:{...current,status:error.code==='configuration_required'?'configuration_required':'failed',code:localError?error.code:error.code==='configuration_required'?'configuration_required':'request_preparation_failed',error:localError||'生成参数或模型映射未兼容，尚未提交远端',...(localError?{providerDispatched:false}:{})});return;}
@@ -189,7 +192,7 @@ function createDurableGenerationService({directory,store=null,baseUrl='',apiKey=
   await applyRemote(id,await remote('POST',null,job.preparedRequest,controller.signal,job));
  }
  async function submit(request,{idempotencyKey,configurationId}={}){
-  await ready;if(closing)throw failure('生成任务服务已关闭','service_closed',503);requestKey(idempotencyKey);rejectCredentials(request);if(!request||typeof request.kind!=='string')throw failure('生成任务参数无效','invalid_request');const hash=digest(request),fixed=structuredClone(request);let created=false;
+  await ready;if(closing)throw failure('生成任务服务已关闭','service_closed',503);requestKey(idempotencyKey);rejectCredentials(request);assertIndependentMediaInputs(request);if(!request||typeof request.kind!=='string')throw failure('生成任务参数无效','invalid_request');const hash=digest(request),fixed=structuredClone(request);let created=false;
   const job=await serialize(async()=>{
    const previous=keys.get(idempotencyKey);if(previous){const saved=jobs.get(previous);if(saved.requestHash!==hash)throw failure('此幂等键已用于不同生成请求','idempotency_conflict',409);return saved;}
    if(jobs.size>=maxTasks)throw failure('生成任务记录已满，请保留记录后清理','task_capacity',429);

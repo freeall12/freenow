@@ -1,0 +1,36 @@
+{
+  "synthetic": true,
+  "source": "FFmpeg lavfi color and drawbox; no personal assets or model calls",
+  "sources": [
+    {
+      "id": "landscape",
+      "width": 320,
+      "height": 180,
+      "color": "0x974332",
+      "duration": 4,
+      "codec": "h264",
+      "bytes": 4582,
+      "posterBytes": 1709
+    },
+    {
+      "id": "portrait",
+      "width": 180,
+      "height": 320,
+      "color": "0x287960",
+      "duration": 4,
+      "codec": "h264",
+      "bytes": 4529,
+      "posterBytes": 1903
+    },
+    {
+      "id": "square",
+      "width": 256,
+      "height": 256,
+      "color": "0x386c9e",
+      "duration": 4,
+      "codec": "h264",
+      "bytes": 4610,
+      "posterBytes": 1949
+    }
+  ]
+}

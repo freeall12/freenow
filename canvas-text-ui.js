@@ -63,6 +63,9 @@
     motion(s.actions, [{ opacity: opening ? 0 : 1, translate: '0px ' + (opening ? 18 : 0) + 'px' }, { opacity: opening ? 1 : 0, translate: '0px ' + (opening ? 0 : 18) + 'px' }], { duration: opening ? 280 : 160, delay: opening ? 440 : 0, easing: 'cubic-bezier(.22,1,.36,1)' });
     return spatial.finished.catch(() => {}).then(() => { if (session === s) s.dialog.dataset.phase = opening ? 'open' : 'closed'; });
   }
+  function hasPendingEdits(id) {
+    return !!session && session.node.id === id && !session.readonly && (session.dirty || session.conflict);
+  }
   function flush(s = session) {
     if (!s || !s.dirty || s.readonly || s.conflict) return;
     clearTimeout(s.timer); const n = app().getState().nodes.find(n => n.id === s.node.id);
@@ -119,5 +122,5 @@
   });
   document.addEventListener('pointerdown', e => { if (!e.target.closest('.text-color-popover,.text-node-toolbar')) { colorPopup?.remove(); colorPopup = null; } });
   window.addEventListener('pagehide', () => flush());
-  window.CanvasTextUI = { renderNode, content, toolbar, open, close, flush, copy, get editor() { return session?.editor; } };
+  window.CanvasTextUI = { renderNode, content, toolbar, open, close, flush, hasPendingEdits, copy, get editor() { return session?.editor; } };
 })();

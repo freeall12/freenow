@@ -1,5 +1,6 @@
 'use strict';
 const {createHash}=require('node:crypto');
+const {checkedAudioSubtitle}=require('./generation-audio-subtitle.cjs');
 const {createGenerationMediaDownloader,publicMediaUrl,resourceMimeCompatible}=require('./generation-media-download.cjs');
 const UUID=/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/;
 const LOCAL=/^\/api\/generation\/media\/([a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12})$/;
@@ -18,8 +19,9 @@ function describe(outputs){
   entries.push({source,kind,index,role,set:value=>{parent[key]=value;}});
  };
  for(const [index,output]of cloned.entries()){
-  shape(output,['type','url','image','video','audio','model','text','title','width','height','duration','sourceFileId','poster','sourceUrl','sourceRange','format','representation','filename','fullImage','world','mime']);
+  shape(output,['type','url','image','video','audio','model','text','title','width','height','duration','sourceFileId','poster','sourceUrl','sourceRange','format','representation','filename','fullImage','world','mime','subtitle']);
   if(!['image','video','audio','model','text'].includes(output.type))throw fail('media_invalid_outputs');
+  const subtitle=checkedAudioSubtitle(output,{code:'media_invalid_outputs'});if(subtitle!==undefined)output.subtitle=subtitle;else delete output.subtitle;
   if(output.mime!==undefined&&(typeof output.mime!=='string'||output.mime.length>100||!/^[a-z0-9][a-z0-9!#$&^_.+-]*\/[a-z0-9][a-z0-9!#$&^_.+-]*$/.test(output.mime)))throw fail('media_invalid_outputs');
   if(output.type==='text'){if(typeof output.text!=='string')throw fail('media_invalid_outputs');if(['url','image','video','audio','model','poster','fullImage','sourceUrl','world'].some(key=>output[key]!==undefined))throw fail('media_invalid_outputs');continue;}
   if(!output.url&&!output[output.type])throw fail('media_invalid_outputs');

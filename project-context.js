@@ -57,6 +57,7 @@
        // Prove that migration only changed media slots. Actor previews have a
        // separate display contract; their tool arguments and bindings stay exact.
        const expected=structuredClone(original);
+       const learningResponses=new Set();
        for(const change of result?.changes||[]){
         const match=change.path?.match(/^\$\.chats\[(\d+)\](?:\.(messages|queuedMessages)\[(\d+)\])?\.uploads\[(\d+)\]\.(asset|image)$/);
         if(match){
@@ -64,6 +65,14 @@
          const chat=expected.chats?.[Number(match[1])],container=match[2]?chat?.[match[2]]?.[Number(match[3])]:chat,upload=container?.uploads?.[Number(match[4])];
          if(!upload||!['image','video'].includes(upload.type))throw Error('会话迁移附件位置无效，未保存');
          upload[match[5]]=change.ref;continue;
+        }
+        const learning=change.path?.match(/^\$\.chats\[(\d+)\]\.messages\[(\d+)\]\.result\.response\.level\.(preview_url|learner_preview_url|contrast_url)$/);
+        if(learning){
+         const {isInteractiveLearningPreviewDataUrl,isInteractiveLearningPreviewTrace,validateInteractiveLearningPreviewResponse}=await import('./src/features/local-resource-migration/interactive-learning-previews.mjs');
+         const trace=expected.chats?.[Number(learning[1])]?.messages?.[Number(learning[2])];
+         if(!isInteractiveLearningPreviewDataUrl(change.ref)||!isInteractiveLearningPreviewTrace(trace)||!Object.hasOwn(trace.result.response.level,learning[3]))throw Error('会话迁移改变了非附件字段，未保存');
+         validateInteractiveLearningPreviewResponse(trace.result.response,{allowLegacy:true});
+         trace.result.response.level[learning[3]]=change.ref;learningResponses.add(trace.result.response);continue;
         }
         const actor=change.path?.match(/^\$\.chats\[(\d+)\]\.messages\[(\d+)\]\.result\.response\.actor\.reference_nodes\[(\d+)\]\.preview_url$/);
         if(!actor)throw Error('会话迁移改变了非附件字段，未保存');
@@ -76,6 +85,7 @@
         if(!reference)throw Error('人物预览位置无效，未保存');
         reference.preview_url=change.ref;validate(trace.result.response);
        }
+       if(learningResponses.size){const {validateInteractiveLearningPreviewResponse}=await import('./src/features/local-resource-migration/interactive-learning-previews.mjs');for(const response of learningResponses)validateInteractiveLearningPreviewResponse(response);}
        if(!candidate||JSON.stringify(candidate)!==JSON.stringify(expected))throw Error('会话迁移改变了非附件字段，未保存');
        const summary=result.summary||null,diagnostics=(result.unresolved||[]).map(({path,code})=>({path,code}));
        if(!unchanged())return report({status:'local_edits',persisted:false,summary,diagnostics});

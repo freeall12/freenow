@@ -534,6 +534,29 @@
       const placements=window.CanvasGeometry.placeOutputs(source,outputs,nodes,options.side,options);remember();const added=placements.map(o=>({...o,id:crypto.randomUUID(),type:o.type||'image',title:o.title||'Image',sourceId}));
       nodes.push(...added);added.forEach(n=>edges.push({id:crypto.randomUUID(),source:options.reverse?n.id:sourceId,target:options.reverse?sourceId:n.id}));selected=new Set(added.map(n=>n.id));rebuild();return added;
     },
+    applyAudioSubtitle(plan,{isCurrent=()=>true}={}){
+      const invalid=()=>{throw Error('音频或字幕已变化，字幕未应用');};
+      // Commit synchronously after the final ownership check. Avoid output
+      // placement's collision adjustment and selection changes for subtitles.
+      flushGesture();
+      if(!plan||!isCurrent())invalid();
+      const {source,sourceAudio,existing,existingContent,text,title}=plan;
+      if(!nodes.includes(source)||source.type!=='audio'||typeof sourceAudio!=='string'||!sourceAudio||source.audio!==sourceAudio||
+        typeof text!=='string'||!text.trim()||new TextEncoder().encode(text).length>32768||typeof title!=='string'||!title.trim()||title.length>200||
+        ![source.x,source.y,source.width??300].every(Number.isFinite)||(source.width??300)<=0)invalid();
+      const matches=nodes.filter(node=>node.type==='text'&&node.sourceAudioNodeId===source.id);
+      if(existing?matches.length!==1||matches[0]!==existing||existing.content!==existingContent:matches.length!==0)invalid();
+      if(existing&&window.CanvasTextUI?.hasPendingEdits?.(existing.id))invalid();
+      if(existing&&existing.content===text)return existing;
+      const added=existing?null:{id:crypto.randomUUID(),type:'text',title,content:text,textMode:'pure',sourceAudioNodeId:source.id,
+        x:source.x+(source.width??300)+80,y:source.y,width:300,height:200};
+      const edge=added?{id:crypto.randomUUID(),source:source.id,target:added.id,sourceHandle:'right',targetHandle:'left'}:null;
+      if(!isCurrent())invalid();
+      remember();
+      if(existing)existing.content=text;
+      else{nodes.push(added);edges.push(edge);}
+      rebuildAndPersist();return existing||added;
+    },
     async commitGenerationPlan(plan,{isActive=()=>true}={}){
       generationPlanModule||=import('./src/features/generation-results/plan.mjs');
       const planner=await generationPlanModule;
