@@ -11,20 +11,24 @@ export function patchMarkdown(body, html) {
   const template = body.ownerDocument.createElement('template');
   template.innerHTML = html;
   function patch(parent, incoming) {
-    const next = [...incoming.childNodes];
+    // Code controls belong to the host, not model Markdown. Keep their focus,
+    // copy feedback and listeners while reconciling only the rendered content.
+    const controls = [...parent.childNodes].filter(node => node.nodeType === 1 && node.hasAttribute('data-message-code-actions'));
+    const currentNodes = [...parent.childNodes].filter(node => !controls.includes(node)), next = [...incoming.childNodes];
     for (let index = 0; index < next.length; index++) {
-      const source = next[index], current = parent.childNodes[index];
-      if (!current) {parent.append(source.cloneNode(true)); continue;}
+      const source = next[index], current = currentNodes[index];
+      if (!current) {parent.insertBefore(source.cloneNode(true), controls[0] || null); continue;}
       if (current.isEqualNode(source)) continue;
       if (current.nodeType !== source.nodeType || current.nodeName !== source.nodeName) {
         current.replaceWith(source.cloneNode(true)); continue;
       }
       if (current.nodeType !== 1) {current.nodeValue = source.nodeValue; continue;}
-      for (const attribute of [...current.attributes]) if (!source.hasAttribute(attribute.name)) current.removeAttribute(attribute.name);
-      for (const attribute of source.attributes) if (current.getAttribute(attribute.name) !== attribute.value) current.setAttribute(attribute.name, attribute.value);
+      const controlledCode = current.classList.contains('chat-code-block') && !!current.querySelector(':scope > [data-message-code-actions]');
+      for (const attribute of [...current.attributes]) if (!(controlledCode && attribute.name === 'data-wrap') && !source.hasAttribute(attribute.name)) current.removeAttribute(attribute.name);
+      for (const attribute of source.attributes) if (!(controlledCode && attribute.name === 'data-wrap') && current.getAttribute(attribute.name) !== attribute.value) current.setAttribute(attribute.name, attribute.value);
       patch(current, source);
     }
-    while (parent.childNodes.length > next.length) parent.lastChild.remove();
+    for (const node of currentNodes.slice(next.length)) node.remove();
   }
   patch(body, template.content);
 }

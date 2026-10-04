@@ -45,13 +45,13 @@ test('120 real text updates preserve row, body, settled paragraph and growing te
  }finally{f.close();}
 });
 
-test('streaming Markdown safely handles incomplete code/link/table and only finalizes actions after busy ends',async()=>{
+test('streaming Markdown safely handles incomplete code/link/table with live code controls and terminal message actions',async()=>{
  const f=await fixture();try{
   for(const text of ['**重点','**重点**\n\n```html\n<img src=x onerror=alert(1)>','**重点**\n\n```html\n<img src=x onerror=alert(1)>\n```\n\n[危险](javascript:alert(1))\n\n| A | B |\n|---|---|\n| 1 | 2 |\n\n<script>alert(1)</script>']){
-   f.message.text=text;f.update();assert.equal(f.row.querySelectorAll('script,img,[onerror],a[href^="javascript:"],button').length,0);
+   f.message.text=text;f.update();assert.equal(f.row.querySelectorAll('script,img,[onerror],a[href^="javascript:"],.agent-message-actions button').length,0);
   }
   assert.ok(f.row.querySelector('strong'));assert.ok(f.row.querySelector('table'));assert.match(f.row.querySelector('code').textContent,/<img src=x/);
-  f.message.stream.status='done';f.update();assert.equal(f.row.querySelectorAll('button').length,0);
+  f.message.stream.status='done';f.update();assert.equal(f.row.querySelectorAll('.agent-message-actions button').length,0);assert.equal(f.row.querySelectorAll('.agent-code-actions button').length,2);
   f.update({busy:false});assert.equal(f.row.querySelectorAll('.agent-message-actions button').length,4);assert.equal(f.row.querySelectorAll('.agent-code-actions button').length,2);
   assert.equal(f.row.querySelector('output'),null);assert.equal(f.row.getAttribute('aria-busy'),'false');
   const copy=f.row.querySelector('.agent-message-actions button');f.update({busy:false});assert.equal(f.row.querySelector('.agent-message-actions button'),copy);
@@ -90,7 +90,7 @@ test('last-assistant action space is stable through empty waiting, text, tool wa
   assert.deepEqual([...f.row.children].map(node=>node.className),['agent-message-body chat-markdown','agent-stream-status','agent-message-actions-placeholder']);
   f.message.text='开始回答';f.update();assert.equal(f.row.querySelector('[data-message-actions-placeholder]'),placeholder);assert.equal(f.row.querySelector('.agent-message-body'),body);
   f.message.text='';f.update();assert.equal(f.row.querySelector('[data-message-actions-placeholder]'),placeholder);assert.equal(f.row.children[1].className,'agent-stream-status');
-  f.message.text='```js\nconst x=1;\n```';f.message.stream.status='done';f.update();assert.equal(f.row.querySelector('[data-message-actions-placeholder]'),placeholder);assert.equal(f.row.querySelectorAll('button').length,0);
+  f.message.text='```js\nconst x=1;\n```';f.message.stream.status='done';f.update();assert.equal(f.row.querySelector('[data-message-actions-placeholder]'),placeholder);assert.equal(f.row.querySelectorAll('.agent-message-actions button').length,0);assert.equal(f.row.querySelectorAll('.agent-code-actions button').length,2);
   f.update({busy:false});assert.equal(f.row.querySelector('[data-message-actions-placeholder]'),null);
   const toolbar=f.row.querySelector('.agent-message-actions'),codeActions=f.row.querySelector('.agent-code-actions');assert.ok(toolbar);assert.ok(codeActions);
   const replacement={...f.message,stream:{...f.message.stream}},observer=new f.dom.window.MutationObserver(()=>{});observer.observe(f.row,{subtree:true,childList:true,characterData:true,attributes:true});

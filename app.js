@@ -638,7 +638,7 @@
       const incoming=new Set(graph.nodes.map(n=>n.id));if(incoming.size!==graph.nodes.length||graph.edges.some(e=>!incoming.has(e.source)||!incoming.has(e.target)))throw Error('导入连线无效');
       remember();nodes.push(...clone(graph.nodes));edges.push(...clone(graph.edges));selected=new Set([graph.group.id]);rebuildAndPersist();return nodes.find(n=>n.id===graph.group.id);
     },
-    insertAsset(asset,point){remember();const n=newNode(asset.type||'image',point,asset.image,asset.name);n.fullImage=asset.fullImage;n.video=asset.video||window.EDITOR_DATA?.nodes[asset.nodeId]?.video;n.audio=asset.audio;if(n.type==='text'){n.content=asset.content||'';n.color=asset.color||'';n.textMode='pure';delete n.generation;}if(n.type==='audio'){n.audioMode='upload';n.width=300;n.height=300;}nodes.push(n);selected=new Set([n.id]);rebuildAndPersist();return n;},
+    insertAsset(asset,point){remember();const n=newNode(asset.type||'image',point,asset.image,asset.name),legacyVideo=window.EDITOR_DATA?.nodes[asset.nodeId]?.video;Object.assign(n,window.CanvasLibraryAssetRoundtrip?.restore(asset,{legacyVideo})||{fullImage:asset.fullImage,video:asset.video||legacyVideo,audio:asset.audio});if(n.type==='text'){n.content=asset.content||'';n.color=asset.color||'';n.textMode='pure';delete n.generation;}if(n.type==='audio'){n.audioMode='upload';n.width=300;n.height=300;}nodes.push(n);selected=new Set([n.id]);rebuildAndPersist();return n;},
     addTypedNode(type){addNode(type);return nodes[nodes.length-1];},
     saveSelection(){const ids=window.CanvasGroups.descendants(nodes,selected),picked=nodes.filter(n=>ids.has(n.id)&&!['group','pile'].includes(n.type));document.dispatchEvent(new CustomEvent('canvas:save-assets',{detail:clone(picked)}));},
     // Panel resizing changes screen bounds only; render still upgrades queued
@@ -678,9 +678,12 @@
     }
     if(valid&&!localChanges){nodes=saved.nodes;edges=saved.edges;nodes.forEach(n=>{
       const recovery=n.generationRecovery,recoverable=recovery?.version===1&&recovery.runId===n.generationRun?.runId&&recovery.kind===n.pendingOperation&&recovery.signature===generationSignature(n);
-      // A pending saved placeholder must not inherit media from the seed graph.
-      const seedFullImage=original.get(n.id)?.fullImage;
-      if(!recoverable&&!n.fullImage&&seedFullImage&&displayMediaRef(seedFullImage))n.fullImage=seedFullImage;
+      // Only the unchanged original image preview may recover its seed original.
+      // Reused node IDs, replaced media and pending results must keep their source.
+      const seed=original.get(n.id),seedFullImage=seed?.fullImage;
+      const originalPreview=seedFullImage&&!n.fullImage&&n.type==='image'&&seed?.type==='image'&&n.image&&n.image===seed.image&&displayMediaRef(n.image);
+      const identityMatches=(!n.provenance?.mediaSource||n.provenance.mediaSource===seedFullImage)&&['currentSourceFileId','sourceFileId'].every(key=>!n[key]||n[key]===seed?.[key]);
+      if(originalPreview&&identityMatches&&!recoverable&&!n.pendingOperation&&!n.generationRun&&!n.fullImage&&seedFullImage&&displayMediaRef(seedFullImage))n.fullImage=seedFullImage;
     });clearOrphanGenerationState({allowRecovery:true});rebuild();}
     graphLoaded=true;if(localChanges)persist();
   }).catch(error=>{graphLoaded=false;graphReadFailed=true;storageError(error,'load');});

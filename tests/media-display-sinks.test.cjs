@@ -101,5 +101,5 @@ test('inline player waits for policy, blocks originals, and rejects late or orig
 test('video local main remains usable; original download and clip export do not touch resolvers or executors',async()=>{
  const policy=await policyReady,node={id:'mixed',video:'data:video/mp4;base64,LOCAL',image:original},f=videoFixture(policy,node);f.c.inlinePlayer(node);await flush();assert.deepEqual(f.writes,[{kind:'src',value:node.video}]);
  await f.c.downloadVideo({...node,video:original});await f.c.downloadVideo({...node,video:original,clip:{start:0,end:1}});assert.deepEqual(f.clicks,[]);assert.deepEqual(f.trims,[]);assert.equal(f.assetReads.includes(original),false);
- await f.c.downloadVideo(node);assert.deepEqual(f.clicks,[node.video]);await f.c.downloadVideo({...node,clip:{start:0,end:1}});assert.equal(f.trims.length,1);assert.equal(f.downloads.length,1);
+ await f.c.downloadVideo(node);assert.deepEqual(f.clicks,[node.video]);node.clip={start:0,end:1};await f.c.downloadVideo(node);assert.equal(f.trims.length,1);assert.equal(f.downloads.length,1);
 });

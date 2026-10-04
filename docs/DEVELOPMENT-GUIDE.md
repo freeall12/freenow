@@ -27,7 +27,7 @@
 | Agent 输入、流、消息、历史和队列 | `src/features/agent-composer/`、`agent-stream/`、`agent-messages/`、`agent-history/`、`agent-queue/` | `agent-client.js`、`server/agent.cjs`、`server/agent-stream.cjs` |
 | Agent 工具执行、生成卡、继续中断任务 | `src/features/agent-execution/`、`agent-generation/`、`agent-recovery/` | `agent-tools.js`、`agent-client.js`、`server/agent-checkpoints.cjs`；保留确认、真实回执及来源校验 |
 | Agent 应用、Widget、模板及 HTML 作品 | `src/features/agent-apps/`、`agent-widgets/`、`agent-artifacts/` | 应用 `host.mjs`、应用/Widget `integration.mjs`、作品 `store.mjs` 和 `agent-client.js`；读对应功能合同，不扩展共享 iframe 权限 |
-| 主体库、素材读取和历史资源修复 | `src/features/subject-library/`、`local-resource-migration/` | `local-assets.js`、`project-context.js`、`CanvasStore`；修复需要精确来源和保存守卫 |
+| 主体库、素材读取和历史资源修复 | `src/features/subject-library/`、`local-resource-migration/`、`library-asset-roundtrip/` | `local-assets.js`、`project-context.js`、`CanvasStore`；修复需要精确来源和保存守卫 |
 | 3D 资源预览、导入和独立片场 | `src/features/world-node/`、`studio-v2/` | `studio.mjs`、`studio-state.js`；`world` 是资源，`studio` 是可编辑场景，存储与导航规则分别维护 |
 | 供应商协议、媒体处理和下载 | `server/generation-*.cjs`、`media.cjs`、`playlist.cjs`、`video-segmentation.cjs` | `server/server.cjs`；配置路由、任务持久化、落盘与出站策略分别核对 |
 | 视频手动/智能剪辑与保存重试 | `src/features/video-trim/result-transaction.mjs`、`src/features/video-trim/ui.mjs` | `CanvasApp.createConnected/saveProject`、`LocalMedia`；归属与应用收据不依赖编辑器可见状态 |
@@ -121,6 +121,7 @@ node tests/fixtures/generation-local-media-server.cjs --port 4174
 | `reference/` | 开发机原始捕获及历史证据，默认不公开；公开克隆不保证历史文档的这些链接可打开 |
 | `defaults/` → 四份根数据文件 | 可公开的空默认数据 → 本机初始化数据；根数据文件被忽略，不提交用户画布/素材/版本 |
 | CanvasStore 的 IndexedDB | 默认库 `tapnow-canvas-replica` / `documents`；包含项目画布、Agent 会话及分组记录，事务版本与宿主身份校验不能绕过 |
+| 素材库的 localStorage | 目前仍使用 `tapnow-library` / `tapnow-folders`，容量不足时保存失败并保留原记录/对话框；本批QA独立IDB隔离不代表正式素材库已迁移 |
 | LocalAssets 的 `asset:` | 默认库 `tapnow-local-assets` / `assets` 保存 Blob；`blob:` 是当前页面读取句柄，不是持久跨刷新身份 |
 | Agent artifacts 的 IndexedDB | 默认 `tapnow-canvas-replica-artifacts`；作品内容与 revision 独立保存，导出不能覆盖原文 |
 | `server/.generation-tasks/`、`.generation-media/`、`.agent-sessions/` | 私有任务、媒体和服务端会话；忽略于 Git，静态路由禁止读取 `server/`；生成媒体只通过专用 `/api/generation/media/<UUID>` 获取 |

@@ -9,13 +9,16 @@
   const source=n=>n.video||window.EDITOR_DATA?.nodes[n.id]?.video;
   function player(n){const video=el('video','video-tool-preview');video.controls=true;video.playsInline=true;video.preload='metadata';video.crossOrigin='anonymous';return video;}
   async function downloadVideo(n){
+    const typeStamp=n.type,srcStamp=source(n)||n.image,clipStamp=JSON.stringify(n.clip||null),projectId=app.projectIdentity?.().id;
+    const assertCurrent=()=>{if(app.projectIdentity?.().id!==projectId||app.getState().nodes.find(node=>node.id===n.id)!==n||n.type!==typeStamp||(source(n)||n.image)!==srcStamp||JSON.stringify(n.clip||null)!==clipStamp)throw Error('来源视频、剪辑或项目已变化，请重新下载');};
     try{
-      const policy=await mediaDisplayReady,src=policy.displayMediaRef(source(n)||n.image);if(!src)throw Error(unavailableMedia);
-      if(n.clip){notify('正在本地导出剪辑…');const result=await window.LocalMedia.trim(n);window.LocalMedia.download(result.blob,n.title+'.mp4');notify('剪辑已导出');return;}
-      const url=policy.displayMediaRef(await window.LocalAssets.url(src));if(!url)throw Error(unavailableMedia);
+      const policy=await mediaDisplayReady;assertCurrent();const src=policy.displayMediaRef(srcStamp);if(!src)throw Error(unavailableMedia);
+      if(n.clip){notify('正在本地导出剪辑…');const result=await window.LocalMedia.trim(n);assertCurrent();window.LocalMedia.download(result.blob,n.title+'.mp4');notify('剪辑已导出');return;}
+      const url=policy.displayMediaRef(await window.LocalAssets.url(src));assertCurrent();if(!url)throw Error(unavailableMedia);
       const a=document.createElement('a');a.href=url;a.download=n.title+(src.startsWith('data:video/webm')?'.webm':'.mp4');a.click();
     }catch(error){notify(error.message);}
   }
+
   async function extend(n){try{const ui=await import('../video-creation/ui.mjs');ui.openExtend(n);}catch(e){notify(e.message);}}
   let enhancementModule;
   function upscale(n,existing=false){

@@ -43,3 +43,9 @@
 .ie-alignment-guide{position:absolute;pointer-events:none;opacity:.8}
 .ie-alignment-guide.vertical{top:0;height:100%;width:1px;background:repeating-linear-gradient(to bottom,#43A8FF 0 5px,transparent 5px 10px)}
 .ie-alignment-guide.horizontal{left:0;width:100%;height:1px;background:repeating-linear-gradient(to right,#43A8FF 0 5px,transparent 5px 10px)}
+
+.ie-popup.ie-layer-menu{width:192px;padding:4px;gap:0}
+.ie-layer-menu .ie-button{width:100%;height:32px;justify-content:flex-start;padding:6px 8px;gap:8px;border-radius:4px;font-size:14px}
+.ie-layer-menu .ie-button svg{width:16px;height:16px;flex:none}
+.ie-layer-menu .is-destructive{color:#dc2626}
+.ie-layer-menu-separator{display:block;height:1px;width:100%;background:#414145;margin:4px 0}

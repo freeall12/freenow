@@ -1,0 +1,7 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><title>流式代码控件 · 正式组件验收</title>
+<link rel="stylesheet" href="../styles.css"><link rel="stylesheet" href="../../agent-composer/confirmation.css">
+<style>body{margin:24px;background:#151515;color:#ddd;font:14px system-ui}header{max-width:720px;margin:auto}button{margin:4px;padding:8px}main{max-width:390px;margin:24px auto}.agent-messages{display:flex;flex-direction:column;gap:20px}output{display:block;color:#aaa;font:12px monospace;white-space:pre-wrap}textarea{width:95%;height:72px;margin:12px 0}main button{margin:0;padding:0}</style>
+<header><strong>流式代码控件 · 正式消息组件</strong><p>显式按钮提交固定测试文本增量，无模型请求、生产数据或画布修改。</p>
+<button id="start">开始未闭合代码块</button><button id="append">追加代码增量</button><button id="timed">1秒后追加增量</button><button id="finish">完成回复</button><button id="switch">切换为空会话</button>
+<textarea id="paste" aria-label="粘贴实际剪贴板" placeholder="复制代码后粘贴到此处，核对实际文本"></textarea><output id="receipt">请开始固定文本流。</output></header><main class="agent-messages" id="mount"></main>
+<script type="module" src="./code-stream.mjs"></script></html>

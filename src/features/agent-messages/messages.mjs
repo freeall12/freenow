@@ -27,23 +27,25 @@ export function createMessageRenderer({ renderMarkdown, renderComposer, onError,
     return button;
   }
   function copyAction(text) {
-    let timer;
+    let timer;const createdEpoch=epoch;
     const button = action('copy', '复制', async () => {
       try {
-        await navigator.clipboard.writeText(text);
-        if (!button.isConnected) return;
+        await navigator.clipboard.writeText(typeof text === 'function' ? text() : text);
+        if (!button.isConnected || createdEpoch !== epoch) return;
         button.innerHTML = icons.check; button.ariaLabel = button.dataset.tooltip = '已复制'; button.dataset.copied = 'true';
         clearTimeout(timer); timer = setTimeout(() => { button.innerHTML = icons.copy; button.ariaLabel = button.dataset.tooltip = '复制'; delete button.dataset.copied; }, 2000);
-      } catch { onError('复制失败，请检查浏览器剪贴板权限'); }
+      } catch { if (button.isConnected && createdEpoch === epoch) onError('复制失败，请检查浏览器剪贴板权限'); }
     });
     cleanups.push(() => clearTimeout(timer)); return button;
   }
   function decorateCode(body, key) {
       body.querySelectorAll('.chat-code-block').forEach((block, codeIndex) => {
+        if (block.querySelector(':scope > [data-message-code-actions]')) return;
         const stateKey = `${key}:${codeIndex}`, toolbar = document.createElement('div'); toolbar.className = 'agent-code-actions';
+        toolbar.setAttribute('data-message-code-actions', '');
         const wrap = action('text-wrap', '取消自动换行', () => { codeStates.set(stateKey, block.dataset.wrap !== 'on'); sync(); });
         function sync() { const value = codeStates.get(stateKey) !== false; block.dataset.wrap = value ? 'on' : 'off'; wrap.setAttribute('aria-pressed', String(value)); wrap.ariaLabel = wrap.dataset.tooltip = value ? '取消自动换行' : '自动换行'; }
-        sync(); toolbar.append(wrap, copyAction(block.querySelector('code').textContent)); block.append(toolbar);
+        sync(); toolbar.append(wrap, copyAction(() => block.querySelector('code')?.textContent ?? '')); block.append(toolbar);
       });
   }
   function toolbarFor(message, {busy = false, lastAssistant = false, pendingQuestion = false, suppressActions = false, index}, currentMessage = () => message) {
@@ -77,8 +79,7 @@ export function createMessageRenderer({ renderMarkdown, renderComposer, onError,
     const streaming = message.stream?.status === 'streaming', busy = streaming || !!record.options.busy;
     const text = String(message.text || ''), phase = busy ? 'streaming' : 'complete';
     if (record.text !== text || record.phase !== phase) {
-      if (busy) patchMarkdown(record.body, renderMarkdown(text));
-      else {record.body.innerHTML = renderMarkdown(text);decorateCode(record.body, record.options.key);}
+      patchMarkdown(record.body, renderMarkdown(text));decorateCode(record.body, record.options.key);
       record.text = text;record.phase = phase;
     }
     const empty = !text.trim();if (record.body.hidden !== empty) record.body.hidden = empty;

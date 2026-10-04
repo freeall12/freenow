@@ -24,6 +24,10 @@
 
 | 记录 | 范围 |
 | --- | --- |
+| [素材原始媒体往返](LIBRARY-ASSET-ROUNDTRIP-20261005.md) | 原图、裁切与来源、picker本地解析、换源恢复保护 |
+| [图片图层菜单](IMAGE-EDITOR-LAYER-MENU-20261005.md) | 复制、层序、删除、焦点关闭与迟到clone保护 |
+| [Agent流式代码操作](AGENT-STREAMING-CODE-CONTROLS-20261005.md) | 流式复制/换行、控件身份、焦点及横向滚动保持 |
+| [片场聚焦导航速度](STUDIO-V2-FOCUS-NAVIGATION-SPEED-20261005.md) | 对象取景保持速度，整场取景才按场景重算 |
 | [图片拖动吸附](IMAGE-EDITOR-ALIGNMENT-GUIDES-20261005.md) | 官方阈值、边缘/中心、辅助线导出隔离和保存恢复 |
 | [历史批次展开](CANVAS-HISTORY-EXPANSION-20261005.md) | 多批分行、单结果、来源隔离和一次撤销/重做 |
 | [Agent消息附件](AGENT-MESSAGE-ATTACHMENTS-20261005.md) | 真实缩略图、失败回退、重绘复用与会话清理 |

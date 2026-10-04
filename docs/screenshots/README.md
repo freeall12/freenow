@@ -51,3 +51,15 @@ Agent 模型反馈截图来自 `/src/features/agent-generation/qa/disabled-model
 | [canvas-history-batches-cua-20261005.jpg](canvas-history-batches-cua-20261005.jpg) | 公开隔离clone的4298正式入口，真实右键批次展开；整组一次撤销/重做和刷新恢复 |
 
 历史隔离clone复现脚本见[专项记录](../CANVAS-HISTORY-EXPANSION-20261005.md)。这些证据覆盖上述具体行为，不等于全站同态视觉或真实供应商质量验收。
+
+本批新增：
+
+| 文件 | 来源与验证范围 |
+| --- | --- |
+| [image-editor-layer-menu-20261005.jpg](image-editor-layer-menu-20261005.jpg) | `src/features/image-editor/qa/layers.html`，正式Fabric图层菜单；真实PNG、上下移/复制/删除、键盘及迟到clone保护 |
+| [agent-streaming-code-controls-20261005.jpg](agent-streaming-code-controls-20261005.jpg) | `src/features/agent-messages/qa/code-stream.html`，正式streaming/message renderer；本地增量文字，不是模型生成 |
+| [studio-focus-navigation-speed-20261005.jpg](studio-focus-navigation-speed-20261005.jpg) | `src/features/studio-v2/qa/focus-navigation-speed-main.html`，真实GLB/WebGL片场；树选择、F、聚焦与全景速度保持 |
+
+[高清素材往返截图](library-original-roundtrip-20261005.jpg)来自 `src/features/library-asset-roundtrip/qa/roundtrip.html`：正式保存/picker及刷新后两张2048×1152原图；128×72预览和真实PNG下载Blob已核对。QA偏好/收据/媒体均独立IDB，不代表正式素材库已迁移；浏览器下载落盘未确认。
+
+[视频素材往返截图](library-video-roundtrip-20261005.jpg)来自同一隔离入口：真实本地原文件为4秒320×180、clip .5–2.5；正式下载经本机FFmpeg输出3256字节、2秒320×180，画布真实导出节点与连线渲染。未调用供应商模型，下载落盘不在证据范围。

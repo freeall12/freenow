@@ -75,7 +75,7 @@
     if(n.type==='pile'&&picked.length===1){items.push({label:'取消堆叠',run:()=>app.unstack(n.id)},{label:'下载全部',run:()=>window.CanvasPilesUI.downloadAll(n.id)},null);}
     else if(n.type==='playlist'&&picked.length===1){items.push({label:'添加片段',run:()=>window.CanvasPlaylist.pick(n.id)},{label:'预览',run:n.clips?.length?()=>window.CanvasPlaylist.open(n.id):null},null);}
     else if(!blocked){
-      const ids=window.CanvasGroups.descendants(state.nodes,state.selected),savable=state.nodes.some(v=>ids.has(v.id)&&(v.image||v.audio||v.video||window.EDITOR_DATA?.nodes[v.id]?.video||v.type==='text'&&v.content?.trim()));
+      const ids=window.CanvasGroups.descendants(state.nodes,state.selected),savable=state.nodes.some(v=>ids.has(v.id)&&(v.image||v.fullImage||v.audio||v.video||window.EDITOR_DATA?.nodes[v.id]?.video||v.type==='text'&&v.content?.trim()));
       items.push({label:'保存到素材库',run:savable?()=>app.saveSelection():null},null);
       if(picked.length===1&&['image','video'].includes(n.type)&&(n.image||n.video)){
         items.push({label:'应用所有历史',run:()=>applyHistory(n)});
