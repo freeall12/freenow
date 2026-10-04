@@ -43,7 +43,7 @@ export function previewChrome(root, canvas, {onClose, onChange, onCapture, onRes
   for (const cls of ['horizontal first', 'horizontal second', 'vertical first', 'vertical second']) frame.append(el('i', cls));
   const vignette = el('div', 'world-preview-vignette'); vignette.ariaHidden = 'true';
   const flash = el('div', 'world-preview-flash'); flash.ariaHidden = 'true';
-  const guide = el('div', 'world-preview-guide world-capsule'), logo = el('img'); logo.src = '/assets/tap-logo-official.svg'; logo.alt = '';
+  const guide = el('div', 'world-preview-guide world-capsule'), logo = el('img'); logo.src = '/assets/branding/freenow-mark.svg'; logo.className = 'freenow-brand-mark'; logo.alt = 'freenow';
   const guideText = el('span', '', panoramaPreview ? '拖动鼠标可以环视全景' : scenePreview ? '拖动鼠标环视，或使用 WASD 移动' : '拖动鼠标可以旋转物品'), guideKey = `three-d-preview-${panoramaPreview ? 'panorama' : scenePreview ? 'scene' : 'object'}-navigation-v1`;
   const toast = el('div', 'world-preview-toast'); toast.hidden = true; toast.setAttribute('role', 'status');
   const hide = button('不再提示', null, () => {try {localStorage.setItem(guideKey, 'hidden');} catch {} guide.hidden = true; toast.replaceChildren(el('span', '', '此预览提示将不再显示。'), button('撤销', null, () => {try {localStorage.removeItem(guideKey);} catch {} guide.hidden = false; toast.hidden = true;}, '撤销')); toast.hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => {toast.hidden = true;}, 5000);}, '不再提示');

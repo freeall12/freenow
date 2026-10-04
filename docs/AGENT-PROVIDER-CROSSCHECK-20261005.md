@@ -93,6 +93,8 @@ git diff --check
 
 ## 未通过项与验收限制
 
+后续更新：以下两类HTTP失败已按真实安全合同修正fixture，HTTP **7/7**、相关合同 **56/56**；生产代码与媒体锁策略未改。详细根因及无干预强杀恢复仍未实现的边界见[HTTP复核](AGENT-HTTP-RECOVERY-20261005.md)。本节保留当时基线证据。
+
 额外运行五个既有/新增相关文件时共25项，22通过、3失败。将本次两个服务文件恢复为 `HEAD@5d97ceb` 后，在独立临时树复跑旧 HTTP 文件，7项中4通过、相同3项失败，确认不是规范化修复引入；没有扩大为全套测试或修改生成存储。
 
 1. `agent-checkpoint-http` 两项 SIGKILL 重启用例（父 SDK请求、子 SDK请求）在重新启动真实服务时报 `Local task stores unavailable; server was not started.`。纯 Agent 检查点/unknown 测试通过不能抵消这个真实入口缺口；本批无法宣称强杀进程恢复完全可用。

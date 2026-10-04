@@ -1,6 +1,6 @@
 # 图片与音频供应商契约交叉核查 · 2026-10-05
 
-目前可直接配置供应商 Key 的图片链路是 OpenAI 生图/参考图、GPT Image 2 蒙版擦除/重绘/扩图、fal BiRefNet 抠图与 Topaz 2x/4x；音频链路是 OpenAI Speech、Eleven v3 TTS、Eleven Sound v2、MiniMax Music 2.6。原生适配均是明确的功能子集，菜单型号或操作按钮的存在不代表全部能力已接通。
+目前可直接配置供应商 Key 的图片链路是 OpenAI 生图/参考图、GPT Image 2 蒙版擦除/重绘/扩图、fal BiRefNet 抠图与 Topaz 2x/4x；音频链路是 OpenAI Speech、Eleven v3 TTS、Eleven Sound v2、Eleven Music、MiniMax Music 2.6。原生适配均是明确的功能子集，菜单型号或操作按钮的存在不代表全部能力已接通。后续新增的[受限多角度](FAL-MULTI-ANGLE-NATIVE-20261005.md)、[Music合同](elevenlabs-music-native.md)与[音频凭据字节保护](AUDIO-CREDENTIAL-BYTES-20261005.md)以专项记录为准。
 
 本次修复普通 OpenAI 图片结果校验：仅有 PNG IHDR 文件头、缺少 IDAT/IEND、非规范 Base64 的响应不再由适配器返回 `succeeded`。已安装 SDK 的 generate/edit 两条路径均验证异常结果 `unknown`、一次 POST、无自动重试；异常字节也不再作为成功供应商结果进入持久记录。没有新增依赖、协议或供应商调用。
 
@@ -21,7 +21,8 @@
 | `audio.generate` / `eleven_v3` | `elevenlabs-native` → `/v1/text-to-speech/{voice_id}` | 默认实际 `eleven_v3`；真实音色目录 ID；`xi-api-key`；默认 `mp3_44100_128` | 当前 3000 字符、一次一个结果、稳定度 0/0.5/1；这是本地保守范围；克隆、字幕、额外速度参数未实现 |
 | `audio.generate` / `eleven_sound_effect` | `elevenlabs-sound-native` → `/v1/sound-generation` | 实际 `eleven_text_to_sound_v2`；`loop`、`prompt_influence`；自动时长省略 `duration_seconds` | 0.5–30 秒或自动；固定 MP344100/128；TTS/Music 不走此接口 |
 | `audio.generate` / `music-2.6` | `minimax-music-native` → `/v1/music_generation` | Bearer Key；`stream:false`、hex 输出；`audio_setting`、歌词/纯音乐模式 | prompt ≤2000、歌词 ≤3500；无 cover/音频参考、时长控制、字幕；账号必须具备该付费 API 资格 |
-| Seed/Doubao TTS、Eleven Music `music_v1`、Mureka、Sonilo | 无对应原生适配 | 现有 UI 合同可指向实际支持的 `tasks-v1` 网关 | 不因填写品牌 Key 就自动工作；不冒用其他供应商作为同型号实现 |
+| `audio.generate` / `music_v1` | `elevenlabs-music-native` → `/v1/music` | 公开Compose/MP344100/128；普通与纯音乐prompt，自定义使用单节composition_plan | 节点自动或3–300秒；自定义须明确3–120秒、最多30行，每行200字符；真实账号/成曲待验 |
+| Seed/Doubao TTS、Mureka、Sonilo | 无对应原生适配 | 现有 UI 合同可指向实际支持的 `tasks-v1` 网关 | 不因填写品牌 Key 就自动工作；不冒用其他供应商作为同型号实现 |
 
 Topaz 风格对应官方输入 `model`：`general` → `Standard V2`、`low_resolution` → `Low Resolution V2`、`animation_3d` → `CGI`、`high_fidelity` → `High Fidelity V2`、`text_refine` → `Text Refine`。本次实时 API schema 仍包含这五项；官方新增型号/选项不自动成为本项目功能。
 
@@ -78,7 +79,7 @@ export ELEVENLABS_API_BASE_URL=https://api.elevenlabs.io
 
 Eleven和Sound使用各自已核实默认模型map，MiniMax Music使用默认2.6；显式空map不会启用默认。音色目录Key与生成Key的借用不自动发生；本例显式共用同一 `ELEVENLABS_API_KEY`。`.env.example`不会自动加载；以上ENV须进入启动服务的进程环境，变更后重启。操作员可只合并需要的供应商，不必配置全部。
 
-**tasks-v1边界。** 浏览器“连接API”的会话配置使用任务网关合同：POST `/tasks`、GET/DELETE `/tasks/{id}`。该地址必须由操作者提供真正实现相应操作的网关，凭据是该网关的凭据；不是直接把OpenAI/fal/Eleven/MiniMax厂商Key填进去。`panorama.edit`、`image.multiAngle`、`image.relight`、皮肤/Magnific、Seed/Eleven Music/Mureka/Sonilo若走网关，需验证请求所有参数、实际输出与恢复/取消语义。网关就绪不能证明具体供应商能力已完成。
+**tasks-v1边界。** 浏览器“连接API”的会话配置使用任务网关合同：POST `/tasks`、GET/DELETE `/tasks/{id}`。该地址必须由操作者提供真正实现相应操作的网关，凭据是该网关的凭据；不是直接把OpenAI/fal/Eleven/MiniMax厂商Key填进去。`panorama.edit`、`image.relight`、皮肤/Magnific、Seed/Mureka/Sonilo及原生子集以外的多角度/Music若走网关，需验证请求所有参数、实际输出与恢复/取消语义。网关就绪不能证明具体供应商能力已完成。
 
 ## 证据来源与交叉判断
 

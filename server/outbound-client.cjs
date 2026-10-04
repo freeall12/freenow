@@ -17,6 +17,19 @@ function containsCredential(value,secret){
  return !!value&&typeof value==='object'&&Object.entries(value).some(([key,item])=>containsCredential(key,secret)||containsCredential(item,secret));
 }
 function assertCredentialFree(value,secret){if(containsCredential(value,secret))throw rejected();return value;}
+function assertCredentialFreeBytes(bytes,secret){
+ if(!secret)return bytes;
+ assertCredentialFree(bytes.toString('utf8'),secret);
+ // Binary media metadata can store text as UTF-16 in either byte order.
+ // Metadata boundaries need not align with the start of the complete file.
+ for(const offset of [0,1]){
+  const aligned=bytes.subarray(offset,bytes.length-((bytes.length-offset)%2));
+  assertCredentialFree(aligned.toString('utf16le'),secret);
+  const bigEndian=Buffer.from(aligned);bigEndian.swap16();
+  assertCredentialFree(bigEndian.toString('utf16le'),secret);
+ }
+ return bytes;
+}
 function safeError(error,signal){
  if(signal?.aborted)return signal.reason;
  if(error&&typeof error==='object'&&credentialErrors.has(error))return error;
@@ -81,4 +94,4 @@ function createConfiguredModelClient({apiKey='',baseUrl='',client,fetchImpl,loca
   return {client:protectModelClient(client,{apiKey:apiKey||undefined,fetchImpl,localPort}),configured:true,configurationError:null,baseURL:client.baseURL||destination};
  }catch{return {client:null,configured:false,configurationError:'configuration_invalid',baseURL:null};}
 }
-module.exports={protectModelClient,createConfiguredModelClient,assertCredentialFree};
+module.exports={protectModelClient,createConfiguredModelClient,assertCredentialFree,assertCredentialFreeBytes};

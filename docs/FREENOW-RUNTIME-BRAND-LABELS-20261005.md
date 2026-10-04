@@ -41,3 +41,15 @@ HTML品牌修改位于宿主预览侧栏，不修改用户HTML或离线wrapper�
 - `node --test tests/canvas-projects.test.cjs`：32项通过，覆盖旧项目/存储身份、保存/切换、标题、失败保护与CAS关系。本批未新增为简单文案复述实现的测试。
 
 本子任务未操作浏览器、未提交或推送，未修改根index/generation-ui/config/styles、依赖、密钥或存储schema。实际可见状态由主线程统一Computer Use复验；来源归属仍准确保留。
+
+## 后续主线程图片替换与 Computer Use
+
+主画布`index.html`和`studio-v2/ui.mjs`两处Agent入口统一使用`assets/branding/freenow-agent.svg`；这是已安装Tabler 3.47.0的MIT `outline/robot-face.svg`原资源，未重绘路径。`world-node/preview-chrome.mjs`旋转提示使用本地F标识。深色反色由对应CSS处理，Agent图片30×30，保持原按钮外框与定位。准确来源见[品牌资源说明](../assets/branding/README.md)。
+
+2026-10-05主线程在独立generation-config QA复用的正式生产入口完成：
+
+1. 确认画布Agent新图片；新建3D片场并进入真实WebGL页面，顶部和底部Agent图像均加载成功、30×30。
+2. 返回画布，新建3D节点，经正式文件选择/上传仓库`bicycle-city.glb`，进入真实预览；模型可见，F标识与旋转提示、环境控件正常。
+3. 两张未修图的1280×720截图已写入README：[片场Agent](screenshots/freenow-studio-agent-brand-20261005.jpg)、[GLB预览](screenshots/freenow-local-model-preview-20261005.jpg)。
+
+以上验证覆盖这三个位置的资源及渲染，不代表嵌套应用或全部导出像素的品牌盘点完成；没有修改用户媒体、来源作者、模型alias、兼容协议或存储标识。

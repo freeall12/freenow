@@ -29,7 +29,7 @@ const nativeKinds={
   'minimax-native':['video.generate'],'tripo-native':['world.generate'],
   'elevenlabs-native':['audio.generate'],'marble-native':['world.generate'],
   'minimax-music-native':['audio.generate'],'fal-video-native':['video.upscale'],
-  'elevenlabs-sound-native':['audio.generate'],'openai-masked-edit-native':['image.erase','image.redraw','image.outpaint']
+  'elevenlabs-sound-native':['audio.generate'],'elevenlabs-music-native':['audio.generate'],'openai-masked-edit-native':['image.erase','image.redraw','image.outpaint']
 };
 const object=value=>value&&typeof value==='object'&&!Array.isArray(value);
 const publicAlias=value=>typeof value==='string'&&value.trim()&&value.length<=200&&!/[\x00-\x1f\x7f]/.test(value);

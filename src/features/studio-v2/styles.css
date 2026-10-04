@@ -21,3 +21,5 @@
 .studio-v2-root ._preview_1qysd_179 ._exportButton_1qysd_633>svg{width:14px;height:14px}
 
 .studio-v2-export-copy{display:flex;flex:1;min-width:0;flex-direction:column;gap:2px;text-align:left}.studio-v2-export-copy small{font-size:11px;color:#aaa}.studio-v2-shape[aria-busy=true]{cursor:progress;opacity:.6}
+
+.studio-v2-orb:has(.freenow-agent-mark){align-items:center;justify-content:center}.studio-v2-orb img.freenow-agent-mark{width:30px;height:30px;filter:invert(1)}

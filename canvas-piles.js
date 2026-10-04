@@ -2,7 +2,15 @@
 (function(root){
  'use strict';
  const types=['image','video','audio','text'];
- function index(nodes){const owner=new Map(),members=new Map(),byId=new Map(nodes.map(n=>[n.id,n]));for(const pile of nodes.filter(n=>n.type==='pile').sort((a,b)=>a.id.localeCompare(b.id)))for(const id of new Set(pile.memberIds||[])){const n=byId.get(id);if(n&&types.includes(n.type)&&!owner.has(id))owner.set(id,pile.id);}for(const pile of nodes.filter(n=>n.type==='pile'))members.set(pile.id,(pile.memberIds||[]).filter((id,i,a)=>a.indexOf(id)===i&&owner.get(id)===pile.id).map(id=>byId.get(id)));return{owner,members};}
+ function index(nodes){
+  const owner=new Map(),members=new Map(),byId=new Map(),pileNodes=[];
+  // Graph frames need both lookups. One pass avoids allocating an [id,node]
+  // pair for every node and filtering the whole graph twice.
+  for(const node of nodes){byId.set(node.id,node);if(node.type==='pile')pileNodes.push(node);}
+  for(const pile of [...pileNodes].sort((a,b)=>a.id.localeCompare(b.id)))for(const id of new Set(pile.memberIds||[])){const n=byId.get(id);if(n&&types.includes(n.type)&&!owner.has(id))owner.set(id,pile.id);}
+  for(const pile of pileNodes)members.set(pile.id,(pile.memberIds||[]).filter((id,i,a)=>a.indexOf(id)===i&&owner.get(id)===pile.id).map(id=>byId.get(id)));
+  return{owner,members};
+ }
  function displaySize(n){const ratio=n.type==='text'?Math.min(320/n.width,320/n.height,1):1;return{width:n.width*ratio,height:n.height*ratio};}
  function size(members){const visible=members.slice(-5).map(displaySize);return{width:Math.max(1,...visible.map(n=>n.width)),height:Math.max(1,...visible.map(n=>n.height))};}
  function resized(pile,members){const s=size(members);return{...s,x:pile.x+(pile.width-s.width)/2,y:pile.y+(pile.height-s.height)/2};}

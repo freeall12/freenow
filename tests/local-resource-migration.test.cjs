@@ -51,3 +51,33 @@ test('retains recognized durable local references and rejects absent or untruste
   await assert.rejects((await import('../src/features/local-resource-migration/snapshot.mjs')).migrateCanvasSnapshot(value));
   for (const invalid of [{entries: {}}, {...index, sourceUrl: remote}, {...index, entries: {[hash(remote)]: {...index.entries[hash(remote)], ref: '/assets/%2e%2e/secret'}}}, {...index, entries: {[hash(remote)]: {...index.entries[hash(remote)], source: remote}}}]) await assert.rejects(migration(value, invalid));
 });
+
+test('same-origin absolute durable media becomes stable paths across current undo redo without rewriting prose', async () => {
+  const {migrateCanvasSnapshot}=await import('../src/features/local-resource-migration/snapshot.mjs');
+  const baseUrl='http://127.0.0.1:4173/src/features/generation-config/qa/main.html',origin='http://127.0.0.1:4173';
+  const asset=origin+'/assets/画布"封面.png',media=origin+'/api/generation/media/12345678-1234-4234-8234-000000000001';
+  const value=snapshot([{image:asset,fullImage:media,prompt:asset,provenance:{sourceUrl:asset}}]);
+  value.history=[{nodes:[{image:asset}],edges:[]}];value.future=[{nodes:[{video:media}],edges:[]}];
+  const original=structuredClone(value),result=await migrateCanvasSnapshot(value,{index:{...index,entries:{}},baseUrl,origin});
+  assert.deepEqual(value,original);assert.equal(result.summary.changed,4);assert.equal(result.summary.unresolved,0);
+  assert.equal(result.snapshot.nodes[0].image,new URL(asset).pathname);assert.equal(result.snapshot.nodes[0].fullImage,new URL(media).pathname);
+  assert.equal(result.snapshot.history[0].nodes[0].image,new URL(asset).pathname);assert.equal(result.snapshot.future[0].nodes[0].video,new URL(media).pathname);
+  assert.equal(result.snapshot.nodes[0].prompt,asset);assert.equal(result.snapshot.nodes[0].provenance.sourceUrl,asset);
+  assert.equal(JSON.stringify(result.changes).includes(origin),false);
+  assert.equal((await migrateCanvasSnapshot(result.snapshot,{index,baseUrl,origin})).summary.alreadyLocal,4);
+});
+
+test('same-origin alone cannot localize QA files private routes ambiguous URLs or original service media', async () => {
+  const {migrateCanvasSnapshot}=await import('../src/features/local-resource-migration/snapshot.mjs');
+  const origin='http://127.0.0.1:4173',sources=[
+    origin+'/src/features/video-history/qa/portrait.png',origin+'/server/secret.png',origin+'/assets/a.png?v=1',origin+'/assets/a.png#preview',
+    'http://127.0.0.1:4174/assets/a.png','http://credential@127.0.0.1:4173/assets/a.png',origin+'/assets/../assets/a.png',
+    origin+'/assets/%2e%2e/assets/a.png',origin+'/assets/%252e%252e/a.png',origin+'/assets/a%2fb.png',
+    origin+'/api/generation/media/not-an-immutable-id','https://files.tapnow.media/assets/a.png'
+  ];
+  const value=snapshot(sources.map(image=>({image}))),result=await migrateCanvasSnapshot(value,{index:{...index,entries:{}},baseUrl:origin+'/',origin});
+  assert.equal(result.summary.changed,0);assert.equal(result.summary.unresolved,sources.length);assert.deepEqual(result.snapshot,value);
+  assert.equal(JSON.stringify(result.unresolved).includes('credential'),false);
+  const originalService=await migrateCanvasSnapshot(snapshot([{image:'https://tapnow.media/assets/a.png'}]),{index:{...index,entries:{}},baseUrl:'https://tapnow.media/',origin:'https://tapnow.media'});
+  assert.equal(originalService.summary.unresolved,1);
+});

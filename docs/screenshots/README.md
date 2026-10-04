@@ -70,3 +70,15 @@ Agent 模型反馈截图来自 `/src/features/agent-generation/qa/disabled-model
 - [freenow 多角度原生替代面板](freenow-multi-angle-native-20261005.png)：本地 F 标识、原滑杆范围与专用模型限制说明；源图为仓库合同PNG，不是模型生成效果。
 
 复现与接口边界见[交叉核验记录](../OFFICIAL-CROSSCHECK-AND-KEY-READINESS-20261005.md)。
+
+## 2026-10-05 本地品牌与资源刷新
+
+以下均为1280×720实际Computer Use截图，无生成式修图、私人内容或供应商生成请求。
+
+| 文件 | 来源与验证范围 |
+| --- | --- |
+| [freenow片场Agent入口](freenow-studio-agent-brand-20261005.jpg) | 正式入口派生的独立generation-config QA中，新建3D片场并进入真实WebGL；两处Agent图片30×30、加载正常，按钮尺寸保持 |
+| [freenow本地模型预览](freenow-local-model-preview-20261005.jpg) | 同一独立页面正式上传`assets/studio/library/bicycle-city.glb`并进入预览；真实自行车、环境控件和本地F提示标识 |
+| [多角度素材刷新](local-assets-refresh-20261005.jpg) | `generation-config/qa/main.html?session=readiness-local-assets-1005b&profile=angle`刷新后；两张本机合同PNG经真实LocalAssets归档，源坐标100.25/80.5不变，无待本地化提示；不是模型效果 |
+
+ElevenLabs Music 的正式参数、生成、播放和刷新已完成浏览器交互验收；该临时入口截图尺寸异常，未发布无效截图，也未据此声明音乐像素验收。实际媒体与请求范围见[Music专项](../elevenlabs-music-native.md)。

@@ -1,7 +1,7 @@
 'use strict';
 const {createHash}=require('node:crypto');
 const {endpoint,protectGenerationFetch}=require('./generation-endpoint-policy.cjs');
-const {assertCredentialFree}=require('./outbound-client.cjs');
+const {assertCredentialFree,assertCredentialFreeBytes}=require('./outbound-client.cjs');
 const {validateMP3,waveMetadata}=require('./generation-openai-speech.cjs');
 const MAX_AUDIO_BYTES=50*1024*1024,MAX_JSON_BYTES=2*MAX_AUDIO_BYTES+65536;
 const DEFAULT_MINIMAX_MUSIC_MODEL_MAP=Object.freeze({'music-2.6':Object.freeze({kind:'audio.generate',model:'music-2.6'})});
@@ -87,7 +87,7 @@ function createMiniMaxMusicProvider({baseUrl='',apiKey='',modelMap,fetchImpl=fet
    if(!object(value)||!object(value.base_resp)||!Number.isSafeInteger(value.base_resp.status_code))throw unknown();
    if(value.base_resp.status_code!==0){check();completed=true;return {status:'failed',code:'provider_rejected',error:'MiniMax 音乐 API 明确拒绝请求；请检查账号权限、额度和参数'};}
    const hex=value.data?.audio;if(value.data?.status!==2||typeof hex!=='string'||!hex.length||hex.length%2||hex.length>MAX_AUDIO_BYTES*2||!/^[0-9a-f]+$/i.test(hex))throw unknown();
-   const bytes=Buffer.from(hex,'hex');assertCredentialFree(bytes.toString('utf8'),apiKey);const info=prepared.setting.format==='wav'?waveMetadata(bytes):mp3Metadata(bytes,prepared.setting);
+   const bytes=Buffer.from(hex,'hex');assertCredentialFreeBytes(bytes,apiKey);const info=prepared.setting.format==='wav'?waveMetadata(bytes):mp3Metadata(bytes,prepared.setting);
    if(info.sampleRate!==prepared.setting.sampleRate||value.extra_info?.music_size!==undefined&&value.extra_info.music_size!==bytes.length||value.extra_info?.music_sample_rate!==undefined&&value.extra_info.music_sample_rate!==info.sampleRate)throw unknown();
    check();completed=true;return {status:'succeeded',outputs:[{type:'audio',url:'data:'+(prepared.setting.format==='wav'?'audio/wav':'audio/mpeg')+';base64,'+bytes.toString('base64'),...(info.duration?{duration:info.duration}:{})}]};
   }catch(error){if(signal?.aborted)throw signal.reason;throw unknown();}

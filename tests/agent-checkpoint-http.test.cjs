@@ -14,7 +14,7 @@ async function fixture(t,respond){
  for(const name of ['agent-tools.js','generation-api.js'])await fs.copyFile(path.join(root,name),path.join(directory,name));
  for(const name of ['node_modules','src'])await fs.symlink(path.join(root,name),path.join(directory,name),'dir');
  const reservation=http.createServer(),port=await listen(reservation);await new Promise(resolve=>reservation.close(resolve));let child;
- async function stop(signal='SIGTERM'){if(!child||child.exitCode!==null||child.signalCode)return;const exited=once(child,'exit');child.kill(signal);await exited;}
+ async function stop(signal='SIGTERM'){if(!child||child.exitCode!==null||child.signalCode)return;const pid=child.pid,exited=once(child,'exit');child.kill(signal);await exited;return pid;}
  t.after(async()=>{await stop();provider.closeAllConnections();await new Promise(resolve=>provider.close(resolve));await fs.rm(directory,{recursive:true,force:true});});
  async function start({key='local-fixture-not-a-real-key'}={}){
   child=spawn(process.execPath,['server/server.cjs'],{cwd:directory,env:{...process.env,PORT:String(port),OPENAI_API_KEY:key,OPENAI_MODEL:'checkpoint-fixture',OPENAI_BASE_URL:`http://127.0.0.1:${providerPort}/v1`,AGENT_MODEL_MAP:'',AGENT_REASONING_MAP:'',GENERATION_API_KEY:'',GENERATION_API_BASE_URL:''},stdio:['ignore','pipe','pipe']});
@@ -23,6 +23,27 @@ async function fixture(t,respond){
  const base=`http://127.0.0.1:${port}`;
  const post=async(route,input)=>{const response=await fetch(base+'/api/agent/'+route,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(input)});return {status:response.status,body:await response.json()};};
  return {requests,start,stop,post,base,directory};
+}
+async function recoverFixtureMediaLease(f,pid){
+ // This is an explicit operator step in our private fixture, never startup
+ // behavior: the media store deliberately keeps even a dead writer's lease.
+ const mediaDirectory=path.join(f.directory,'server','.generation-media'),lease=path.join(mediaDirectory,'.writer-lock');
+ const original=await fs.readFile(lease,'utf8'),owner=JSON.parse(original),stat=await fs.lstat(lease);
+ assert.equal(owner.pid,pid);assert.equal(stat.isFile(),true);assert.equal(stat.mode&0o777,0o600);
+ if(typeof process.getuid==='function')assert.equal(stat.uid,process.getuid());
+ assert.throws(()=>process.kill(pid,0),{code:'ESRCH'});
+ const snapshots=new Map();
+ for(const name of await fs.readdir(path.join(f.directory,'server','.agent-sessions')))if(name.endsWith('.json'))snapshots.set(name,await fs.readFile(path.join(f.directory,'server','.agent-sessions',name),'utf8'));
+ await assert.rejects(f.start(),/Local task stores unavailable; server was not started/);
+ assert.equal(await fs.readFile(lease,'utf8'),original);
+ const {createGenerationMediaStore}=require('../server/generation-media-store.cjs'),blocked=createGenerationMediaStore({directory:mediaDirectory});
+ await assert.rejects(blocked.ready,{code:'media_store_locked'});await blocked.close();
+ assert.equal(await fs.readFile(lease,'utf8'),original);
+ assert.throws(()=>process.kill(pid,0),{code:'ESRCH'});
+ const retired=path.join(f.directory,'operator-retired-media-lock');await fs.rename(lease,retired);
+ assert.equal(await fs.readFile(retired,'utf8'),original);
+ await f.start();
+ for(const [name,json]of snapshots)assert.equal(await fs.readFile(path.join(f.directory,'server','.agent-sessions',name),'utf8'),json);
 }
 const binding={projectId:'local-project',conversationId:'local-conversation',submissionId:'local-submission'};
 function reply(res,output){res.writeHead(200,{'content-type':'application/json'});res.end(JSON.stringify({status:'completed',output}));}
@@ -40,13 +61,14 @@ test('real SDK + HTTP retains original pending calls across restart, enforces bi
  await f.stop();await f.start();const completed=await f.post('state',{sessionId,binding});assert.equal(completed.body.status,'completed');assert.equal(completed.body.text,'已读取原始回执。');assert.equal(f.requests.length,2);
  const privateFile=await fetch(f.base+'/server/.agent-sessions/'+sessionId+'.json');assert.equal(privateFile.status,403);
 });
-test('an abruptly interrupted SDK request restores as unknown and pure state lookup never resubmits it', {timeout:20000},async t=>{
+test('after explicit media lease recovery, an interrupted SDK request restores as unknown and state lookup never resubmits it', {timeout:20000},async t=>{
  let arrived;const reached=new Promise(resolve=>arrived=resolve);
  const f=await fixture(t,async()=>{arrived();});await f.start();
  const pending=f.post('turn',{message:'等待真实请求边界',binding}).catch(()=>null);await reached;
  const records=(await fs.readdir(path.join(f.directory,'server','.agent-sessions'))).filter(name=>name.endsWith('.json'));assert.equal(records.length,1);const sessionId=records[0].slice(0,-5);
- await f.stop('SIGKILL');await pending;await f.start();
+ const pid=await f.stop('SIGKILL');await pending;await recoverFixtureMediaLease(f,pid);
  const state=await f.post('state',{sessionId,binding});assert.equal(state.status,200);assert.equal(state.body.status,'unknown');assert.equal(state.body.canResumeWithReceipts,false);assert.equal(f.requests.length,1);
+ const crossed=await f.post('state',{sessionId,binding:{...binding,conversationId:'different'}});assert.notEqual(crossed.status,200);assert.equal(crossed.body.pending,undefined);
  const retry=await f.post('continue',{sessionId,binding,results:[]});assert.notEqual(retry.status,200);assert.equal(f.requests.length,1);
 });
 test('real HTTP restores child calls, dependency results and canonical parent aggregation without duplicate requests', {timeout:20000},async t=>{
@@ -83,15 +105,16 @@ test('real HTTP restores child calls, dependency results and canonical parent ag
  const replayParent=await f.post('continue',parentReceipt);assert.equal(replayParent.status,200);assert.equal(f.requests.length,5);
 });
 
-test('a child request interrupted by process death stays unknown while durable parent identity remains readable', {timeout:20000},async t=>{
+test('after explicit media lease recovery, a child interrupted by process death stays unknown and its parent remains readable', {timeout:20000},async t=>{
  let arrived;const reached=new Promise(resolve=>arrived=resolve);
  const f=await fixture(t,async(input,res)=>{
   if(input.tools.some(tool=>tool.name==='agent_delegate'))return reply(res,[{type:'function_call',name:'agent_delegate',arguments:JSON.stringify({tasks:[{id:'inspect',title:'检查',instructions:'读取实际画布。'}]}),call_id:'delegate_crash'}]);
   arrived();
  });
  await f.start();const first=await f.post('turn',{message:'检查委派中断',binding});assert.equal(first.status,200);const sessionId=first.body.sessionId,input={sessionId,callId:'delegate_crash',taskId:'inspect'};
- const pending=f.post('delegated-start',input).catch(()=>null);await reached;await f.stop('SIGKILL');await pending;await f.start();
+ const pending=f.post('delegated-start',input).catch(()=>null);await reached;const pid=await f.stop('SIGKILL');await pending;await recoverFixtureMediaLease(f,pid);
  const parent=await f.post('state',{sessionId,binding});assert.equal(parent.status,200);assert.equal(parent.body.delegation.tasks[0].status,'unknown');
+ assert.equal(parent.body.delegation.callId,'delegate_crash');assert.equal(parent.body.delegation.tasks[0].taskId,'inspect');
  const child=await f.post('delegated-state',input);assert.equal(child.status,200);assert.equal(child.body.status,'unknown');assert.equal(f.requests.length,2);
  const restart=await f.post('delegated-start',input);assert.ok(restart.status!==200||restart.body.status==='unknown');assert.equal(f.requests.length,2);
  const result=await f.post('delegated-result',input);assert.notEqual(result.status,200);assert.equal(f.requests.length,2);

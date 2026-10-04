@@ -10,6 +10,7 @@ const {createMarbleProvider}=require('./generation-marble.cjs');
 const {createMiniMaxMusicProvider}=require('./generation-minimax-music.cjs');
 const {createFalVideoProvider}=require('./generation-fal-video.cjs');
 const {createElevenLabsSoundProvider}=require('./generation-elevenlabs-sound.cjs');
+const {createElevenLabsMusicProvider}=require('./generation-elevenlabs-music.cjs');
 const {createOpenAIMaskedEditProvider}=require('./generation-openai-masked-edit.cjs');
 const {endpoint:tasksEndpoint,protectGenerationFetch}=require('./generation-endpoint-policy.cjs');
 const {rejectCredentials}=require('./generation-durable.cjs');
@@ -102,10 +103,10 @@ function createGenerationRouter({providers={},routes={},fetchImpl=fetch,localPor
   if(typeof providers==='string')providers=JSON.parse(providers);if(typeof routes==='string')routes=JSON.parse(routes);
   if(!object(providers)||!object(routes)||Object.keys(providers).length>100||Object.keys(routes).length>100)throw Error();
   for(const [id,config]of Object.entries(providers)){
-   if(!providerPattern.test(id)||!object(config)||!['tasks-v1','openai-native','ark-native','fal-native','tripo-native','minimax-native','elevenlabs-native','marble-native','minimax-music-native','fal-video-native','elevenlabs-sound-native','openai-masked-edit-native'].includes(config.protocol)||Object.keys(config).some(key=>!['protocol','baseUrl','apiKey','modelMap','client'].includes(key))||['baseUrl','apiKey'].some(key=>config[key]!==undefined&&typeof config[key]!=='string'))throw Error();
+   if(!providerPattern.test(id)||!object(config)||!['tasks-v1','openai-native','ark-native','fal-native','tripo-native','minimax-native','elevenlabs-native','marble-native','minimax-music-native','fal-video-native','elevenlabs-sound-native','elevenlabs-music-native','openai-masked-edit-native'].includes(config.protocol)||Object.keys(config).some(key=>!['protocol','baseUrl','apiKey','modelMap','client'].includes(key))||['baseUrl','apiKey'].some(key=>config[key]!==undefined&&typeof config[key]!=='string'))throw Error();
    if(config.baseUrl)tasksEndpoint(config.baseUrl,{localPort});if(config.client?.baseURL)tasksEndpoint(config.client.baseURL,{localPort});
-   const provider=(config.protocol==='openai-native'?createOpenAINativeProvider:config.protocol==='ark-native'?createArkProvider:config.protocol==='fal-native'?createFalProvider:config.protocol==='tripo-native'?createTripoProvider:config.protocol==='minimax-native'?createMiniMaxProvider:config.protocol==='elevenlabs-native'?createElevenLabsProvider:config.protocol==='marble-native'?createMarbleProvider:config.protocol==='minimax-music-native'?createMiniMaxMusicProvider:config.protocol==='fal-video-native'?createFalVideoProvider:config.protocol==='elevenlabs-sound-native'?createElevenLabsSoundProvider:config.protocol==='openai-masked-edit-native'?createOpenAIMaskedEditProvider:createTasksProvider)({...config,fetchImpl});
-   if(!['tasks-v1','elevenlabs-native','minimax-music-native','elevenlabs-sound-native'].includes(config.protocol)){
+   const provider=(config.protocol==='openai-native'?createOpenAINativeProvider:config.protocol==='ark-native'?createArkProvider:config.protocol==='fal-native'?createFalProvider:config.protocol==='tripo-native'?createTripoProvider:config.protocol==='minimax-native'?createMiniMaxProvider:config.protocol==='elevenlabs-native'?createElevenLabsProvider:config.protocol==='marble-native'?createMarbleProvider:config.protocol==='minimax-music-native'?createMiniMaxMusicProvider:config.protocol==='fal-video-native'?createFalVideoProvider:config.protocol==='elevenlabs-sound-native'?createElevenLabsSoundProvider:config.protocol==='elevenlabs-music-native'?createElevenLabsMusicProvider:config.protocol==='openai-masked-edit-native'?createOpenAIMaskedEditProvider:createTasksProvider)({...config,fetchImpl});
+   if(!['tasks-v1','elevenlabs-native','minimax-music-native','elevenlabs-sound-native','elevenlabs-music-native'].includes(config.protocol)){
     const map=provider.metadata.configurationError?{}:typeof config.modelMap==='string'?JSON.parse(config.modelMap):config.modelMap||{};
     provider.metadata={...provider.metadata,capabilities:{...provider.metadata.capabilities,models:Object.fromEntries(Object.entries(map).map(([alias,entry])=>{
      const label=provider.metadata.capabilities?.models?.[alias]?.label;

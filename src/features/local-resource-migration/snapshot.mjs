@@ -1,6 +1,7 @@
 import {hashSource as defaultHash, validateResourceIndex, isStaticAssetRef} from './index-format.mjs';
 import {isGenerationMediaRef} from '../generation-results/media-ref.mjs';
 import {isOriginalMediaRef} from './display-media.mjs';
+import {localResourcePath} from './local-reference.mjs';
 
 const mediaFields = ['image', 'fullImage', 'video', 'audio', 'poster', 'thumbnail'];
 const object = value => value && typeof value === 'object' && !Array.isArray(value);
@@ -95,7 +96,7 @@ function resourceSlots(snapshot, kind = 'canvas') {
   return slots;
 }
 
-async function migrateSnapshot(value, {index, hashSource = defaultHash} = {}, kind) {
+async function migrateSnapshot(value, {index, hashSource = defaultHash, baseUrl, origin} = {}, kind) {
   if (typeof hashSource !== 'function') throw Error('资源哈希适配器无效');
   const validated = validateResourceIndex(index), snapshot = structuredClone(value);
   const changes = [], unresolved = [], cache = new Map();
@@ -106,10 +107,12 @@ async function migrateSnapshot(value, {index, hashSource = defaultHash} = {}, ki
     if (!cache.has(source)) cache.set(source, Promise.resolve().then(() => hashSource(source)));
     const sourceHash = await cache.get(source);
     if (!/^[a-f0-9]{64}$/.test(sourceHash)) throw Error('资源来源哈希无效');
+    const localRef = localResourcePath(source, {baseUrl, origin});
     const row = validated.entries[sourceHash];
-    if (row && /^https?:\/\//i.test(source)) {
-      slot.target[slot.key] = row.ref;
-      changes.push({path: slot.path, sourceHash, ref: row.ref});
+    if (localRef || row && /^https?:\/\//i.test(source)) {
+      const ref = localRef || row.ref;
+      slot.target[slot.key] = ref;
+      changes.push({path: slot.path, sourceHash, ref});
     } else unresolved.push({path: slot.path, sourceHash, code: source.startsWith('blob:') ? 'transient_blob' : 'local_import_required'});
   }
   return {snapshot, changes, unresolved, summary: {references: slots.length, changed: changes.length, unresolved: unresolved.length, alreadyLocal: slots.length - changes.length - unresolved.length}};

@@ -1,7 +1,7 @@
 'use strict';
 const {createHash}=require('node:crypto');
 const {endpoint,protectGenerationFetch}=require('./generation-endpoint-policy.cjs');
-const {assertCredentialFree}=require('./outbound-client.cjs');
+const {assertCredentialFree,assertCredentialFreeBytes}=require('./outbound-client.cjs');
 const {validateMP3}=require('./generation-openai-speech.cjs');
 const MAX_AUDIO_BYTES=32*1024*1024,MAX_TEXT_CHARACTERS=1000;
 const DEFAULT_ELEVENLABS_SOUND_MODEL_MAP=Object.freeze({eleven_sound_effect:Object.freeze({kind:'audio.generate',model:'eleven_text_to_sound_v2'})});
@@ -67,7 +67,7 @@ function createElevenLabsSoundProvider({baseUrl='',apiKey='',modelMap,fetchImpl=
    if(encoding&&encoding!=='identity'||!['application/octet-stream',MIME,'audio/mp3'].includes(contentType)||length!==null&&(!/^\d{1,12}$/.test(length)||!Number(length)||Number(length)>MAX_AUDIO_BYTES))throw unknown();
    reader=response.body.getReader();const chunks=[];let size=0;
    for(;;){const next=await wait(()=>reader.read());if(next.done)break;if(!(next.value instanceof Uint8Array))throw unknown();size+=next.value.byteLength;if(size>MAX_AUDIO_BYTES)throw unknown();chunks.push(Buffer.from(next.value));}
-   check();if(!size||length!==null&&Number(length)!==size)throw unknown();const bytes=Buffer.concat(chunks);validateOutput(bytes);assertCredentialFree(bytes.toString('utf8'),apiKey);check();completed=true;
+   check();if(!size||length!==null&&Number(length)!==size)throw unknown();const bytes=Buffer.concat(chunks);validateOutput(bytes);assertCredentialFreeBytes(bytes,apiKey);check();completed=true;
    // The synchronous endpoint supplies no recoverable remote task identity.
    // Only complete verified bytes may enter the existing local materializer.
    return {status:'succeeded',outputs:[{type:'audio',url:'data:'+MIME+';base64,'+bytes.toString('base64')}]};

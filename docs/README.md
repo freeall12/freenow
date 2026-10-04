@@ -24,6 +24,11 @@
 
 | 记录 | 范围 |
 | --- | --- |
+| [ElevenLabs Music原生接口](elevenlabs-music-native.md) | 公开Compose、歌词/时长预检、本地MP3播放与不重复提交 |
+| [音频凭据字节保护](AUDIO-CREDENTIAL-BYTES-20261005.md) | 四适配器UTF-16回显拒绝、归档与重启保护 |
+| [同源资源与持久引用](LOCAL-RESOURCE-SAME-ORIGIN-20261005.md) | 严格同源规范、多角度QA真实归档及刷新 |
+| [堆叠索引分配优化](CANVAS-PILE-INDEX-ALLOCATION-20261005.md) | 一次扫描、分配计数、落点/标题/撤销验收 |
+| [Agent HTTP基线修正](AGENT-HTTP-RECOVERY-20261005.md) | 强杀媒体锁合同、SSE安全尾段与fixture修正 |
 | [官方与模型 Key 核验](OFFICIAL-CROSSCHECK-AND-KEY-READINESS-20261005.md) | 官方文档、安装包、社区、24操作就绪状态与实际限制 |
 | [多角度原生替代](FAL-MULTI-ANGLE-NATIVE-20261005.md) | Qwen 2511显式配置、参数转换、队列恢复和本地PNG归档 |
 | [Agent供应商续轮](AGENT-PROVIDER-CROSSCHECK-20261005.md) | SDK规范化、模型别名、推理与工具身份 |

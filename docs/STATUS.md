@@ -15,6 +15,15 @@
 
 ## 本次交付
 
+- ElevenLabs Music 原生协议已接入节点、路由与能力预检，支持普通/纯音乐及3–120秒单节自定义歌词。48项定向检查及正式菜单/播放/刷新/缺配置零派发通过；本机0.2秒MP3夹具验证47秒请求合同，不代表真实成曲效果。[音乐适配](elevenlabs-music-native.md)。
+- 四个原生音频适配器统一拒绝UTF-8/UTF-16及编码凭据回显；56项独立检查通过，拒绝结果不归档、不发布，重启不重发。[字节保护](AUDIO-CREDENTIAL-BYTES-20261005.md)。
+- 同源资源规范化与多角度QA真实归档修复；22项定向检查通过，新session刷新两张PNG可解码、源坐标100.25/80.5保持，没有媒体待本地化提示，旧11项提示会话未改。[资源修复](LOCAL-RESOURCE-SAME-ORIGIN-20261005.md)。
+- 堆叠索引单次扫描，51,000节点每次少建51,000个临时数组。25项定向检查与实际落点、隐藏标题、撤销复验通过；大场景中位数未改善，不宣称整体FPS提升。[性能记录](CANVAS-PILE-INDEX-ALLOCATION-20261005.md)。
+- 新本地Agent图片替换主画布与片场入口，模型预览提示复用F标识；真实WebGL片场、GLB上传与预览已Computer Use验证并补README截图。[品牌范围](FREENOW-RUNTIME-BRAND-LABELS-20261005.md)。
+- Agent三项HTTP基线失败确认为fixture与安全合同不一致，修正后HTTP 7/7、相邻合同56/56。生产锁与凭据保护不变；强杀后媒体锁仍需操作人员恢复。[具体边界](AGENT-HTTP-RECOVERY-20261005.md)。
+
+## 前批接口交付
+
 - 对照官方帮助、安装包 0.4.81、官方 Web 与创作者工作流完成新一批接口核查；修复 Agent 续轮输出字段、Ark edit/extend 输入限制、OpenAI 截断 PNG 响应。[交叉核验与具体 Key 条件](OFFICIAL-CROSSCHECK-AND-KEY-READINESS-20261005.md)。
 - 新增受限 Qwen 2511 多角度原生替代：服务端队列/原 ID 恢复/真实 PNG 本地归档已验；前端广角与 -45° 零提交、默认单次提交和真实解码通过。不是原站私有转换的视觉等效实现，见[配置](FAL-MULTI-ANGLE-NATIVE-20261005.md)。
 - API 配置补全24类操作、缺失路由、网关待核验和真实Key待测说明，修复迟到配置竞态与小窗口按钮遮挡。主要运行品牌和新本地 F 标识已替换为 freenow，来源/许可/用户内容保持；[品牌记录](FREENOW-RUNTIME-BRAND-LABELS-20261005.md)。

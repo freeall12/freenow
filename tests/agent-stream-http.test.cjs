@@ -29,26 +29,48 @@ test('unconfigured live HTTP endpoint returns JSON 503 even when NDJSON is reque
 });
 
 test('real SDK SSE transport streams Chinese, rejects EOF, keeps JSON compatible and aborts upstream on browser disconnect', {timeout:15000},async t=>{
- const requests=[],upstreamClosed=deferred();let held;
+ const key='integration-test-not-a-real-key',safeDelta='你好，画布'.repeat(40),requests=[],upstreamClosed=deferred();let held;
  const provider=http.createServer(async(req,res)=>{
   let body='';for await(const part of req)body+=part;const input=JSON.parse(body);requests.push(input);
   if(!input.stream){res.writeHead(200,{'content-type':'application/json'});res.end(JSON.stringify({status:'completed',output:[message('旧 JSON')]}));return;}
   res.writeHead(200,{'content-type':'text/event-stream'});res.flushHeaders();const prompt=input.input[0].content;
-  if(prompt.startsWith('disconnect')){held=res;res.on('close',upstreamClosed.resolve);event(res,{type:'response.output_text.delta',delta:'等待'});return;}
+  if(prompt.startsWith('disconnect')){held=res;res.on('close',upstreamClosed.resolve);event(res,{type:'response.output_text.delta',delta:'等待'.repeat(100)});return;}
+  if(prompt.startsWith('short-')){
+   // Safe short text and a possible Key prefix are held until completion; an
+   // EOF/failed response must never flush this unverified tail to the browser.
+   event(res,{type:'response.output_text.delta',delta:prompt.startsWith('short-secret')?key.slice(0,12):'你好，画布'});
+   if(prompt.startsWith('short-failure'))event(res,{type:'response.failed'});
+   res.end();return;
+  }
+  if(prompt.startsWith('credential-split')){
+   event(res,{type:'response.output_text.delta',delta:key.slice(0,12)});
+   event(res,{type:'response.output_text.delta',delta:key.slice(12)});res.end();return;
+  }
   // Split the provider's UTF-8 bytes inside a Chinese codepoint. The actual SDK
   // decoder, then our NDJSON writer, must preserve both chunks' complete text.
-  const data=Buffer.from('data: '+JSON.stringify({type:'response.output_text.delta',delta:'你好，画布'})+'\n\n'),index=data.indexOf(Buffer.from('你'))+1;res.write(data.subarray(0,index));res.write(data.subarray(index));
+  const delta=prompt.startsWith('eof')||prompt.startsWith('failure')?safeDelta:'你好，画布';
+  const data=Buffer.from('data: '+JSON.stringify({type:'response.output_text.delta',delta})+'\n\n'),index=data.indexOf(Buffer.from('你'))+1;res.write(data.subarray(0,index));res.write(data.subarray(index));
+  if(prompt.startsWith('eof')||prompt.startsWith('failure'))event(res,{type:'response.output_item.done',item:{type:'function_call',call_id:'partial-only',name:'canvas_read',arguments:'{}'}});
   if(prompt.startsWith('eof')){res.end();return;}
   if(prompt.startsWith('failure')){res.end('data: '+JSON.stringify({type:'response.failed'})+'\n\n');return;}
   event(res,{type:'response.completed',response:{status:'completed',output:[message('你好，画布')]}});res.end('data: [DONE]\n\n');
  });
  const providerPort=await listen(provider);t.after(()=>{held?.destroy();provider.closeAllConnections();return new Promise(resolve=>provider.close(resolve));});
- const base=await startApp(t,{OPENAI_API_KEY:'integration-test-not-a-real-key',OPENAI_MODEL:'local-mock',OPENAI_BASE_URL:'http://127.0.0.1:'+providerPort+'/v1'});
+ const base=await startApp(t,{OPENAI_API_KEY:key,OPENAI_MODEL:'local-mock',OPENAI_BASE_URL:'http://127.0.0.1:'+providerPort+'/v1'});
  const response=await post(base,'/api/agent/turn',{message:'中文'});assert.match(response.headers.get('content-type'),/application\/x-ndjson/);const events=(await response.text()).trim().split('\n').map(JSON.parse);assert.deepEqual(events.map(e=>e.type),['session','text_delta','result']);assert.equal(events[1].delta,'你好，画布');assert.equal(events[2].result.text,'你好，画布');
- for(const message of ['eof','failure']){const result=await post(base,'/api/agent/turn',{message});const events=(await result.text()).trim().split('\n').map(JSON.parse);assert.deepEqual(events.map(e=>e.type),['session','text_delta','error']);assert.equal(events.at(-1).code,message==='eof'?'stream_incomplete':'response_failed');}
+ for(const message of ['eof','failure']){
+  const result=await post(base,'/api/agent/turn',{message}),events=(await result.text()).trim().split('\n').map(JSON.parse);
+  assert.deepEqual(events.map(e=>e.type),['session','text_delta','error']);assert.equal(events.at(-1).code,message==='eof'?'stream_incomplete':'response_failed');
+  assert.ok(events[1].delta.length>0&&events[1].delta.length<safeDelta.length);assert.ok(safeDelta.startsWith(events[1].delta));
+  const state=await post(base,'/api/agent/state',{sessionId:events[0].sessionId},{stream:false}),saved=await state.json();assert.equal(saved.status,'unknown');assert.deepEqual(saved.pending,[]);assert.equal(saved.canResumeWithReceipts,false);
+ }
+ for(const [message,code]of [['short-eof','stream_incomplete'],['short-failure','response_failed'],['short-secret-eof','stream_incomplete'],['credential-split','provider_response_rejected']]){
+  const result=await post(base,'/api/agent/turn',{message}),raw=await result.text(),events=raw.trim().split('\n').map(JSON.parse);
+  assert.deepEqual(events.map(e=>e.type),['session','error']);assert.equal(events.at(-1).code,code);assert.equal(raw.includes(key),false);assert.equal(raw.includes(key.slice(0,12)),false);
+ }
  const legacy=await post(base,'/api/agent/turn',{message:'JSON'},{stream:false});assert.match(legacy.headers.get('content-type'),/application\/json/);const json=await legacy.json();assert.equal(json.text,'旧 JSON');assert.equal(json.segments,undefined);
- const controller=new AbortController(),stream=lines(await post(base,'/api/agent/turn',{message:'disconnect'},{signal:controller.signal}));const session=await stream.next();assert.equal(session.type,'session');assert.equal((await stream.next()).delta,'等待');controller.abort();await upstreamClosed.promise;
- const resume=await post(base,'/api/agent/continue',{sessionId:session.sessionId,results:[]},{stream:false});assert.equal(resume.status,409);assert.equal((await resume.json()).code,'agent_resume_blocked');assert.equal(requests.length,5);
+ const controller=new AbortController(),stream=lines(await post(base,'/api/agent/turn',{message:'disconnect'},{signal:controller.signal}));const session=await stream.next();assert.equal(session.type,'session');assert.match((await stream.next()).delta,/^等待/);controller.abort();await upstreamClosed.promise;
+ const resume=await post(base,'/api/agent/continue',{sessionId:session.sessionId,results:[]},{stream:false});assert.equal(resume.status,409);assert.equal((await resume.json()).code,'agent_resume_blocked');assert.equal(requests.length,9);
 });
 
 test('real SDK form preparation ends its run and submissions or revisions use separate HTTP user turns', {timeout:15000},async t=>{

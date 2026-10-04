@@ -26,7 +26,13 @@ FFmpeg 已安装在其他位置时，可配置 `FFMPEG_PATH`、`FFPROBE_PATH`。
 
 ## 功能截图
 
-以下是 **2026-10-03 本地应用的实际界面**，复用正式画布、编辑器、Agent 和 WebGL 片场。使用隔离示例数据和仓库内模型；未调用生成模型。这些历史截图保留当时标识；2026-10-05 已按新要求替换主要运行界面的 freenow 名称和本地 F 标识。最新界面见下图，完整品牌/导出清点仍开放。
+以下是本地应用的实际界面，复用正式画布、编辑器、Agent 和 WebGL 片场。使用隔离示例数据和仓库内模型；未调用生成模型。2026-10-05 已替换主要运行界面的 freenow 名称、本地 F 标识和 Agent 图片。完整品牌/导出清点仍开放。
+
+| 当前片场：本地 Agent 图片与场景控件 | 当前模型预览：本地 GLB 与 freenow 提示标识 |
+| --- | --- |
+| ![freenow WebGL片场与Agent入口](docs/screenshots/freenow-studio-agent-brand-20261005.jpg) | ![freenow本地自行车模型预览](docs/screenshots/freenow-local-model-preview-20261005.jpg) |
+
+以下 2026-10-03 的历史截图保留当时标识：
 
 | 无限画布：文本、素材、连线和片场入口 | 图片编辑：图层、选区与变换工具 |
 | --- | --- |
@@ -55,7 +61,7 @@ FFmpeg 已安装在其他位置时，可配置 `FFMPEG_PATH`、`FFPROBE_PATH`。
 
 Agent 应用已登记 22 个版本 URI、20 个功能族，包含剧本、分镜、人物、学习、产品等工作流。**登记覆盖不等于全部页面和交互验收完成。**
 
-本批增量（2026-10-05）：图片图层右键菜单补复制、上移、下移和删除，以及键盘与焦点关闭；Agent流式代码即时支持复制与换行，增量更新保留焦点和横向滚动；片场聚焦小物体、大布景或镜头时保持整场导航速度。素材库保存/重新插入保留高清原图、视频裁切和来源，并修复本地视频下载。四项完成定向检查、交叉审阅及 Computer Use，见[图层菜单](docs/IMAGE-EDITOR-LAYER-MENU-20261005.md)、[流式代码](docs/AGENT-STREAMING-CODE-CONTROLS-20261005.md)、[聚焦导航](docs/STUDIO-V2-FOCUS-NAVIGATION-SPEED-20261005.md)、[素材往返](docs/LIBRARY-ASSET-ROUNDTRIP-20261005.md)。
+前批交互增量（2026-10-05）：图片图层右键菜单补复制、上移、下移和删除，以及键盘与焦点关闭；Agent流式代码即时支持复制与换行，增量更新保留焦点和横向滚动；片场聚焦小物体、大布景或镜头时保持整场导航速度。素材库保存/重新插入保留高清原图、视频裁切和来源，并修复本地视频下载。四项完成定向检查、交叉审阅及 Computer Use，见[图层菜单](docs/IMAGE-EDITOR-LAYER-MENU-20261005.md)、[流式代码](docs/AGENT-STREAMING-CODE-CONTROLS-20261005.md)、[聚焦导航](docs/STUDIO-V2-FOCUS-NAVIGATION-SPEED-20261005.md)、[素材往返](docs/LIBRARY-ASSET-ROUNDTRIP-20261005.md)。
 
 | 图片编辑：真实图层右键菜单 | Agent：流式代码复制与换行 |
 | --- | --- |
@@ -95,6 +101,7 @@ node --env-file=.env.local server/server.cjs
 | `minimax-native` | MiniMax H3 视频 | [H3](docs/MINIMAX-H3-SETUP.md) |
 | `minimax-music-native` | MiniMax Music 2.6 | [音乐](docs/MINIMAX-MUSIC-NATIVE.md)，存在账号资格限制 |
 | `elevenlabs-native` / `elevenlabs-sound-native` | TTS 与音效 | [TTS](docs/ELEVENLABS-NATIVE-TTS.md) / [音效](docs/ELEVENLABS-NATIVE-SOUND.md) |
+| `elevenlabs-music-native` | Music 普通/纯音乐与单节自定义歌词 | [音乐](docs/elevenlabs-music-native.md)，自定义歌词须明确3–120秒；节点目录上限300秒 |
 | `fal-native` / `fal-video-native` | 图片抠图/增强、视频增强 | [图片](docs/FAL-NATIVE-SETUP.md) / [视频](docs/FAL-VIDEO-NATIVE-SETUP.md) |
 | `tripo-native` | 3D 模型生成 | [Tripo](docs/TRIPO-NATIVE-SETUP.md) |
 | `marble-native` | World Labs 世界生成后端 | [Marble](docs/MARBLE-NATIVE-SETUP.md)，SPZ 渲染尚未完成，前端阻止派发 |
@@ -111,6 +118,10 @@ node --env-file=.env.local server/server.cjs
 - 页面和内嵌应用使用本地资源限制；服务端拒绝向原站域名请求或转交原站媒体。未知旧资源须显式导入修复，不自动联网回源。[本地化验收边界](docs/FREENOW-LOCALIZATION-ACCEPTANCE.md)
 
 ## 最新接入与核验
+
+本批接入 ElevenLabs Music 公开 Compose API，节点根据实际路由禁用缺 Key、缺映射和不支持的歌词时长；模式切换保留歌词草稿。已用本机 HTTP 上游验证请求、真实 MP3 归档、播放、刷新与不重复提交，尚未调用真实供应商。[Music 配置与边界](docs/elevenlabs-music-native.md)。四个原生音频适配器同时补齐 UTF-16 媒体标签中的凭据回显拒绝。[音频字节保护](docs/AUDIO-CREDENTIAL-BYTES-20261005.md)
+
+合法同源资源会规范为稳定本地路径，多角度 QA 改为先归档再加载；刷新后两张 PNG 解码且坐标保持，旧会话数据保留。[资源修复](docs/LOCAL-RESOURCE-SAME-ORIGIN-20261005.md)。堆叠索引减少全图扫描与临时数组分配，落点/隐藏标题/撤销已浏览器复验；不据此宣称整体 FPS 提升。[性能记录](docs/CANVAS-PILE-INDEX-ALLOCATION-20261005.md)
 
 已新增 fal Qwen 2511 多角度原生替代，并修复 Agent 续轮、Ark 视频参数和截断图片响应。生成 API 配置现在列出 24 类操作，明确缺失路由与通用网关能力边界。[官方/安装包/社区交叉核验及 Key 接入清单](docs/OFFICIAL-CROSSCHECK-AND-KEY-READINESS-20261005.md) · [多角度配置](docs/FAL-MULTI-ANGLE-NATIVE-20261005.md)
 

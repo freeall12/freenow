@@ -7,6 +7,7 @@ try{
    else script.textContent=descriptor.text;
    document.body.append(script);if(!descriptor.src)resolve();
   });
+  if(descriptor.src==='local-assets.js')await window.GenerationConfigurationQA.prepareLocalMedia();
  }
  const opener=document.createElement('button');opener.textContent='QA：打开生成 API 配置';opener.style.cssText='position:fixed;right:12px;top:12px;z-index:70;background:#333;color:#eee;padding:8px';
  opener.onclick=()=>window.GenerationAPI.configure();document.body.append(opener);
