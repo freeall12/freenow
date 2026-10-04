@@ -130,7 +130,13 @@ function createOpenAINativeProvider({apiKey='',baseUrl='',modelMap,client,fetchI
    else value=await sdk.images.generate(body,options);
    if(!Array.isArray(value.data)||value.data.length!==count)throw fail('图片结果数量与生成请求不一致','unknown');
    const outputs=value.data.map(item=>{
-    let url=item.url,dimensions={};if(item.b64_json){if(typeof item.b64_json!=='string'||item.b64_json.length>64*1024*1024||! /^[A-Za-z0-9+/]+={0,2}$/.test(item.b64_json))throw fail('模型返回无效图片编码','unknown');const bytes=Buffer.from(item.b64_json,'base64');if(bytes.length<33||!bytes.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10]))||bytes.readUInt32BE(8)!==13||bytes.toString('ascii',12,16)!=='IHDR')throw fail('模型未返回默认PNG图片格式','unknown');const width=bytes.readUInt32BE(16),height=bytes.readUInt32BE(20);if(!width||!height||width>65535||height>65535)throw fail('模型返回无效图片尺寸','unknown');dimensions={width,height};url='data:image/png;base64,'+item.b64_json;}
+    let url=item.url,dimensions={};if(item.b64_json){
+     if(typeof item.b64_json!=='string'||item.b64_json.length>64*1024*1024)throw fail('模型返回无效图片编码','unknown');
+     url='data:image/png;base64,'+item.b64_json;
+     // An IHDR alone is not an image. Apply the same complete PNG envelope and
+     // canonical Base64 checks as uploads before any caller records success.
+     const {width,height}=inlineImage({url},0);dimensions={width,height};
+    }
     if(!item.b64_json){let address;try{address=new URL(url);}catch{throw fail('模型没有返回实际图片','unknown');}if(typeof url!=='string'||!['http:','https:'].includes(address.protocol)||address.username||address.password)throw fail('模型返回的媒体地址无效','unknown');url=address.href;}
     return {type:'image',url,...dimensions};
    });return {status:'succeeded',outputs};

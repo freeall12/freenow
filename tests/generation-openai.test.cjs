@@ -49,6 +49,22 @@ test('non-PNG base64 is unknown and URL outputs do not invent dimensions from th
  for(const b64_json of ['bm90IGFuIGltYWdl','/9j/4AAQSkZJRgABAQAAAQABAAD/2Q==']){const provider=createOpenAINativeProvider({modelMap:map,client:{images:{generate:async()=>({data:[{b64_json}]})}}});await assert.rejects(()=>provider.submit({kind:'image.generate',prompt:'树',parameters:{model:'image'}}),{code:'unknown'});}
  const provider=createOpenAINativeProvider({modelMap:map,client:{images:{generate:async()=>({data:[{url:'https://example.test/result.png'}]})}}}),result=await provider.submit({kind:'image.generate',prompt:'树',parameters:{model:'image',ratio:'1:1',imageSize:'1K'}});assert.equal(result.outputs[0].width,undefined);assert.equal(result.outputs[0].height,undefined);
 });
+test('installed SDK rejects incomplete PNG and noncanonical base64 results without retrying generate or edit',async()=>{
+ const png=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jCn0AAAAASUVORK5CYII=','base64');
+ const malformed=[png.subarray(0,33).toString('base64'),png.subarray(0,-12).toString('base64'),Buffer.concat([png.subarray(0,33),png.subarray(-12)]).toString('base64'),png.toString('base64').replace(/II=$/,'IJ=')];
+ for(const edit of [false,true])for(const b64_json of malformed){
+  let calls=0;const provider=createOpenAINativeProvider({apiKey:'synthetic-image-contract-key',modelMap:{image:{...map.image,supportsImageReferences:true,maxImages:1}},fetchImpl:async(url)=>{calls++;assert.equal(String(url),'https://api.openai.com/v1/images/'+(edit?'edits':'generations'));return Response.json({data:[{b64_json}]});}});
+  await assert.rejects(provider.submit({kind:'image.generate',prompt:'树',inputs:edit?[{type:'image',url:'data:image/png;base64,'+png.toString('base64')}]:[],parameters:{model:'image'}}),{code:'unknown'});
+  assert.equal(calls,1);
+ }
+});
+test('invalid image result remains unknown across durable recovery without another billable POST',async()=>{
+ let calls=0;const pngHeader=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jCn0AAAAASUVORK5CYII=','base64').subarray(0,33).toString('base64');
+ const provider=createOpenAINativeProvider({modelMap:map,client:{images:{generate:async()=>{calls++;return {data:[{b64_json:pngHeader}]};}}}}),store=memoryStore();
+ let service=createDurableGenerationService({store,provider});const request={kind:'image.generate',prompt:'树',parameters:{model:'image'}},job=await service.submit(request,{idempotencyKey:'invalid-image-result'});
+ const final=await settle(service,job.id);assert.equal(final.status,'unknown');assert.equal(final.outputs,undefined);assert.equal(final.providerResult,undefined);assert.equal(final.localization,undefined);await service.close();
+ service=createDurableGenerationService({store,provider});try{assert.equal((await service.lookup('invalid-image-result')).status,'unknown');assert.equal((await service.submit(request,{idempotencyKey:'invalid-image-result'})).id,job.id);assert.equal(calls,1);}finally{await service.close();}
+});
 test('SDK URL field cannot bypass PNG validation using data URIs or contain URL credentials',async()=>{
  for(const url of ['data:image/png;base64,'+Buffer.from('plain non-image bytes').toString('base64'),'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jCn0AAAAASUVORK5CYII=','blob:https://provider.test/opaque','https://user:private-key@provider.test/result.png']){const provider=createOpenAINativeProvider({modelMap:map,client:{images:{generate:async()=>({data:[{url}]})}}});await assert.rejects(()=>provider.submit({kind:'image.generate',prompt:'树',parameters:{model:'image'}}),{code:'unknown'});}
 });

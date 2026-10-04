@@ -4,7 +4,7 @@ const own=(value,key)=>value!=null&&Object.hasOwn(value,key);
 // move an unavailable selected route to a sibling provider.
 export function requestModelAlias(request){
   const p=request?.parameters||{};
-  return p.providerParameters?.model??p.modelId??p.model??(request?.kind==='image.upscale'&&typeof p.provider==='string'?'image.upscale:'+p.provider:['image.recognize','video.analyze','image.remove-background'].includes(request?.kind)?request.kind:undefined);
+  return p.providerParameters?.model??p.modelId??p.model??(request?.kind==='image.upscale'&&typeof p.provider==='string'?'image.upscale:'+p.provider:['image.recognize','video.analyze','image.remove-background','image.multiAngle'].includes(request?.kind)?request.kind:undefined);
 }
 
 export function selectedProviderId(metadata,request){
@@ -22,10 +22,10 @@ export function resolveProviderConfiguration(metadata,request){
   return typeof id==='string'&&own(metadata.providers,id)?metadata.providers[id]:{protocol:'routed',configured:false,missing:[]};
 }
 
-const operationLabels={'text.generate':'文本生成','image.generate':'图片生成','video.generate':'视频生成','audio.generate':'音频生成','image.recognize':'焦点识别','image.remove-background':'图片抠图','image.upscale':'图片超分','image.skin':'皮肤增强','image.erase':'图片擦除','image.redraw':'图片重绘','image.outpaint':'图片扩图','video.analyze':'分镜解析','video.upscale':'视频超分','model.generate':'3D 模型生成','world.generate':'3D 资源生成','panorama.edit':'全景编辑'};
+const operationLabels={'text.generate':'文本生成','image.generate':'图片生成','video.generate':'视频生成','audio.generate':'音频生成','image.recognize':'焦点识别','image.remove-background':'图片抠图','image.upscale':'图片超分','image.skin':'皮肤增强','image.erase':'图片擦除','image.redraw':'图片重绘','image.outpaint':'图片扩图','image.inpaint':'图片蒙版重绘','image.multiAngle':'图片多角度','image.relight':'图片打光','video.analyze':'分镜解析','video.upscale':'视频超分','video.depth':'视频深度','video.extend':'延长镜头','video.replace':'视频替换','video.erase':'视频移除','video.reshoot':'视频重拍','model.generate':'3D 模型生成','world.generate':'3D 资源生成','panorama.edit':'全景编辑'};
 const nativeKinds={
   'openai-native':['text.generate','image.generate','audio.generate','image.recognize','video.analyze'],
-  'ark-native':['video.generate'],'fal-native':['image.remove-background','image.upscale'],
+  'ark-native':['video.generate'],'fal-native':['image.remove-background','image.upscale','image.multiAngle'],
   'minimax-native':['video.generate'],'tripo-native':['world.generate'],
   'elevenlabs-native':['audio.generate'],'marble-native':['world.generate'],
   'minimax-music-native':['audio.generate'],'fal-video-native':['video.upscale'],
@@ -109,6 +109,32 @@ export function configurationReadiness(metadata){
       const defaultReady=(typeof route==='string'||route?.default===id)&&Object.values(models||{}).some(entry=>entry?.kind===kind);
       const aliasReady=Object.entries(route?.models||{}).some(([alias,provider])=>provider===id&&own(models,alias)&&models[alias]?.kind===kind);
       return {operation:operationLabels[kind]||kind,provider:id,configured:config?.configured===true&&(config.protocol==='tasks-v1'||kindsReady&&(defaultReady||aliasReady)),configurationError:!!config?.configurationError,missing:Array.isArray(config?.missing)?config.missing.filter(value=>typeof value==='string'):[]};
+    });
+  });
+}
+
+// This inventory includes absent routes. A configured generic gateway proves
+// connectivity only; it does not declare support for every canvas operation.
+export function generationOperationReadiness(metadata){
+  const routed=metadata?.protocol==='routed';
+  return Object.entries(operationLabels).flatMap(([kind,operation])=>{
+    const routes=routed?configurationReadiness({...metadata,routes:own(metadata.routes,kind)?{[kind]:metadata.routes[kind]}:{}}):[];
+    const candidates=routed?(routes.length?routes:[{provider:null,configured:false}]):[{provider:null,configured:true}];
+    return candidates.map(route=>{
+      const selected=routed?(route.provider&&own(metadata.providers,route.provider)?metadata.providers[route.provider]:null):metadata;
+      const status=providerConfigurationStatus(selected,{kind},{operationOnly:true});
+      const missing=(Array.isArray(selected?.missing)?selected.missing:[]).filter(value=>typeof value==='string'&&/^[A-Z][A-Z0-9_]{0,127}$/.test(value));
+      let state='pending',reason=status.reason;
+      if(metadata?.configurationError||selected?.configurationError){state='invalid';reason='configuration_invalid';}
+      else if(routed&&!selected){reason='route_missing';}
+      else if(!selected){state='unknown';reason='service_unavailable';}
+      else if(status.configured===true&&route.configured){
+        if(selected.protocol==='tasks-v1'){state='gateway';reason='gateway_capability_unverified';}
+        else if(!Array.isArray(selected.capabilities?.kinds)){state='unknown';reason='capabilities_unknown';}
+        else{state='ready';reason='ready';}
+      }
+      else if(status.configured===null){state='unknown';}
+      return {kind,operation,provider:publicAlias(route.provider)?route.provider:null,state,reason,configured:state==='ready',missing};
     });
   });
 }

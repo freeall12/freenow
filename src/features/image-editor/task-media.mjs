@@ -2,7 +2,7 @@ import {createWorkflowMediaResolver} from '../agent-workflows/media-resolver.mjs
 import {prepareWorkflowInputs,assertWorkflowRequestBudget} from '../agent-workflows/media-transport.mjs';
 import {resolveProviderConfiguration} from '../node-composer/provider-configuration.mjs';
 
-const kinds=['image.upscale','image.skin','image.remove-background'];
+const kinds=['image.upscale','image.skin','image.remove-background','image.multiAngle'];
 const styles=['general','low_resolution','animation_3d','high_fidelity','text_refine'];
 const failure=(code,message)=>Object.assign(Error(message),{code,providerDispatched:false});
 
@@ -25,7 +25,7 @@ export async function prepareImageToolMedia(request,{
       if((p.provider??'topazlabs')!=='topazlabs')throw failure('unsupported_generation','当前 fal 接口尚未配置 Magnific 图片增强');
       if(p.scale===6)throw failure('unsupported_generation','当前 fal Topaz 接口只支持 2x、4x，6x 尚未配置');
       if(![2,4].includes(p.scale??2)||!styles.includes(p.style??'general'))throw failure('unsupported_generation','当前 fal Topaz 接口不支持所选放大倍数或风格');
-    }else if(request.kind!=='image.remove-background')throw failure('unsupported_generation','当前 fal 接口尚未配置皮肤增强');
+    }else if(!['image.remove-background','image.multiAngle'].includes(request.kind))throw failure('unsupported_generation','当前 fal 接口尚未配置皮肤增强');
     if(!Array.isArray(request.inputs)||request.inputs.length!==1||request.inputs[0]?.type!=='image')throw failure('unsupported_generation','当前 fal 图片工具需要一张完整图片');
   }
   if(!Array.isArray(request.inputs))throw failure('invalid_media_request','图片工具缺少素材列表');

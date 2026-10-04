@@ -2,6 +2,9 @@ const test=require('node:test'),assert=require('node:assert/strict'),fs=require(
 const {createGenerationRouter}=require('../server/generation-router.cjs');
 const {createGenerationGateway}=require('../server/generation.cjs');
 const {readGenerationRoutingConfig}=require('../server/generation-routing-config.cjs');
+const {createGenerationMediaStore}=require('../server/generation-media-store.cjs');
+const {createGenerationMediaMaterializer}=require('../server/generation-media-materializer.cjs');
+const {Readable}=require('node:stream');
 const map={'image.remove-background':{kind:'image.remove-background',model:'fal-ai/birefnet'},'image.upscale:topazlabs':{kind:'image.upscale',model:'fal-ai/topaz/upscale/image'}};
 const config=()=>readGenerationRoutingConfig({GENERATION_PROVIDERS:JSON.stringify({fal:{protocol:'fal-native',apiKeyEnv:'FAL_KEY',modelMapEnv:'FAL_MODEL_MAP'}}),GENERATION_ROUTES:JSON.stringify({'image.remove-background':'fal','image.upscale':{models:{'image.upscale:topazlabs':'fal'}}}),FAL_KEY:'fixture-private-key',FAL_MODEL_MAP:JSON.stringify(map)});
 const request={kind:'image.upscale',prompt:'',inputs:[{type:'image',url:'https://media.example.test/input.png'}],parameters:{provider:'topazlabs',style:'text_refine',scale:4}};
@@ -22,19 +25,21 @@ test('operator config and frontend use the same operation aliases without fallin
 
 test('native fal gateway persists one POST and recovers from the original model after route removal',async t=>{
  const directory=await fs.mkdtemp(path.join(os.tmpdir(),'freenow-fal-integration-')),calls=[];let complete=false;
+ const png=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jCn0AAAAASUVORK5CYII=','base64');let downloads=0;
+ function open(routes=config().routes){const mediaStore=createGenerationMediaStore({directory:directory+'-media'}),mediaMaterializer=createGenerationMediaMaterializer({store:mediaStore,download:async(source,{kind,onBytes})=>{assert.equal(source,'https://media.example.test/result.png');assert.equal(kind,'image');downloads++;onBytes(png.length);return {stream:Readable.from([png]),mime:'image/png',maxBytes:png.length,expectedBytes:png.length};}});return createGenerationGateway({directory,...config(),routes,fetchImpl,mediaStore,mediaMaterializer});}
  const fetchImpl=async(url,options)=>{
   calls.push({url:String(url),method:options.method,body:options.body&&JSON.parse(options.body)});
   assert.equal(new Headers(options.headers).get('authorization'),'Key fixture-private-key');
   if(options.method==='POST')return Response.json({request_id:'original-fal-task',queue_position:0});
   if(String(url).includes('/status'))return Response.json({request_id:'original-fal-task',status:complete?'COMPLETED':'IN_PROGRESS'});
-  return Response.json({image:{url:'https://media.example.test/result.png',content_type:'image/png',width:1024,height:1024}});
+  return Response.json({image:{url:'https://media.example.test/result.png',content_type:'image/png',width:1,height:1}});
  };
- let gateway=createGenerationGateway({directory,...config(),fetchImpl});
- t.after(async()=>{await gateway.close();await fs.rm(directory,{recursive:true,force:true});});
+ let gateway=open();
+ t.after(async()=>{await gateway.close();await fs.rm(directory,{recursive:true,force:true});await fs.rm(directory+'-media',{recursive:true,force:true});});
  const created=await send(gateway,'/api/generation/tasks','POST',request);assert.equal(created.status,202);await settled(gateway,created.body.id,['queued','running']);
  await gateway.close();complete=true;
- gateway=createGenerationGateway({directory,...config(),routes:{},fetchImpl});
- const recovered=(await send(gateway,'/api/generation/tasks/by-key/fal-integration-1')).body;assert.equal(recovered.status,'succeeded');assert.equal(recovered.outputs[0].url,'https://media.example.test/result.png');
+ gateway=open({});
+ const recovered=(await send(gateway,'/api/generation/tasks/by-key/fal-integration-1')).body;assert.equal(recovered.status,'succeeded');assert.match(recovered.outputs[0].url,/^\/api\/generation\/media\//);assert.equal(downloads,1);assert.deepEqual(await fs.readFile(path.join(directory+'-media',recovered.outputs[0].url.split('/').at(-1)+'.bin')),png);
  assert.equal(calls.filter(call=>call.method==='POST').length,1);assert.equal(calls[0].url,'https://queue.fal.run/fal-ai/topaz/upscale/image');assert.equal(calls[0].body.model,'Text Refine');assert.equal(calls[0].body.upscale_factor,4);
  assert.ok(calls.slice(1).every(call=>call.url.startsWith('https://queue.fal.run/fal-ai/topaz/requests/original-fal-task')));
 });

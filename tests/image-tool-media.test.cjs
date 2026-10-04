@@ -49,3 +49,12 @@ test('image tool uses transport budget and rejects invalid fal media without Ima
   const o=adapters(resolver,transport);await assert.rejects(media.prepareImageToolMedia({...request,inputs:[{type:'image',url}]},{...o.options,nativeConfiguration:{protocol:'fal-native'}}));assert.deepEqual(o.fetches,[]);
  }
 });
+
+test('multi-angle native image follows local asset transport without losing camera parameters',async()=>{
+ const [{prepareImageToolMedia}]=await ready;
+ const parameters={rotate_right_left:30,vertical_angle:.5,move_forward:0,wide_angle_lens:false};
+ const input={kind:'image.multiAngle',prompt:'',inputs:[{type:'image',nodeId:'source',url:'asset:full'}],parameters};
+ let transferred;
+ const result=await prepareImageToolMedia(input,{baseUrl,nativeConfiguration:{protocol:'fal-native'},resolveMedia:async value=>{assert.equal(value.image,'asset:full');return {url:'blob:http://localhost:4173/fixture'};},transport:async value=>{transferred=value;return {...value,inputs:[{...value.inputs[0],url:data}]};}});
+ assert.deepEqual(result.parameters,parameters);assert.equal(result.inputs[0].url,data);assert.equal(transferred.inputs[0].nodeId,'source');assert.equal(input.inputs[0].url,'asset:full');
+});

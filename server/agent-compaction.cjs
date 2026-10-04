@@ -2,6 +2,7 @@
 const {isDeepStrictEqual}=require('node:util');
 const {checkAbort}=require('./agent-stream.cjs');
 const {protectModelClient}=require('./outbound-client.cjs');
+const {toResponseInputItems}=require('openai/lib/responses/ResponseInputItems');
 
 // This is a request-size heuristic, not a tokenizer or an advertised model limit.
 function contextSize(input){
@@ -38,7 +39,7 @@ async function compactContext({client,session,threshold=160000,instructions,onEv
  emit('running');
  try{
   checkAbort(session.controller.signal);
-  const result=await client.responses.compact({model:session.model,input:head,instructions},{signal:session.controller.signal,maxRetries:0});
+  const result=await client.responses.compact({model:session.model,input:toResponseInputItems(head),instructions},{signal:session.controller.signal,maxRetries:0});
   checkAbort(session.controller.signal);
   const compressed=validateCompaction(result,head),next=[...compressed,...tail],after=contextSize(next);
   if(after>=before){emit('unchanged');return;}

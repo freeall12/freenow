@@ -49,7 +49,7 @@ export function installPanorama(Studio,{el,button}){
         const surface=el('div','studio-panorama-surface');surface.tabIndex=0;surface.setAttribute('aria-label','全景图视口');editor.surface=surface;layer.append(surface);
         const overlay=document.createElementNS('http://www.w3.org/2000/svg','svg');overlay.classList.add('studio-panorama-regions');editor.overlay=overlay;surface.append(overlay);editor.badges=el('div','studio-panorama-badges');surface.append(editor.badges);
         const top=el('div','studio-panorama-top');top.append(control('back','退出全景图编辑',()=>this.closePanoramaEditor(),'全景图编辑'));layer.append(top);
-        const logo=el('div','studio-logo'),img=el('img');img.src='/assets/tap-logo.webp';logo.append(img,document.createTextNode('TapNow'));layer.append(logo);
+        const logo=el('div','studio-logo'),img=el('img');img.src='/assets/branding/freenow-mark.svg';img.className='freenow-brand-mark';img.alt='freenow';logo.append(img,document.createTextNode('freenow'));layer.append(logo);
         const bottom=el('div','studio-panorama-bottom'),exports=el('div','studio-panorama-exports');
         exports.append(control('plus','重新取景',()=>this.reframePanorama()),control('download','导出全景图到画布',()=>this.exportPanorama().catch(error=>this.notify(error.message)),'导出全景图到画布'),control('download','下载全景图',()=>this.downloadPanorama(),'下载全景图'));exports.firstElementChild.hidden=!this.data.panoramaEdits?.length;bottom.append(exports);
         const composer=el('div','studio-panorama-composer'),toolbar=el('div','studio-panorama-toolbar'),tools=el('div','studio-panorama-tools');editor.tools={};

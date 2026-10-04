@@ -73,6 +73,7 @@ function createArkProvider({baseUrl='',apiKey='',modelMap,fetchImpl=fetch}={}){
   for(const value of [p.count,p.times,wire.times,p.batch_count,p.canvasResults?.targetNodeIds?.length])if(value!==undefined&&value!==1)throw failure('Ark 原生适配当前每个任务仅生成 1 个视频，请分别提交');
   const inputs=request.inputs||[];
   if(!Array.isArray(inputs)||inputs.some(input=>!object(input)||!['image','video','audio','text'].includes(input.type)))throw failure('视频参考素材类型无效');
+  if(inputs.some(input=>[input.clip,input.trim,input.sourceClip].some(value=>value!==undefined&&value!==null)))throw failure('Ark 选区素材须先实际裁片后提交，未忽略裁剪选区');
   const finalId=wire.draft_video_id??p.draftVideoId;
   if(finalId!==undefined){
    if(entry.supportsDraftTask!==true)throw failure('当前 Ark 型号尚未配置样片转正式片能力','configuration_required');
@@ -104,6 +105,12 @@ function createArkProvider({baseUrl='',apiKey='',modelMap,fetchImpl=fetch}={}){
   const duration=select([[wire,'duration'],[p,'duration']]);
   const audio=select([[wire,'generateAudio'],[p,'audio'],[p,'generateAudio']]);
   const draft=select([[wire,'draft'],[p,'draft']]);
+  // Explicit omni subtypes have API constraints beyond the operator's mode
+  // profile. Reject them locally rather than submitting a different task.
+  if(['edit','extend'].includes(profile.omniReferenceTaskType)){
+   if(!media.video.length||ratio!=='adaptive')throw failure('Ark 视频编辑或延长须输入视频并显式使用 adaptive 画幅');
+   if(profile.omniReferenceTaskType==='edit'&&(duration!==-1||media.video.some(input=>{const seconds=input.duration??(Number.isFinite(input.durationMs)?input.durationMs/1000:undefined);return !Number.isFinite(seconds)||seconds<4||seconds>30;})))throw failure('Ark 视频编辑须使用 -1 时长且来源视频为 4–30 秒');
+  }
   const body={model:entry.model,content:[]};
   for(const [key,value,allowed]of [['ratio',ratio,profile.ratios],['resolution',resolution,profile.resolutions],['duration',duration,profile.durations]])if(value!==undefined){if(!allowed?.includes(value))throw failure('当前 Ark 型号尚未配置所选画幅、分辨率或时长','configuration_required');body[key]=value;}
   if(audio!==undefined){if(typeof audio!=='boolean'||profile.audio!==true)throw failure('当前 Ark 型号未配置生成声音控制能力','configuration_required');body.generate_audio=audio;}

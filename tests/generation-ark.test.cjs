@@ -57,6 +57,32 @@ test('reference input limits and durations are checked without truncation',()=>{
  assert.throws(()=>p.prepare({...req,inputs:[{type:'video',url:'https://media.test/v.mp4',duration:20},{type:'video',url:'https://media.test/b.mp4',duration:20}]}));
  assert.throws(()=>p.prepare({...request,prompt:'{{Image 2}}',inputs:[image],parameters:{...request.parameters,providerParameters:{...request.parameters.providerParameters,modelType:'REFERENCE_TO_VIDEO'}}}));
 });
+test('explicit omni edit and extend obey API constraints even with a permissive operator reference profile',async()=>{
+ const video={type:'video',url:'https://media.test/source.mp4',duration:4};
+ for(const subtype of ['edit','extend']){
+  const bodies=[],p=createArkProvider({baseUrl:'https://ark.test/api/v3',apiKey:'private-key',modelMap:{'seedance-2.5':{...entry,modes:{REFERENCE_TO_VIDEO:{...reference,omniReferenceTaskType:subtype}}}},fetchImpl:async(_url,options)=>{bodies.push(JSON.parse(options.body));return response({id:'omni-'+subtype});}});
+  const req=change({videoMode:'REFERENCE_TO_VIDEO',ratio:'adaptive',duration:subtype==='edit'?-1:5,providerParameters:{modelType:'REFERENCE_TO_VIDEO',aspectRatio:'adaptive',duration:subtype==='edit'?-1:5}},[video]);
+  for(const invalid of [{...req,inputs:[image]},{...req,inputs:[]},change({videoMode:'REFERENCE_TO_VIDEO',providerParameters:{modelType:'REFERENCE_TO_VIDEO'}},[video]),{...req,parameters:{...req.parameters,ratio:undefined,providerParameters:{...req.parameters.providerParameters,aspectRatio:undefined}}}])await assert.rejects(()=>p.submit(invalid),{code:'unsupported_generation'});
+  if(subtype==='edit'){
+   for(const duration of [2,3.99])await assert.rejects(()=>p.submit({...req,inputs:[{...video,duration}]}),{code:'unsupported_generation'});
+   for(const duration of [undefined,5])await assert.rejects(()=>p.submit({...req,parameters:{...req.parameters,duration,providerParameters:{...req.parameters.providerParameters,duration}}}),{code:'unsupported_generation'});
+  }
+  assert.equal(bodies.length,0);
+  await p.submit(req);assert.equal(bodies[0].omni_reference_task_type,subtype);assert.equal(bodies[0].ratio,'adaptive');assert.equal(bodies[0].duration,subtype==='edit'?-1:5);
+ }
+ const edit=change({videoMode:'VIDEO_EDIT',mode:'视频编辑',ratio:'adaptive',duration:-1,providerParameters:{modelType:'VIDEO_EDIT',aspectRatio:'adaptive',duration:-1}},[{...video,duration:3}]);
+ assert.throws(()=>provider(()=>assert.fail()).prepare(edit),{code:'unsupported_generation'});
+ assert.doesNotThrow(()=>provider(()=>assert.fail()).prepare({...edit,inputs:[{...video,duration:undefined,durationMs:4000}]}));
+ assert.doesNotThrow(()=>provider(()=>assert.fail()).prepare(change({videoMode:'REFERENCE_TO_VIDEO',providerParameters:{modelType:'REFERENCE_TO_VIDEO'}},[{...video,duration:2}])));
+});
+test('uncut source ranges are rejected before an Ark POST instead of silently sending the whole source',async()=>{
+ let calls=0;const p=provider(()=>{calls++;assert.fail('uncut source must not reach the provider');});
+ for(const field of ['clip','trim','sourceClip']){
+  const req=change({videoMode:'REFERENCE_TO_VIDEO',providerParameters:{modelType:'REFERENCE_TO_VIDEO'}},[{type:'video',url:'https://media.test/source.mp4',duration:5,[field]:{start:1,end:4}}]);
+  await assert.rejects(()=>p.submit(req),{code:'unsupported_generation'});
+ }
+ assert.equal(calls,0);
+});
 test('sample draft and final chain uses Ark task ID and excludes inherited final parameters',async()=>{
  const bodies=[],p=provider(async(_url,options)=>{bodies.push(JSON.parse(options.body));return response({id:'draft-task'});});
  await p.submit(change({draft:true,quality:'480p',providerParameters:{draft:true,resolution:'480p'}}));assert.equal(bodies[0].draft,true);assert.equal(bodies[0].resolution,'480p');
@@ -85,11 +111,11 @@ test('generate makes one POST then bounded GET polling, retaining identity on ti
  const result=await p.generate(request,{pollInterval:1,onTaskIdentity:id=>identities.push(id)});assert.equal(result.status,'succeeded');assert.deepEqual(methods,['POST','GET','GET']);assert.deepEqual(identities,['task-1']);
  const ids=[],pending=provider(async(_url,options)=>response(options.method==='POST'?{id:'task-timeout'}:{id:'task-timeout',status:'running'}));await assert.rejects(()=>pending.generate(request,{timeout:8,pollInterval:1,onTaskIdentity:id=>ids.push(id)}),{code:'unknown'});assert.deepEqual(ids,['task-timeout']);
 });
-test('durable restart queries accepted Ark ID with GET and never repeats POST',async()=>{
+test('durable restart queries accepted Ark ID without another POST and preserves success privately until media is saved',async()=>{
  const calls=[],disk=store();let done=false;
  const p=provider(async(url,options)=>{calls.push(options.method);return response(options.method==='POST'?{id:'accepted-task'}:{id:'accepted-task',status:done?'succeeded':'running',...(done?{content:{video_url:'https://media.test/output.mp4'}}:{})});});
  let service=createDurableGenerationService({store:disk,provider:p}),job=await service.submit(request,{idempotencyKey:'ark-restart-1'});await tick();await tick();job=await service.get(job.id);assert.equal(disk.data.get(job.id).providerTaskId,'accepted-task');await service.close();
- done=true;service=createDurableGenerationService({store:disk,provider:p});await service.ready;job=await service.lookup('ark-restart-1');assert.equal(job.status,'succeeded');assert.equal(job.outputs[0].sourceFileId,'accepted-task');assert.equal(calls.filter(method=>method==='POST').length,1);assert.equal((await service.submit(request,{idempotencyKey:'ark-restart-1'})).id,job.id);await service.close();
+ done=true;service=createDurableGenerationService({store:disk,provider:p});await service.ready;job=await service.lookup('ark-restart-1');assert.equal(job.status,'unknown');assert.equal(job.providerStatus,'succeeded');assert.equal(job.localization.state,'failed');assert.equal(job.outputs,undefined);assert.equal(job.providerResult.outputs[0].sourceFileId,'accepted-task');assert.equal(calls.filter(method=>method==='POST').length,1);assert.equal((await service.submit(request,{idempotencyKey:'ark-restart-1'})).id,job.id);await service.close();
 });
 test('unconfirmed submit is durable unknown without resubmission, unsupported requests fail before dispatch',async()=>{
  let calls=0;const disk=store(),p=provider(async()=>{calls++;throw Error('private-key transport error');});let service=createDurableGenerationService({store:disk,provider:p});let job=await service.submit(request,{idempotencyKey:'ark-unknown-1'});await tick();await tick();job=await service.get(job.id);assert.equal(job.status,'unknown');await service.close();service=createDurableGenerationService({store:disk,provider:p});assert.equal((await service.lookup('ark-unknown-1')).status,'unknown');assert.equal(calls,1);await service.close();

@@ -63,3 +63,10 @@ Agent 模型反馈截图来自 `/src/features/agent-generation/qa/disabled-model
 [高清素材往返截图](library-original-roundtrip-20261005.jpg)来自 `src/features/library-asset-roundtrip/qa/roundtrip.html`：正式保存/picker及刷新后两张2048×1152原图；128×72预览和真实PNG下载Blob已核对。QA偏好/收据/媒体均独立IDB，不代表正式素材库已迁移；浏览器下载落盘未确认。
 
 [视频素材往返截图](library-video-roundtrip-20261005.jpg)来自同一隔离入口：真实本地原文件为4秒320×180、clip .5–2.5；正式下载经本机FFmpeg输出3256字节、2秒320×180，画布真实导出节点与连线渲染。未调用供应商模型，下载落盘不在证据范围。
+
+## 2026-10-05 官方合同核验与 freenow
+
+- [24类操作配置状态](generation-readiness-routed-20261005.png)：使用正式配置函数、隔离公开metadata、真实滚动/关闭和小窗口按钮可达性。
+- [freenow 多角度原生替代面板](freenow-multi-angle-native-20261005.png)：本地 F 标识、原滑杆范围与专用模型限制说明；源图为仓库合同PNG，不是模型生成效果。
+
+复现与接口边界见[交叉核验记录](../OFFICIAL-CROSSCHECK-AND-KEY-READINESS-20261005.md)。

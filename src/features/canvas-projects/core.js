@@ -8,7 +8,7 @@
   let dirty=false,navigating=false;
   const guards=new Set();
   function title(value){const result=String(value||'').trim();if(!result)throw Error('请输入画布名称');if(result.length>120)throw Error('画布名称最多120个字符');return result;}
-  function applyTitle(){const button=document.querySelector('#project-title');if(button)button.textContent=metadata.title;document.title=metadata.title+' · 画布复刻';}
+  function applyTitle(){const button=document.querySelector('#project-title');if(button)button.textContent=metadata.title;document.title=metadata.title+' · freenow';}
   const api={
     defaultId:DEFAULT_ID,
     id:()=>projectId,

@@ -2,6 +2,9 @@ const test=require('node:test'),assert=require('node:assert/strict'),fs=require(
 const {createOpenAINativeProvider}=require('../server/generation-openai.cjs');
 const {createGenerationGateway}=require('../server/generation.cjs');
 const {createDurableGenerationService}=require('../server/generation-durable.cjs');
+const {createGenerationMediaStore}=require('../server/generation-media-store.cjs');
+const {createGenerationMediaMaterializer}=require('../server/generation-media-materializer.cjs');
+const os=require('node:os');
 const png='iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jCn0AAAAASUVORK5CYII=';
 const fixtures=[['png',Buffer.from(png,'base64')],['jpeg',fs.readFileSync(path.join(__dirname,'fixtures/red.jpg'))],['webp',fs.readFileSync(path.join(__dirname,'fixtures/blue.webp'))]];
 const inputs=fixtures.map(([format,bytes])=>({type:'image',url:'data:image/'+format+';base64,'+bytes.toString('base64')}));
@@ -10,7 +13,7 @@ const modelMap={image:profile};
 const request={kind:'image.generate',prompt:'按顺序参考三张图片',inputs,parameters:{model:'image',providerParameters:{model:'image',mode:'image_to_image',aspectRatio:'1:1',imageSize:'1K',quality:'high',times:1}}};
 const response=()=>new Response(JSON.stringify({data:[{b64_json:png}]}),{status:200,headers:{'content-type':'application/json'}});
 const tick=()=>new Promise(resolve=>setImmediate(resolve));
-async function settled(service,id){for(let i=0;i<30;i++){const job=await service.get(id);if(!['queued','running'].includes(job.status))return job;await tick();}assert.fail('task remained active');}
+async function settled(service,id){for(let i=0;i<200;i++){const job=await service.get(id);if(!['queued','running'].includes(job.status))return job;await new Promise(resolve=>setTimeout(resolve,3));}assert.fail('task remained active');}
 function memoryStore(){const records=new Map();return {readAll:async()=>[...records.values()],write:async value=>records.set(value.id,structuredClone(value))};}
 
 test('installed SDK sends ordered real PNG/JPEG/WebP multipart uploads to Images edits',async()=>{
@@ -56,11 +59,15 @@ test('no-reference request retains generate path while reference errors stay unk
  const controller=new AbortController();controller.abort(Error('cancelled before submit'));await assert.rejects(provider.submit(request,{signal:controller.signal}),/cancelled before/);assert.equal(edit,1);
 });
 
-test('reference durable success and unknown survive restart and never repeat the same submission',async()=>{
+test('reference durable success and unknown survive restart and never repeat the same submission',async t=>{
+ const directory=await fs.promises.mkdtemp(path.join(os.tmpdir(),'openai-reference-media-')),mediaStore=createGenerationMediaStore({directory}),mediaMaterializer=createGenerationMediaMaterializer({store:mediaStore});
+ t.after(async()=>{await mediaStore.close();await fs.promises.rm(directory,{recursive:true,force:true});});
  for(const uncertain of [false,true]){
   let attempts=0;const store=memoryStore(),provider=createOpenAINativeProvider({modelMap,client:{images:{edit:async()=>{attempts++;if(uncertain)throw Error('lost');return {data:[{b64_json:png}]};}}}});
-  let service=createDurableGenerationService({store,provider});const first=await service.submit(request,{idempotencyKey:'edit-idempotency'}),job=await settled(service,first.id);assert.equal(job.status,uncertain?'unknown':'succeeded');await service.close();
-  service=createDurableGenerationService({store,provider});assert.equal((await service.lookup('edit-idempotency')).status,job.status);assert.equal((await service.submit(request,{idempotencyKey:'edit-idempotency'})).id,first.id);assert.equal(attempts,1);await service.close();
+  let service=createDurableGenerationService({store,provider,mediaMaterializer});const first=await service.submit(request,{idempotencyKey:'edit-idempotency'}),job=await settled(service,first.id);assert.equal(job.status,uncertain?'unknown':'succeeded');
+  if(!uncertain){assert.match(job.outputs[0].url,/^\/api\/generation\/media\//);const saved=await mediaStore.open(job.outputs[0].url.split('/').at(-1),{taskId:job.id});try{assert.deepEqual(await saved.handle.readFile(),Buffer.from(png,'base64'));}finally{await saved.handle.close();}}
+  await service.close();
+  service=createDurableGenerationService({store,provider,mediaMaterializer});assert.equal((await service.lookup('edit-idempotency')).status,job.status);assert.equal((await service.submit(request,{idempotencyKey:'edit-idempotency'})).id,first.id);assert.equal(attempts,1);await service.close();
  }
 });
 

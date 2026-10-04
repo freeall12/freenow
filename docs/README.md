@@ -24,6 +24,12 @@
 
 | 记录 | 范围 |
 | --- | --- |
+| [官方与模型 Key 核验](OFFICIAL-CROSSCHECK-AND-KEY-READINESS-20261005.md) | 官方文档、安装包、社区、24操作就绪状态与实际限制 |
+| [多角度原生替代](FAL-MULTI-ANGLE-NATIVE-20261005.md) | Qwen 2511显式配置、参数转换、队列恢复和本地PNG归档 |
+| [Agent供应商续轮](AGENT-PROVIDER-CROSSCHECK-20261005.md) | SDK规范化、模型别名、推理与工具身份 |
+| [视频供应商核验](VIDEO-PROVIDER-CROSSCHECK-20261005.md) | Ark edit/extend、实际裁片与本地结果恢复 |
+| [图片音频供应商核验](IMAGE-AUDIO-PROVIDER-CROSSCHECK-20261005.md) | PNG完整性、原生子集、官方/SDK/社区来源 |
+| [freenow运行品牌](FREENOW-RUNTIME-BRAND-LABELS-20261005.md) | 主要界面名称、本地标识与历史alias兼容 |
 | [素材原始媒体往返](LIBRARY-ASSET-ROUNDTRIP-20261005.md) | 原图、裁切与来源、picker本地解析、换源恢复保护 |
 | [图片图层菜单](IMAGE-EDITOR-LAYER-MENU-20261005.md) | 复制、层序、删除、焦点关闭与迟到clone保护 |
 | [Agent流式代码操作](AGENT-STREAMING-CODE-CONTROLS-20261005.md) | 流式复制/换行、控件身份、焦点及横向滚动保持 |

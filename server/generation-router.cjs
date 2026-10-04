@@ -23,7 +23,7 @@ const kindPattern=/^(image|video|audio|text|world|studio|model|panorama)\.[a-z][
 const providerPattern=/^[A-Za-z][A-Za-z0-9_-]{0,63}$/;
 function requestAlias(request){
  const p=request.parameters||{};
- return p.providerParameters?.model??p.modelId??p.model??(request.kind==='image.upscale'&&typeof p.provider==='string'?'image.upscale:'+p.provider:['image.recognize','video.analyze','image.remove-background'].includes(request.kind)?request.kind:undefined);
+ return p.providerParameters?.model??p.modelId??p.model??(request.kind==='image.upscale'&&typeof p.provider==='string'?'image.upscale:'+p.provider:['image.recognize','video.analyze','image.remove-background','image.multiAngle'].includes(request.kind)?request.kind:undefined);
 }
 
 // This task adapter makes one POST. Recovery only queries an accepted identity;

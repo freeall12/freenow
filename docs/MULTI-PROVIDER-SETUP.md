@@ -46,6 +46,8 @@ node --env-file=.env.local server/server.cjs
 
 详细契约：[路由 API](generation-routing-contract.md)、[Ark 限制](ARK-VIDEO.md)、[OpenAI 图片参考](OPENAI-IMAGE-REFERENCES.md)、[原生分镜解析](OPENAI-VIDEO-ANALYSIS.md)。
 
+当前逐项状态见[官方交叉核验与 Key 接入清单](OFFICIAL-CROSSCHECK-AND-KEY-READINESS-20261005.md)；多角度新增显式受限 [Qwen 2511 原生替代](FAL-MULTI-ANGLE-NATIVE-20261005.md)，不等价于原站私有转换。
+
 新增原生配置：[MiniMax Music 2.6](MINIMAX-MUSIC-NATIVE.md)、[fal 视频超分](FAL-VIDEO-NATIVE-SETUP.md)、[ElevenLabs TTS](ELEVENLABS-NATIVE-TTS.md)、[ElevenLabs 音效](ELEVENLABS-NATIVE-SOUND.md)、[OpenAI 蒙版编辑](OPENAI-MASKED-EDIT-NATIVE.md)、[Marble](MARBLE-NATIVE-SETUP.md)。Music API 仅对既有合资格付费用户开放，不能由 Key 存在推定访问权。视频超分的参数边界以适配器文档为准。
 
 ## 历史验收（最初路由批次）

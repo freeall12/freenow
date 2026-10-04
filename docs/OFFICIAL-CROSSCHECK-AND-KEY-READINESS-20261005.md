@@ -1,0 +1,55 @@
+# 官方功能交叉核验与 Key 接入状态
+
+更新：2026-10-05。此批补接一项原生能力并修复三项实际调用阻断，**不代表全站一比一完成，也不代表每个菜单填入任意 Key 即可使用**。真实供应商生成仍未验；测试使用本机合同服务及真实媒体字节。
+
+## 参考与判定方式
+
+| 来源 | 本次核对内容 | 使用边界 |
+| --- | --- | --- |
+| [官方图片说明](https://docs.tapnow.media/zh/docs/canvas/generate-and-edit-images) | 参考图、比例/规格/数量、九宫格切分、蒙版编辑、图片 Toolbar | 新文档出现 Images 2.5；历史安装包/Web 的型号与当前文档可能不同，不能只改展示名就宣称已接通 |
+| [官方视频说明](https://docs.tapnow.media/zh/docs/canvas/generate-and-edit-video) | 首尾帧/参考、样片转正式片、深度、H3、编辑/延长/重拍和新结果连接 | 页面操作描述不是供应商 API 合同；模型资格与输出质量要单独验证 |
+| [官方音频说明](https://docs.tapnow.media/zh/docs/canvas/generate-and-edit-audio) | TTS/音乐/音效、参考限制、输出格式、字幕文本节点 | 品牌名不表示协议等价；Seed/Mureka/Sonilo 的 Key 不能当作 OpenAI/ElevenLabs Key |
+| [官方 Agent 生成模式](https://docs.tapnow.media/zh/docs/agent/choose-a-generation-mode) | 自动执行与手动确认卡、模型/参数/参考编辑 | 生成始终走本机适配器；原站积分/计费不接入 |
+| 本机 TapNow 安装包 0.4.81 与已抓取官方 Web bundle | 多角度四参数、滑杆范围、旋转取反、私有转换请求 | 只读静态资源用于核对；运行不请求原站；[包路径/哈希与接口证据](FAL-MULTI-ANGLE-NATIVE-20261005.md) |
+| [阿真 Irene 实际创作流程](https://news.qq.com/rain/a/20260205A03A7J00)（2026-02-05） | 角色多参考 → 九宫格 → 切分/角度/细节修正 → 首尾帧视频 → 背景音乐 | 作为使用反馈补足跨功能链路，不作为设计或供应商字段的权威；不复刻推广/分享/社区页面 |
+| 供应商官方 API 与公开 SDK/社区实现 | Responses 续轮、Ark edit/extend、图片响应、fal 队列 | 具体来源及固定 SDK/社区版本见三份专项报告，不能用搜索摘要替代接口证据 |
+
+实际复刻以官方页面/安装包为设计证据，localhost 仅用于验收。社区反馈用于检查创作链条中参考绑定、节点来源、重试和结果保留的习惯，不推断不存在的 API。
+
+## 本批实际变化
+
+1. **Agent 多轮调用。** 用已锁定 OpenAI SDK 的 `toResponseInputItems` 规范化请求输入，移除仅用于输出的 provenance/parsed 字段；保留工具 `call_id`、推理密文、message phase 和原始检查点。[Agent 核对与限制](AGENT-PROVIDER-CROSSCHECK-20261005.md)
+2. **Ark 视频。** 显式 edit/extend 校验视频来源与 adaptive 画幅；edit 额外校验 -1 时长和 4–30 秒来源；没有实际裁片的 clip/trim/sourceClip 在发送前拒绝。[视频核对](VIDEO-PROVIDER-CROSSCHECK-20261005.md)
+3. **OpenAI 图片响应。** 截断 PNG、缺少 IDAT/IEND、非规范 Base64 保持 unknown，不记录成功、不重复提交。[图片/音频核对](IMAGE-AUDIO-PROVIDER-CROSSCHECK-20261005.md)
+4. **多角度原生替代。** 新接 fal 官方 `qwen-image-edit-2511-multiple-angles`；仅通过显式模型映射启用。原站私有四参数转换未公开，广角和倾斜低于 -30° 拒绝；水平正方向、缩放与实际视觉效果仍需真实 Key 验收。[配置与转换](FAL-MULTI-ANGLE-NATIVE-20261005.md)
+5. **配置与交互。** “连接生成 API”现在列出 24 类操作，缺失路由也显示。原生配置就绪标注“待实测”，通用网关标注“功能待核验”；不能将 URL/Key 已填写等同功能已实现。修复迟到配置响应污染已保存状态和配置视图的竞态；折叠清单与内层滚动避免小窗口遮挡保存按钮。
+6. **多角度来源保护。** 配置/不支持参数检查先于创建占位；面板关闭后的迟到读取不会造节点。源对象、项目和目标对象都须保持身份；失败清理只能删除本次目标。新节点按完整包围盒平滑取景，避免把左上角放在视口中心后裁掉半幅。
+7. **本地品牌。** 画布、片场、全景、Agent HTML 预览和模型展示名改为 freenow；新 Logo 直接复用成熟 Tabler F 标识的本地 SVG，不自绘图标。[品牌范围](FREENOW-RUNTIME-BRAND-LABELS-20261005.md) / [标识来源](../assets/branding/README.md)。来源作者、许可、旧别名和用户正文保留。
+
+## 能否仅填 Key 使用
+
+| 状态 | 能力 | 必须同时满足 |
+| --- | --- | --- |
+| 已有原生适配，本机合同已验证，真实 Key 待验 | OpenAI 文本/图片/参考图/视觉分析/语音，GPT Image 2 蒙版编辑 | 正确供应商 Key、实际型号访问权、明确公开别名及尺寸/质量/参考能力映射；不是所有原站品牌的替身 |
+| 同上 | Ark 视频、MiniMax H3 | 正确 Key、实际可用型号及 profile、模式/时长/分辨率/参考符合供应商合同 |
+| 同上 | fal 抠图、Topaz 图片增强、FLUX/Proteus 视频增强 | 对应 endpoint 的显式模型映射；不支持的倍率/模式拒绝 |
+| 新增受限原生替代 | 多角度 | `image.multiAngle` 明确映射到 Qwen 2511；关闭广角，倾斜至少 -30°；效果不承诺与原站模型同态 |
+| 已有原生适配，本机合同已验证，真实 Key 待验 | ElevenLabs V3 TTS、SFX，MiniMax Music 2.6 | 正确音色/模型、格式参数与账号 API 资格；不能代替未实现的参考/字幕/cover 功能 |
+| 有原生生成但部分格式仍阻塞 | Tripo / Marble 3D | 正确 Key/模型/输入；GLB 可本地渲染，SPZ 片场渲染尚未完成 |
+| 前端与任务合同已有，专用供应商仍待补 | 全景编辑/严格全景生成、打光、皮肤/Magnific；视频替换/移除/延长/重拍/深度；部分音频品牌 | 必须补供应商适配或提供已经实现这些操作的 tasks-v1 网关；单独填写品牌 Key 不够 |
+| 仍开放 | 92 份精确创意模板、全部页面细节/资源/交互及最终性能验收 | 需要继续官方逐项证据和真实运行验证，不能由模型 Key 解锁 |
+
+`video.generate` 中供应商的 edit/extend 子模式，和 Toolbar 的 `video.extend`、`video.replace`、`video.erase`、`video.reshoot` 是不同任务合同。不能因为某供应商支持编辑就自动宣传 Toolbar 全部已接通。
+
+## 验证证据
+
+- Agent：53项定向通过；旧 HTTP 组另有3个基线失败（强杀恢复两项及短 SSE delta 一项），已复现并记录，未宣布修复。
+- 视频：72项；图片/音频：114项；新多角度后端12项加原 fal/queue/integration 23项。按改动选择检查，没有运行全库回归。
+- 配置/多角度前端：15项配置检查、5项角度模型检查、5项媒体准备检查；关闭/配置竞态和不支持设置均有回归。
+- Computer Use：正式配置函数的 routed/native/gateway/offline 分支、清单展开/滚动、Escape关闭回焦；593×783窗口保存按钮可见。多角度广角与 -45° 两条路径零任务提交且没有占位；合法默认值提交一次，真实本地 PNG 解码为180×320并连接来源，源坐标100.25/80.5保持。完成取景后结果边界x207.82–385.18、y234–549位于593×783视口内；刷新后原图/结果仍解码。浏览器夹具的图片是合同媒体，**不是模型实际生成效果**。
+- QA刷新仍报告11项其他旧媒体待修复，未隐藏或宣称清零；这批两张实际PNG回读正常，旧引用盘点仍开放。
+- Key 从未进入浏览器持久存储或文档；本批公开索引扫描在提交前执行。运行资源继续仅本地，新后端只请求操作者配置的独立供应商。
+
+复现：运行 `node server/server.cjs`，打开 `http://localhost:4173/src/features/generation-config/qa/main.html?session=my-check&profile=routed`。可选 `native`、`gateway`、`offline`、`angle`；页面使用独立 IndexedDB 偏好/画布/媒体，不修改用户项目，也不保存真实服务配置。QA 单独替换公开 metadata；`angle` 使用本机合同任务及仓库 PNG，其他请求不改变正式服务。
+
+![本地配置诊断](screenshots/generation-readiness-routed-20261005.png)

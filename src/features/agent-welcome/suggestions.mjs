@@ -150,7 +150,7 @@ export const homeFallbackZh = Object.freeze([
   {
     "id": "home-fallback-zh-24",
     "title": "创建一个适合我的 Agent Skill",
-    "prompt": "请帮我创建一个适合我的 TapNow Agent Skill。请先总结我的创作目标、偏好、工作流程和希望的输出方式，然后给我若干个可选 Skill 方案。先不要直接执行创建，等我确认选择后再执行。",
+    "prompt": "请帮我创建一个适合我的 freenow Agent Skill。请先总结我的创作目标、偏好、工作流程和希望的输出方式，然后给我若干个可选 Skill 方案。先不要直接执行创建，等我确认选择后再执行。",
     "icon_category": "next_step"
   },
   {

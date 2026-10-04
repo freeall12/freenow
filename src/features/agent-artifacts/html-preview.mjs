@@ -12,11 +12,11 @@ export function openHtmlPreview({file,getCurrentFile,isCurrent=()=>true,getResou
   const dialog = document.createElement('dialog'); dialog.className = 'agent-html-preview'; dialog.setAttribute('aria-label', 'HTML 预览');
   const side = document.createElement('aside'), main = document.createElement('div'); main.className = 'agent-html-main';
   const brand = document.createElement('div'); brand.className = 'agent-html-brand';
-  const logo = document.createElement('img'); logo.src = new URL('../../../assets/tap-logo-official.svg',import.meta.url).href; logo.alt = 'TapNow';
-  brand.append(logo, document.createTextNode('TapNow')); side.append(brand);
+  const logo = document.createElement('img'); logo.src = new URL('../../../assets/branding/freenow-mark.svg',import.meta.url).href; logo.className = 'freenow-brand-mark'; logo.alt = 'freenow';
+  brand.append(logo, document.createTextNode('freenow')); side.append(brand);
   const title = document.createElement('h3'); title.textContent = file.title || file.artifact_path.split('/').at(-1); side.append(title);
   const disclaimer = document.createElement('p'); disclaimer.className = 'agent-html-disclaimer';
-  disclaimer.textContent = '此页面由用户使用 AI 创建，可能包含不准确的信息，请自行核实。其内容与观点不代表 TapNow。'; side.append(disclaimer);
+  disclaimer.textContent = '此页面由用户使用 AI 创建，可能包含不准确的信息，请自行核实。其内容与观点不代表 freenow。'; side.append(disclaimer);
   const actions = document.createElement('div'); actions.className = 'agent-html-actions';
   const status = document.createElement('p'); status.role = 'status'; status.className = 'agent-artifact-status';
   const diagnostics=document.createElement('details'),diagnosticSummary=document.createElement('summary'),diagnosticList=document.createElement('ul');diagnosticSummary.textContent='查看资源位置';diagnostics.append(diagnosticSummary,diagnosticList);diagnostics.hidden=true;
