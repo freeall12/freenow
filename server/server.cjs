@@ -1,6 +1,7 @@
 'use strict';
 const http=require('node:http'),fs=require('node:fs'),path=require('node:path');
 const {processMedia}=require('./media.cjs');
+const {isPublicStaticPath}=require('./static-public-path.cjs');
 const {processPlaylist}=require('./playlist.cjs');
 const {transcribeRequest}=require('./voice.cjs');
 const {createVideoSegmentationAdapter}=require('./video-segmentation.cjs');
@@ -72,7 +73,7 @@ const server=http.createServer(async(req,res)=>{try{
  if(!['GET','HEAD'].includes(req.method))return json(res,405,{error:'Method not allowed'});
  // Only serve this project's public files and the browser Three.js runtime, never server/env/SDK files.
  const relative=pathname==='/'?'index.html':pathname==='/component-library/'?'component-library/index.html':pathname.replace(/^\/+/, '');
- if(relative.split('/').some(p=>p==='..'||p.startsWith('.'))||relative.startsWith('server/')||relative.startsWith('tests/')||(relative.startsWith('node_modules/')&&!relative.startsWith('node_modules/three/')))return json(res,403,{error:'Not public'});
+ if(!isPublicStaticPath(relative))return json(res,403,{error:'Not public'});
  const file=path.resolve(root,relative);if(!file.startsWith(root+path.sep))return json(res,403,{error:'Invalid path'});
  let stat;try{stat=await fs.promises.stat(file);}catch{return json(res,404,{error:'Not found'});}if(!stat.isFile())return json(res,404,{error:'Not found'});
  const headers={'Content-Type':mime[path.extname(file)]||'application/octet-stream','Accept-Ranges':'bytes','Cache-Control':'no-cache','X-Content-Type-Options':'nosniff'};

@@ -23,4 +23,4 @@ Computer Use 使用隔离入口 `/qa/native-creation-app.html?session=multiscene
 
 ## 尚未完成
 
-SPZ 渲染仍依赖待授权的 Spark 接入；92 个精确 HTML 模板正文仍未取得，详见 [来源审计](../reference/agent-template-source-static-audit-20261003.md)。22/22 Agent 版本 URI 仅表示登记与接线覆盖，不能代表每种交互和视觉已验收。全站逐项验收、真实供应商 Key 联调和最终 freenow Logo/水印替换继续开放，尚不能声称只填 Key 即所有功能可用。
+SPZ 渲染仍依赖待授权的 Spark 接入；92 个精确 HTML 模板正文仍未取得，详见 [来源审计](research/agent-template-source-static-audit-20261003.md)。22/22 Agent 版本 URI 仅表示登记与接线覆盖，不能代表每种交互和视觉已验收。全站逐项验收、真实供应商 Key 联调和最终 freenow Logo/水印替换继续开放，尚不能声称只填 Key 即所有功能可用。

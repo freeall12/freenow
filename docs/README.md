@@ -14,6 +14,7 @@
 
 - [开发维护指南](DEVELOPMENT-GUIDE.md) · [项目结构](PROJECT-STRUCTURE.md) · [组件目录](../component-library/README.md)
 - [功能截图与复现](screenshots/README.md)
+- [公开仓库与密钥检查](PUBLIC-REPOSITORY-AUDIT-20261004.md)
 - [Agent 存储](AGENT-STORAGE.md) · [服务端检查点](AGENT-SESSION-STORE.md)
 - [本地编辑工具](AGENT-LOCAL-EDITING-20261003.md) · [片场控制](AGENT-STUDIO-LOCAL-CONTROLS.md)
 - [供应商预检](GENERATION-PREFLIGHT-READINESS-20261003.md) · [媒体归档](GENERATION-MEDIA-MATERIALIZER-20261003.md)
@@ -23,6 +24,8 @@
 
 | 记录 | 范围 |
 | --- | --- |
+| [Agent 时长取消层级](AGENT-GENERATION-DURATION-ESCAPE-20261004.md) | 整数时长两级Escape、音频取消不重复提交、真实blur复验 |
+| [Agent 禁用模型反馈](AGENT-GENERATION-DISABLED-MODEL-HOVER-20261004.md) | 原因悬停/键盘反馈、禁用选择与关闭生命周期 |
 | [视频模块目录整理](VIDEO-MODULE-ORGANIZATION-20261004.md) | 23 个根目录文件迁入功能目录，同步运行引用、组件库与验证入口 |
 | [本机剪辑结果保护](VIDEO-TRIM-RESULT-RECOVERY-20261003.md) | 迟到结果归属、实际保存确认、原结果重试与刷新回读 |
 | [蒙版、音效与性能](LOCAL-MASKED-SOUND-AND-PERFORMANCE-20261003.md) | 原生编辑/音效、输入失焦、千节点布局、片场目录及分页 |

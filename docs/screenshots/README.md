@@ -9,6 +9,8 @@
 | [studio.jpg](studio.jpg) | 正式 Three.js 片场，GLB 导入、保存、聚焦和场景树 | `assets/studio/library/chair-office.glb`，实际 WebGL 渲染 |
 | [agent.jpg](agent.jpg) | 正式 Agent 欢迎建议、输入、附件、确认及模型控件 | 空白示例会话；没有真实模型响应 |
 | [video-trim.jpg](video-trim.jpg) | 正式智能剪辑输出三段视频、时长和来源连线 | 仓库内红绿蓝测试片，本机 FFmpeg 实际输出 |
+| [agent-disabled-model.jpg](agent-disabled-model.jpg) | 2026-10-04 正式生成模型菜单的原因覆盖层（局部截图） | 模块内隔离选项；零选择回调、零模型派发 |
+| [agent-duration-escape.jpg](agent-duration-escape.jpg) | 2026-10-04 首次Escape取消后保留时长浮层（局部截图） | 同模块隔离选项；恢复5秒、0次选择回调 |
 
 不包含私人画布、账号抓包、API Key、聊天内容或供应商生成质量宣称。旧参考标识仍按 README 的最终品牌阶段处理；模型来源与第三方许可按原资产记录保留。
 
@@ -30,3 +32,7 @@ node scripts/prepare-screenshot-demo.cjs
 `demo.html` 由生产入口派生，不另写一套产品 UI。修改入口加载顺序后重新执行脚本；修改示例只编辑 `demo-fixture.js`。截图属于文档资源，不进入正式项目初始化数据。
 
 视频截图使用另一个[剪辑隔离 QA](../../src/features/video-trim/qa/main.html)：打开选区后收起验收面板，从正式视频工具栏重新进入剪辑，点“智能剪辑”。实际输出为 2.2、1.8、4 秒三段；读取后收起验收面板，点“重置”适应内容。该页允许本机 FFmpeg 接口，不调用生成模型。具体保护与验证见[剪辑结果恢复](../VIDEO-TRIM-RESULT-RECOVERY-20261003.md)。
+
+Agent 模型反馈截图来自 `/src/features/agent-generation/qa/disabled-model.html`，使用真实生产菜单。鼠标进入禁用行出现原因，离开撤销；键盘焦点、点击禁用项、Escape与外部关闭的复验见[专项记录](../AGENT-GENERATION-DISABLED-MODEL-HOVER-20261004.md)。
+
+时长取消截图来自 `/src/features/agent-generation/qa/duration-dismissal.html`；输入19后Escape，恢复5并保留浮层。实际第二次关闭、Enter提交及音频取消blur回调的结果见[专项记录](../AGENT-GENERATION-DURATION-ESCAPE-20261004.md)。

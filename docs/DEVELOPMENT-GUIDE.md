@@ -134,6 +134,6 @@ HTML 本地预览/导出属于只读派生：保留原文与 sourceHash，绑定
 
 ## 小批交付
 
-每批记录实际入口、行为变化、定向测试、浏览器证据和剩余限制，再提交聚焦 diff。提交前核对 `git diff --check`、`git status --short` 与暂存内容；源码入口与相关构建产物一起提交，排除 Key、本机存储、私人媒体与原始抓包。
+每批记录实际入口、行为变化、定向测试、浏览器证据和剩余限制，再提交聚焦 diff。涉及公开文件范围、配置示例或供应商代码时运行 `python3 scripts/audit-public-repository.py --staged`，详细边界见[公开仓库检查](PUBLIC-REPOSITORY-AUDIT-20261004.md)。提交前核对 `git diff --check`、`git status --short` 与暂存内容；源码入口与相关构建产物一起提交，排除 Key、本机存储、私人媒体与原始抓包。
 
 区分“已有实现”“尚未验收”和“尚未实现/缺资源”。[当前功能缺口](CURRENT-FUNCTION-GAPS-20261003.md)保留初始审计，开头已说明音频字幕、学习预览迁移和分组恢复完成，不能重复按历史段开发。当前 `world-node/render-capabilities.mjs` 明确仅支持 GLB mesh，SPZ 落盘不是高斯渲染；Creative 现有模板编辑器也不等于已获得全部精确模板正文。外部模型质量、全站同态交互和这些资源缺口分别记录证据。

@@ -102,6 +102,7 @@ reference/*
 !qa/generation-history-legacy-fixture.mjs
 !qa/image-editor-fixture.js
 !qa/trim-scenes.mp4
+!qa/studio-v2-multi-scene.gltf
 
 !qa/agent-video-analysis-fixture.js
 !qa/agent-video-analysis-controls.mjs
@@ -127,3 +128,21 @@ reference/*
 # Machine-local exact resource mappings; hashes still describe private inputs.
 /assets/local-resource-index.json
 /assets/.local-resource-index-*
+
+# Retired, unreferenced visual assets are kept only on the original development machine.
+/assets/studio/studio.hdr
+/assets/agent-visualize.svg
+/assets/agent-welcome-palette.svg
+/assets/focus-edit-cursor.svg
+/assets/studio-node.svg
+# Private exports and raw network captures never belong to the public repository.
+*.har
+*.pem
+*.key
+*.p12
+*.pfx
+*.bak
+*.tmp
+
+__pycache__/
+*.pyc

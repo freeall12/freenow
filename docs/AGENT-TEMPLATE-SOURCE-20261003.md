@@ -6,7 +6,7 @@
 
 - 当前安装包 `/Applications/TapNow.app` 的 `CFBundleShortVersionString` 为 `0.4.81`。
 - 安装包 `Contents/Resources/web` 下共 30 个 HTML；逐文件 SHA256 与 Creative 46 + Motion 46 个目录引用比较，匹配模板正文为 **0**。
-- 后续全量静态审计扩展至 Resources 的 883 个文件及 ASAR 内实际解出的 2,521 个叶文件，全部按原始字节 SHA256 比较，仍为 **0** 匹配。widget manifest 只给组件短摘要；找到的 usercontent 合同用于 HTML 预览代理，没有模板对象键解析规则。已知五份公开 app-store 响应和 Apps 文档本日刷新仍未给出正文下载合同。范围、源码身份及公开响应摘要见 `reference/agent-template-source-static-audit-20261003.md`。
+- 后续全量静态审计扩展至 Resources 的 883 个文件及 ASAR 内实际解出的 2,521 个叶文件，全部按原始字节 SHA256 比较，仍为 **0** 匹配。widget manifest 只给组件短摘要；找到的 usercontent 合同用于 HTML 预览代理，没有模板对象键解析规则。已知五份公开 app-store 响应和 Apps 文档本日刷新仍未给出正文下载合同。范围、源码身份及公开响应摘要见 [公开来源审计](research/agent-template-source-static-audit-20261003.md)。
 - `app.asar` 为 21,559,524 bytes；直接字节搜索 `html-templates`、`template_ref`、`tapnow-creative`、`tapnow-motion`、`SKILL.md`，各为 0 次。此搜索只能证明这些字面标记未出现，不能排除未知或编码后的合同。
 - 本地 `runtime-reference` 和既有捕获资料未提供两套 picker 外层 skill 的完整包、真实资源获取合同或 92 份独立正文。已有证据入口：`reference/mcp-picker-template-handoff.md`、`reference/agent-app-store-public-source-20260930.md`、`docs/AGENT-WORKFLOW-INVENTORY-20261003.md`。
 - Creative catalog SHA256：`10421d5dedd820104b167d60af250e2a6657365226b0bc7a456f5daffea56781`。
