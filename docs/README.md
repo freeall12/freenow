@@ -24,6 +24,11 @@
 
 | 记录 | 范围 |
 | --- | --- |
+| [全景、重拍与Agent图片处理](LOCAL-PANORAMA-RESHOOT-AGENT-20261005.md) | 正式菜单/卡片、高清原图、2:1实际解码、WebGL预览、刷新与零重复派发 |
+| [Hunyuan全景原生协议](PANORAMA-NATIVE-20261005.md) · [前端](HUNYUAN-PANORAMA-FRONTEND-20261005.md) | 独立替代、PNG真实像素与参数白名单、原任务恢复 |
+| [Ark视频重拍](VIDEO-RESHOOT-EDIT-20261005.md) | 官方相机提示词、来源设置/全不变守卫与本地上传限制 |
+| [Agent图片处理](AGENT-IMAGE-PROCESSING-CLOSURE-20261005.md) | 抠图、显式多角度、高清输入、持久回执和全景交接 |
+| [视频遮罩供应商研究](VIDEO-MASK-PROVIDER-READINESS-20261005.md) | Wan VACE与LTX合同差异；adapter、上传和分割服务尚未实现 |
 | [视频工具、素材容量与嵌套品牌](LOCAL-VIDEO-TOOLS-STORAGE-BRAND-20261005.md) | 正式音频/Agent调用、延长菜单、6.6MB原图刷新、离页保护与实际截图 |
 | [ThinkSound视频拟音](VIDEO-AUDIO-NATIVE-20261005.md) | 显式替代协议、完整MP4/WAV、时长与原任务恢复 |
 | [延长镜头参考生成](VIDEO-EXTEND-NATIVE-20261005.md) | 官方Toolbar合同、Ark参数和本地媒体预检；[传输限制](ARK-LOCAL-VIDEO-TRANSPORT-20261005.md) |

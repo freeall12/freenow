@@ -1,7 +1,7 @@
 (() => {
   'use strict';
   const app=window.CanvasApp;
-  let generationRequests,generationMedia,recognitionMedia,videoAnalysisMedia,extensionMedia,imageToolMedia,maskedEditMedia,worldMedia,draftWorkflow,resultModules,resultWorkflow,failureBridge;
+  let generationRequests,generationMedia,recognitionMedia,videoAnalysisMedia,extensionMedia,reshootMedia,panoramaMedia,panoramaValidation,imageToolMedia,maskedEditMedia,worldMedia,draftWorkflow,resultModules,resultWorkflow,failureBridge;
   const failureSources=new Map();
   const resultSubmissions=new Map();
   const draftGuards=new Map();
@@ -51,6 +51,11 @@
       const nativeConfiguration=service.jobs.get(jobId)?.transport===localProvider?taskNativeConfigurations.get(signal):null;
       return (await extensionMedia).prepareExtensionMedia(request,{signal,validateSources,localAssets:window.LocalAssets,localMedia:window.LocalMedia,baseUrl:document.baseURI,nativeConfiguration});
     }
+    if(request.kind==='video.reshoot'){
+      reshootMedia||=import('./src/features/video-reshoot/media.mjs');
+      const nativeConfiguration=service.jobs.get(jobId)?.transport===localProvider?taskNativeConfigurations.get(signal):null;
+      return (await reshootMedia).prepareReshootMedia(request,{signal,validateSources,localAssets:window.LocalAssets,localMedia:window.LocalMedia,baseUrl:document.baseURI,nativeConfiguration});
+    }
     if(request.kind==='video.analyze'){
       videoAnalysisMedia||=import('./src/features/node-composer/video-analysis-media.mjs');
       const nativeConfiguration=service.jobs.get(jobId)?.transport===localProvider?taskNativeConfigurations.get(signal):null;
@@ -68,7 +73,11 @@
     // The task captures its transport before async work; a later provider switch
     // must not apply native upload rules to a direct tasks-v1 submission.
     const nativeConfiguration=service.jobs.get(jobId)?.transport===localProvider?taskNativeConfigurations.get(signal):null;
-    request=await media.prepareGenerationMediaRequest(request,{signal,localAssets:window.LocalAssets,baseUrl:document.baseURI,nativeConfiguration,validateSources});
+    const panorama=request.kind==='image.generate'?await (panoramaValidation||=import('./src/features/image-generation/panorama-native.mjs')):null;
+    if(panorama?.isNativePanoramaRequest(request)){
+      panoramaMedia||=import('./src/features/image-generation/panorama-media.mjs');
+      request=await (await panoramaMedia).preparePanoramaMedia(request,{signal,localAssets:window.LocalAssets,baseUrl:document.baseURI,nativeConfiguration,validateSources});
+    }else request=await media.prepareGenerationMediaRequest(request,{signal,localAssets:window.LocalAssets,baseUrl:document.baseURI,nativeConfiguration,validateSources});
     validateSources();
     const submission=resultSubmissions.get(jobId);
     if(submission&&!draftGuards.has(jobId)){
@@ -127,7 +136,13 @@
       const node=app.getState().nodes.find(node=>node.id===request.nodeId);
       const defaults=node&&window.NodeEditor?window.NodeEditor.getConfig(node):{};
       const overrides=Object.fromEntries(Object.entries(request.parameters||{}).filter(([,value])=>value!==undefined));
-      const parameters={...defaults,...overrides};
+      const panoramaAliases=['hunyuan-world-panorama','Hunyuan World Panorama'];
+      const explicitModel=overrides.providerParameters?.model??overrides.modelId??overrides.model;
+      // An explicitly selected native panorama has no generic quality/video
+      // defaults. Keep active source intent so the strict contract can reject it.
+      const nativePanorama=panoramaAliases.includes(explicitModel);
+      const sourceIntent=Object.fromEntries(['cameraEnabled','cameraControl','camera','lens','focal','aperture','style','omni','mask','region','crop','sourceClip','editing','cameraPath'].filter(key=>defaults[key]!==undefined).map(key=>[key,defaults[key]]));
+      const parameters={...(nativePanorama?sourceIntent:defaults),...overrides};
       parameters.ratio=overrides.ratio??overrides.aspectRatio??overrides.aspect??parameters.ratio;
       if(overrides.modelId&&!overrides.model)parameters.model=overrides.modelId;
       if(overrides.cameraControl){
@@ -158,7 +173,7 @@
   function render(){tray.classList.toggle('is-collapsed',collapsed);tray.replaceChildren();if(!service.jobs.size)return;tray.hidden=false;const header=el('header');header.append(el('span','','生成任务'),button(collapsed?'展开':'收起',()=>{collapsed=!collapsed;render();}));tray.append(header);if(collapsed)return;for(const job of [...service.jobs.values()].reverse().slice(0,8)){const row=el('div','task-item');row.dataset.status=job.status;row.append(el('strong','',job.request.label||job.request.kind),el('span','task-status',(job.applicationError?'结果应用失败':job.applying?'正在应用结果…':job.providerStatus==='succeeded'&&job.localization?.state==='failed'?'素材保存失败':job.providerStatus==='succeeded'&&['pending','downloading'].includes(job.localization?.state)?'正在保存素材':(job.request.kind==='image.recognize'?recognitionLabels:job.request.kind==='video.analyze'?analysisLabels:labels)[job.status])+(job.status==='running'&&job.providerStatus!=='succeeded'?' '+Math.round(job.progress)+'%':'')));if(job.error)row.append(el('p','',job.error));if(job.recovered&&job.status==='succeeded'&&!job.applied&&job.request.kind==='image.recognize')row.append(el('p','','识别记录已取回；原焦点会话已结束，请重新进入焦点编辑选择目标。'));if(job.recovered&&!job.request.parameters?.workflowRecovery&&job.status==='succeeded'&&!job.applied&&job.request.kind!=='image.recognize'){if(job.request.parameters?.canvasResults)row.append(button('恢复到原占位',()=>applyRecovered(job.id,'existing').catch(error=>app.notify(error.message))));row.append(button('作为新节点取回',()=>applyRecovered(job.id,'new_nodes').catch(error=>app.notify(error.message))));}if(job.recovered&&['failed','cancelled','configuration_required'].includes(job.status)&&job.request.parameters?.canvasResults)row.append(button('清理原占位',()=>cancel(job.id)));if(job.status==='unknown'){row.append(button(job.providerStatus==='succeeded'?'重新取回素材':'查询恢复',()=>recover(job.id).catch(error=>app.notify(error.message))));if(job.recovery?.pollable===false&&job.providerStatus!=='succeeded')row.append(el('p','','暂无可查询的供应商任务标识；查询仅核对本机记录，不会重新发起任务。'));}if(job.applicationError){row.append(el('p','',job.applicationError));if(!job.recovered)row.append(button('重试应用结果',()=>retryApplication(job.id).catch(error=>app.notify(error.message))));}if(job.applying)row.append(el('p','','正在应用结果…'));const progress=el('progress');progress.max=100;progress.value=job.progress;row.append(progress);if(['running','queued','unknown'].includes(job.status))row.append(button('取消',()=>cancel(job.id)));if(!inPlace.has(job.id)&&!job.request.parameters?.workflowRecovery&&['failed','cancelled','configuration_required'].includes(job.status))row.append(button('重试',()=>retry(job.id)));if(job.status==='configuration_required')row.append(button('连接 API',configure));tray.append(row);}}
   const mediaValidationReady=import('./src/features/generation-results/validate-media.mjs');
   async function validateOutputMedia(output){return (await mediaValidationReady).validateResultMedia(output);}
-  async function validateWorkflowProposal(node){
+  async function validateWorkflowProposal(node,validateMedia=validateOutputMedia){
     if(node?.type==='text'){if(typeof node.content!=='string'||!node.content.trim())throw Error('工作流文本结果为空');return;}
     const source=node?.type==='image'?node.fullImage||node.image:node?.type==='video'?node.video:node?.type==='audio'?node.audio:null;
     if(!source||!GenerationCore.isLocalMediaSource(source))throw Error('工作流结果尚未保存为本地素材');
@@ -169,10 +184,21 @@
       const context=new window.AudioContext();
       try{const buffer=await context.decodeAudioData(await response.arrayBuffer());if(!Number.isFinite(buffer.duration)||buffer.duration<=0)throw Error('工作流音频结果为空');}
       finally{await context.close();}
-    }else await validateOutputMedia({type:node.type,url:source,...(node.type==='image'?{fullImage:source}:{video:source})});
+    }else await validateMedia({type:node.type,url:source,...(node.type==='image'?{fullImage:node.fullImage,image:node.image}:{video:source})});
   }
   async function applyResults(job){
     const stored=service.jobs.get(job.id);
+    const panorama=job.request.kind==='image.generate'?await (panoramaValidation||=import('./src/features/image-generation/panorama-native.mjs')):null;
+    const isPanorama=panorama?.isNativePanoramaRequest(job.request);
+    if(isPanorama&&(!Array.isArray(job.outputs)||job.outputs.length!==1))throw Error('全景任务必须返回一个真实图片结果');
+    async function validateJobMedia(output){
+      if(!isPanorama)return validateOutputMedia(output);
+      const measured=await panorama.validateNativePanoramaOutputs([output],{decode:async()=>{
+        const probe={...output};await validateOutputMedia(probe);return probe;
+      }});
+      Object.assign(output,measured[0]);
+    }
+
     const workflowOutputSnapshot=job.request.parameters?.workflowRecovery?structuredClone(job.outputs):null;
     const workflowOutputs=workflowOutputSnapshot?JSON.stringify(workflowOutputSnapshot):null;
     if(workflowOutputs!==null)job={...job,request:structuredClone(job.request),outputs:structuredClone(workflowOutputSnapshot)};
@@ -209,8 +235,8 @@
     };
     const {resultProvenance}=await provenanceReady;
     if(stored.recovered&&stored.recoveryMode!=='workflow_existing'){
-      if(stored.recoveryMode==='existing'){const {applyRecoveredPlan}=await import('./src/features/generation-results/recovery.mjs');await applyRecoveredPlan(stored,{app,workflow:resultWorkflow,validateMedia:validateOutputMedia,persist:()=>{const state=app.getState();return window.CanvasStore.save({version:1,nodes:state.nodes,edges:state.edges});}});}
-      else if(stored.recoveryMode==='new_nodes'){const {importRecoveredOutputs}=await import('./src/features/generation-results/recovery.mjs');await importRecoveredOutputs(stored,{app,sourceId:stored.recoverySourceId,validateMedia:validateOutputMedia,localizeAudio:url=>window.AudioAPI.localize(url),onApplied:(ids,{created,audioRefs})=>{if(!subtitlesEnabled)return;if(created)recordSubtitleMedia(ids.map((id,index)=>({node:app.getState().nodes.find(node=>node.id===id),audio:audioRefs[index]})));else if(!audioSubtitleBindings.has(stored.id))retainedWithoutSubtitleReceipt=true;},persist:()=>{const state=app.getState();return window.CanvasStore.save({version:1,nodes:state.nodes,edges:state.edges});}});}
+      if(stored.recoveryMode==='existing'){const {applyRecoveredPlan}=await import('./src/features/generation-results/recovery.mjs');await applyRecoveredPlan(stored,{app,workflow:resultWorkflow,validateMedia:validateJobMedia,persist:()=>{const state=app.getState();return window.CanvasStore.save({version:1,nodes:state.nodes,edges:state.edges});}});}
+      else if(stored.recoveryMode==='new_nodes'){const {importRecoveredOutputs}=await import('./src/features/generation-results/recovery.mjs');await importRecoveredOutputs(stored,{app,sourceId:stored.recoverySourceId,validateMedia:validateJobMedia,localizeAudio:url=>window.AudioAPI.localize(url),onApplied:(ids,{created,audioRefs})=>{if(!subtitlesEnabled)return;if(created)recordSubtitleMedia(ids.map((id,index)=>({node:app.getState().nodes.find(node=>node.id===id),audio:audioRefs[index]})));else if(!audioSubtitleBindings.has(stored.id))retainedWithoutSubtitleReceipt=true;},persist:()=>{const state=app.getState();return window.CanvasStore.save({version:1,nodes:state.nodes,edges:state.edges});}});}
       else throw Error('任务已取回，请明确选择原占位或新节点应用方式');
       await applySubtitles();return;
     }
@@ -221,14 +247,14 @@
       if(target&&!stored.resultIds){
         target.guard();audioGuard();
         if((target.beforeApply||target.onApplied)&&(target.apply||target.applyBatch))throw Error('持久工作流必须应用到原节点，不能改用自定义批次目标');
-        if(target.applyBatch){if(job.outputs.some(o=>o.type!==target.type))throw Error('批次结果类型与节点类型不一致');await Promise.all(job.outputs.map(validateOutputMedia));target.guard();audioGuard();const applied=await target.applyBatch(job.outputs.map(o=>({...o,...resultProvenance(job,o)})));stored.resultIds=Array.isArray(applied)?applied.map(n=>n.id):[job.request.nodeId];recordSubtitleMedia(stored.resultIds.map((id,index)=>({node:app.getState().nodes.find(node=>node.id===id),audio:applied?.[index]?.audio})));target.didApply?.();}
+        if(target.applyBatch){if(job.outputs.some(o=>o.type!==target.type))throw Error('批次结果类型与节点类型不一致');await Promise.all(job.outputs.map(validateJobMedia));target.guard();audioGuard();const applied=await target.applyBatch(job.outputs.map(o=>({...o,...resultProvenance(job,o)})));stored.resultIds=Array.isArray(applied)?applied.map(n=>n.id):[job.request.nodeId];recordSubtitleMedia(stored.resultIds.map((id,index)=>({node:app.getState().nodes.find(node=>node.id===id),audio:applied?.[index]?.audio})));target.didApply?.();}
         else{if(job.outputs.length!==1||job.outputs[0].type!==target.type)throw Error('工作流需要一个与节点类型一致的结果');
-        const o=job.outputs[0];await validateOutputMedia(o);let patch;
+        const o=job.outputs[0];await validateJobMedia(o);let patch;
         const restored=target.restoredProposal;
         if(restored){
           if(restored.taskId!==job.id||restored.proposedNode?.id!==job.request.nodeId||restored.proposedNode.type!==target.type||!Number.isFinite(restored.createdAt))throw Error('工作流原应用意图缺少完整结果节点');
           patch=structuredClone(restored.proposedNode);job={...job,createdAt:restored.createdAt};
-          await validateWorkflowProposal(patch);target.guard();
+          await validateWorkflowProposal(patch,validateJobMedia);target.guard();
         }
         else if(o.type==='audio')patch={audio:await window.AudioAPI.localize(o.audio||o.url)};
         else if(o.type==='text')patch={content:o.text};
@@ -243,7 +269,7 @@
           const current=app.getState().nodes.find(n=>n.id===job.request.nodeId);
           if(!current)throw Error('工作流原节点已不存在');
           proposed=restored?structuredClone(restored.proposedNode):structuredClone({...current,...target.patch,...patch});
-          if(job.request.parameters?.workflowRecovery&&!restored){await validateWorkflowProposal(proposed);target.guard();}
+          if(job.request.parameters?.workflowRecovery&&!restored){await validateWorkflowProposal(proposed,validateJobMedia);target.guard();}
           // Decoding may enrich the application copy with dimensions. The
           // result digest must still describe the original provider response.
           const receipt=await target.beforeApply(proposed,workflowOutputSnapshot?{...job,outputs:structuredClone(workflowOutputSnapshot)}:job);target.guard();audioGuard();
@@ -261,24 +287,24 @@
         const applied=target.apply?await target.apply({...o,...resultProvenance(job,o)}):app.updateNode(job.request.nodeId,proposed||{...target.patch,...patch});
         stored.resultIds=Array.isArray(applied)?applied.map(n=>n.id):[job.request.nodeId];recordSubtitleMedia(stored.resultIds.map((id,index)=>({node:app.getState().nodes.find(node=>node.id===id),audio:target.apply?(Array.isArray(applied)?applied[index]?.audio:applied?.audio):patch.audio})));target.didApply?.();}
       }
-      if(!stored.resultIds&&resultWorkflow?.has(job.id))stored.resultIds=await resultWorkflow.apply(job,validateOutputMedia);
+      if(!stored.resultIds&&resultWorkflow?.has(job.id))stored.resultIds=await resultWorkflow.apply(job,validateJobMedia);
       if(!stored.resultIds&&videoTargets.has(job.id)){
         const expected=videoTargets.get(job.id),n=app.getState().nodes.find(n=>n.id===job.request.nodeId);
         const guard=()=>{if(!n||!app.getState().nodes.includes(n)||videoSignature(n)!==expected)throw Error('视频或生成参数已变化，请重新生成');draftGuards.get(job.id)?.();};guard();
         if(job.outputs.some(o=>o.type!=='video'))throw Error('视频节点需要视频生成结果');
-        await Promise.all(job.outputs.map(validateOutputMedia));const history=await import('./src/features/video-history/core.mjs');guard();
+        await Promise.all(job.outputs.map(validateJobMedia));const history=await import('./src/features/video-history/core.mjs');guard();
         window.NodeEditor.invalidate();app.updateNode(n.id,history.record({...n,video:n.video||window.EDITOR_DATA?.nodes[n.id]?.video},job,window.NodeEditor.getConfig(n)));stored.resultIds=[n.id];
       }
       if(!stored.resultIds&&imageTargets.has(job.id)){
         const expected=imageTargets.get(job.id),n=app.getState().nodes.find(n=>n.id===job.request.nodeId);
         const guard=()=>{if(!n||!app.getState().nodes.includes(n)||imageSignature(n)!==expected)throw Error('图片或生成参数已变化，请重新生成');};guard();
         if(job.outputs.some(o=>o.type!=='image'))throw Error('图片节点需要图片生成结果');
-        await Promise.all(job.outputs.map(validateOutputMedia));const history=await import('./image-history-core.mjs');guard();
+        await Promise.all(job.outputs.map(validateJobMedia));const history=await import('./image-history-core.mjs');guard();
         window.NodeEditor.invalidate();app.updateNode(n.id,history.record(n,job,window.NodeEditor.getConfig(n),window.VERSION_DATA?.[n.id]));stored.resultIds=[n.id];
       }
       if(!stored.resultIds&&derivedTargets.has(job.id)){
         const target=derivedTargets.get(job.id);target.guard();
-        await Promise.all(job.outputs.map(validateOutputMedia));target.guard();
+        await Promise.all(job.outputs.map(validateJobMedia));target.guard();
         audioGuard();const outputs=await Promise.all(job.outputs.map(async o=>({...o,...resultProvenance(job,o),image:o.image||(o.type==='image'?o.url:o.poster),video:o.video||(o.type==='video'?o.url:null),audio:o.type==='audio'?await window.AudioAPI.localize(o.audio||o.url):undefined,content:o.text,...(o.type==='text'?{textMode:'pure'}:{}),title:o.title||job.request.label})));target.guard();audioGuard();
         const results=app.createConnected(job.request.nodeId,outputs,target.options);stored.resultIds=results.map(n=>n.id);recordSubtitleMedia(results.map((node,index)=>({node,audio:outputs[index].audio||outputs[index].url})));target.didApply?.();
       }
@@ -287,7 +313,7 @@
         await applyOrdinaryAudioResult({job:stored,receipt,app,isCurrent:()=>audioReceiptCurrent(receipt,stored.id),localize:source=>window.AudioAPI.localize(source),inspect:source=>window.AudioAPI.inspectAudio(source),hasPendingEdits:id=>window.AudioAPI.hasPendingEdits(id),onApplied:applied=>{stored.resultIds=[applied.source.id];recordSubtitleMedia([{node:applied.source,audio:applied.audio}]);}});
       }
       if(!stored.resultIds){
-        await Promise.all(job.outputs.map(validateOutputMedia));
+        await Promise.all(job.outputs.map(validateJobMedia));
         if(!stored.materializedOutputs)stored.materializedOutputs=await Promise.all(job.outputs.map(async o=>o.type==='audio'?{...o,audio:await window.AudioAPI.localize(o.audio||o.url),audioMode:'upload'}:o));
         audioGuard();const results=app.createConnected(job.request.nodeId,stored.materializedOutputs.map(o=>({...o,...resultProvenance(job,o),image:o.image||(o.type==='image'?o.url:o.poster),video:o.video||(o.type==='video'?o.url:null),audio:o.audio||(o.type==='audio'?o.url:null),content:o.text,...(o.type==='text'?{textMode:'pure'}:{}),title:o.title||job.request.label||'生成结果'})));
         stored.resultIds=results.map(n=>n.id);

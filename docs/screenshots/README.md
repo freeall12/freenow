@@ -104,3 +104,14 @@ ElevenLabs Music 的正式参数、生成、播放和刷新已完成浏览器交
 ## 2026-10-05 短视口菜单
 
 [长中文菜单与键盘焦点](canvas-menu-keyboard-visible-20261005.jpg)来自`src/features/canvas-context-menu/qa/main.html`。实际iframe为727×339，End后ArrowUp跳过禁用第11行，选中第10行；诊断同时显示焦点可见、菜单边界合法、图和视图保持。图片和菜单文字均为公开QA数据。原生完整截图保留浏览器缩放产生的外围空白；截图API裁剪会触发resize关闭菜单，未使用这类关闭后的截图冒充打开状态。临时viewport已恢复。[完整操作证据](../CANVAS-CONTEXT-MENU-KEYBOARD-VISIBILITY-20261005.md)。
+
+
+## 2026-10-05 全景与重拍
+
+| 文件 | 来源与验证范围 |
+| --- | --- |
+| [Hunyuan 全景预览](hunyuan-panorama-preview-20261005.jpg) | `src/features/image-generation/qa/panorama/main.html`，正式图片节点、实际合成 PNG 与 WebGL 球面预览；512×320 输入、256×128 结果、刷新可解码。界面 F 图与取景/片场入口为本地资源 |
+| [视频重拍](video-reshoot-native-boundary-20261005.jpg) | `scripts/serve-video-reshoot-fixture.cjs` 的隔离页面，正式 8 秒/12 帧时间轴、四种镜头模式、方向/景别与真实 Ark 接入条件；按实测浏览器缩放裁出整个 600px 面板及周围上下文 |
+| [Agent 全景确认卡](agent-panorama-confirmation-20261005.jpg) | `qa/agent-image-processing-app.html?kind=panorama`，生产确认卡，固定 LLM 回复和合成图。截图是窄卡局部，包含单参考/单结果/2:1/原生尺寸说明与确认/取消；不代表模型生成质量 |
+
+全景与 Agent 夹具使用独立数据库和内存偏好；无真实模型调用、用户素材或账号抓包。后台标签零尺寸影响点击，曾临时设置桌面视口恢复操作；没有改变页面 CSS。截图保持原始截图字节，不做生成式修图。重拍所在 origin 的浏览器缩放会使整页截图异常放大，组件截图按实际缩放换算捕获。[本批完整证据](../LOCAL-PANORAMA-RESHOOT-AGENT-20261005.md)。

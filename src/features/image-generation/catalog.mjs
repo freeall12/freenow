@@ -1,6 +1,8 @@
 import { modelAssets } from './assets.mjs';
 import { inputCompatibility } from './capabilities.mjs';
 import {imageResultCounts,normalizeResultMode} from '../generation-results/counts.mjs';
+import { isNativePanoramaModel, panoramaModelId, nativePanoramaIntentError } from './panorama-native.mjs';
+export { isNativePanoramaModel, nativePanoramaIntentError } from './panorama-native.mjs';
 export { inputCompatibility } from './capabilities.mjs';
 
 const standard = ['1:1', '4:3', '3:4', '16:9', '9:16'];
@@ -9,6 +11,7 @@ const nano = ['Auto', '1:1', '9:16', '16:9', '3:4', '4:3', '3:2', '2:3', '5:4', 
 const mj = ['1:1', '16:9', '9:16', '4:3', '3:4', '2:3', '3:2', '7:4', '4:7'];
 const gpt = ['auto', '1:1', '2:1', '4:3', '3:4', '5:4', '4:5', '3:2', '2:3', '16:9', '9:16', '21:9', '9:21'];
 const definitions = {
+  [panoramaModelId]: { ratios: ['2:1'], ratio: '2:1', nativePanorama: true },
   'nano-banana-flash-lite': { ratios: nano, sizes: ['1K'], thinking: true, ratio: 'Auto', size: '1K' },
   'doubao-seedream-5.0-lite': { ratios: [...seed, '21:9'], sizes: ['2K', '3K'], ratio: '1:1', size: '2K' },
   'doubao-seedream-5.0-pro': { ratios: [...seed, '21:9'], sizes: ['1K', '2K'], ratio: '1:1', size: '2K' },
@@ -39,7 +42,7 @@ export function modelFor(value) {
 export function sizesFor(model, ratio) {
   return model.id.startsWith('gpt-image-') && ratio === 'auto' ? [] : model.sizes;
 }
-export function countsFor(model,resultMode='variants') { return imageResultCounts({mode:resultMode,isMidjourney:!!model?.midjourney}).options.reverse(); }
+export function countsFor(model,resultMode='variants') { return isNativePanoramaModel(model) ? [1] : imageResultCounts({mode:resultMode,isMidjourney:!!model?.midjourney}).options.reverse(); }
 export function ratioLabel(value) { return value.replace(/^auto/i, '自适应'); }
 export function gridColumns(length) {
   if (length <= 6) return 0;
@@ -56,6 +59,8 @@ function snapshot(config) { return Object.fromEntries(parameterKeys.filter(key =
 export function normalize(config, model = modelFor(config.model)) {
   if (!model) return { ...config };
   const next = { ...config, modelId: model.id };
+  if (model.nativePanorama) return {...next, ratio: '2:1', isPanoramaPrompt: true, count: 1,
+    ...(next.times !== undefined ? {times: 1} : {}), resultMode: 'variants'};
   if (next.ratio === '自适应') next.ratio = model.ratios.find(ratio => /^auto$/i.test(ratio)) || model.ratio;
   if (!model.ratios.includes(next.ratio)) next.ratio = model.ratio;
   next.isPanoramaPrompt = next.isPanoramaPrompt === true && model.ratios.includes('2:1') && next.ratio === '2:1';
@@ -81,10 +86,21 @@ export function selectModel(config, id) {
   const model = modelFor(id);
   if (!model) throw new Error('未知图片模型');
   const current = modelFor(config.model);
-  const modelSettings = { ...config.modelSettings, ...(current ? { [current.id]: snapshot(normalize(config, current)) } : {}) };
+  if (model.nativePanorama && nativePanoramaIntentError(config)) throw new Error(nativePanoramaIntentError(config));
+  const rememberCount = current?.nativePanorama || model.nativePanorama;
+  const modelSettings = { ...config.modelSettings, ...(current ? { [current.id]: {...snapshot(normalize(config, current)),
+    ...(rememberCount ? {count: config.count, times: config.times, resultMode: config.resultMode} : {})} } : {}) };
   const next = { ...config, isPanoramaPrompt: false };
   for (const key of parameterKeys) delete next[key];
   Object.assign(next, { model: model.name, modelId: model.id, ratio: model.ratio, modelSettings }, modelSettings[model.id] || { imageSize: model.size });
+  if (model.nativePanorama) {
+    for (const key of parameterKeys) delete next[key];
+    // These are generic node-editor defaults for video; image-only native
+    // panorama has no such switches. Preserve the image model draft above.
+    for (const key of ['duration', 'audio', 'audioLabel', 'mode']) delete next[key];
+    next.cameraEnabled = false;
+    next.isPanoramaPrompt = true;
+  }
   return normalize(next, model);
 }
 

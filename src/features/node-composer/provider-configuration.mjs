@@ -30,6 +30,7 @@ const nativeKinds={
   'elevenlabs-native':['audio.generate'],'marble-native':['world.generate'],
   'minimax-music-native':['audio.generate'],'fal-video-native':['video.upscale'],
   'fal-video-audio-native':['audio.generate'],'ark-video-extend-reference':['video.extend'],
+  'ark-video-reshoot-edit':['video.reshoot'],'fal-panorama-native':['image.generate'],
   'elevenlabs-sound-native':['audio.generate'],'elevenlabs-music-native':['audio.generate'],'mureka-native':['audio.generate'],'seed-audio-native':['audio.generate'],'openai-masked-edit-native':['image.erase','image.redraw','image.outpaint']
 };
 const object=value=>value&&typeof value==='object'&&!Array.isArray(value);

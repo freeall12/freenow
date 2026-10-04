@@ -107,6 +107,14 @@ reference/*
 !qa/agent-video-analysis-fixture.js
 !qa/agent-video-analysis-controls.mjs
 
+# Public Agent image fixtures; generated HTML is rebuilt from index.html.
+!qa/agent-image-processing-fixture.js
+!qa/agent-image-processing-controls.mjs
+!qa/agent-image-processing-source.png
+!qa/agent-image-processing-thumbnail.png
+!qa/agent-image-processing-result.png
+!qa/agent-image-processing-panorama-result.png
+
 !qa/provider-routing-fixture.js
 !qa/provider-routing-controls.mjs
 
@@ -119,6 +127,9 @@ reference/*
 !qa/native-creation-controls.mjs
 !qa/video-extension-fixture.js
 !qa/video-extension-controls.mjs
+!qa/video-reshoot-fixture.js
+!qa/video-reshoot-audit.js
+!qa/video-reshoot-controls.mjs
 
 # Public, self-contained generation-media browser fixture.
 !qa/generation-local-media.html

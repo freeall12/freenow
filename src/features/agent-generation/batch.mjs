@@ -1,7 +1,7 @@
 import {audioFields} from './audio.mjs';
-import {createGenerationDraft,normalizeDraft,confirmedArguments,parameterOptions,findModel,compatibility,referenceShape} from './model.mjs';
+import {createGenerationDraft,normalizeDraft,selectGenerationModel,confirmedArguments,parameterOptions,findModel,compatibility,referenceShape} from './model.mjs';
 import {executeTracedCall} from '../agent-execution/trace.mjs';
-const fields=[...audioFields,'model','aspect','imageSize','quality','count','duration','resolution','generateAudio','videoMode'];
+const fields=[...audioFields,'model','aspect','imageSize','quality','count','duration','resolution','generateAudio','videoMode','isPanoramaPrompt'];
 export const isBatch=trace=>trace.name==='generation_batch'&&Array.isArray(trace.batchItems);
 
 // Only adjacent independent calls with matching settings share a confirmation.
@@ -24,7 +24,7 @@ export function batchDraft(trace,getConfig,nodes){
 export function batchCompatibility(shared,items,nodes){
  const model=findModel(shared.kind,shared.model);if(!model)return '';
  const selected=items.filter(item=>!item.rejected);
- for(const item of selected){const reason=compatibility(shared.kind,model,referenceShape(item.args,nodes),shared);if(reason)return reason;}
+ for(const item of selected){const reason=compatibility(shared.kind,model,referenceShape(item.args,nodes),{...shared,nativePanoramaInheritedIntent:item.args.nativePanoramaInheritedIntent||shared.nativePanoramaInheritedIntent});if(reason)return reason;}
  if(shared.kind==='video.generate'&&selected.length){
   const modes=selected.map(item=>parameterOptions({...item.args,model:shared.model},nodes).videoMode||[]);
   if(!modes[0].some(mode=>modes.every(values=>values.includes(mode))))return '这些参考素材需要不同的生成方式，请移除不兼容项或取消后重试。';
@@ -39,7 +39,8 @@ export function batchOptions(shared,items,nodes){
 }
 export function changeBatch(shared,items,key,value,nodes){
  const active=items.find(item=>!item.rejected)||items[0];
- const next=normalizeDraft({...shared,nodeId:active.args.nodeId,referenceIds:active.args.referenceIds,[key]:value},nodes);
+ const base={...shared,nodeId:active.args.nodeId,referenceIds:active.args.referenceIds};
+ const next=key==='model'?selectGenerationModel(base,value,nodes):normalizeDraft({...base,[key]:value},nodes);
  if(key==='duration'&&next.kind==='audio.generate'){next.audioDurationExplicit=true;next.audioDurationEdited=true;}
  const options=batchOptions(next,items,nodes);
  for(const [field,values]of Object.entries(options))if(!(shared.kind==='audio.generate'&&field==='duration')&&values.length&&!values.includes(next[field]))next[field]=values[0];

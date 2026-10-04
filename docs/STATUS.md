@@ -15,6 +15,13 @@
 
 ## 本次交付
 
+- Hunyuan图片转360全景接入节点/Agent菜单与原生协议；严格PNG解码、2:1结果验证、原任务恢复、配置预检和原尺寸媒体准备完成。正式菜单、生成、WebGL预览、刷新及错误画幅重试零重提已实操。[本批记录](LOCAL-PANORAMA-RESHOOT-AGENT-20261005.md)。
+- 视频重拍补实验性Ark编辑适配，四种镜头模式编译为提示词；来源规格变化和全“不变”前后端阻断。真实8秒视频面板、媒体上传限制与关闭期间迟到配置已验。仅Key不足以提交本地Ark视频，真实生成效果未验。[重拍合同](VIDEO-RESHOOT-EDIT-20261005.md)。
+- Agent抠图和显式四参数多角度补高清来源、派发前持久回执与中文标题；确认前零派发、原图512×320、连接结果、刷新同任务已Computer Use验证。全景卡只提交一次并实际解码1024×512，普通生成仍依靠项目历史门控。主画布/片场固定欢迎本地化，不改用户名称。[Agent专项](AGENT-IMAGE-PROCESSING-CLOSURE-20261005.md)。
+- Wan VACE视频遮罩编辑仅完成官方schema/上游语义研究，adapter、时序mask封装、上传与分割服务仍开放，不能称填Key可用。[合同与缺口](VIDEO-MASK-PROVIDER-READINESS-20261005.md)。
+
+## 前批视频工具与存储交付
+
 - 短视口右键菜单补键盘焦点自动滚入视野、重开归零；12项定向检查、独立审阅和实际339px高视口验收通过。长中文与禁用项跳过、菜单滚轮、Escape及空白关闭均已实操，画布位置保持。[菜单证据](CANVAS-CONTEXT-MENU-KEYBOARD-VISIBILITY-20261005.md)。
 - 视频拟音新增 ThinkSound 显式替代协议，延长镜头新增 Ark 参考生成协议；节点、Agent 卡、路由和缺配置预检已接线。正式按钮/Agent各一次本机HTTP提交，真实8秒WAV播放结束并刷新恢复；时长冲突、缺Key、缺映射零新增任务。延长菜单和两级Escape已实操，本地Ark视频在读取/裁片前阻止。[本批证据](LOCAL-VIDEO-TOOLS-STORAGE-BRAND-20261005.md)。
 - 个人素材与文件夹改由现有IndexedDB record单事务保存，旧库只读迁移；6.6MB原图经正式保存、picker插入和刷新后原始SHA/像素一致，旧localStorage库键零写入。补素材加载中的Agent队列取消、收藏离页保护和冲突草稿导出；不盲目覆盖另一标签数据。[容量与恢复](LIBRARY-LOCAL-CAPACITY-20261005.md)。

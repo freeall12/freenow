@@ -1,3 +1,4 @@
+import {extensionSettings,mediaSource} from '../video-creation/core.mjs';
 export const modes={unchanged:'保持不变',static:'固定',cut:'切换',dynamic:'平滑移动'};
 export const presets=[['front_close_up','正面',0,0],['side_45','侧前方',45,0],['side_back_45','侧后方',135,0],['back_wide','背面',180,0],['overhead_wide','俯视',0,-45],['low_angle','仰视',0,30]];
 export const scales=[['特写',.2],['中景',.5],['全景',.85],['远景',1]];
@@ -16,8 +17,9 @@ export function request(node,state,source){
   if(!source)throw Error('来源视频尚不可用');let end=0;
   for(const s of state.segments){if(!Number.isFinite(s.startTime)||!Number.isFinite(s.endTime)||Math.abs(s.startTime-end)>.001||s.endTime<=s.startTime)throw Error('分镜时间范围无效');if(!Object.hasOwn(modes,s.mode)||moving(s)&&(!s.pointB||s.endTime-s.startTime<.5))throw Error('分镜运镜参数无效');end=s.endTime;}
   if(!state.segments.length)throw Error('至少需要一个分镜');
+  if(state.segments.every(s=>s.mode==='unchanged'))throw Error('所有分镜均保持不变，无需生成，请至少调整一个镜头');
   const tracks=state.segments.map(s=>({segmentId:s.segmentId,name:s.name,startTime:s.startTime,endTime:s.endTime,mode:s.mode,pointA:point(s.pointA),...(moving(s)?{pointB:point(s.pointB)}:{}),instruction:s.mode==='unchanged'?'':s.instruction||''}));
-  return {kind:'video.reshoot',label:'视频重拍',nodeId:node.id,inputs:[{type:'video',url:source,role:'source_video',nodeId:node.id}],prompt:tracks.map((s,i)=>`${s.name||'分镜 '+(i+1)} (${s.startTime.toFixed(2)}–${s.endTime.toFixed(2)}s): ${s.mode==='unchanged'?'保持原视频内容完全不变':modes[s.mode]+'；'+JSON.stringify(s.pointA)+(s.pointB?' → '+JSON.stringify(s.pointB):'')+'；'+s.instruction}`).join('\n'),parameters:{schemaVersion:1,intent:'video_multi_view',capabilityMode:'prompt_simulation',sourceClip:node.clip||null,aspectRatio:'adaptive',duration:end,tracks,candidateCount:1}};
+  return {kind:'video.reshoot',label:'视频重拍',nodeId:node.id,inputs:[{type:'video',url:source,role:'source_video',nodeId:node.id}],prompt:tracks.map((s,i)=>`${s.name||'分镜 '+(i+1)} (${s.startTime.toFixed(2)}–${s.endTime.toFixed(2)}s): ${s.mode==='unchanged'?'保持原视频内容完全不变':modes[s.mode]+'；'+JSON.stringify(s.pointA)+(s.pointB?' → '+JSON.stringify(s.pointB):'')+'；'+s.instruction}`).join('\n'),parameters:{...reshootSettings(node),schemaVersion:1,intent:'video_multi_view',capabilityMode:'prompt_simulation',sourceClip:node.clip||null,aspectRatio:'adaptive',duration:end,tracks,candidateCount:1}};
 }
 // Matches the original below-node panel reserve, zoom bounds and partial alignment.
 export function fitViewport(node,width,height,from){
@@ -27,4 +29,12 @@ export function fitViewport(node,width,height,from){
   const x=keepX+(width/2-cx*scale-keepX)*.25,desiredY=keepY+(88+safeHeight/2-reserve/2-cy*scale-keepY)*.45;
   const minY=88-node.y*scale,maxY=height-176-(node.y+node.height)*scale-508;
   return {x,y:minY<=maxY?Math.max(minY,Math.min(maxY,desiredY)):minY,scale};
+}
+
+export function reshootSettings(node){const {modelId,capabilityMode,resolution,generateAudio}=extensionSettings(node);return {modelId,capabilityMode,resolution,generateAudio};}
+// Bind the operation to a specific project and object, including across async
+// configuration/media work. Reusing the same node id cannot authorize old work.
+export function sourceGuard(app,node,{signal,isAlive=()=>true}={}){
+  const projectId=app.projectIdentity().id,source=mediaSource(node),clip=JSON.stringify(node.clip||null),settings=JSON.stringify(reshootSettings(node));
+  return ()=>{if(signal?.aborted)throw signal.reason??new DOMException('已取消','AbortError');if(!isAlive())throw new DOMException('已取消','AbortError');if(app.projectIdentity().id!==projectId||!app.getState().nodes.includes(node)||mediaSource(node)!==source||JSON.stringify(node.clip||null)!==clip||JSON.stringify(reshootSettings(node))!==settings)throw Error('来源视频、生成设置或项目已变化，请重新生成');};
 }

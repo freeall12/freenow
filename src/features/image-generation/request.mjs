@@ -1,7 +1,10 @@
 import { modelFor, normalize, providerParameters } from './catalog.mjs';
 import { apiParameters as cameraParameters, supportsCamera } from '../camera-control/settings.mjs';
+import { isNativePanoramaRequest, prepareNativePanoramaRequest } from './panorama-native.mjs';
 
 export function prepareImageRequest(request) {
+  // Validate before generic normalization can erase an incompatible intent.
+  if (isNativePanoramaRequest(request)) return prepareNativePanoramaRequest(request);
   if (request.kind !== 'image.generate') return request;
   const settings = request.parameters || {};
   const model = modelFor(settings.model || settings.modelId);

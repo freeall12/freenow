@@ -2,6 +2,7 @@ import { models, modelFor, normalize, selectModel, sizesFor, countsFor, gridColu
 import { panoramaIcon } from '../image-panorama/icons.mjs';
 import { icons } from './assets.mjs';
 import { check, lock } from './state-icons.mjs';
+import { nativePanoramaIntentError } from './panorama-native.mjs';
 export * from './catalog.mjs';
 export { layoutFor, resizeNode } from './layout.mjs';
 
@@ -44,6 +45,7 @@ export function ratioIcon(ratio, size = 14) {
 export function triggerLabel(config) {
   const model = modelFor(config.model);
   if (!model) return [config.ratio, config.quality].filter(Boolean).join(' · ');
+  if (model.nativePanorama) return '图生360全景 · 2:1 · 原生尺寸';
   const next = normalize(config, model);
   return [next.isPanoramaPrompt ? '全景' : ratioLabel(next.ratio), next.imageSize, next.generateMode && ({ std: '标准', pro: '专业' }[next.generateMode]), next.outputQuality].filter(Boolean).join(' · ');
 }
@@ -78,7 +80,12 @@ function keyboardNavigation(pop) {
 export function renderModels(pop, config, onSelect) {
   prepare(pop, '选择生成模型');
   pop.classList.add('image-model-menu');
-  const entries = models.map(model => ({ model, compatibility: inputCompatibility(model, config.inputCounts ?? config.refs?.length ?? 0) }));
+  const entries = models.map(model => {
+    let compatibility = inputCompatibility(model, config.inputCounts ?? config.refs?.length ?? 0);
+    const intentError = model.nativePanorama && nativePanoramaIntentError(config);
+    if (intentError) compatibility = {...compatibility, supported: false, reason: intentError};
+    return {model, compatibility};
+  });
   entries.sort((a, b) => Number(!a.compatibility.supported) - Number(!b.compatibility.supported));
   for (const { model, compatibility } of entries) {
     const row = button('', () => { if (compatibility.supported) onSelect(selectModel(config, model.id)); }, 'image-model-row');
@@ -156,6 +163,16 @@ export function renderSpecifications(pop, initial, onChange) {
     wrap.append(element('div', 'image-parameter-label', label));
     pop.append(wrap);
     return wrap;
+  }
+  if (model.nativePanorama) {
+    section('生成方式').append(element('div', 'image-parameter-auto', '图生360全景 · 单参考 · 单结果'));
+    const projection = element('div', 'image-parameter-auto');
+    projection.innerHTML = panoramaIcon;
+    projection.append(element('span', '', '等距柱状全景 · 固定2:1'));
+    section('画幅').append(projection);
+    section('尺寸').append(element('div', 'image-parameter-auto', '供应商原生尺寸'));
+    section('模型来源').append(element('div', 'image-parameter-auto', 'Hunyuan 独立供应商替代'));
+    return;
   }
   function selection(group, key) {
     const highlight = element('span', 'image-parameter-selection');

@@ -99,6 +99,8 @@ node --env-file=.env.local server/server.cjs
 | `openai-masked-edit-native` | 擦除、局部重绘、扩图 | [蒙版编辑](docs/OPENAI-MASKED-EDIT-NATIVE.md) |
 | `ark-native` | 火山方舟视频任务 | [Ark](docs/ARK-VIDEO.md) |
 | `ark-video-extend-reference` | 工具栏延长镜头：片头/片尾、4–30秒、连续性与参考 | [延长镜头](docs/VIDEO-EXTEND-NATIVE-20261005.md)，明确为参考生成；本地视频另需公网发布通道 |
+| `ark-video-reshoot-edit` | 视频重拍：分镜、四种镜头模式与提示词编译 | [重拍](docs/VIDEO-RESHOOT-EDIT-20261005.md)，实验性提示词模拟；Ark Key 外还需要独立 HTTPS 视频 |
+| `fal-panorama-native` | 单张图片 → Hunyuan World Panorama | [全景](docs/PANORAMA-NATIVE-20261005.md)，固定 2:1、单结果、原生尺寸；当前后端仅接受实际 PNG 像素，非区域编辑 |
 | `minimax-native` | MiniMax H3 视频 | [H3](docs/MINIMAX-H3-SETUP.md) |
 | `minimax-music-native` | MiniMax Music 2.6 | [音乐](docs/MINIMAX-MUSIC-NATIVE.md)，存在账号资格限制 |
 | `elevenlabs-native` / `elevenlabs-sound-native` | TTS 与音效 | [TTS](docs/ELEVENLABS-NATIVE-TTS.md) / [音效](docs/ELEVENLABS-NATIVE-SOUND.md) |
@@ -124,9 +126,17 @@ node --env-file=.env.local server/server.cjs
 
 ## 最新接入与核验
 
+图片转 360° 全景已接正式节点菜单、Agent 确认卡和独立供应商协议；真实 PNG 解码、WebGL 预览、刷新恢复及错误画幅拒绝均已实操。Agent 抠图与自动多角度使用高清原图，先保存任务身份再派发；补齐中文任务标题和固定欢迎文案。[本批实现与浏览器证据](docs/LOCAL-PANORAMA-RESHOOT-AGENT-20261005.md)
+
+| 全景结果：实际 WebGL 预览 | 视频重拍：完整镜头控件与接入条件 |
+| --- | --- |
+| ![本地合成全景结果与取景入口](docs/screenshots/hunyuan-panorama-preview-20261005.jpg) | ![视频重拍正式面板及Ark媒体传输限制](docs/screenshots/video-reshoot-native-boundary-20261005.jpg) |
+
+截图使用合成夹具，不代表真实模型质量。重拍的来源设置变更、关闭后的迟到回调和全“不变”计划已阻断；Ark 本地媒体上传、真实供应商效果仍待接入与验证。视频物体移除/替换完成了 [Wan VACE 合同核对](docs/VIDEO-MASK-PROVIDER-READINESS-20261005.md)，其适配、时序遮罩与分割服务仍未完成。
+
 短窗口中的右键菜单现在会把键盘焦点滚入可视范围。End/Home、方向键绕回、禁用项跳过、关闭与重开已实际验证；菜单滚动保持画布位置。[交互与截图证据](docs/CANVAS-CONTEXT-MENU-KEYBOARD-VISIBILITY-20261005.md)
 
-本批接入视频拟音与延长镜头的独立供应商协议，并补齐真实 Agent 确认卡的时长、配置预检和素材加载保护。正式按钮和 Agent 卡均通过本机 HTTP 服务，8 秒 WAV 实际播放到结束、刷新可读；明确时长冲突及缺配置不会派发。这里验证的是调用与媒体链路，音频是固定测试音调。[本批实现与验收](docs/LOCAL-VIDEO-TOOLS-STORAGE-BRAND-20261005.md)
+视频拟音与延长镜头已接入独立供应商协议，Agent 确认卡具备时长、配置预检和素材加载保护。正式按钮和 Agent 卡均通过本机 HTTP 服务，8 秒 WAV 实际播放到结束、刷新可读；明确时长冲突及缺配置不会派发。这里验证的是调用与媒体链路，音频是固定测试音调。[本批实现与验收](docs/LOCAL-VIDEO-TOOLS-STORAGE-BRAND-20261005.md)
 
 | Agent 视频拟音：实际供应商与跟随时长 | 延长镜头：完整参数菜单与接入条件 |
 | --- | --- |
@@ -144,7 +154,7 @@ Ark 延长镜头使用官方工具栏的参考生成语义，当前仍要求公�
 
 ![freenow 配置与能力状态](docs/screenshots/generation-readiness-routed-20261005.png)
 
-堆叠索引已减少全图扫描与临时数组分配；本批素材写入移出同步 localStorage，QA 也避免将数 MB data URL 展开成 DOM 文本。尚未完成全局帧率和长时间内存验收。[性能记录](docs/CANVAS-PILE-INDEX-ALLOCATION-20261005.md)
+堆叠索引已减少全图扫描与临时数组分配；素材写入已移出同步 localStorage，QA 也避免将数 MB data URL 展开成 DOM 文本。尚未完成全局帧率和长时间内存验收。[性能记录](docs/CANVAS-PILE-INDEX-ALLOCATION-20261005.md)
 
 ## 开发
 

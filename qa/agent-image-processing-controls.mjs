@@ -1,0 +1,12 @@
+const app=window.CanvasApp,fixture=window.AgentImageProcessingFixture;
+if(!fixture?.state||fixture.state.bootstrapError)throw Error('隔离Agent图片验收未启动：'+(fixture?.state?.bootstrapError||'fixture missing'));
+const panel=document.createElement('aside');panel.setAttribute('aria-label','隔离Agent图片验收');panel.style.cssText='position:fixed;left:75px;top:70px;z-index:80;background:#171717;border:1px solid #555;color:#eee;padding:10px;font:12px sans-serif;max-width:370px';
+const label=document.createElement('strong');label.textContent='隔离协议验收 · 固定回复/输出，真实PNG与生产审批';panel.append(label);
+const output=document.createElement('pre');output.ariaLabel='图片验收计数';panel.append(output);
+output.style.cssText='max-height:40vh;overflow:auto';
+const fold=document.createElement('button');fold.textContent='收起验收数据';fold.setAttribute('aria-expanded','true');fold.onclick=()=>{output.hidden=!output.hidden;fold.textContent=output.hidden?'展开验收数据':'收起验收数据';fold.setAttribute('aria-expanded',String(!output.hidden));};panel.append(fold);
+const toggle=document.createElement('button');toggle.textContent='切换服务配置';toggle.onclick=()=>{fixture.setConfigured(!fixture.state.configured);window.GenerationAPI.configure();};panel.append(toggle);
+const alter=document.createElement('button');alter.textContent='替换来源高清图';alter.onclick=()=>app.updateNode('image-source',{fullImage:'/qa/agent-image-processing-result.png'});panel.append(alter);document.body.append(panel);
+function write(){output.textContent=JSON.stringify({kind:fixture.state.kind,configured:fixture.state.configured,turns:fixture.state.turns,requests:fixture.state.requests,errors:fixture.state.errors,taskRecords:fixture.state.taskRecords,posts:fixture.state.taskRecords==='ready'?fixture.state.posts.length:null,postsDetail:fixture.state.taskRecords==='ready'?fixture.state.posts:null,sourceReads:fixture.state.sourceReads,nodes:app.getState().nodes.length,edges:app.getState().edges.length,jobs:window.GenerationAPI.getJobs().map(job=>({id:job.id,status:job.status,applied:job.applied,applicationError:job.applicationError,resultIds:job.resultIds}))},null,2);}
+window.addEventListener('qa-agent-image:change',write);window.GenerationAPI.subscribe(write);window.addEventListener('canvas:nodes-changed',write);write();
+window.addEventListener('load',()=>{if(!localStorage.getItem('qa-image-view')){document.querySelector('#reset').click();localStorage.setItem('qa-image-view','set');}window.AgentUI.open();},{once:true});

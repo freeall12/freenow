@@ -32,6 +32,13 @@ export function inputCounts(value = 0) {
 
 export function inputCompatibility(model, references = 0) {
   const id = typeof model === 'string' ? model : model?.id;
+  if (id === 'hunyuan-world-panorama') {
+    const counts = inputCounts(references);
+    const supported = counts.normal === 1 && counts.style === 0 && counts.omni === 0;
+    return {supported, mode: supported ? 'image_to_image' : null, maxImages: 1,
+      ...(supported ? {} : {error: 'panorama_source_required'}),
+      reason: supported ? '' : '图生360全景需要且只支持一张普通参考图'};
+  }
   const max = referenceLimits[id];
   // A custom provider model may define its own limits outside this catalogue.
   if (max === undefined) return { supported: true, mode: null, maxImages: null, reason: '' };

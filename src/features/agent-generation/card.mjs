@@ -8,7 +8,7 @@ import {audioTypeIcon} from './audio-assets.mjs';
 import {audioModels,audioLabels,sceneNames,audioSpec,audioModel,audioCompatibility,normalizeAudio,audioSourceVideoState} from './audio.mjs';
 import {icons} from './icons.mjs';
 import {referenceIcons} from '../agent-composer/reference-icons.mjs';
-import {imageModels,videoModels,findModel,createGenerationDraft,normalizeDraft,parameterOptions,referenceShape,referencesFor,compatibility,confirmedArguments,generationStatus,generationResultMode} from './model.mjs';
+import {imageModels,videoModels,findModel,createGenerationDraft,normalizeDraft,selectGenerationModel,parameterOptions,referenceShape,referencesFor,compatibility,confirmedArguments,generationStatus,generationResultMode} from './model.mjs';
 import {isBatch,batchDraft,batchCompatibility,batchOptions,changeBatch,batchDecisions,sharedReferences} from './batch.mjs';
 import {openParameterMenu} from './menu.mjs';
 export {supportsCard,confirmedArguments,createGenerationDraft} from './model.mjs';
@@ -42,7 +42,7 @@ export function createGenerationCard(initial,{getNodes=()=>[],getEdges=()=>[],ge
   if(applyResultMode(mode)){formError='';persist();render();}
  }
  function resultModeStorage(event){if(event.key==='tapnow.canvas.generation-result-mode'||event.key===null)updateResultMode({detail:{mode:generationResultMode()}});}
- function change(key,value){captureInputs();formError='';draft=items?changeBatch(draft,items,key,value,getNodes()):normalizeDraft({...draft,[key]:value},getNodes());if(key==='duration'&&draft.kind==='audio.generate'){draft.audioDurationExplicit=true;draft.audioDurationEdited=true;}persist();render();}
+ function change(key,value){captureInputs();formError='';draft=items?changeBatch(draft,items,key,value,getNodes()):key==='model'?selectGenerationModel(draft,value,getNodes()):normalizeDraft({...draft,[key]:value},getNodes());if(key==='duration'&&draft.kind==='audio.generate'){draft.audioDurationExplicit=true;draft.audioDurationEdited=true;}persist();render();}
  function refreshAudioMetadata(){
   const state=audioSourceVideoState(null,draft,getNodes());if(!state.candidate){if(audioMetadataScope){audioMetadataScope='';audioMetadata=null;audioMetadataError='';audioMetadataPending=false;audioMetadataRevision++;}return;}
   const scope=JSON.stringify([draft.model,draft.audioScene,draft.nodeId,draft.referenceIds]);if(scope===audioMetadataScope)return;
@@ -125,7 +125,8 @@ export function createGenerationCard(initial,{getNodes=()=>[],getEdges=()=>[],ge
   const header=el('header','generation-card-header');header.append(glyph(kind+'Type'),el('span','',kind==='image'?'图片生成':kind==='audio'?'音频生成':'视频生成'));
   if(status.label)header.append(el('span','generation-card-status',status.label));root.append(header,prompt());
   const parameters=el('div','generation-card-parameters'),chips=el('div','generation-chip-list'),model=findModel(draft.kind,draft.model),nodes=getNodes();
-  const reason=m=>items?batchCompatibility({...draft,model:m.id},items,nodes):compatibility(draft.kind,m,referenceShape(draft,nodes),draft);
+  if(model?.nativePanorama)parameters.append(el('p','generation-card-native-note','Hunyuan 独立替代 · 图生360全景 · 单参考 / 单结果 · 固定2:1 · 原生尺寸'));
+  const reason=m=>{const candidate=m.nativePanorama&&m.id!==draft.model?selectGenerationModel(draft,m.id,nodes):draft;return items?batchCompatibility({...candidate,model:m.id},items,nodes):compatibility(draft.kind,m,referenceShape(draft,nodes),candidate);};
   const modelOptions=(kind==='image'?imageModels:kind==='audio'?audioModels:videoModels).map(m=>({value:m.id,label:m.name,icon:m.icon,disabled:!!reason(m),reason:reason(m)}));
   if(items)chips.append(el('span','generation-chip',`${items.length} 个任务`),el('span','generation-divider'));
   chips.append(chip('model',model?.id||draft.model,model?modelOptions:[],{model:true}));

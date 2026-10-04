@@ -42,6 +42,12 @@ HTML品牌修改位于宿主预览侧栏，不修改用户HTML或离线wrapper�
 
 本子任务未操作浏览器、未提交或推送，未修改根index/generation-ui/config/styles、依赖、密钥或存储schema。实际可见状态由主线程统一Computer Use复验；来源归属仍准确保留。
 
+## 固定欢迎称谓补记
+
+主线程在新隔离会话看到“Hi New Tapper!”后，定位到两处硬编码欢迎文案：主画布 `agent-client.js` 的 `canvasWelcome`，以及独立 `agent-scene/welcome.mjs` 的 `createStudioWelcome`。两处都直接创建固定文本，不从用户profile或已存名字读取。
+
+本子任务只将独立片场欢迎改为“你好，创作者！”，主入口交给负责agent-client的Agent owner同步，避免共享文件冲突。没有写用户名字、消息、项目或兼容key。窄验证执行实际片场欢迎模块：称谓正确，场景引导与示例按钮继续提供原prompt；源码语法与diff检查通过。未为单句文案新增测试文件或重跑全套。
+
 ## 后续主线程图片替换与 Computer Use
 
 主画布`index.html`和`studio-v2/ui.mjs`两处Agent入口统一使用`assets/branding/freenow-agent.svg`；这是已安装Tabler 3.47.0的MIT `outline/robot-face.svg`原资源，未重绘路径。`world-node/preview-chrome.mjs`旋转提示使用本地F标识。深色反色由对应CSS处理，Agent图片30×30，保持原按钮外框与定位。准确来源见[品牌资源说明](../assets/branding/README.md)。

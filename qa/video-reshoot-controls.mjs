@@ -1,0 +1,12 @@
+import {open} from '/src/features/video-reshoot/ui.mjs';
+import {request,initial,sourceGuard} from '/src/features/video-reshoot/core.mjs';
+const app=window.CanvasApp,fixture=window.ReshootFixture,panel=document.createElement('aside');panel.style.cssText='position:fixed;left:80px;top:65px;z-index:80;background:#171717;color:white;padding:10px;font:12px sans-serif;max-width:360px';panel.setAttribute('aria-label','重拍隔离验收控制');
+const title=document.createElement('strong');title.textContent='视频重拍隔离验收 · 生产面板 · 无模型调用';panel.append(title);
+const source=()=>app.getState().nodes.find(n=>n.id==='reshoot-source'),text=document.createElement('p'),output=document.createElement('pre');text.textContent=fixture.mode==='delayed'?'延迟模式仅模拟tasks-v1配置回执。打开→等待生成可用→延迟下一次配置→生成→立即关闭→释放配置；不产生任务。':'缺Key或Ark已配置＋本地真实视频。生成应禁用；可检查真实TaskService前置拒绝。';panel.append(text);
+const add=(label,fn)=>{const b=document.createElement('button');b.textContent=label;b.type='button';b.onclick=()=>Promise.resolve().then(fn).catch(e=>{fixture.lastError=e.message;write();});panel.append(b);return b;};
+add('打开生产视频重拍',()=>{open(source());write();});
+if(fixture.mode==='delayed'){add('延迟下一次配置',()=>{fixture.armDelay=true;write();});add('释放迟到配置',()=>{fixture.release();write();});}
+else add('检查真实任务前置校验',async()=>{const node=source(),video=document.querySelector('.node[data-id="reshoot-source"] video');if(!Number.isFinite(video?.duration))throw Error('请先打开面板并等待真实视频读取');const req=request(node,initial(video.duration),node.video),guard=sourceGuard(app,node);try{await window.GenerationAPI.runInPlace(req,{type:'video',guard,apply:()=>{throw Error('夹具没有生成结果，禁止应用');}});}catch(e){fixture.lastError=e.message;}write();});
+panel.append(output);document.body.append(panel);
+function write(){output.textContent=JSON.stringify({mode:fixture.mode,posts:fixture.posts,mediaPrepares:fixture.mediaPrepares,trimCalls:fixture.trimCalls,localMediaReads:fixture.localMediaReads,configCalls:fixture.configCalls,configResolved:fixture.configResolved,pendingConfigs:fixture.pendingConfigs,delayArmed:fixture.armDelay,blockedAPI:fixture.blockedAPI,blockedExternal:fixture.blockedExternal,databases:fixture.dbNames(),jobs:window.GenerationAPI.getJobs().map(j=>({kind:j.request.kind,status:j.status})),nodes:app.getState().nodes.length,lastError:fixture.lastError??null},null,2);}
+window.GenerationAPI.subscribe(write);const timer=setInterval(write,250);window.addEventListener('pagehide',()=>clearInterval(timer),{once:true});write();

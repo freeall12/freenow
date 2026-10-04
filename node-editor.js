@@ -56,12 +56,13 @@
   document.body.append(panel,pop);
   function defaults(n){return {prompt:'',refs:[],model:n.type==='video'?'Seedance 2.0':'Tap Nano 2',ratio:'16:9',quality:n.type==='video'?'1080p':'2K',duration:5,count:n.type==='video'?1:4,camera:'Sony Venice',lens:'Zeiss Ultra Prime',focal:'24mm',aperture:'ƒ/4',thinking:'high',mode:'全能参考',audio:true};}
   function countConfiguration(value,n=node){
+    if(n.type==='image'&&(imageMenus?.modelFor(value.model)?.nativePanorama||value.modelId==='hunyuan-world-panorama'||value.model==='hunyuan-world-panorama'||value.model==='Hunyuan World Panorama'))return {options:[1],times:1,batchSize:1,displayCount:1};
     if(!resultCounts)return {options:[1,2],times:value.count};
     if(n.type==='image')return resultCounts.imageResultCounts({mode:resultMode,isMidjourney:!!imageMenus?.modelFor(value.model)?.midjourney||/^midjourney(?:-|\s)/i.test(value.model),currentTimes:value.count??value.times});
     const model=videoMenus?.modelFor(value.model),variant=model?.variants.find(v=>v.key===value.variant||v.modelType===value.videoMode)||model?.variants[0];
     return resultCounts.videoResultCounts({currentTimes:value.count??value.times,timesOptions:variant?.options?.timesOptions,final:typeof value.draftVideoId==='string'&&!!value.draftVideoId.trim()});
   }
-  function normalizeCountConfig(value,n=node){const count=countConfiguration(value,n).times;return {...value,resultMode,count,...value.times!==undefined?{times:count}:{}};}
+  function normalizeCountConfig(value,n=node){const nativePanorama=n.type==='image'&&(imageMenus?.modelFor(value.model)?.nativePanorama||value.modelId==='hunyuan-world-panorama'||value.model==='hunyuan-world-panorama'||value.model==='Hunyuan World Panorama'),count=countConfiguration(value,n).times;return {...value,resultMode:nativePanorama?'variants':resultMode,count,...value.times!==undefined?{times:count}:{}};}
   function syncResultCountMode(event){
     if(event){if(!['pile','spread','variants'].includes(event.detail?.mode))return;resultMode=event.detail.mode;}
     if(!node||panel.hidden||!resultCounts)return;
@@ -72,6 +73,7 @@
   function getConfig(n){
     const saved=n.generation||n.params||drafts[n.id]||window.EDITOR_DATA?.nodes[n.id]||{};
     let value={...defaults(n),...cameraControls?.initialSettings(n,saved),...saved};
+    if(n.type==='image'&&(saved.modelId==='hunyuan-world-panorama'||saved.model==='hunyuan-world-panorama'||saved.model==='Hunyuan World Panorama'))return normalizeCountConfig({prompt:'',refs:[],cameraEnabled:false,model:'Hunyuan World Panorama',...saved},n);
     if(saved.count===undefined&&saved.times!==undefined)value.count=saved.times;
     if(n.type==='video'&&['MiniMax-H3','MiniMax-H3-Max'].includes(videoMenus?.modelFor(value.model)?.id)){
       const state=app.getState();
@@ -256,7 +258,7 @@
     const model=button('',e=>modelMenu(e.currentTarget),'model-trigger');const originalModelIcon=node.type==='image'?imageMenus?.modelIcon(config):videoMenus?.modelIcon(config);if(originalModelIcon)model.append(originalModelIcon);else model.innerHTML=icon('spark');model.append(make('span','',node.type==='video'?modelLabel(videoMenus?.modelFor(config.model)?.name||config.model):config.model));model.setAttribute('aria-label','选择生成模型');footer.append(model,make('span','footer-separator'));
     const videoData=node.type==='video'&&videoMenus?.configuration(config,videoInputs());
     const quality=button('',e=>qualityMenu(e.currentTarget),'quality-trigger');if(node.type==='image'&&imageMenus)quality.append(imageMenus.ratioIcon(config.ratio,16));else if(!videoData?.modeOptions?.length)quality.innerHTML=icon('screen');quality.append(make('span','',node.type==='video'?(videoData?videoMenus.triggerLabel(videoData):`${config.mode} · ${config.ratio} · ${config.quality} · ${config.duration}s`):(imageMenus?.triggerLabel(config)||`${config.ratio} · ${config.quality}`)));if(node.type==='video'&&videoData?.options.supportsAudio){quality.append(make('span','','·'),videoMenus.audioIcon(videoData.settings.audio));}quality.setAttribute('aria-label','生成规格');footer.append(quality);
-    if(node.type==='image'){const style=button('',()=>chooseReference(true),'style-trigger');style.innerHTML=icon('image');style.append(make('span','','风格'));style.classList.toggle('configured',!!config.style);footer.append(style);if(cameraControls?.supportsCamera(imageMenus?.modelFor(config.model)?.id))footer.append(cameraControls.renderTrigger(config,commitCamera,cameraMenu));}
+    if(node.type==='image'){if(!imageMenus?.modelFor(config.model)?.nativePanorama){const style=button('',()=>chooseReference(true),'style-trigger');style.innerHTML=icon('image');style.append(make('span','','风格'));style.classList.toggle('configured',!!config.style);footer.append(style);}if(cameraControls?.supportsCamera(imageMenus?.modelFor(config.model)?.id))footer.append(cameraControls.renderTrigger(config,commitCamera,cameraMenu));}
     footer.append(make('span','footer-spacer'));const voice=button('',null,'voice-trigger');voice.innerHTML=icon('mic');footer.append(voice,make('span','footer-separator'));const voiceNodeId=node.id,voiceTarget=panel.querySelector('.prompt-editor');window.VoiceInput.bind(voice,{target:voiceTarget,getValue:()=>promptControl?promptControl.getText():focusEdit?focusEdit.readPrompt(voiceTarget):voiceTarget.innerText,captureSelection:promptControl?()=>promptControl.captureSelection():undefined,commitTranscript:promptControl?(snapshot,text)=>promptControl.commitTranscript(snapshot,text):undefined,setValue:value=>{if(promptControl)promptControl.sync(value);else if(focusEdit)focusEdit.paintPrompt(voiceTarget,value);else voiceTarget.textContent=value;config.prompt=value;save();},isCurrent:()=>activeId===voiceNodeId,mount:footer});
     const count=button(config.count*(node.type==='image'&&imageMenus?.modelFor(config.model)?.midjourney?4:1)+'×',e=>countMenu(e.currentTarget),'count-trigger');count.setAttribute('aria-label','生成数量');footer.append(count);
     const generate=button('',submitGeneration,'generate-trigger');generate.title='生成';generate.setAttribute('aria-label','生成');footer.append(generate);
@@ -280,7 +282,8 @@
     panel.querySelectorAll('.model-trigger,.quality-trigger,.count-trigger,.generate-trigger,.focus-edit-trigger,.camera-control-trigger button').forEach(button=>{button.disabled=disabled;});
     if(node?.type==='image'&&imageMenus){
       const imageCount=imageInputCount();
-      const compatibility=imageMenus.inputCompatibility(imageMenus.modelFor(config.model),imageCount);
+      let compatibility=imageMenus.inputCompatibility(imageMenus.modelFor(config.model),imageCount);
+      const intentError=imageMenus.modelFor(config.model)?.nativePanorama&&imageMenus.nativePanoramaIntentError(config);if(intentError)compatibility={...compatibility,supported:false,reason:intentError};
       const generate=panel.querySelector('.generate-trigger');
       if(generate){generate.disabled=disabled||!compatibility.supported;generate.title=compatibility.reason||'生成';}
       const counter=panel.querySelector('.reference-count');

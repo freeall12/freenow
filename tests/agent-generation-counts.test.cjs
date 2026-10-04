@@ -47,7 +47,7 @@ test('actual open-card event updates batch drafts and captures live prompt befor
 });
 
 test('card teardown removes both result-mode event listeners',()=>{
- const removed=[],context={closeMenu(){},previews:{destroy(){}},destroyInputs(){},window:{removeEventListener:(name,listener)=>removed.push([name,listener])},updateMode(){},updateResultMode(){},resultModeStorage(){},root:{remove(){}}};
+ const removed=[],context={audioMetadataRevision:0,closeMenu(){},previews:{destroy(){}},destroyInputs(){},window:{removeEventListener:(name,listener)=>removed.push([name,listener])},updateMode(){},updateResultMode(){},resultModeStorage(){},root:{remove(){}}};
  vm.createContext(context);const method=source.slice(source.indexOf('  destroy(){'),source.indexOf('\n  update(next)')).trim().replace(/,$/,'');
  vm.runInContext('({'+method+'}).destroy()',context);
  assert.deepEqual(removed.map(([name])=>name),['agent:confirmation-mode','canvas:generation-result-mode','storage']);

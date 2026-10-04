@@ -6,12 +6,13 @@ export {audioModels};
 import {models,modelFor,normalize,countsFor,sizesFor,inputCompatibility} from '../image-generation/catalog.mjs';
 import {videoModels} from './video-catalog.mjs';
 import {normalizeResultMode} from '../generation-results/counts.mjs';
+import {nativePanoramaIntentError,prepareNativePanoramaRequest} from '../image-generation/panorama-native.mjs';
 export function generationResultMode(mode){
  if(mode!==undefined)return normalizeResultMode(mode);
  if(typeof window==='undefined')return 'variants';
  try{return normalizeResultMode(globalThis.localStorage?.getItem('tapnow.canvas.generation-result-mode'));}catch{return 'variants';}
 }
-const imageIds=['gpt-image-2.5-flare','gpt-image-2.5-sunburst','gpt-image-2','nano-banana-flash','nano-banana-flash-lite','tamar-google-gemini-pro','doubao-seedream-5.0-lite','doubao-seedream-5.0-pro','midjourney-v7','midjourney-v8.2','midjourney-v8.1'];
+const imageIds=['gpt-image-2.5-flare','gpt-image-2.5-sunburst','gpt-image-2','nano-banana-flash','nano-banana-flash-lite','tamar-google-gemini-pro','doubao-seedream-5.0-lite','doubao-seedream-5.0-pro','midjourney-v7','midjourney-v8.2','midjourney-v8.1','hunyuan-world-panorama'];
 export const imageModels=imageIds.map(id=>models.find(m=>m.id===id)).filter(Boolean);
 export {videoModels};
 const aliases={'nano-banana-2':'nano-banana-flash','nano-banana-2-lite':'nano-banana-flash-lite','nano-banana-pro':'tamar-google-gemini-pro','seedream-5-lite':'doubao-seedream-5.0-lite','seedream-5-pro':'doubao-seedream-5.0-pro','wan-3.0':'wan3.0-video'};
@@ -41,14 +42,24 @@ export function compatibleVariants(model,shape){
 }
 export function compatibility(kind,model,shape,draft={}){
  if(kind==='audio.generate')return audioCompatibility(normalizeAudio({...draft,model:model.id}),shape);
- if(kind==='image.generate')return shape.video||shape.audio?'此图片模型不支持视频或音频参考':inputCompatibility(model,shape.image).supported?'':inputCompatibility(model,shape.image).reason;
+ if(kind==='image.generate'){
+  if(model.nativePanorama){
+   const intent=nativePanoramaIntentError(draft)||draft.nativePanoramaInheritedIntent;
+   if(intent)return intent;
+   if(draft.aspect!==undefined&&draft.aspect!=='2:1'||draft.count!==undefined&&draft.count!==1||draft.isPanoramaPrompt===false||['imageSize','quality','seed','steps','thinking','duration','resolution','generateAudio','videoMode','webSearch','imageSearch','background'].some(key=>draft[key]!==undefined))return 'Hunyuan 全景仅支持固定2:1、单结果和原生尺寸；请取消不兼容设置';
+  }
+  return shape.video||shape.audio?'此图片模型不支持视频或音频参考':inputCompatibility(model,shape.image).supported?'':inputCompatibility(model,shape.image).reason;
+ }
  return compatibleVariants(model,shape).length?'':'所选模型不支持当前参考素材';
 }
 export function createGenerationDraft(args,config={},nodes=[]){
  if(isDraftFinal(args))return createDraftFinalDraft(args,nodes);
  if(args.kind==='audio.generate')return createAudioDraft(args,nodes);
  const model=findModel(args.kind,args.model||config.model);
+ if(args.kind==='image.generate'&&model?.nativePanorama)return normalizeDraft({...structuredClone(args),model:model.id,
+  ...(nativePanoramaIntentError(config)?{nativePanoramaInheritedIntent:nativePanoramaIntentError(config)}:{})},nodes);
  const draft={...structuredClone(args),model:args.model||model?.id||config.model,aspect:args.aspect??config.ratio,duration:args.duration??config.duration,count:args.count??(args.kind==='image.generate'?config.count??1:1),imageSize:args.imageSize??config.imageSize??(args.kind==='image.generate'?config.quality:undefined),quality:args.quality??config.outputQuality,resolution:args.resolution??(args.kind==='video.generate'?config.quality:undefined),generateAudio:args.generateAudio??config.audio};
+ if(args.kind==='image.generate'&&nativePanoramaIntentError(config))draft.nativePanoramaInheritedIntent=nativePanoramaIntentError(config);
  if(args.kind==='image.generate')draft.resultMode=generationResultMode(config.resultMode);
  return normalizeDraft(draft,nodes);
 }
@@ -58,6 +69,8 @@ export function normalizeDraft(draft,nodes=[]){
  const next={...draft},model=findModel(next.kind,next.model);if(!model)return next;
  next.model=model.id;
  if(next.kind==='image.generate'){
+  if(model.nativePanorama)return Object.fromEntries(Object.entries({...next,aspect:next.aspect??'2:1',count:next.count??1,
+   isPanoramaPrompt:next.isPanoramaPrompt??true,resultMode:'variants'}).filter(([,value])=>value!==undefined));
   const config=normalize({model:model.id,ratio:next.aspect,imageSize:next.imageSize,outputQuality:next.quality,count:next.count,resultMode:generationResultMode(next.resultMode)},model);
   next.aspect=config.ratio;next.imageSize=config.imageSize;next.quality=config.outputQuality;next.count=config.count;next.resultMode=config.resultMode;
   delete next.duration;delete next.resolution;delete next.generateAudio;delete next.videoMode;
@@ -75,6 +88,20 @@ export function normalizeDraft(draft,nodes=[]){
  }
  return Object.fromEntries(Object.entries(next).filter(([,v])=>v!==undefined));
 }
+// Model selection is an explicit change of controls. Keep per-model image
+// drafts locally so a panorama detour does not erase the user's previous size.
+export function selectGenerationModel(draft,id,nodes=[]){
+ const current=findModel(draft.kind,draft.model),target=findModel(draft.kind,id);
+ if(draft.kind!=='image.generate'||!target)return normalizeDraft({...draft,model:id},nodes);
+ if(!current?.nativePanorama&&!target.nativePanorama)return normalizeDraft({...draft,model:id},nodes);
+ const keys=['aspect','imageSize','quality','count','resultMode','isPanoramaPrompt'];
+ const settings={...draft.imageModelDrafts,...(current?{[current.id]:Object.fromEntries(keys.filter(key=>draft[key]!==undefined).map(key=>[key,draft[key]]))}:{})};
+ const next={...draft,model:target.id,imageModelDrafts:settings};for(const key of keys)delete next[key];
+ Object.assign(next,settings[target.id]||{});
+ if(target.nativePanorama){next.aspect='2:1';next.count=1;next.isPanoramaPrompt=true;delete next.imageSize;delete next.quality;}
+ else delete next.isPanoramaPrompt;
+ return normalizeDraft(next,nodes);
+}
 export function parameterOptions(draft,nodes=[]){
  if(isDraftFinal(draft))return {};
  if(draft.kind==='audio.generate')return audioOptions(draft);
@@ -84,7 +111,7 @@ export function parameterOptions(draft,nodes=[]){
  if(!variant)return {};
  return {videoMode:variants.map(v=>v.modelType),aspect:variant.options.aspectRatios,duration:variant.options.durations,resolution:variant.options.resolutions,quality:variant.options.modes,generateAudio:variant.options.supportsAudio?[true,false]:undefined};
 }
-const editableFields=[...audioFields,'prompt','model','aspect','imageSize','quality','count','duration','resolution','generateAudio','videoMode'];
+const editableFields=[...audioFields,'prompt','model','aspect','imageSize','quality','count','duration','resolution','generateAudio','videoMode','isPanoramaPrompt'];
 export function confirmedArguments(original,draft,nodes=[],edges=[],{audioMetadata}={}){
  if(isDraftFinal(original))return confirmDraftFinal(original,draft,nodes,edges);
  if(!nodes.some(n=>n.id===original.nodeId))throw Error('来源节点已删除');
@@ -101,7 +128,9 @@ export function confirmedArguments(original,draft,nodes=[],edges=[],{audioMetada
   validateAudioDraft(sourceVideoDuration?normalizeAudio(next):next,refs);return next;
  }
  const model=findModel(next.kind,next.model);
- if(model){const error=compatibility(next.kind,model,referenceShape(next,nodes));if(error)throw Error(error);const options=parameterOptions({...next,...next.kind==='image.generate'?{resultMode:generationResultMode(draft.resultMode)}:{}},nodes);for(const [key,values]of Object.entries(options))if(values?.length&&next[key]!==undefined&&!values.includes(next[key]))throw Error('生成参数无效：'+key);}
+ if(model){const error=compatibility(next.kind,model,referenceShape(next,nodes),draft);if(error)throw Error(error);const options=parameterOptions({...next,...next.kind==='image.generate'?{resultMode:generationResultMode(draft.resultMode)}:{}},nodes);for(const [key,values]of Object.entries(options))if(values?.length&&next[key]!==undefined&&!values.includes(next[key]))throw Error('生成参数无效：'+key);
+  if(model.nativePanorama){const refs=referencesFor(next,nodes);prepareNativePanoramaRequest({kind:next.kind,prompt:next.prompt,inputs:refs.map(node=>({type:node.video?'video':node.audio?'audio':node.image?'image':'text',url:node.fullImage||node.image||node.video||node.audio})),parameters:{model:next.model,ratio:next.aspect,count:next.count,isPanoramaPrompt:next.isPanoramaPrompt}});}
+ }
  return next;
 }
 export function generationStatus(trace){

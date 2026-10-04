@@ -395,6 +395,8 @@
    try{return await track(()=>previsRuntime.generateSheets({reply_id:a.reply_id,shot_codes:a.shot_codes},trace,chat,{userAction:true,isCurrent,sourceContext:context,signal}));}finally{context.dispose();}
   }
   case 'generation_submit':{
+   const {imageProcessingKinds,submitAgentImageProcessing}=await import('./src/features/agent-generation/image-processing.mjs');
+   if(imageProcessingKinds.includes(a.kind))return submitAgentImageProcessing(a,{app,api:window.GenerationAPI,signal,onSubmitted:onDepthSubmitted});
    if(a.draftSourceId){const {createDraftFinalDraft,confirmDraftFinal}=await import('./src/features/agent-generation/draft-final.mjs');const approval=draftFinalApproval||createDraftFinalDraft(a,app.getState().nodes);confirmDraftFinal(a,approval,app.getState().nodes,app.getState().edges);const {submitDraftFinal}=await import('./src/features/video-generation/draft-final-workflow.mjs');if(signal?.aborted)throw new DOMException('Aborted','AbortError');confirmDraftFinal(a,approval,app.getState().nodes,app.getState().edges);const result=await submitDraftFinal({sourceId:a.draftSourceId,...(a.nodeId?{targetId:a.nodeId}:{})});return {nodeId:result.nodeId,taskId:result.job.id,status:result.job.status};}
    if(a.kind==='text.generate'&&window.TextAPI){const {nodeId,kind,...overrides}=a;const request=await window.TextAPI.buildRequest(nodeId,overrides),job=window.GenerationAPI.submit(request);return {taskId:job.id,status:job.status};}
    if(a.kind==='audio.generate'&&window.AudioAPI?.buildRequest){const request=await window.AudioAPI.buildRequest(a.nodeId,a),job=window.GenerationAPI.submit(request);return {taskId:job.id,status:job.status};}
@@ -407,13 +409,13 @@
     if(signal?.aborted)throw new DOMException('生成已取消','AbortError');
     if(availability?.configured===false)return {status:'configuration_required',nodeId:a.nodeId,error:'尚未配置生成服务，请连接 API 后重试'};
     const {prepareAgentMediaInputs}=await import('./src/features/agent-generation/media-inputs.mjs');
-    const prepared=await prepareAgentMediaInputs(refs,{getNode:id=>app.getState().nodes.find(node=>node.id===id),signal,localAssets:window.LocalAssets,localMedia:window.LocalMedia,baseUrl:document.baseURI,deferTransport:true,guardNodes:[n]});
+    const prepared=await prepareAgentMediaInputs(refs,{getNode:id=>app.getState().nodes.find(node=>node.id===id),signal,localAssets:window.LocalAssets,localMedia:window.LocalMedia,baseUrl:document.baseURI,deferTransport:true,guardNodes:[n],panoramaModel:a.kind==='image.generate'?a.model:undefined});
     beforeDispatch=prepared.guard;prepared.guard();if(!app.getState().nodes.includes(n))throw Error('生成目标已删除或替换');inputs=prepared.inputs;
    }
    const isV2=n.type==='studio'&&(n.studioV2||!n.studio);
    if(a.kind==='model.generate'&&n.type!=='studio')throw Error('模型生成必须绑定片场节点');
    if(a.kind==='model.generate'&&isV2&&a.setupId)throw Error('3D 片场 2.0 不使用旧版状态 ID');
-   const job=window.GenerationAPI.submit({kind:a.kind,nodeId:a.nodeId,label:a.kind,prompt:a.prompt,inputs,parameters:{model:a.model,aspect:a.aspect,duration:a.duration,count:a.count,imageSize:a.imageSize,...(a.kind==='image.generate'?{outputQuality:a.quality}:{quality:a.quality}),resolution:a.resolution,generateAudio:a.generateAudio,videoMode:a.videoMode,...(a.kind==='model.generate'?{position:a.position||[0,isV2?0:n.studio?.ground?.y??-1.7,0],...(isV2?{sceneBinding:{version:2,nodeId:n.id}}:{setupId:a.setupId||n.studio?.activeSetup||'example'}),format:'glb'}:{})}},{beforeDispatch});
+   const job=window.GenerationAPI.submit({kind:a.kind,nodeId:a.nodeId,label:a.kind,prompt:a.prompt,inputs,parameters:{model:a.model,aspect:a.aspect,duration:a.duration,count:a.count,imageSize:a.imageSize,...(a.kind==='image.generate'?{outputQuality:a.quality,...(a.isPanoramaPrompt!==undefined?{isPanoramaPrompt:a.isPanoramaPrompt}:{})}:{quality:a.quality}),resolution:a.resolution,generateAudio:a.generateAudio,videoMode:a.videoMode,...(a.kind==='model.generate'?{position:a.position||[0,isV2?0:n.studio?.ground?.y??-1.7,0],...(isV2?{sceneBinding:{version:2,nodeId:n.id}}:{setupId:a.setupId||n.studio?.activeSetup||'example'}),format:'glb'}:{})}},{beforeDispatch});
    return {taskId:job.id,status:job.status};
   }
   case 'scene_import':case 'scene_redo':return window.StudioAPI.execute(name.slice(6),a,{signal});
@@ -480,7 +482,7 @@
  function updateWelcomeInput(d){const content=panel?.querySelector('.agent-welcome');if(content)content.hidden=Boolean(d.text?.trim());}
  function canvasWelcome(d){
   const space=el('div','agent-welcome-space'),welcome=el('section','agent-welcome'),hi=el('div','agent-hi');
-  hi.append(welcomeImage('assets/agent-motion-slow.webp'),el('h2','','Hi New Tapper!'));welcome.append(hi,el('p','agent-welcome-question','今天一起创作点什么？'));
+  hi.append(welcomeImage('assets/agent-motion-slow.webp'),el('h2','','你好，创作者！'));welcome.append(hi,el('p','agent-welcome-question','今天一起创作点什么？'));
   const suggestionsWrap=el('div','agent-welcome-suggestions'),cards=el('div','agent-suggestions');
   const page=welcomeModule?.getCanvasWelcomeSuggestionPage({offset,size:2});
   for(const item of page?.items||[]){

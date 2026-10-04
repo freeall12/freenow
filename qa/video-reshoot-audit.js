@@ -1,0 +1,2 @@
+// Count entry into the genuine preparation hook without replacing its behavior.
+(()=>{const Original=window.GenerationCore.TaskService;window.GenerationCore.TaskService=class extends Original{constructor(options={}){const prepare=options.prepareInputs;super({...options,prepareInputs:async(request,context)=>{if(request.kind==='video.reshoot')window.ReshootFixture.mediaPrepares++;return prepare?prepare(request,context):request;}});}};})();

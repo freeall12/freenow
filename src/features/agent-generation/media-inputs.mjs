@@ -1,12 +1,13 @@
 import {createWorkflowMediaResolver} from '../agent-workflows/media-resolver.mjs';
 import {createLocalClipResolver} from '../agent-workflows/local-clip-resolver.mjs';
 import {prepareWorkflowInputs} from '../agent-workflows/media-transport.mjs';
+import {isNativePanoramaModel} from '../image-generation/panorama-native.mjs';
 
 // Media can contain large data URLs; compare the existing field values without
 // repeatedly serializing their bytes during asynchronous reference preparation.
-const signature=node=>[node.type,node.video,node.fullImage,node.image,node.audio,node.content,JSON.stringify(node.clip),JSON.stringify(node.trim)];
+const signature=node=>[node.type,node.video,node.fullImage,node.image,node.audio,node.content,JSON.stringify(node.clip),JSON.stringify(node.trim),JSON.stringify(node.crop),JSON.stringify(node.imageCrop)];
 export async function prepareAgentMediaInputs(refs,{getNode,signal,localAssets,localMedia,baseUrl,
- resolveMedia,deferTransport=false,guardNodes=[],transport=prepareWorkflowInputs,getLegacyVideo=node=>globalThis.EDITOR_DATA?.nodes?.[node.id]?.video}={}){
+ resolveMedia,deferTransport=false,guardNodes=[],panoramaModel,transport=prepareWorkflowInputs,getLegacyVideo=node=>globalThis.EDITOR_DATA?.nodes?.[node.id]?.video}={}){
  const targetSignature=node=>JSON.stringify([node.generation,node.params,node.prompt,node.settings]);
  const hasInput=node=>!!(node.type==='video'&&(node.video||getLegacyVideo(node))||node.type==='image'&&(node.fullImage||node.image)||node.audio||node.content);
  const snapshots=[...new Set([...refs,...guardNodes])].map(node=>({node,reference:refs.includes(node)&&hasInput(node),signature:signature(node),target:guardNodes.includes(node),editing:targetSignature(node),legacy:getLegacyVideo(node)}));
@@ -36,6 +37,12 @@ export async function prepareAgentMediaInputs(refs,{getNode,signal,localAssets,l
   }else if(node.audio){inputs.push({...await resolveMedia({...node,type:'audio'},{signal}),sourceUrl:node.audio});}
   else if(node.content){inputs.push({id:node.id,type:'text',text:node.content});}
   guard();
+ }
+ // sourceUrl is a local source identity, not a native provider field. Keep it
+ // in the node snapshots above while submitting only measured image metadata.
+ if(isNativePanoramaModel(panoramaModel)){
+  if(inputs.length!==1||inputs[0].type!=='image'||!Number.isSafeInteger(inputs[0].width)||inputs[0].width<1||!Number.isSafeInteger(inputs[0].height)||inputs[0].height<1)throw Error('图生全景需要一张已读取真实像素尺寸的图片');
+  inputs[0]=Object.fromEntries(['type','id','url','width','height'].map(key=>[key,inputs[0][key]]));
  }
  if(deferTransport)return {inputs,guard};
  const media=inputs.filter(input=>input.type!=='text');
