@@ -1,10 +1,11 @@
 import { icons } from './icons.mjs';
 import { patchMarkdown, createStreamStatus, createInterruptedStatus } from './streaming.mjs';
 import { bindTooltip } from '../agent-composer/tooltip.mjs';
+import { createMessageAttachments } from './attachments.mjs';
 export { forkConversation, captureReaderPosition, restoreReaderPosition } from './model.mjs';
 
 export function createMessageRenderer({ renderMarkdown, renderComposer, onError, onFeedback, onFork }) {
-  const cleanups = [], codeStates = new Map(), toolStates = new Map(), records = new WeakMap(), waiting = new Set();
+  const cleanups = [], codeStates = new Map(), toolStates = new Map(), records = new WeakMap(), waiting = new Set(), attachmentRows = new Map();
   let timer = null, epoch = 0;
   function syncClock() {
     if (waiting.size && timer === null) timer = setInterval(() => {
@@ -119,7 +120,13 @@ export function createMessageRenderer({ renderMarkdown, renderComposer, onError,
     const row = document.createElement('div');row.className = `agent-message ${message.role}`;
     const body = document.createElement('div');body.className = 'agent-message-body';row.append(body);
     if (message.role === 'user') {
-      if (message.composerDoc && renderComposer) body.append(renderComposer(message.composerDoc));else body.textContent = message.text || '';
+      if (Array.isArray(message.uploads) && message.uploads.length) {
+        const key = options.key ?? message, signature = JSON.stringify(message.uploads.map(item => item && [item.id, item.asset, item.name, item.type, item.mime]));
+        let entry = attachmentRows.get(key);
+        if (entry?.signature !== signature) {entry?.row.destroy();entry = {signature, row: createMessageAttachments(message.uploads)};attachmentRows.set(key, entry);}
+        entry.epoch = epoch;body.append(entry.row.element);
+      }
+      if (message.composerDoc && renderComposer) body.append(renderComposer(message.composerDoc));else {const text = document.createElement('span');text.textContent = message.text || '';body.append(text);}
       const toolbar = toolbarFor(message, options);if (toolbar.children.length) row.append(toolbar);
     } else {
       body.classList.add('chat-markdown');
@@ -135,7 +142,7 @@ export function createMessageRenderer({ renderMarkdown, renderComposer, onError,
       details.open = pending || toolStates.get(key) === true;
       details.addEventListener('toggle', () => { if (details.isConnected) toolStates.set(key, details.open); });
     },
-    reset() { cleanups.splice(0).forEach(fn => fn());waiting.clear();epoch++;syncClock(); },
-    destroy() { this.reset(); codeStates.clear(); toolStates.clear(); },
+    reset() { cleanups.splice(0).forEach(fn => fn());waiting.clear();epoch++;syncClock();const next = epoch;queueMicrotask(() => {if (next !== epoch) return;for (const [key, entry] of attachmentRows) if (entry.epoch !== epoch) {entry.row.destroy();attachmentRows.delete(key);}}); },
+    destroy() { this.reset(); codeStates.clear(); toolStates.clear();for (const entry of attachmentRows.values()) entry.row.destroy();attachmentRows.clear(); },
   };
 }

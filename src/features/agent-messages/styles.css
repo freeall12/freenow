@@ -4,6 +4,11 @@
 .agent-message{display:flex;flex-direction:column;gap:8px;width:100%;max-width:95%;white-space:normal;min-width:0;font-size:14px;line-height:1.75;letter-spacing:.01em}
 .agent-message.user{padding:0;background:transparent;border-radius:0;display:flex;flex-direction:column;align-items:flex-end;margin-left:auto}
 .agent-message.user .agent-message-body{max-width:100%;padding:12px 16px;border-radius:8px;background:#1f1f1f;color:#f0f0f0;font-size:13px;white-space:pre-wrap}
+.agent-message-attachments{display:flex;align-items:flex-start;gap:12px;max-width:100%;overflow-x:auto;overscroll-behavior-x:contain;margin-bottom:12px;white-space:normal}
+.agent-message-attachment{position:relative;display:flex;align-items:center;justify-content:center;width:48px;height:48px;flex-shrink:0;border:1px solid #ffffff1a;border-radius:6px;overflow:hidden;box-sizing:border-box;color:var(--muted-foreground)}
+.agent-message-attachment[data-media=true]{border:0;background:#ffffff14}
+.agent-message-attachment :is(img,video){display:block;width:100%;height:100%;object-fit:cover}
+.agent-message-attachment svg{width:18px;height:18px;opacity:.6}
 .agent-message .chat-markdown{color:var(--chat-foreground)}
 .agent-message .chat-markdown :is(p,h1,h2,h3,h4,h5,h6,ul,ol,pre,blockquote){margin-bottom:0}
 .agent-message .chat-markdown>:first-child{margin-top:0}

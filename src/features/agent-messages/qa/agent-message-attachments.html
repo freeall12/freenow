@@ -1,0 +1,7 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><title>已发送附件 · 本地验收</title>
+<link rel="stylesheet" href="../styles.css">
+<style>body{margin:24px;background:#151515;color:#ddd;font:14px system-ui}header{max-width:700px;margin:auto}button{padding:8px;margin:4px}main{max-width:420px;margin:24px auto}.agent-messages{display:flex;flex-direction:column;gap:20px}output{display:block;color:#aaa;font-size:12px;white-space:pre-wrap}</style>
+<header><strong>正式消息组件 · 已发送附件验收</strong><p>固定本地测试素材。独立素材库和固定会话记录；不调用模型、不修改画布或实际聊天。</p>
+<button id="prepare">准备真实本地素材</button><button id="rerender">重绘消息</button><button id="restore">恢复已保存测试会话</button><button id="switch">切换为空会话</button><output id="receipt">请准备本地素材。</output></header>
+<main class="agent-messages" id="mount"></main>
+<script>window.LOCAL_ASSETS_DB_NAME='qa-agent-message-attachments-20261005';</script><script src="../../../../local-assets.js"></script><script type="module" src="./agent-message-attachments.mjs"></script></html>

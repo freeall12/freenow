@@ -1,0 +1,29 @@
+{
+  "directory": "/var/folders/jf/l5k4gml17sg391snm99_5nzm0000gn/T/canvas-history-expansion-mMEa4z",
+  "port": 4298,
+  "baseCommit": "1c17cf8550536a2b26d4021d1b0f68de14dbe943",
+  "checks": {
+    "batches": {
+      "rowCount": 2,
+      "resultCount": 3,
+      "sourceUnchanged": true,
+      "undoSteps": 1,
+      "graphCoordinatesExact": true,
+      "cssSerializationMaxError": 0.02500000000145519,
+      "fitVisible": true,
+      "decodedPortrait": {
+        "width": 180,
+        "height": 320
+      }
+    },
+    "undoExact": true,
+    "reloadExact": true,
+    "singleRealResult": true,
+    "videoBatches": true,
+    "noExternalRequests": true,
+    "providerUnconfigured": true
+  },
+  "consoleErrors": [],
+  "externalRequests": [],
+  "serverOutput": "Canvas replica: http://localhost:4298 | Agent requires OPENAI_API_KEY and OPENAI_MODEL\n"
+}

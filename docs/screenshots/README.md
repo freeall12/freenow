@@ -40,3 +40,14 @@ Agent 模型反馈截图来自 `/src/features/agent-generation/qa/disabled-model
 2026-10-04新增：`canvas-final-drop.jpg` 来自生产连线隔离QA的普通不兼容回退菜单，诊断同时证明菜单打开而原图不变；`studio-numeric-draft.jpg` 来自正式WebGL片场/运镜编辑和Agent，使用隔离精确坐标夹具与本机目录引用。见[连线](../CANVAS-CONNECTION-FINAL-DROP-20261004.md)、[片场数字草稿](../STUDIO-V2-NUMERIC-DRAFT-20261004.md)、[目录导航](../AGENT-REFERENCE-FOLDER-NAVIGATION-20261004.md)。没有调用真实模型。
 
 `studio-meshopt-local.jpg` 为上述数字QA通过正式文件选择/上传模型添加仓库tree.glb后，刷新重入并聚焦的实际画面；树的压缩字节本机解码，未调用模型API。
+
+2026-10-05新增，均为主线程Computer Use、默认1280×720本地画面，未调用生成接口：
+
+| 文件 | 来源与已验证行为 |
+| --- | --- |
+| [image-alignment-guides-20261005.jpg](image-alignment-guides-20261005.jpg) | `src/features/image-editor/qa/alignment.html`，实际Fabric左边缘拖动，截图保留隔离诊断；另验半倍中心、撤销和刷新恢复 |
+| [agent-message-attachments-20261005.jpg](agent-message-attachments-20261005.jpg) | `src/features/agent-messages/qa/agent-message-attachments.html`，正式消息renderer，真实本地图片/测试视频及失败槽位；另验重绘和会话持久化 |
+| [studio-timeline-key-drag-20261005.jpg](studio-timeline-key-drag-20261005.jpg) | `src/features/studio-v2/qa/timeline-key-drag-main.html`，真实GLB与正式运镜，取消与同名片段切换后轨道未污染 |
+| [canvas-history-batches-cua-20261005.jpg](canvas-history-batches-cua-20261005.jpg) | 公开隔离clone的4298正式入口，真实右键批次展开；整组一次撤销/重做和刷新恢复 |
+
+历史隔离clone复现脚本见[专项记录](../CANVAS-HISTORY-EXPANSION-20261005.md)。这些证据覆盖上述具体行为，不等于全站同态视觉或真实供应商质量验收。

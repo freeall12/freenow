@@ -24,6 +24,10 @@
 
 | 记录 | 范围 |
 | --- | --- |
+| [图片拖动吸附](IMAGE-EDITOR-ALIGNMENT-GUIDES-20261005.md) | 官方阈值、边缘/中心、辅助线导出隔离和保存恢复 |
+| [历史批次展开](CANVAS-HISTORY-EXPANSION-20261005.md) | 多批分行、单结果、来源隔离和一次撤销/重做 |
+| [Agent消息附件](AGENT-MESSAGE-ATTACHMENTS-20261005.md) | 真实缩略图、失败回退、重绘复用与会话清理 |
+| [片场关键帧拖动](STUDIO-V2-TIMELINE-KEY-DRAG-20261005.md) | 指针捕获、取消、同名运镜身份与迟到提交保护 |
 | [片场数字草稿](STUDIO-V2-NUMERIC-DRAFT-20261004.md) | 原始精度、取消/失焦、精确提交和跨轴拖动 |
 | [Agent目录导航](AGENT-REFERENCE-FOLDER-NAVIGATION-20261004.md) | 返回/整目录引用、键盘边界、焦点与正式bundle |
 | [正式片连线落点](CANVAS-CONNECTION-FINAL-DROP-20261004.md) | 无效落点取消、合法样片、普通回退和拖动Escape |

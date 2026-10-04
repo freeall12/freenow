@@ -55,7 +55,13 @@ FFmpeg 已安装在其他位置时，可配置 `FFMPEG_PATH`、`FFPROBE_PATH`。
 
 Agent 应用已登记 22 个版本 URI、20 个功能族，包含剧本、分镜、人物、学习、产品等工作流。**登记覆盖不等于全部页面和交互验收完成。**
 
-最新增量：片场取消数字草稿和未编辑失焦保留真实坐标精度，跨轴拖动可连续提交；Agent补目录键盘引用、两级Escape与鼠标焦点；正式视频节点无效连线落点正确取消。均已定向Computer Use，见[片场](docs/STUDIO-V2-NUMERIC-DRAFT-20261004.md)、[Agent目录](docs/AGENT-REFERENCE-FOLDER-NAVIGATION-20261004.md)、[连线](docs/CANVAS-CONNECTION-FINAL-DROP-20261004.md)。
+最新增量（2026-10-05）：图片编辑器补官方拖动吸附与辅助线；生成历史按批次分行，支持单结果；已发送 Agent 附件保留真实缩略图；运镜拖动补取消与同名片段切换保护。四项均完成定向检查、交叉审阅和 Computer Use，见[图片吸附](docs/IMAGE-EDITOR-ALIGNMENT-GUIDES-20261005.md)、[历史展开](docs/CANVAS-HISTORY-EXPANSION-20261005.md)、[消息附件](docs/AGENT-MESSAGE-ATTACHMENTS-20261005.md)、[运镜拖动](docs/STUDIO-V2-TIMELINE-KEY-DRAG-20261005.md)。
+
+| 生成历史：两批结果分行 | Agent：已发送本地附件与失败回退 |
+| --- | --- |
+| ![正式画布按批次展开图片历史](docs/screenshots/canvas-history-batches-cua-20261005.jpg) | ![正式消息组件的真实本地图片视频与回退槽位](docs/screenshots/agent-message-attachments-20261005.jpg) |
+
+上批精度、目录键盘导航和无效连线落点记录： [片场](docs/STUDIO-V2-NUMERIC-DRAFT-20261004.md)、[Agent目录](docs/AGENT-REFERENCE-FOLDER-NAVIGATION-20261004.md)、[连线](docs/CANVAS-CONNECTION-FINAL-DROP-20261004.md)。
 
 ![本地片场运镜参数和 Agent 目录引用](docs/screenshots/studio-numeric-draft.jpg)
 

@@ -6,6 +6,7 @@ import {prepareSourceCrop,commitSourceCrop,prepareObjectErasure,commitObjectEras
 import {createImageEditorAgent, imageEditorSourceStamp} from './src/features/image-editor/agent-bridge.mjs';
 import {normalizePose,renderPoseSource} from './src/features/image-editor/agent-pose.mjs';
 import {ensureArtworkIds,serializedArtworkFonts} from './src/features/image-editor/group-objects.mjs';
+import {createAlignmentGuides} from './src/features/image-editor/alignment-guides.mjs';
 FabricObject.customProperties = ['id', 'name', 'agentSourceNodeId', 'agentPose', 'selectable', 'evented', 'lockMovementX', 'lockMovementY', 'lockScalingX', 'lockScalingY', 'lockRotation'];
 // Four-digit JSON rounding accumulates through nested Group transforms on every
 // save/undo. Keep the editor's actual fractional geometry when serializing.
@@ -42,6 +43,8 @@ class ImageEditor {
     this.root.innerHTML = '<div class="ie-stage"><div class="ie-artboard"><canvas></canvas></div></div><header class="ie-header"><div class="ie-top-left"></div><div class="ie-context-region"><div class="ie-context"></div></div><div class="ie-top-right"></div></header><nav class="ie-left"></nav><aside class="ie-layers" aria-label="图层"></aside><nav class="ie-toolbar" aria-label="编辑工具"></nav><div class="ie-generation"></div><div class="ie-hint" hidden></div><div class="ie-status" role="status" hidden></div>';
     document.body.append(this.root); document.body.classList.add('media-editing');
     this.canvas = new Canvas($('canvas', this.root), {width:this.width, height:this.height, backgroundColor:'#ffffff', preserveObjectStacking:true, uniformScaling:false, selection:true, fireRightClick:true, stopContextMenu:true});
+    const guides=el('div','ie-alignment-guides');guides.setAttribute('aria-hidden','true');$('.ie-artboard',this.root).append(guides);
+    this.alignmentGuides=createAlignmentGuides({canvas:this.canvas,container:guides,enabled:()=>this.alive&&!this.loading&&!this.crop&&!this.resizing&&!this.space&&this.mode==='none'});
     this.canvas.on('object:modified', () => {if(this.crop)this.syncCrop();else this.record();}); this.canvas.on('path:created', e => { if(this.eraser)this.erasePath(e.path);else this.record(); });
     this.canvas.on('text:editing:exited', () => this.record());
     for (const event of ['selection:created', 'selection:updated', 'selection:cleared']) this.canvas.on(event, () => { this.context(); this.layers(); });
@@ -74,6 +77,7 @@ class ImageEditor {
     else{clearTimeout(this.statusTimer);$('.ie-status',this.root).hidden=true;}
   }
   async restore(doc) {
+    this.alignmentGuides.clear();
     this.closeMenu();
     this.loading = true;
     await Promise.all(serializedArtworkFonts(doc.canvas?.objects || []).map(f => loadFont(f).catch(e => this.status(e.message))));
@@ -87,7 +91,7 @@ class ImageEditor {
   status(message) { if (!this.alive) return; const n = $('.ie-status',this.root); n.textContent = message; n.hidden = false; clearTimeout(this.statusTimer); this.statusTimer = setTimeout(() => {n.hidden = true;},5000); }
   safe(fn) { return (...args) => Promise.resolve().then(() => fn(...args)).catch(e => this.status(e.message)); }
   fit() { this.zoom = Math.min(innerWidth / (this.width + 400), innerHeight / (this.height + 400)); this.pan = {x:0,y:0}; this.place(); }
-  place() { const board=$('.ie-artboard',this.root); board.style.width=this.width+'px';board.style.height=this.height+'px';board.style.setProperty('--editor-scale',this.zoom);board.style.transform=`translate(${this.pan.x}px,${this.pan.y}px) scale(${this.zoom})`;this.canvas.calcOffset(); }
+  place() { this.alignmentGuides.clear();const board=$('.ie-artboard',this.root); board.style.width=this.width+'px';board.style.height=this.height+'px';board.style.setProperty('--editor-scale',this.zoom);board.style.transform=`translate(${this.pan.x}px,${this.pan.y}px) scale(${this.zoom})`;this.canvas.calcOffset(); }
   build() {
     const left = $('.ie-top-left',this.root);
     this.ratioButton = button('chevron','画布比例',e=>this.ratios(e.currentTarget),'custom'); this.ratioButton.classList.add('ie-ratio'); this.ratioButton.insertAdjacentHTML('beforeend',icon('chevron'));
@@ -107,7 +111,7 @@ class ImageEditor {
     for(const side of ['left','right','top','bottom']){
       const handle=el('div','ie-resize '+side);handle.setAttribute('role','separator');handle.setAttribute('aria-label','调整画布'+({left:'左边缘',right:'右边缘',top:'上边缘',bottom:'下边缘'}[side]));board.append(handle);
       let drag;
-      handle.onpointerdown=e=>{e.preventDefault();e.stopPropagation();if(this.crop)return;this.canvas.discardActiveObject();this.resizing=true;drag={x:e.clientX,y:e.clientY,width:this.width,height:this.height,pan:{...this.pan},objects:this.canvas.getObjects().map(o=>({o,left:o.left,top:o.top}))};handle.setPointerCapture(e.pointerId);};
+      handle.onpointerdown=e=>{e.preventDefault();e.stopPropagation();if(this.crop)return;this.alignmentGuides.clear();this.canvas.discardActiveObject();this.resizing=true;drag={x:e.clientX,y:e.clientY,width:this.width,height:this.height,pan:{...this.pan},objects:this.canvas.getObjects().map(o=>({o,left:o.left,top:o.top}))};handle.setPointerCapture(e.pointerId);};
       handle.onpointermove=e=>{if(!drag)return;const horizontal=side==='left'||side==='right',negative=side==='left'||side==='top',raw=Math.round((horizontal?e.clientX-drag.x:e.clientY-drag.y)/this.zoom),original=horizontal?drag.width:drag.height,size=Math.max(16,Math.min(4096,original+(negative?-raw:raw))),delta=(size-original)*(negative?-1:1);this.width=horizontal?size:drag.width;this.height=horizontal?drag.height:size;this.pan={x:drag.pan.x+(horizontal?delta*this.zoom/2:0),y:drag.pan.y+(!horizontal?delta*this.zoom/2:0)};if(negative)for(const {o,left,top}of drag.objects){o.set({left:left-(horizontal?delta:0),top:top-(!horizontal?delta:0)});o.setCoords();}this.canvas.setDimensions({width:this.width,height:this.height});this.place();};
       handle.onpointerup=()=>{if(drag){this.resizing=false;drag=null;this.ratio='custom';this.ratioButton.innerHTML='custom'+icon('chevron');this.record();}};
       handle.onpointercancel=()=>{if(!drag)return;this.resizing=false;this.width=drag.width;this.height=drag.height;this.pan=drag.pan;for(const {o,left,top}of drag.objects)o.set({left,top});this.canvas.setDimensions({width:this.width,height:this.height});this.place();drag=null;};
@@ -115,11 +119,13 @@ class ImageEditor {
   }
   events() {
     const opts={signal:this.listeners.signal};window.addEventListener('resize',()=>this.fit(),opts);
+    window.addEventListener('blur',()=>this.alignmentGuides.clear(),opts);window.addEventListener('pagehide',()=>this.alignmentGuides.clear(),opts);
+    this.root.addEventListener('pointercancel',()=>this.alignmentGuides.clear(),opts);
     this.root.addEventListener('pointerdown',e=>{if(this.popup&&!this.popup.contains(e.target)&&!this.popupAnchor?.contains(e.target))this.closeMenu();},opts);
     this.root.addEventListener('keydown',e=>this.key(e),opts);
     this.root.addEventListener('paste',e=>{if(e.target.closest('input,textarea,[contenteditable]')||this.canvas.getActiveObject()?.isEditing)return;e.preventDefault();this.safe(async()=>{if(e.target.closest('input,textarea,[contenteditable]')||this.canvas.getActiveObject()?.isEditing)return;const file=[...e.clipboardData.items].find(i=>i.type.startsWith('image/'))?.getAsFile();if(file){e.preventDefault();await this.addFile(file);}else if(this.copied){e.preventDefault();await this.pasteObjects();}else{const text=e.clipboardData.getData('text/plain');if(text){e.preventDefault();await this.addText(text);}}})();},opts);
-    const stage=$('.ie-stage',this.root);stage.addEventListener('wheel',e=>{e.preventDefault();const r=this.root.getBoundingClientRect(),x=e.clientX-r.width/2,y=e.clientY-r.height/2;if(e.ctrlKey||e.metaKey){const old=this.zoom;this.zoom=Math.min(8,Math.max(.1,old*Math.exp(-e.deltaY*.002)));this.pan.x=x-(x-this.pan.x)*this.zoom/old;this.pan.y=y-(y-this.pan.y)*this.zoom/old;}else{this.pan.x-=e.deltaX;this.pan.y-=e.deltaY;}this.place();},{...opts,passive:false});
-    stage.addEventListener('pointerdown',e=>{if(e.target===stage||e.button===1||this.space){e.preventDefault();this.panning={x:e.clientX,y:e.clientY,pan:{...this.pan}};stage.setPointerCapture(e.pointerId);}},opts);
+    const stage=$('.ie-stage',this.root);stage.addEventListener('wheel',e=>{e.preventDefault();this.alignmentGuides.clear();const r=this.root.getBoundingClientRect(),x=e.clientX-r.width/2,y=e.clientY-r.height/2;if(e.ctrlKey||e.metaKey){const old=this.zoom;this.zoom=Math.min(8,Math.max(.1,old*Math.exp(-e.deltaY*.002)));this.pan.x=x-(x-this.pan.x)*this.zoom/old;this.pan.y=y-(y-this.pan.y)*this.zoom/old;}else{this.pan.x-=e.deltaX;this.pan.y-=e.deltaY;}this.place();},{...opts,passive:false});
+    stage.addEventListener('pointerdown',e=>{if(e.target===stage||e.button===1||this.space){e.preventDefault();this.alignmentGuides.clear();this.panning={x:e.clientX,y:e.clientY,pan:{...this.pan}};stage.setPointerCapture(e.pointerId);}},opts);
     stage.addEventListener('pointermove',e=>{if(this.panning){this.pan={x:this.panning.pan.x+e.clientX-this.panning.x,y:this.panning.pan.y+e.clientY-this.panning.y};this.place();}},opts);stage.addEventListener('pointerup',()=>{this.panning=null;},opts);
     window.addEventListener('keyup',e=>{if(e.code==='Space'){this.space=false;this.canvas.skipTargetFind=false;}},opts);
     this.root.addEventListener('dragover',e=>e.preventDefault(),opts);this.root.addEventListener('drop',this.safe(async e=>{e.preventDefault();for(const file of e.dataTransfer.files)if(file.type.startsWith('image/'))await this.addFile(file);}),opts);
@@ -129,10 +135,10 @@ class ImageEditor {
     if(e.target.closest('input,textarea,[contenteditable]')||this.canvas.getActiveObject()?.isEditing)return;
     const mod=e.metaKey||e.ctrlKey;
     if(mod&&['z','y','s','c','v','a','d'].includes(e.key.toLowerCase())){e.preventDefault();e.stopPropagation();const k=e.key.toLowerCase();if(k==='z'||k==='y')this.safe(()=>this.undo(k==='y'||e.shiftKey))();if(k==='s')this.safe(()=>this.save())();if(k==='c')this.copy();if(k==='v')this.safe(()=>this.pasteObjects())();if(k==='d'){this.copy();this.safe(()=>this.pasteObjects())();}if(k==='a'){if(this.crop)this.applyCrop();this.canvas.setActiveObject(new ActiveSelection(this.canvas.getObjects(),{canvas:this.canvas}));this.canvas.requestRenderAll();}return;}
-    if(e.key==='Escape'){e.preventDefault();if(this.popup)this.closeMenu();else if(this.crop)this.cancelCrop();else if(this.penPoints?.length)this.finishPen(false);else this.canvas.discardActiveObject().requestRenderAll();}
+    if(e.key==='Escape'){e.preventDefault();this.alignmentGuides.clear();if(this.popup)this.closeMenu();else if(this.crop)this.cancelCrop();else if(this.penPoints?.length)this.finishPen(false);else this.canvas.discardActiveObject().requestRenderAll();}
     if(e.key==='Enter'){if(this.crop)this.applyCrop();else if(this.penPoints?.length)this.finishPen(true);}
     if(e.key==='Delete'||e.key==='Backspace'){e.preventDefault();this.remove();}
-    if(e.code==='Space'){e.preventDefault();this.space=true;this.canvas.skipTargetFind=true;}
+    if(e.code==='Space'){e.preventDefault();this.alignmentGuides.clear();this.space=true;this.canvas.skipTargetFind=true;}
     if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)){e.preventDefault();const step=e.shiftKey?10:1;for(const o of this.canvas.getActiveObjects()){o.left+=e.key==='ArrowLeft'?-step:e.key==='ArrowRight'?step:0;o.top+=e.key==='ArrowUp'?-step:e.key==='ArrowDown'?step:0;o.setCoords();}if(this.crop)this.syncCrop();this.canvas.requestRenderAll();this.record();}
   }
   menu(anchor,build,cls='') { if(this.popupAnchor===anchor){this.closeMenu();return;}this.closeMenu();this.popupAnchor=anchor;this.popupObjects=$('.ie-context',this.root).contains(anchor)?this.canvas.getActiveObjects():null;anchor.setAttribute('aria-expanded','true');this.popup=el('div','ie-popup '+cls);this.popup.setAttribute('role','menu');this.root.append(this.popup);build(this.popup);this.popup.onkeydown=e=>{if(e.target.matches('input,textarea')&&e.key!=='Escape')return;if(e.key==='Escape'){e.preventDefault();e.stopPropagation();const anchor=this.popupAnchor;this.closeMenu();const target=anchor?.isConnected?anchor:[...this.root.querySelectorAll('button')].find(b=>b.getAttribute('aria-label')===anchor?.getAttribute('aria-label'));target?.focus();return;}if(!['ArrowDown','ArrowUp','Home','End'].includes(e.key))return;e.preventDefault();const items=[...this.popup.querySelectorAll('button:not(:disabled)')],i=items.indexOf(document.activeElement);items[e.key==='Home'?0:e.key==='End'?items.length-1:(i+(e.key==='ArrowDown'?1:-1)+items.length)%items.length]?.focus();};const r=anchor.getBoundingClientRect(),p={width:this.popup.offsetWidth,height:this.popup.offsetHeight};if(cls==='ie-assets-menu'){this.popup.style.left=Math.max(8,Math.min(innerWidth-p.width-8,r.right+14))+'px';this.popup.style.top=Math.max(8,Math.min(innerHeight-p.height-8,r.top))+'px';return;}const property=cls.includes('ie-property-menu'),margin=property?0:8,gap=property?14:cls==='ie-font-menu'?12:8;this.popup.style.left=Math.max(margin,Math.min(innerWidth-p.width-margin,r.left))+'px';this.popup.style.top=(r.top>innerHeight*.65?Math.max(8,r.top-p.height-gap):Math.min(innerHeight-p.height-8,r.bottom+gap))+'px'; }
@@ -158,7 +164,7 @@ class ImageEditor {
   }
   ratios(anchor){this.menu(anchor,p=>{for(const ratio of ['custom','16:9','9:16','4:3','3:4','1:1','3:2','2:3','7:4','4:7','21:9']){const b=button('',ratio,()=>{this.ratio=ratio;if(ratio!=='custom'){const [w,h]=ratio.split(':').map(Number);this.resize(Math.round(600*w/Math.max(w,h)),Math.round(600*h/Math.max(w,h)));}this.ratioButton.innerHTML=esc(ratio)+icon('chevron');this.closeMenu();},ratio);p.append(b);}this.field(p,'宽度',this.width,16,4096,n=>this.resize(n,this.height));this.field(p,'高度',this.height,16,4096,n=>this.resize(this.width,n));},'ie-ratio-menu');}
   resize(w,h){dimensions(w,h);this.width=w;this.height=h;this.canvas.setDimensions({width:w,height:h});this.fit();this.record();}
-  setMode(mode){if(this.crop)this.applyCrop();if(this.penPoints?.length)this.finishPen(false);this.mode=mode;this.eraser=false;this.canvas.discardActiveObject();this.canvas.selection=mode==='none';this.canvas.skipTargetFind=mode!=='none';this.canvas.isDrawingMode=mode==='brush';this.canvas.defaultCursor=mode==='none'?'default':'crosshair';if(mode==='brush')this.setBrush();for(const [key,b]of this.modeButtons)b.setAttribute('aria-pressed',key===mode);const hint=$('.ie-hint',this.root);hint.textContent='点击画布即可绘制形状。按 Enter 完成，按 ESC 取消。';hint.hidden=mode!=='pen';this.context();}
+  setMode(mode){this.alignmentGuides.clear();if(this.crop)this.applyCrop();if(this.penPoints?.length)this.finishPen(false);this.mode=mode;this.eraser=false;this.canvas.discardActiveObject();this.canvas.selection=mode==='none';this.canvas.skipTargetFind=mode!=='none';this.canvas.isDrawingMode=mode==='brush';this.canvas.defaultCursor=mode==='none'?'default':'crosshair';if(mode==='brush')this.setBrush();for(const [key,b]of this.modeButtons)b.setAttribute('aria-pressed',key===mode);const hint=$('.ie-hint',this.root);hint.textContent='点击画布即可绘制形状。按 Enter 完成，按 ESC 取消。';hint.hidden=mode!=='pen';this.context();}
   erasePath(path){
     this.canvas.remove(path);path.globalCompositeOperation='destination-out';
     try{const stroke=path.getBoundingRect();const targets=this.canvas.getObjects().filter(object=>{if(!object.visible||object.selectable===false||object.excludeFromExport)return false;const bounds=object.getBoundingRect();return bounds.left<=stroke.left+stroke.width&&bounds.left+bounds.width>=stroke.left&&bounds.top<=stroke.top+stroke.height&&bounds.top+bounds.height>=stroke.top;});const prepared=prepareObjectErasure(targets,path,{FabricImage,util});commitObjectErasure(prepared);if(prepared.length)this.record();else this.canvas.requestRenderAll();}
@@ -382,7 +388,7 @@ class ImageEditor {
       }});
     }finally{this.canvas.off('before:render',before);this.canvas.off('after:render',after);this.pendingObjects.delete(o.id);if(this.alive){this.canvas.requestRenderAll();this.context();}}
   }
-  close(){if(!this.alive)return;this.alive=false;this.listeners.abort();clearTimeout(this.statusTimer);this.closeMenu();this.canvas.dispose();this.root.remove();document.body.classList.remove('media-editing');if(current===this)current=null;document.querySelector('#canvas')?.focus({preventScroll:true});}
+  close(){if(!this.alive)return;this.alive=false;this.listeners.abort();this.alignmentGuides.dispose();clearTimeout(this.statusTimer);this.closeMenu();this.canvas.dispose();this.root.remove();document.body.classList.remove('media-editing');if(current===this)current=null;document.querySelector('#canvas')?.focus({preventScroll:true});}
 }
 function renderNode(node,element){if(node.tool!=='image-editor')return;element.classList.add('image-editor-node');const body=$('.node-body',element);if(body.querySelector('.ie-open-node'))return;const open=button('image','打开编辑器',e=>{e.stopPropagation();openEditor(node);},'打开编辑器');open.classList.add('ie-open-node');open.onpointerdown=e=>e.stopPropagation();body.append(open);}
 function openEditor(node){if(current){if(current.nodeId===node.id)return current;current.requestClose();return null;}window.CanvasApp.select(null);current=new ImageEditor(node);return current;}

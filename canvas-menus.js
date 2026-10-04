@@ -44,16 +44,9 @@
   }
   const variants = n => n.type==='image'&&window.ImageHistory?.hasHistory(n)?window.ImageHistory.variants(n):n.type==='video'&&window.VideoHistory?window.VideoHistory.variants(n):n.versions || window.VERSION_DATA?.[n.id] || [];
   async function applyHistory(n) {
-    const values=variants(n); if (values.length<2) throw Error('无可应用历史');
-    if(n.type==='image'&&window.ImageHistory?.hasHistory(n)){
-      const before=JSON.stringify(n);
-      await Promise.all(values.map(async v=>{if(v.pixelWidth>0&&v.pixelHeight>0)return;const image=new Image();image.src=await window.LocalAssets.url(v.fullImage||v.image);await image.decode();const ratio=image.naturalWidth/image.naturalHeight;Object.assign(v,{width:Math.round(ratio>1?250*ratio:250),height:Math.round(ratio<1?250/ratio:250),pixelWidth:image.naturalWidth,pixelHeight:image.naturalHeight});}));
-      if(!app.getState().nodes.includes(n)||JSON.stringify(n)!==before)throw Error('图片历史已变化，请重新应用');
-    }
-    const widths=values.map(v=>v.width||n.width),group={id:crypto.randomUUID(),type:'group',title:n.title+' 历史',x:n.x+n.width+200,y:n.y,width:160+widths.reduce((a,b)=>a+b,0)+(values.length-1)*56,height:Math.max(n.height,...values.map(v=>v.height||n.height))+160,color:'#3A3A3A'};
-    let offset=80;
-    const nodes=values.map((v,i)=>{const result={...structuredClone(n),id:crypto.randomUUID(),parentId:group.id,x:group.x+offset,y:group.y+80,width:widths[i],title:v.label||n.title,videoHistory:[],imageHistory:[],versions:[],height:v.height||n.height,clip:v.clip||null,currentVideoOptionId:v.currentVideoOptionId,currentImageOptionId:v.currentImageOptionId,currentSourceFileId:v.currentSourceFileId,videoMetadata:v.videoMetadata,pixelWidth:v.pixelWidth,pixelHeight:v.pixelHeight,params:v.params||n.params,image:v.image||n.image,fullImage:v.fullImage||v.image||n.fullImage,video:v.video||n.video,generation:structuredClone(v.generation||n.generation),sourceId:undefined};offset+=widths[i]+56;return result;});
-    return app.insertGraph({group,nodes:[group,...nodes],edges:[]});
+    const expected=JSON.stringify(n),projectId=app.projectIdentity?.().id,legacy=variants(n);
+    const {applyNodeHistory}=await import('./src/features/node-history-expansion/runtime.mjs');
+    return applyNodeHistory(n,{app,legacy,expected,projectId});
   }
   function keepMain(n) { if(n.type==='image'&&window.ImageHistory?.hasHistory(n)){app.updateNode(n.id,window.ImageHistory.keepPrimary(n));return;}if(n.type==='video'&&window.VideoHistory){app.updateNode(n.id,window.VideoHistory.keepPrimary(n));return;}app.updateNode(n.id,{versions:[{image:n.fullImage||n.image,video:n.video,label:n.title}]}); }
   async function mediaBlob(n) {
