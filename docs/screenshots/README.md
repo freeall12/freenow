@@ -100,3 +100,7 @@ ElevenLabs Music 的正式参数、生成、播放和刷新已完成浏览器交
 | [制作进度 freenow](freenow-production-progress-brand-20261005.jpg) | `src/features/agent-apps/qa/production-progress-brand.html` 的真实 card / host / opaque iframe；两条精确 CORS 修复并重启后，中英 / 深浅 / 错误额度状态为 freenow，F 图已解码，用户标题“TapNow 用户自定义项目”保留 |
 
 [本批完整实机记录](../LOCAL-VIDEO-TOOLS-STORAGE-BRAND-20261005.md)另载素材容量保存 / picker / 两次刷新及模板脏稿 reload 边界；没有把未观察到的 beforeunload 原生 dialog 写成已见到，也没有为这些无独立截图的路径杜撰图片。
+
+## 2026-10-05 短视口菜单
+
+[长中文菜单与键盘焦点](canvas-menu-keyboard-visible-20261005.jpg)来自`src/features/canvas-context-menu/qa/main.html`。实际iframe为727×339，End后ArrowUp跳过禁用第11行，选中第10行；诊断同时显示焦点可见、菜单边界合法、图和视图保持。图片和菜单文字均为公开QA数据。原生完整截图保留浏览器缩放产生的外围空白；截图API裁剪会触发resize关闭菜单，未使用这类关闭后的截图冒充打开状态。临时viewport已恢复。[完整操作证据](../CANVAS-CONTEXT-MENU-KEYBOARD-VISIBILITY-20261005.md)。

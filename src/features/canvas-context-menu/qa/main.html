@@ -1,0 +1,9 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><title>短视口右键菜单 · 隔离 QA</title><style>body{margin:0;background:#161616;color:#eee;font:13px/1.5 system-ui}header{padding:8px 16px}button{margin-right:8px}iframe{display:block;width:100%;height:340px;border:0;border-top:1px solid #555;border-bottom:1px solid #555}pre{margin:8px 16px;white-space:pre-wrap;word-break:break-word}</style></head><body>
+<header><strong>生产画布短视口右键菜单 QA</strong><p>在下方画布图片上右键，按End/Home/方向键检查焦点行可见；Esc关闭并回焦。点击空白关闭。右下空白右键检查菜单边缘。测试会自动回读，无需点击诊断。</p><button id="short">340px短视口</button><button id="normal">560px视口</button><button id="long">公开长中文菜单</button><button id="reset">新隔离会话</button></header>
+<iframe title="隔离生产画布右键菜单" id="canvas-frame"></iframe><pre aria-label="右键菜单可见性诊断" id="diagnostics">正在准备独立生产画布…</pre>
+<script>
+const frame=document.querySelector('#canvas-frame'),session=new URLSearchParams(location.search).get('session')||'context-review';
+function load(){document.querySelector('#diagnostics').textContent='正在准备新的独立生产画布…';frame.src='/src/features/canvas-context-menu/qa/frame.html?session='+encodeURIComponent(session+'-'+Date.now());}
+document.querySelector('#short').onclick=()=>frame.style.height='340px';document.querySelector('#normal').onclick=()=>frame.style.height='560px';document.querySelector('#reset').onclick=load;document.querySelector('#long').onclick=()=>frame.contentWindow.CanvasContextMenuFixture?.openLongMenu();
+window.addEventListener('message',event=>{if(event.source===frame.contentWindow&&event.origin===location.origin&&event.data?.type==='canvas-context-menu-qa')document.querySelector('#diagnostics').textContent=JSON.stringify(event.data.report,null,2);});load();
+</script></body></html>

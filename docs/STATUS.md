@@ -15,6 +15,7 @@
 
 ## 本次交付
 
+- 短视口右键菜单补键盘焦点自动滚入视野、重开归零；12项定向检查、独立审阅和实际339px高视口验收通过。长中文与禁用项跳过、菜单滚轮、Escape及空白关闭均已实操，画布位置保持。[菜单证据](CANVAS-CONTEXT-MENU-KEYBOARD-VISIBILITY-20261005.md)。
 - 视频拟音新增 ThinkSound 显式替代协议，延长镜头新增 Ark 参考生成协议；节点、Agent 卡、路由和缺配置预检已接线。正式按钮/Agent各一次本机HTTP提交，真实8秒WAV播放结束并刷新恢复；时长冲突、缺Key、缺映射零新增任务。延长菜单和两级Escape已实操，本地Ark视频在读取/裁片前阻止。[本批证据](LOCAL-VIDEO-TOOLS-STORAGE-BRAND-20261005.md)。
 - 个人素材与文件夹改由现有IndexedDB record单事务保存，旧库只读迁移；6.6MB原图经正式保存、picker插入和刷新后原始SHA/像素一致，旧localStorage库键零写入。补素材加载中的Agent队列取消、收藏离页保护和冲突草稿导出；不盲目覆盖另一标签数据。[容量与恢复](LIBRARY-LOCAL-CAPACITY-20261005.md)。
 - 创意HTML编辑器补未保存/保存中的离页保护。官方Web新入口和目录复查未发现92份缺失原文；不制造模板URL。制作进度卡在原文SHA校验后替换固定品牌、F图片和供应商错误指引；深浅色/中英文嵌套iframe实际加载通过。[品牌记录](FREENOW-PRODUCTION-PROGRESS-BRAND-20261005.md)。

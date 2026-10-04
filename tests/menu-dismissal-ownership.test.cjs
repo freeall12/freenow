@@ -4,7 +4,7 @@ function fixture(){
  const listeners=new Map();
  const document={activeElement:null,addEventListener(name,fn){if(!listeners.has(name))listeners.set(name,new Set());listeners.get(name).add(fn);},removeEventListener(name,fn){listeners.get(name)?.delete(fn);}};
  class Element{
-  constructor(tag='div'){this.tagName=tag;this.children=[];this.hidden=true;this.style={};this.offsetWidth=200;this.offsetHeight=150;this.isConnected=true;}
+  constructor(tag='div'){this.tagName=tag;this.children=[];this.hidden=true;this.style={};this.offsetWidth=200;this.offsetHeight=150;this.clientHeight=150;this.clientTop=0;this.scrollTop=0;this.isConnected=true;}
   append(child){child.parent=this;this.children.push(child);}
   replaceChildren(){this.children.forEach(c=>c.isConnected=false);this.children=[];}
   contains(target){return target===this||this.children.some(c=>c.contains(target));}
@@ -12,6 +12,7 @@ function fixture(){
   addEventListener(){}
   querySelectorAll(){return this.children.filter(c=>c.tagName==='button'&&!c.disabled);}
   querySelector(){return this.querySelectorAll()[0];}
+  getBoundingClientRect(){const top=this.tagName==='button'&&this.parent?this.parent.getBoundingClientRect().top+(this.parent.children.indexOf(this)*44-this.parent.scrollTop)*(this.parent.scale||1):Number.parseFloat(this.style.top)||0;const height=(this.tagName==='button'?44:this.offsetHeight)*(this.parent?.scale||this.scale||1);return {top,bottom:top+height,height};}
   focus(){document.activeElement=this;for(const fn of listeners.get('focusin')||[])fn({target:this});}
  }
  document.createElement=tag=>new Element(tag);
@@ -65,4 +66,22 @@ test('Tab leaves its native focus origin intact and focusin dismisses only after
  f.element.children[1].focus();assert(f.menu.isOpen);
  const next=new f.Element('button');next.focus();
  assert.equal(f.menu.isOpen,false);assert.equal(f.element.inert,true);assert.equal(f.document.activeElement,next);
+});
+
+test('short menu viewport reveals keyboard focus with only its own scroll position changing',()=>{
+ const f=fixture();f.element.offsetHeight=f.element.clientHeight=100;
+ f.menu.show(780,590,Array.from({length:8},(_,i)=>({label:'菜单 '+i,run(){}})));
+ const position={...f.element.style};const end=f.key('End');assert(end.defaultPrevented);
+ assert.equal(f.document.activeElement,f.element.children[7]);assert.equal(f.element.scrollTop,252);
+ f.key('ArrowUp');assert.equal(f.element.scrollTop,252);f.key('ArrowDown');assert.equal(f.element.scrollTop,252);
+ f.key('ArrowDown');assert.equal(f.document.activeElement,f.element.children[0]);assert.equal(f.element.scrollTop,0);
+ f.key('End');f.key('Home');assert.equal(f.element.scrollTop,0);assert.deepEqual(f.element.style,position);
+ assert(f.menu.isOpen);f.key('Escape');assert.equal(f.document.activeElement,f.trigger);assert(!f.menu.isOpen);
+});
+
+test('reopening resets old menu scroll and disabled rows are skipped while reveal accounts for presence scale',()=>{
+ const f=fixture();f.element.offsetHeight=f.element.clientHeight=100;f.element.scale=.5;
+ const rows=Array.from({length:8},(_,i)=>({label:'菜单 '+i,...i===7?{}:{run(){}}}));
+ f.menu.show(10,10,rows);f.key('End');assert.equal(f.document.activeElement,f.element.children[6]);assert.equal(f.element.scrollTop,208);
+ f.menu.close();f.menu.show(10,10,rows);assert.equal(f.document.activeElement,f.element.children[0]);assert.equal(f.element.scrollTop,0);
 });

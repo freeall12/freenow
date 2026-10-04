@@ -66,6 +66,17 @@
       expanded(false);
       if (restoreFocus && returnFocus?.isConnected) returnFocus.focus({ preventScroll: true });
     }
+    function reveal(button) {
+      const bounds = element.getBoundingClientRect?.(), item = button?.getBoundingClientRect?.();
+      if (!bounds?.height || !item || !element.clientHeight) return;
+      // Presence scales screen rectangles. Scroll in menu CSS pixels only;
+      // scrolling other ancestors could move the canvas under the menu.
+      const scale = bounds.height / element.offsetHeight || 1;
+      const top = (item.top - bounds.top) / scale - (element.clientTop || 0);
+      const bottom = (item.bottom - bounds.top) / scale - (element.clientTop || 0);
+      if (top < 0) element.scrollTop += top;
+      else if (bottom > element.clientHeight) element.scrollTop += bottom - element.clientHeight;
+    }
     function show(x, y, items) {
       if (destroyed) return;
       cancelFocusCheck();
@@ -101,11 +112,13 @@
       element.hidden = false;
       element.style.left = clamp(x, 8, Math.max(8, innerWidth - element.offsetWidth - 8)) + 'px';
       element.style.top = clamp(y, 8, Math.max(8, innerHeight - element.offsetHeight - 8)) + 'px';
+      element.scrollTop = 0;
       motion.enter();
       expanded(true);
       const first = element.querySelector('button:not(:disabled)');
       if (!first) element.tabIndex = -1;
       (first || element).focus({ preventScroll: true });
+      reveal(first);
     }
     function onKeydown(event) {
       if (!motion.isOpen || element.hidden || event.defaultPrevented || event.isComposing) return;
@@ -126,6 +139,7 @@
       const next = event.key === 'Home' ? 0 : event.key === 'End' ? buttons.length - 1 :
         (index + (event.key === 'ArrowDown' ? 1 : -1) + buttons.length) % buttons.length;
       buttons[next].focus({ preventScroll: true });
+      reveal(buttons[next]);
     }
     const onFocusIn = event => { cancelFocusCheck(); if (motion.isOpen && !element.contains(event.target)) close(); };
     const onFocusOut = event => {
