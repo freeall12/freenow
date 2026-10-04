@@ -15,6 +15,12 @@
 
 ## 本次交付
 
+- 10个公开工作流模板、8个真实分类和全部引用媒体本地化，保留72个原节点、112条连线、提示词及相对坐标。实际应用简单/29节点复杂模板、单次撤销/重做、刷新与MP4播放通过；约95MB原封面的列表派生资源降至332KB，原图保留。[本批记录](LOCAL-WORKFLOW-AND-NATIVE-AUDIO-20261005.md)。
+- Mureka 8/O2与Seed Audio 1.0原生接口、路由和节点预检接入。31项适配器、3项接线检查及音频前端专项通过；正式按钮播放MP3/Ogg、字幕落图、刷新和缺配置零提交已验，真实供应商待Key。[Mureka](MUREKA-NATIVE-20261005.md) / [Seed Audio](SEED-AUDIO-NATIVE-20261005.md)。
+- Agent电商组图质量选项与freeform默认值修复；18项专项及原HTML真实编辑/确认/Escape回焦/无配置零任务通过，freeform提交保留high与真实来源。[组图记录](../src/features/agent-apps/ecommerce-photoset.md)。
+
+## 前批本地化与音频交付
+
 - ElevenLabs Music 原生协议已接入节点、路由与能力预检，支持普通/纯音乐及3–120秒单节自定义歌词。48项定向检查及正式菜单/播放/刷新/缺配置零派发通过；本机0.2秒MP3夹具验证47秒请求合同，不代表真实成曲效果。[音乐适配](elevenlabs-music-native.md)。
 - 四个原生音频适配器统一拒绝UTF-8/UTF-16及编码凭据回显；56项独立检查通过，拒绝结果不归档、不发布，重启不重发。[字节保护](AUDIO-CREDENTIAL-BYTES-20261005.md)。
 - 同源资源规范化与多角度QA真实归档修复；22项定向检查通过，新session刷新两张PNG可解码、源坐标100.25/80.5保持，没有媒体待本地化提示，旧11项提示会话未改。[资源修复](LOCAL-RESOURCE-SAME-ORIGIN-20261005.md)。

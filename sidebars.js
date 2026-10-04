@@ -112,10 +112,71 @@
     catch(error){if(left===p){p.append(el('p','panel-empty','历史面板读取失败：'+error.message));app.notify(error.message);}}
   }
   function showTemplates(){
-    if(!closeLeft({restoreFocus:false,onDiscard:showTemplates}))return;activePanel='templates';leftTrigger=$('.side-tools button[aria-label="模板"]');left=el('aside','floating-panel templates-panel');left.setAttribute('aria-label','模板');left.id='left-panel-templates';leftTrigger?.setAttribute('aria-expanded','true');let tab='公共模板',q='';const tabs=el('div','template-tabs');const publicBtn=btn('公共模板',()=>{tab='公共模板';publicBtn.classList.add('chosen');mineBtn.classList.remove('chosen');render();},'chosen'),mineBtn=btn('我的模板',()=>{tab='我的模板';mineBtn.classList.add('chosen');publicBtn.classList.remove('chosen');render();}),expand=iconButton('浏览全部模板','expand',()=>{left.style.top=left.style.top?'':'64px';intro?.remove();},'',false);expand.setAttribute('aria-label','浏览全部模板');tabs.append(publicBtn,mineBtn,expand);left.append(tabs,searchBox('搜索资产包...',v=>{q=v;render();}));const content=el('div','panel-scroll');left.append(content);document.body.append(left);const owner=left;publicBtn.focus({preventScroll:true});
-    if(localStorage.getItem('tapnow-template-intro')!=='dismissed'){intro=el('div','template-intro');intro.append(img(window.SIDEBAR_DATA.template[0].image));const text=el('div');text.append(el('h3','','使用模板加速创作'),el('p','','一键使用专业模版，快速构建你的专属场景。'));intro.append(text,btn('知道了',()=>{localStorage.setItem('tapnow-template-intro','dismissed');intro.remove();intro=null;}));document.body.append(intro);}
-    const active=()=>left===owner&&owner.isConnected;window.TemplateAPI?.ready.then(()=>{if(active())render();}).catch(error=>{if(active())content.replaceChildren(el('p','panel-empty','模板读取失败：'+error.message));});const refresh=()=>{if(active())render();};document.addEventListener('templates:changed',refresh);surfaceDisposers.set(owner,()=>document.removeEventListener('templates:changed',refresh));
-    function render(){const focused=document.activeElement?.closest?.('.template-card')?.dataset.templateId;content.replaceChildren();if(tab==='我的模板'){content.append(btn('迁移本地资源',()=>window.TemplateAPI?.migrateResources().catch(error=>app.notify('模板迁移尚未保存：'+error.message)),'library-shortcut'));const report=window.TemplateAPI?.migrationStatus?.();if(report)content.append(migrationStatusElement(report));}const grid=el('div','template-grid');const items=tab==='公共模板'?window.SIDEBAR_DATA.template.filter(i=>i.name.toLowerCase().includes(q.toLowerCase())):(window.TemplateAPI?.list()||[]).filter(i=>i.name.toLowerCase().includes(q.toLowerCase()));items.forEach(item=>{const b=btn('',()=>templateDetail(item),'template-card');b.dataset.templateId=item.id||item.name;if(item.image)b.append(img(item.image,item.name));else{const glyph=el('div','asset-audio-placeholder');glyph.innerHTML=window.UI_ICONS[item.type==='text'?'text':'music'];b.append(glyph);}b.append(el('span','',item.name));grid.append(b);});content.append(grid);if(!items.length)content.append(el('p','panel-empty',q?'没有匹配的模板':'暂无模板'));if(focused)Array.from(content.querySelectorAll('.template-card')).find(b=>b.dataset.templateId===focused)?.focus({preventScroll:true});}render();
+    if(!closeLeft({restoreFocus:false,onDiscard:showTemplates}))return;
+    activePanel='templates';leftTrigger=$('.side-tools button[aria-label="模板"]');
+    left=el('aside','floating-panel templates-panel');left.setAttribute('aria-label','模板');left.id='left-panel-templates';leftTrigger?.setAttribute('aria-expanded','true');
+    const owner=left,projectId=window.CanvasProjects?.id?.();let tab='公共模板',q='',category='all',workflowTemplates=null,publicItems=(window.SIDEBAR_DATA?.template||[]).filter(item=>item.graph),loadError=null,localReadError=null,applying=false,gallery=null;
+    const active=()=>left===owner&&owner.isConnected;
+    const currentProject=()=>window.CanvasProjects?.id?.();
+    const tabs=el('div','template-tabs');
+    const publicBtn=btn('公共模板',()=>{tab='公共模板';publicBtn.classList.add('chosen');mineBtn.classList.remove('chosen');render();},'chosen');
+    const mineBtn=btn('我的模板',()=>{tab='我的模板';mineBtn.classList.add('chosen');publicBtn.classList.remove('chosen');render();});
+    const expand=iconButton('浏览全部模板','expand',event=>openGallery(null,event.currentTarget),'',false);expand.setAttribute('aria-label','浏览全部模板');
+    tabs.append(publicBtn,mineBtn,expand);owner.append(tabs,searchBox('搜索资产包...',value=>{q=value;render();}));
+    const categoryFilter=el('select','workflow-template-category-filter');categoryFilter.setAttribute('aria-label','公共模板分类');const allCategory=el('option','','全部');allCategory.value='all';categoryFilter.append(allCategory);categoryFilter.onchange=()=>{category=categoryFilter.value;render();};owner.append(categoryFilter);
+    const content=el('div','panel-scroll');owner.append(content);document.body.append(owner);publicBtn.focus({preventScroll:true});
+    if(localStorage.getItem('tapnow-template-intro')!=='dismissed'){
+      intro=el('div','template-intro');intro.append(img(window.SIDEBAR_DATA.template[0].image));const text=el('div');
+      text.append(el('h3','','使用模板加速创作'),el('p','','一键使用专业模版，快速构建你的专属场景。'));
+      intro.append(text,btn('知道了',()=>{localStorage.setItem('tapnow-template-intro','dismissed');intro.remove();intro=null;}));document.body.append(intro);
+    }
+    const navigationGuard=window.CanvasProjects?.registerNavigationGuard?.(()=>applying?'模板正在应用，请稍后切换项目':null);
+    window.TemplateAPI?.ready.then(()=>{if(active())render();}).catch(error=>{localReadError=error;if(active()&&tab==='我的模板')render();});
+    const refresh=()=>{if(active())render();};document.addEventListener('templates:changed',refresh);
+    surfaceDisposers.set(owner,()=>{document.removeEventListener('templates:changed',refresh);navigationGuard?.();gallery?.destroy();});
+    async function loadPublic(){
+      loadError=null;
+      try{
+        const module=window.WorkflowTemplatesUI||await import('./src/features/workflow-templates/entry.mjs');
+        module.installStyles(document);const items=await module.readCatalog();
+        if(!active())return;workflowTemplates=module;publicItems=items;categoryFilter.replaceChildren(allCategory);module.officialCategories.forEach(value=>{const option=el('option','',value.name);option.value=value.id;categoryFilter.append(option);});categoryFilter.value=category;render();
+      }catch(error){if(active()){loadError=error;render();}}
+    }
+    async function applyItem(item){
+      if(applying||!active())return;applying=true;
+      try{
+        if(projectId!==currentProject())throw Error('画布已切换，请重新打开模板');
+        if(tab==='公共模板')await workflowTemplates.apply(item,{app,projectId,currentProjectId:currentProject});
+        else{await window.TemplateAPI.ready;if(!active())return;if(projectId!==currentProject())throw Error('画布已切换，请重新打开模板');await window.TemplateAPI.use(item.id,{canApply:()=>active()&&projectId===currentProject()});}
+      }catch(error){app.notify(error.message);}finally{applying=false;}
+    }
+    function openGallery(item,source){
+      if(!workflowTemplates){if(loadError)loadPublic();else app.notify('公共模板正在读取，请稍后再试');return;}
+      gallery?.close();intro?.remove();intro=null;
+      gallery=workflowTemplates.openGallery({items:publicItems,selected:item,initialScope:tab==='我的模板'?'mine':category,app,templateAPI:window.TemplateAPI,document,mediaSource,onApplied:()=>{if(active())closeLeft();},returnFocus:source||document.activeElement,onClose:()=>{gallery=null;}});
+    }
+    function render(){
+      categoryFilter.hidden=tab!=='公共模板';
+      const focused=document.activeElement?.closest?.('.template-card')?.dataset.templateId;content.replaceChildren();
+      if(tab==='我的模板'){
+        if(localReadError){content.append(el('p','panel-empty','模板读取失败：'+localReadError.message));return;}
+        content.append(btn('迁移本地资源',()=>window.TemplateAPI?.migrateResources().catch(error=>app.notify('模板迁移尚未保存：'+error.message)),'library-shortcut'));
+        const report=window.TemplateAPI?.migrationStatus?.();if(report)content.append(migrationStatusElement(report));
+      }
+      if(tab==='公共模板'&&loadError){content.append(el('p','panel-empty',loadError.message),btn('重试',loadPublic,'library-shortcut'));return;}
+      if(tab==='公共模板'&&!publicItems.length&&!workflowTemplates){const loading=el('p','workflow-template-loading','加载模板中…');loading.setAttribute('role','status');content.append(loading);return;}
+      const grid=el('div','template-grid');
+      const items=(tab==='公共模板'?(workflowTemplates?publicItems:(window.SIDEBAR_DATA?.template||[]).filter(item=>item.graph)):window.TemplateAPI?.list()||[]).filter(item=>(tab!=='公共模板'||category==='all'||item.categoryIds?.includes(category))&&item.name.toLowerCase().includes(q.trim().toLowerCase()));
+      items.forEach(item=>{
+        if(workflowTemplates){grid.append(workflowTemplates.createCard(item,{document,mediaSource,onApply:applyItem,onPreview:openGallery}));return;}
+        const b=btn('',()=>templateDetail(item),'template-card');b.dataset.templateId=item.id||item.name;
+        if(item.image)b.append(img(item.image,item.name));else{const glyph=el('div','asset-audio-placeholder');glyph.innerHTML=window.UI_ICONS[item.type==='text'?'text':'music'];b.append(glyph);}
+        b.append(el('span','',item.name));grid.append(b);
+      });
+      content.append(grid);if(!items.length)content.append(el('p','panel-empty',q?'没有匹配的模板':'暂无模板'));
+      const focusedCard=focused&&Array.from(content.querySelectorAll('.template-card')).find(node=>node.dataset.templateId===focused);if(focusedCard)(focusedCard.querySelector('button')||focusedCard).focus({preventScroll:true});
+    }
+    render();loadPublic();
   }
   function templateDetail(item){const owner=left,trigger=document.activeElement;let using=false;const d=el('dialog','template-preview');d.setAttribute('aria-label',item.name);d.addEventListener('close',()=>{if(left===owner&&!trigger?.isConnected)(Array.from(owner.querySelectorAll('.template-card')).find(b=>b.dataset.templateId===(item.id||item.name))||owner.querySelector('.template-tabs .chosen'))?.focus({preventScroll:true});});const head=el('div','dialog-heading');head.append(el('h2','',item.name),iconButton('关闭模板预览','close',()=>d.close(),'close',false));d.append(head);if(item.video){const video=el('video');mediaSource(video,item.video);video.controls=true;d.append(video);}else if(item.image)d.append(img(item.image,item.name));if(item.description)d.append(el('p','template-description',item.description));if(item.tags)d.append(el('p','template-tags',item.tags.join(' · ')));const actions=el('div','template-actions');const use=btn('使用模板',async()=>{if(using)return;using=true;use.disabled=true;use.setAttribute('aria-busy','true');try{await window.TemplateAPI.use(item.id);if(d.isConnected&&d.open){d.close();if(left===owner)closeLeft();}}catch(e){app.notify(e.message);}finally{using=false;if(d.isConnected){use.disabled=!item.graph;use.setAttribute('aria-busy','false');}}},'solid-button');use.disabled=!item.graph;if(!item.graph)use.title='尚未导入此模板的完整节点数据';actions.append(btn('关闭',()=>d.close()),use);d.append(actions);showDialog(d);}
   function simplePopup(x,y,items,trigger=document.activeElement){

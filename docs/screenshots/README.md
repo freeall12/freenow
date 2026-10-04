@@ -82,3 +82,9 @@ Agent 模型反馈截图来自 `/src/features/agent-generation/qa/disabled-model
 | [多角度素材刷新](local-assets-refresh-20261005.jpg) | `generation-config/qa/main.html?session=readiness-local-assets-1005b&profile=angle`刷新后；两张本机合同PNG经真实LocalAssets归档，源坐标100.25/80.5不变，无待本地化提示；不是模型效果 |
 
 ElevenLabs Music 的正式参数、生成、播放和刷新已完成浏览器交互验收；该临时入口截图尺寸异常，未发布无效截图，也未据此声明音乐像素验收。实际媒体与请求范围见[Music专项](../elevenlabs-music-native.md)。
+
+## 2026-10-05 Agent组图与工作流模板
+
+[组图质量与编辑](photoset-quality-20261005.jpg)来自隔离入口 `src/features/agent-apps/qa/ecommerce-photoset.html?session=20261005-photoset-quality`，实际593×783页面截图。产品图为仓库公开Sony PNG，原HTML的质量选择、行编辑、确认/Escape回焦、配置缺失零任务与freeform交接已实际操作。未调用供应商生成；[专项结果](../../src/features/agent-apps/ecommerce-photoset.md)。
+
+[工作流模板详情](workflow-template-detail-20261005.jpg)来自正式入口隔离页 `src/features/workflow-templates/qa/main.html?session=workflow-template-1005-local`，保留完整1100×700弹窗及邻近画布。封面、节点和媒体来自公开模板的本地归档；已实际应用29内容节点/51连线，刷新、撤销和本地视频播放通过。浏览器默认缩放导致整页截图尺寸异常，本图使用截图API按实测比例裁出整个弹窗，没有改viewport或页面样式，没有生成式修图。[完整范围](../LOCAL-WORKFLOW-AND-NATIVE-AUDIO-20261005.md)。

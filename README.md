@@ -102,6 +102,8 @@ node --env-file=.env.local server/server.cjs
 | `minimax-music-native` | MiniMax Music 2.6 | [音乐](docs/MINIMAX-MUSIC-NATIVE.md)，存在账号资格限制 |
 | `elevenlabs-native` / `elevenlabs-sound-native` | TTS 与音效 | [TTS](docs/ELEVENLABS-NATIVE-TTS.md) / [音效](docs/ELEVENLABS-NATIVE-SOUND.md) |
 | `elevenlabs-music-native` | Music 普通/纯音乐与单节自定义歌词 | [音乐](docs/elevenlabs-music-native.md)，自定义歌词须明确3–120秒；节点目录上限300秒 |
+| `mureka-native` | Mureka 8 / O2 自动与自定义歌词歌曲 | [Mureka](docs/MUREKA-NATIVE-20261005.md)，精确型号、原任务查询与本地音频归档 |
+| `seed-audio-native` | Seed Audio 1.0 多模态音频及字幕文本 | [Seed Audio](docs/SEED-AUDIO-NATIVE-20261005.md)，独立语音 Key；Ogg Opus 仅48kHz |
 | `fal-native` / `fal-video-native` | 图片抠图/增强、视频增强 | [图片](docs/FAL-NATIVE-SETUP.md) / [视频](docs/FAL-VIDEO-NATIVE-SETUP.md) |
 | `tripo-native` | 3D 模型生成 | [Tripo](docs/TRIPO-NATIVE-SETUP.md) |
 | `marble-native` | World Labs 世界生成后端 | [Marble](docs/MARBLE-NATIVE-SETUP.md)，SPZ 渲染尚未完成，前端阻止派发 |
@@ -119,7 +121,15 @@ node --env-file=.env.local server/server.cjs
 
 ## 最新接入与核验
 
-本批接入 ElevenLabs Music 公开 Compose API，节点根据实际路由禁用缺 Key、缺映射和不支持的歌词时长；模式切换保留歌词草稿。已用本机 HTTP 上游验证请求、真实 MP3 归档、播放、刷新与不重复提交，尚未调用真实供应商。[Music 配置与边界](docs/elevenlabs-music-native.md)。四个原生音频适配器同时补齐 UTF-16 媒体标签中的凭据回显拒绝。[音频字节保护](docs/AUDIO-CREDENTIAL-BYTES-20261005.md)
+本批补齐 10 个公开工作流模板的真实节点图、8 类筛选、搜索、详情、应用和撤销恢复；72 个原节点、112 条连线和全部引用媒体落在本地。列表使用约332KB缩略图，详情保留约95MB原封面。它们与仍待补齐的92份创意HTML模板是两套内容。[本批实现与验收](docs/LOCAL-WORKFLOW-AND-NATIVE-AUDIO-20261005.md)
+
+![本地工作流模板详情、分类与应用](docs/screenshots/workflow-template-detail-20261005.jpg)
+
+Mureka 8/O2 与 Seed Audio 1.0 已接各自原生协议、路由及节点预检；本机 HTTP 与正式按钮验证 MP3/Ogg 播放、字幕落图、刷新和缺配置零提交。Agent 电商组图修复质量选项与 freeform 默认值，原页面编辑、确认、取消和回焦已实测。没有真实 Key，不能据此宣称账号资格或生成效果通过。
+
+![Agent电商组图的真实编辑与质量选择](docs/screenshots/photoset-quality-20261005.jpg)
+
+此前接入 ElevenLabs Music 公开 Compose API，节点根据实际路由禁用缺 Key、缺映射和不支持的歌词时长；模式切换保留歌词草稿。已用本机 HTTP 上游验证请求、真实 MP3 归档、播放、刷新与不重复提交，尚未调用真实供应商。[Music 配置与边界](docs/elevenlabs-music-native.md)。四个原生音频适配器同时补齐 UTF-16 媒体标签中的凭据回显拒绝。[音频字节保护](docs/AUDIO-CREDENTIAL-BYTES-20261005.md)
 
 合法同源资源会规范为稳定本地路径，多角度 QA 改为先归档再加载；刷新后两张 PNG 解码且坐标保持，旧会话数据保留。[资源修复](docs/LOCAL-RESOURCE-SAME-ORIGIN-20261005.md)。堆叠索引减少全图扫描与临时数组分配，落点/隐藏标题/撤销已浏览器复验；不据此宣称整体 FPS 提升。[性能记录](docs/CANVAS-PILE-INDEX-ALLOCATION-20261005.md)
 

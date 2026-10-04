@@ -24,6 +24,9 @@
 
 | 记录 | 范围 |
 | --- | --- |
+| [工作流模板、原生音频与Agent组图](LOCAL-WORKFLOW-AND-NATIVE-AUDIO-20261005.md) | 10个真实图、8类筛选、媒体离线化、缩略图优化与浏览器验收 |
+| [Mureka 8/O2原生接口](MUREKA-NATIVE-20261005.md) | 自动/自定义歌词、原任务恢复、真实音频归档与凭据保护 |
+| [Seed Audio 1.0原生接口](SEED-AUDIO-NATIVE-20261005.md) | 多模态引用、三种音频容器、字幕与供应商参数限制 |
 | [ElevenLabs Music原生接口](elevenlabs-music-native.md) | 公开Compose、歌词/时长预检、本地MP3播放与不重复提交 |
 | [音频凭据字节保护](AUDIO-CREDENTIAL-BYTES-20261005.md) | 四适配器UTF-16回显拒绝、归档与重启保护 |
 | [同源资源与持久引用](LOCAL-RESOURCE-SAME-ORIGIN-20261005.md) | 严格同源规范、多角度QA真实归档及刷新 |

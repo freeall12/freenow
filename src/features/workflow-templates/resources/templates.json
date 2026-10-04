@@ -1,0 +1,3162 @@
+{
+  "version": 1,
+  "categories": [
+    {
+      "id": "68556690-89e1-4c68-9510-4d50820329a2",
+      "name": "Seedance 2.0"
+    },
+    {
+      "id": "921eb428-6172-4a9c-9485-59e1b2e6b53a",
+      "name": "广告"
+    },
+    {
+      "id": "606fbfcf-80d9-4d05-9c29-e342547e9080",
+      "name": "电商"
+    },
+    {
+      "id": "0f13316d-956a-4157-8723-8cd14722f42c",
+      "name": "影视"
+    },
+    {
+      "id": "3e630f14-bc32-4e3e-87de-e942b81e1c75",
+      "name": "生活"
+    },
+    {
+      "id": "872225af-6fb3-4d5c-ae5e-de9e14ef3336",
+      "name": "工具"
+    },
+    {
+      "id": "7550b4fd-c65b-40fb-93d0-ae08259c8752",
+      "name": "有趣"
+    },
+    {
+      "id": "b9fe138c-2f7d-4d35-90ea-45b3bf22d5d1",
+      "name": "ACG"
+    }
+  ],
+  "templates": [
+    {
+      "id": "060df93a-25d5-4b57-96ca-291edd8eaa82",
+      "name": "Tech Product Ad",
+      "description": "Tech Product Ad",
+      "tags": [
+        "workflow"
+      ],
+      "createdAt": "2026-04-21T12:30:20.819823Z",
+      "category": "workflow",
+      "categoryIds": [
+        "68556690-89e1-4c68-9510-4d50820329a2",
+        "921eb428-6172-4a9c-9485-59e1b2e6b53a",
+        "606fbfcf-80d9-4d05-9c29-e342547e9080"
+      ],
+      "image": "/assets/b5fe8a00bc668b5b.png",
+      "graph": {
+        "version": 1,
+        "nodes": [
+          {
+            "id": "video-8340d81b-a8e8-4c0d-a2b8-98b48d168a33",
+            "type": "video",
+            "title": "[√]Result",
+            "x": 1079,
+            "y": 43,
+            "width": 445,
+            "height": 250,
+            "video": "/assets/workflow-templates/7561631cd747aa7bf45d.mp4",
+            "versions": [
+              {
+                "video": "/assets/workflow-templates/7561631cd747aa7bf45d.mp4"
+              }
+            ],
+            "generation": {
+              "aspectRatio": "16:9",
+              "duration": 5,
+              "generateAudio": true,
+              "model": "seedance-2.0",
+              "modelType": "reference_to_video",
+              "resolution": "720p",
+              "variant": "reference",
+              "prompt": "Create a high-energy, cinematic, futuristic product commercial based strictly on the product in the reference image. The product itself must be the only subject in the entire video. Its silhouette, proportions, materials, colors, structure, surface details, openings, edges, reflections, branding placement, and overall design language must remain fully consistent with the reference product. Do not generate any other objects, props, people, machines, vehicles, factories, buildings, cities, laboratories, environmental sets, or comparison elements of any kind. All visual content must come only from the product itself, and all motion must come only from the product’s own rotation, forward movement, hovering, opening, partial structural movement, surface reflection, lighting sweeps, camera transitions, and macro-detail reveals. The background must remain an abstract, premium, futuristic, non-representational space only, such as pure light fields, energy gradients, abstract dark space, luminous surfaces, or minimal virtual environments, but it must never become a recognizable real-world object or setting. The background color and lighting must stay clearly separated from the product’s own color identity so the product always remains the single visual core of the frame. Begin with extreme macro close-ups of the product, focusing on materials, texture, structure, edges, reflections, and industrial design details. Use rapid push-ins, gliding passes, rotation, sliding motion, macro inserts, partial scanning, strong editing rhythm, and high-contrast lighting to amplify the product’s premium quality, precision, and futuristic appeal. End with the strongest hero shot of the product itself. The final result must feel minimal, expensive, sharp, futuristic, and visually explosive, with absolutely nothing in the frame except the product and its abstract supporting background.",
+              "ratio": "16:9",
+              "quality": "720p",
+              "audio": true,
+              "referenceOrder": [
+                "node:image-daa5d586-7652-46ec-8506-7c551dfd18fd"
+              ]
+            }
+          },
+          {
+            "id": "image-daa5d586-7652-46ec-8506-7c551dfd18fd",
+            "type": "image",
+            "title": "[1]Upload a picture",
+            "x": 40,
+            "y": 40,
+            "width": 448,
+            "height": 250,
+            "fullImage": "/assets/workflow-templates/226d7651b6c2ebc4a0b3.png",
+            "image": "/assets/workflow-templates/226d7651b6c2ebc4a0b3.png"
+          }
+        ],
+        "edges": [
+          {
+            "id": "919d7c84-fec6-40ba-8474-74df300615ad",
+            "source": "image-daa5d586-7652-46ec-8506-7c551dfd18fd",
+            "target": "video-8340d81b-a8e8-4c0d-a2b8-98b48d168a33",
+            "sourceHandle": "right",
+            "targetHandle": "left"
+          }
+        ],
+        "width": 1564,
+        "height": 333,
+        "groupColor": ""
+      },
+      "thumbnail": "/assets/workflow-templates/397f7d822c5979593119-thumb.webp"
+    },
+    {
+      "id": "ba3ea596-6342-4cce-b072-f59f50dda7c7",
+      "name": "F1 Rapid Tire Swap",
+      "description": "F1 Rapid Tire Swap",
+      "tags": [
+        "workflow"
+      ],
+      "createdAt": "2026-04-21T12:37:08.331480Z",
+      "category": "workflow",
+      "categoryIds": [
+        "68556690-89e1-4c68-9510-4d50820329a2"
+      ],
+      "image": "/assets/ef00940ce5726221.png",
+      "graph": {
+        "version": 1,
+        "nodes": [
+          {
+            "id": "video-7455c301-ab3b-49b9-ab10-7ae6e4f81daa",
+            "type": "video",
+            "title": "[√]Result",
+            "x": 955,
+            "y": 55,
+            "width": 445,
+            "height": 250,
+            "video": "/assets/workflow-templates/25f7500c2a3ced37cf44.mp4",
+            "versions": [
+              {
+                "video": "/assets/workflow-templates/25f7500c2a3ced37cf44.mp4"
+              }
+            ],
+            "generation": {
+              "aspectRatio": "16:9",
+              "duration": 5,
+              "generateAudio": true,
+              "model": "seedance-2.0",
+              "modelType": "reference_to_video",
+              "resolution": "720p",
+              "variant": "reference",
+              "prompt": "The overall style must match the visual quality and vehicle identity of the reference image. It is not limited to any specific car model, and can be applied to any vehicle, but the car’s body shape, proportions, livery, aerodynamic structure, lighting signature, wheel design, and all key identifying features from the input image must remain exactly consistent. The pacing should feel tight, sharp, realistic, and intense, focusing on the full process of high-speed pit entry, precise stop, rapid tire change, release, and aggressive exit.\n\nSHOT 1 — ONBOARD GRIP (0–2 seconds)\nThe camera is rigidly mounted to [vehicle subject] on the chassis or nose area, matching the angle and placement of the reference image.\nUse a low, centered, nose-mounted wide-angle lens in the 16–24mm range.\n[Vehicle subject] enters the pit lane at speed and brakes hard while moving into the pit-entry zone. Track guide lines, pit markings, and surface texture streak backward with strong motion blur. The camera should show only subtle real mechanical vibration, with no handheld feel and no floating motion. It must convey the pressure, rigidity, and structural vibration of a fixed onboard racing camera.\n\nSHOT 2 — PIT ENTRY IMPACT CUT (2–3 seconds)\nHard cut to a low front three-quarter angle as [vehicle subject] snaps sharply into its pit box.\nThe braking system may show faint heat buildup, the tires produce a sharp friction response, and the pit crew is already in motion before the car fully settles.\nSound energy peaks here through the layered combination of engine downshift, braking force, equipment activation, and crew preparation.\n\nSHOT 3 — RAPID PIT STOP MONTAGE (3–7 seconds)\nFast, aggressive, high-density editing with no slow motion.\nUse multiple shot distances and angles to capture the pit-stop actions in rapid succession:\nan extreme close-up of [pit tool / wheel-change equipment] slamming into [wheel fastening point], with visible impact, vibration, metallic response, and possible sparks;\na macro shot of the old tire coming off, showing speed, rubber dust, heat shimmer, and surface detail;\na low side angle of the fresh tire being slammed into place, with the mechanic’s gloved hands blurring from speed;\na top-down close detail shot of [lifting device] raising the car, showing a brief structural load response;\na wider pit-crew view showing all four corners moving in perfect sync.\nThe camera language may alternate between macro, ultra-low angle, shoulder-height pit lane framing, and rapid whip-pan transitions between actions.\nLighting is harsh, realistic pit-lane daylight with high contrast and clear shadows. The overall image must feel sharp, clean, realistic, and impactful.\n\nSHOT 4 — RELEASE (7–9 seconds)\nA close-up focuses on the instant [front jack / release mechanism] drops.\n[Crew signal / release light / go indicator] snaps to the release state.\nThe engine revs surge violently, pushing the sequence into its final burst of energy.\n\nSHOT 5 — EXIT & FINAL CAMERA (9–12 seconds)\nCut to a static low rear-angle camera placed close to the ground near the pit lane.\n[Vehicle subject] launches forward aggressively, blasting past the camera.\nThe rear diffuser, spinning tires, heat distortion, and acceleration force should all be clearly visible.\nThe car rapidly exits the pit lane, merges back toward the track, and shrinks into the distance.\nThe camera remains completely fixed, simply watching the car leave the frame.",
+              "ratio": "16:9",
+              "quality": "720p",
+              "audio": true,
+              "referenceOrder": [
+                "node:image-ddd3a88a-5618-43df-8f59-02db480fe215"
+              ]
+            }
+          },
+          {
+            "id": "image-ddd3a88a-5618-43df-8f59-02db480fe215",
+            "type": "image",
+            "title": "[1]Upload a picture",
+            "x": 40,
+            "y": 40,
+            "width": 448,
+            "height": 250,
+            "fullImage": "/assets/ef00940ce5726221.png",
+            "image": "/assets/ef00940ce5726221.png"
+          }
+        ],
+        "edges": [
+          {
+            "id": "6cd7f757-a2df-4b36-9c70-252ad1592855",
+            "source": "image-ddd3a88a-5618-43df-8f59-02db480fe215",
+            "target": "video-7455c301-ab3b-49b9-ab10-7ae6e4f81daa",
+            "sourceHandle": "right",
+            "targetHandle": "left"
+          }
+        ],
+        "width": 1440,
+        "height": 345,
+        "groupColor": ""
+      },
+      "thumbnail": "/assets/workflow-templates/2171a69b6df613a9dd67-thumb.webp"
+    },
+    {
+      "id": "ae9d2938-8ad2-40ab-b830-4335eda0148b",
+      "name": "Monster Clash POV",
+      "description": "Monster Clash POV",
+      "tags": [
+        "workflow"
+      ],
+      "createdAt": "2026-04-21T12:38:51.703104Z",
+      "category": "workflow",
+      "categoryIds": [
+        "68556690-89e1-4c68-9510-4d50820329a2"
+      ],
+      "image": "/assets/6fb0f0d1aa08ad96.png",
+      "graph": {
+        "version": 1,
+        "nodes": [
+          {
+            "id": "video-406788d1-2da2-4b9e-9ac9-2268aabf0641",
+            "type": "video",
+            "title": "[√]Result",
+            "x": 890,
+            "y": 43,
+            "width": 445,
+            "height": 250,
+            "video": "/assets/workflow-templates/93f539417e208616b7e8.mp4",
+            "versions": [
+              {
+                "video": "/assets/workflow-templates/93f539417e208616b7e8.mp4"
+              }
+            ],
+            "generation": {
+              "aspectRatio": "16:9",
+              "duration": 5,
+              "generateAudio": false,
+              "model": "seedance-2.0",
+              "modelType": "reference_to_video",
+              "resolution": "720p",
+              "variant": "reference",
+              "prompt": "The overall atmosphere must strictly adapt to the [reference image], including subject identity, spatial setting, environmental conditions, material behavior, period logic, and visual context, rather than remaining fixed to one specific type of scene. Air density, spatial pressure, openness, visibility, contamination level, threat intensity, motion resistance, environmental feedback, lighting logic, and emotional tone must all shift with the [reference image].\nThe viewpoint remains restricted within [subject A]’s first-person visual enclosure, seen through [helmet slit / mask opening / obstructed frame / biological field-of-view structure / viewing aperture]. Outside, [subject B]’s scale, pressure, attack style, and kinetic force create a strong contrast with the constrained, heavy, intimate, embodied perspective of [subject A]. The key rule is: the reference image defines the world and environmental atmosphere, the subject defines the action relationship, and the original camera logic remains unchanged.\n\nSHOT DESCRIPTION:\nA relentless, uninterrupted first-person long take from inside or directly attached to [subject A]’s embodied perspective, always framed through [first-person viewing structure]. The camera must simulate the real physical response of a heavy body or enclosed form being struck by massive force within the environment defined by the [reference image]: violent impact, being launched backward, tumbling through space, crashing into [ground / surface / medium material], rolling rapidly across or along the surface to evade a second heavy strike, then urgently grabbing [weapon C / support object / countermeasure tool] and forcing it into [current environment surface material] in order to intercept the next charge or downward attack from [subject B]. The entire sequence must remain a single unbroken POV shot, with no cuts and no external third-person camera. The frame should emphasize confinement, obstruction, weight, inertia, violent kinetic transfer, and the fact that environmental response changes according to the reference image.\n\nTIMELINE / SHOT-BY-SHOT\n\n0:00–0:03 — [First-Person POV / 24mm Wide Angle / Violent Handheld Motion]\nThrough [first-person viewing structure], [subject B] suddenly rushes in from within [reference environment space], filling most of the visible frame, and launches a devastating frontal attack against [subject A]. The form of the attack should adapt to [subject B] and the logic of the reference world. The camera is instantly overwhelmed by the force and thrown backward.\nLIGHTING: The lighting must adapt to the [reference environment] and always remain grounded in believable spatial illumination with strong pressure and realism.\n\n0:03–0:06 — [Sudden Aerial Tumbling / Hard Impact Crash]\n[subject A] is violently launched away. Through the restricted point of view, [sky / ceiling / structural surfaces / spatial layers] spin rapidly across the frame, creating strong disorientation, weightlessness, and total loss of directional stability. The camera then slams heavily into [current environment medium]. In this segment, the sensory balance is heavily disrupted, and spatial orientation collapses completely.\n\n0:06–0:10 — [Low Angle POV / Rapid Ground Roll]\n[subject B] closes in rapidly from above or from the side, bringing extreme pressure into the frame, and strikes downward with [weapon D / body-based heavy strike mechanism / structural attack form]. The camera simulates a full, desperate, high-speed sideways roll across [reference ground or surface type]. During the roll, environmental elements, the massive body of [subject B], and the descending attack blend into a violently spinning blur. The attack lands inches from the camera, smashing into the ground or surrounding medium and sending a brutal shock through the frame.\n\n0:10–0:15 — [Low Angle POV / Heavy Ground-Anchor Action]\nStill carrying the momentum of the roll, a hand, limb, gripping mechanism, or attached structure with [reference-specific material traits] reaches frantically into frame and grabs [weapon C / support object / countermeasure tool] from the ground, surrounding debris, or nearby surface. As [subject B] charges forward again, [subject A] desperately fixes [weapon C] or the support structure into [current environment material], orienting its active end toward [subject B]. Driven by immense forward and downward momentum, [subject B] collides violently into the anchored countermeasure, creating a brutal, tightly locked clash of pure physical force. The gripping structure of [subject A] shakes violently in frame, struggling to keep the countermeasure stable under crushing weight and pressure.\n\nTECHNICAL & RENDER\n\nCamera: Frantic, heavy, inertia-rich first-person POV, simulating the embodied movement of [subject A] inside the spatial conditions of the [reference image].\n\nView Restriction: Always seen through [first-person viewing structure], with clear edge obstruction, framing pressure, or structural limitation.\n\nLighting: Lighting must adapt to the [reference environment], rather than remaining fixed to one preset state, while always following believable spatial logic and emotional intent.\n\nLens: 24mm wide angle, approximating human vision but slightly distorted by enclosure, obstruction, or proximity.\n\nTexture / Quality: Shot on 35mm film, photorealistic, cinematic atmospheric lighting, highly detailed, raw live-action feeling, motion picture quality, 8K, volumetric rendering.\n\nVisual Requirements: Single take, strong weight, uninterrupted POV continuity, brutal physical collisions, real inertia, no game UI, no modern HUD, no extra elements outside the world logic of the reference image.",
+              "ratio": "16:9",
+              "quality": "720p",
+              "audio": false,
+              "referenceOrder": [
+                "node:image-461880fa-7360-4cee-bb8e-dbbf14077b68"
+              ]
+            }
+          },
+          {
+            "id": "image-461880fa-7360-4cee-bb8e-dbbf14077b68",
+            "type": "image",
+            "title": "[1]Upload a picture",
+            "x": 40,
+            "y": 40,
+            "width": 448,
+            "height": 250,
+            "fullImage": "/assets/6fb0f0d1aa08ad96.png",
+            "image": "/assets/6fb0f0d1aa08ad96.png"
+          }
+        ],
+        "edges": [
+          {
+            "id": "02e133f1-8678-4e38-a189-3d90ded66536",
+            "source": "image-461880fa-7360-4cee-bb8e-dbbf14077b68",
+            "target": "video-406788d1-2da2-4b9e-9ac9-2268aabf0641",
+            "sourceHandle": "right",
+            "targetHandle": "left"
+          }
+        ],
+        "width": 1375,
+        "height": 333,
+        "groupColor": ""
+      },
+      "thumbnail": "/assets/workflow-templates/36a16e58c91267051a3b-thumb.webp"
+    },
+    {
+      "id": "d575fb06-77f1-4695-a354-d529f83c5144",
+      "name": "Cave Monster Clash",
+      "description": "Cave Monster Clash",
+      "tags": [
+        "workflow"
+      ],
+      "createdAt": "2026-04-20T04:07:06.706995Z",
+      "category": "workflow",
+      "categoryIds": [
+        "68556690-89e1-4c68-9510-4d50820329a2",
+        "0f13316d-956a-4157-8723-8cd14722f42c",
+        "7550b4fd-c65b-40fb-93d0-ae08259c8752"
+      ],
+      "image": "/assets/a1fc9af422fe6119.png",
+      "graph": {
+        "version": 1,
+        "nodes": [
+          {
+            "id": "video-f1113b93-e67d-442f-ba3e-3251b2e6bcc3",
+            "type": "video",
+            "title": "[√]Result",
+            "x": 1716,
+            "y": 121,
+            "width": 444,
+            "height": 250,
+            "video": "/assets/workflow-templates/ef37fc16e320e68f4577.mp4",
+            "versions": [
+              {
+                "video": "/assets/workflow-templates/ef37fc16e320e68f4577.mp4"
+              }
+            ],
+            "generation": {
+              "aspectRatio": "16:9",
+              "duration": 8,
+              "generateAudio": false,
+              "model": "seedance-2.0",
+              "modelType": "reference_to_video",
+              "resolution": "720p",
+              "variant": "reference",
+              "prompt": "The first frame must strictly begin from the reference image, fully preserving the main subject, pursuing subject, spatial relationships, camera angle, composition, foreground-background layering, environmental atmosphere, material texture, lighting condition, and overall visual style of the reference image. All following movement, chase progression, camera escalation, and final explosive climax must grow naturally from that exact opening frame. Character appearance, number of subjects, positional logic, scale, atmospheric behavior, directional pressure, and emotional tone must remain fully grounded in the reference image, without inventing a disconnected new world or unrelated cast.\n\nThe sequence should feel like a surreal, high-pressure, extreme pursuit battle, with the main subject constantly moving forward through the unstable spatial structure established by the reference image, while a massive oppressive pursuing force relentlessly closes in from behind. The entire environment remains unstable: the support structures, platforms, footholds, passageways, or spatial nodes beneath the subject continuously tilt, rotate, crack, collapse, slide, or destabilize, forcing the subject into constant leaps, evasions, directional changes, momentum shifts, and near-impossible survival movement. The visual tension must come from the fact that the path ahead keeps breaking apart while the danger behind never stops advancing.\n\nThe camera language should feel highly kinetic and immersive, using aggressive tracking, handheld instability, forward-rushing pursuit framing, abrupt close-to-medium shot changes, strong impact shake at key moments, debris rushing toward the lens, and atmospheric particles such as rain, dust, or fragments striking through the frame. The main subject moves at high speed through the collapsing environment, constantly leaping, dodging, redirecting momentum, and attacking, while weapon movement, attack arcs, or force trails briefly carve visual clarity through the surrounding darkness, storm, or oppressive atmosphere. Every surge, strike, wingbeat, pulse, or advance from the pursuing subject must trigger spatial tremors, air shock, flying debris, and escalating pressure.\n\nIn the final phase, the main subject reaches a last unstable foothold or terminal collapsing structure and commits to an all-or-nothing final charge. The camera stays tightly attached from behind, from a rear-side angle, or along the movement path as the subject uses the core energy, atmospheric force, environmental surge, storm center, spatial fracture, or high-speed momentum of the reference-image world to launch into the final leap. The subject drives directly into the most central, dangerous, energy-dense part of the pursuing force and delivers one decisive, fate-defining slash or ultimate strike. The result should feel like the oppressive world is ruptured from within — the storm torn open, the darkness split apart, the entire environment momentarily flooded with light, and the visual order rewritten in one final eruption. The overall result must feel epic, oppressive, sharp, surreal, and cinematic, while always reading as the ultimate pursuit and final confrontation naturally escalated from the world already established by the first-frame reference image.",
+              "ratio": "16:9",
+              "quality": "720p",
+              "audio": false,
+              "referenceOrder": [
+                "node:image-c98923e7-d7ac-41a6-94fa-177ac9ca8473"
+              ]
+            }
+          },
+          {
+            "id": "image-c98923e7-d7ac-41a6-94fa-177ac9ca8473",
+            "type": "image",
+            "title": "[/]No action needed",
+            "x": 634,
+            "y": 124,
+            "width": 448,
+            "height": 250,
+            "fullImage": "/assets/a1fc9af422fe6119.png",
+            "image": "/assets/a1fc9af422fe6119.png",
+            "versions": [
+              {
+                "image": "/assets/a1fc9af422fe6119.png"
+              }
+            ],
+            "generation": {
+              "aspectRatio": "16:9",
+              "enableGoogleSearch": true,
+              "imageSize": "4K",
+              "model": "tamar-google-gemini-pro",
+              "provider": "google",
+              "prompt": "Ultra-realistic 4K Hollywood cinematic dark-fantasy film still, widescreen 16:9, same camera position and composition as the reference: low, slightly wide-angle ground-level shot inside a vast space, strong depth, monster centered/left-midground facing camera, hero on the right foreground in a dynamic fighting stance, silhouetted against a bright top light.\n\nEnvironment change: replace the cave with a dune-like sand pit / desert sinkhole interior—towering sand-sculpted walls, wind-carved ridges, drifting dust and fine sand rolling across the ground, scattered dry roots/bones half-buried. Lighting: intense high-key overhead spotlight / zenith top light breaking through an opening above, creating dramatic god rays through dust, bright highlights and deep soft shadows; volumetric dust haze everywhere. Color palette: premium earthy sand tones (ochre, tan, umber) with restrained contrast, high-end cinematic look.\n\nRight-side character: Characters consistent with the reference image; crouched ready stance, one arm forward for balance, the other holding a short blade/katana angled downward, looking toward the creature. Subtle fabric micro-texture, wind tugging loose wraps, dust settling on clothing.\n\nFront creature: replace spider with a colossal giant centipede emerging from the sand—segmented armored body, dozens of jointed legs, rough chitin with sand abrasion, dusty matte finish; mandibles open, multiple small reflective eyes, body arched toward the ninja. No neon glow; instead faint warm rim highlights and gritty speculars on the chitin from the top light. Sand erupting around its legs, debris and dust kicked up, realistic physics.\n\nCinematography: blockbuster realism, crisp micro-detail (sand grains, fabric weave, chitin scratches), realistic motion blur on drifting dust, cinematic depth of field, HDR, subtle film grain, anamorphic lens character with soft bloom in highlights, earthy desert-grade color (warm tan with muted shadows), photoreal, no text or overlays.",
+              "cameraControl": {
+                "enabled": true,
+                "apertureKey": "f/1.4",
+                "cameraKey": "arriflex_435",
+                "focalKey": "50mm",
+                "lensKey": "helios"
+              },
+              "ratio": "16:9",
+              "quality": "4K",
+              "referenceOrder": [
+                "node:image-c61865d2-4151-48d5-a292-4e6e2fe31de7"
+              ]
+            }
+          },
+          {
+            "id": "image-c61865d2-4151-48d5-a292-4e6e2fe31de7",
+            "type": "image",
+            "title": "[1]Upload your photo",
+            "x": 40,
+            "y": 40,
+            "width": 250,
+            "height": 448,
+            "fullImage": "/assets/workflow-templates/b7cfb14cb64e4b60a16e.png",
+            "image": "/assets/workflow-templates/b7cfb14cb64e4b60a16e.png"
+          }
+        ],
+        "edges": [
+          {
+            "id": "a13dc384-4f7d-496a-abd1-cd508d2dc2b1",
+            "source": "image-c61865d2-4151-48d5-a292-4e6e2fe31de7",
+            "target": "image-c98923e7-d7ac-41a6-94fa-177ac9ca8473",
+            "sourceHandle": "right",
+            "targetHandle": "left"
+          },
+          {
+            "id": "85de5072-8ab7-414e-b7d1-1673ebd44638",
+            "source": "image-c98923e7-d7ac-41a6-94fa-177ac9ca8473",
+            "target": "video-f1113b93-e67d-442f-ba3e-3251b2e6bcc3",
+            "sourceHandle": "right",
+            "targetHandle": "left"
+          }
+        ],
+        "width": 2200,
+        "height": 528,
+        "groupColor": ""
+      },
+      "thumbnail": "/assets/workflow-templates/97dff0fe48e20d067e29-thumb.webp"
+    },
+    {
+      "id": "d5e55c88-5a72-4329-8e02-96bfcf8903f1",
+      "name": "英雄史诗电影赞歌",
+      "description": "[应用场景]\n上传1–5张参考图 → 秒出10秒正宗好莱坞级英雄史诗电影预告片（多机位震撼镜头、教科书运镜、顶级戏剧光影、慢动作高潮）。几秒打造属于你的传奇电影大片——短剧片头、个人英雄史诗、游戏CG、品牌史诗广告、抖音电影风顶级爆款。\n\n[操作步骤]\n[1] 上传1–5张参考图（人物、武器、场景、风格均可）\n[2] 直接运行\n\n[注意事项]\n[\\] 内置好莱坞史诗电影管线+专业预告片调度\n[√] 成果 = 10秒直接可发的院线级英雄史诗电影预告片",
+      "tags": [
+        "好莱坞预告片",
+        "个人英雄视频",
+        "一图出电影大片",
+        "英雄史诗赞歌"
+      ],
+      "createdAt": "2025-12-06T14:13:29.276709Z",
+      "category": "workflow",
+      "categoryIds": [
+        "0f13316d-956a-4157-8723-8cd14722f42c"
+      ],
+      "image": "/assets/c6b2ca022f40565f.png",
+      "graph": {
+        "version": 1,
+        "nodes": [
+          {
+            "id": "c7d2bd16-39a9-4493-9825-2a6efcb5c3b8",
+            "type": "image",
+            "title": "上传图片",
+            "x": 589,
+            "y": 2341,
+            "width": 452.54957507082156,
+            "height": 250,
+            "fullImage": "/assets/workflow-templates/6261057bd1b8a2165db0.png",
+            "image": "/assets/workflow-templates/6261057bd1b8a2165db0.png",
+            "generation": {
+              "aspectRatio": "16:9",
+              "model": "flux-kontext-pro",
+              "provider": "bfl",
+              "prompt": "",
+              "ratio": "16:9",
+              "referenceOrder": []
+            }
+          },
+          {
+            "id": "b9350e56-1b3b-42c4-86c7-0c58f14a1a18",
+            "type": "text",
+            "title": "Text",
+            "x": 40,
+            "y": 1583,
+            "width": 349,
+            "height": 334,
+            "content": "《视听语言》\n\n- 相机相对位置：前后Z轴、左右X轴、上下Y轴\n- 相机绝对位置：影响构图\n- 相机本身镜头（能力）：焦段、背景虚化\n\n核心模型：相机三维坐标系 + 镜头滤镜 公式：一个镜头 = \\[Z轴距离\\] + \\[Y轴高度\\] + \\[X轴方位\\] + \\[特殊属性\\] 第一维度：Z轴 - 距离与信息量 (Distance & Scale) 逻辑定义： 相机与被摄主体的距离。这决定了画面中是“看清毛孔”还是“看清世界”。 对应图中的“一、景别” 我们将图中的 9 种景别按\\*\\*“关注点”\\*\\*重新归纳为三层：\n\n1. 近距层（关注微观与情绪）：\n\n- Z1 大特写 (Extreme Close-up): 瞳孔反光、手指伤口。极致的感官刺激。\n- Z2 特写 (Big Close-up): 眼睛、嘴巴。强调局部特征。\n- Z3 近景 (Close-up): 脸部。强调面部表情和台词情绪。\n\n2. 中距层（关注动作与交互）：\n\n- Z4 中近景 (Medium Close-up): 胸口以上。最通用的对话、Vlog、情感独白镜头。\n- Z5 中景 (Medium Shot): 腰部以上。展示上半身肢体动作（如拿东西、指路）。\n- Z6 三分之四身景 (Medium Long Shot): 膝盖附近。又称“牛仔镜头”，展示手部与身体重心的关系。\n\n3. 远距层（关注环境与关系）：\n\n- Z7 全景 (Full Shot): 完整的人体带一点环境。展示穿搭、跳舞。\n- Z8 远景 (Long Shot): 人小景大。强调人与环境的融合。\n- Z9 大远景 (Extreme Long Shot): 城市、战场。交代世界观。\n\n---\n\n第二维度：Y轴 - 高度与权力关系 (Height & Power) 逻辑定义： 相机相对于眼睛的垂直高度。这决定了观众对角色的心理态势（崇拜、平等或蔑视）。 对应图中的“二、垂直拍摄角度” 和“上下Y轴”\n\n1. 高位压制（上帝/观察者）：\n\n- Y7 垂直顶视 (Top-down): 90度垂直向下。地图感、平面构成感。\n- Y6 俯视 (High Angle): 弱化角色，表现渺小、被动。\n- Y5 轻微俯视: 客观观察。\n\n2. 平位共情（对话者）：\n\n- Y4 平视 (Eye Level): 视线齐平。平等交流，最日常的视角。\n\n3. 低位崇拜（仰望者）：\n\n- Y3 轻微仰视: 赋予角色正面的高大感。\n- Y2 仰视 (Low Angle): 强化力量、威严或恐惧感。\n- Y1 虫视 (Worm's-eye): 贴地拍摄。极端的夸张视角。\n\n---\n\n第三维度：X轴 - 环绕方位 (Orbit & Profile) 逻辑定义： 相机围绕主体旋转的角度。决定了画面的立体感和叙事视角。 对应图中的“三、水平拍摄角度” 和“左右X轴” (虽然图中此部分被截断，但根据标准视听语言逻辑补充)\n\n1. 正面 (Front View): 直接互动，打破第四面墙。\n2. 四分之三侧面 (3/4 View): 立体感最强，最常用的人像角度。\n3. 侧面 (Side View): 90度侧面。强调轮廓线，表现对峙或行进。\n4. 背面 (Back View): 留白，制造悬念或背影杀。\n\n---\n\n第四维度：滤镜与特殊属性 (Lens & Style) 逻辑定义： 这不是位置，而是相机的\\*\\*“物理能力”和“叙事身份”\\*\\*。 对应图中的“四、特殊视角” 和“相机本身镜头能力”\n\n1. 物理光学类 (Optical):\n\n- 焦段/虚化: 控制背景虚化程度（DOF）。\n- 畸变: 鱼眼镜头、广角拉伸。\n\n2. 身份叙事类 (Identity):\n\n- POV (主观视角): 代入角色眼睛。\n- 过肩镜头 (OTS): 建立双人关系。\n\n3. 构图与结构类 (Composition/Geometry):\n\n- 构图失衡: 荷兰角（倾斜），表现动荡。\n- 反射与遮挡: 镜面、门缝偷窥。\n- 几何结构: 对称、引导线。",
+            "textMode": "generate",
+            "generation": {
+              "model": "gemini-3-pro",
+              "provider": "google",
+              "prompt": "",
+              "referenceOrder": []
+            }
+          },
+          {
+            "id": "541d9df8-d35e-4ba1-a25c-1cd2862bf4cd",
+            "type": "text",
+            "title": "Text",
+            "x": 89.5,
+            "y": 2214.5,
+            "width": 250,
+            "height": 250,
+            "content": "斗兽场的勇士搏斗，凶险，充满张力",
+            "textMode": "generate",
+            "generation": {
+              "model": "gemini-3-pro",
+              "provider": "google",
+              "prompt": "",
+              "referenceOrder": []
+            }
+          },
+          {
+            "id": "34f68789-115c-44d1-a14f-e0a3c18d7629",
+            "type": "text",
+            "title": "Text",
+            "x": 690.2747875354107,
+            "y": 1891,
+            "width": 250,
+            "height": 250,
+            "content": "\\[分镜1\\]：Z9 大远景 (交代世界观) + Y6 俯视 (渺小感) + 背面 (悬念) + 广角镜头 (强化空间透视，展示角斗场巨大的压迫感与勇士走进场的孤独背影)\n\n\\[分镜2\\]：Z1 大特写 (极致感官) + Y4 平视 (平等观察) + 四分之三侧面 (立体感) + 浅景深/虚化 (聚焦勇士额头滴落的汗珠或瞳孔中的恐惧，背景模糊化喧闹的观众)\n\n\\[分镜3\\]：Z6 三分之四身景 (牛仔镜头) + Y3 轻微仰视 (赋予高大感) + 侧面 (对峙) + 引导线构图 (展示勇士拔剑的手部动作与重心下沉的准备姿态，剑尖指向对手)\n\n\\[分镜4\\]：Z4 中近景 (交互) + Y4 平视 (真实感) + 过肩镜头 (OTS) + 焦段压缩 (通过野兽/对手的肩膀看勇士的表情，建立双方一触即发的敌对关系)\n\n\\[分镜5\\]：Z3 近景 (面部情绪) + Y4 平视 (代入感) + POV (主观视角) + 动态模糊 (模拟对手向勇士猛扑过来的瞬间，观众即勇士，感受扑面而来的杀气)\n\n\\[分镜6\\]：Z5 中景 (肢体动作) + Y5 轻微俯视 (客观观察) + 荷兰角 (构图失衡) + 高快门 (捕捉双方兵器相撞瞬间的火花与肌肉紧绷的动荡感，画面倾斜暗示局势凶险)\n\n\\[分镜7\\]：Z2 特写 (局部特征) + Y1 虫视 (夸张视角) + 侧面 (轮廓) + 飞溅特效 (贴地拍摄脚部重踏沙地，沙砾与鲜血飞溅的瞬间细节)\n\n\\[分镜8\\]：Z7 全景 (完整人体) + Y2 仰视 (威严感) + 正面 (打破第四面墙) + 逆光/轮廓光 (勇士击倒对手后站立喘息，阳光从身后射来，形成剪影，强调胜利者的力量)\n\n\\[分镜9\\]：Z8 远景 (人与环境) + Y7 垂直顶视 (上帝视角) + 任意方位 (平面构成) + 几何结构 (巨大的圆形竞技场中心，勇士只是一个小点，周围是欢呼的人群，表现命运的荒诞与苍凉)",
+            "textMode": "generate",
+            "generation": {
+              "model": "gemini-3-pro",
+              "provider": "google",
+              "prompt": "请你根据导演的意图，预测出9种X景别距离、Y垂直方位、Z水平角度、S滤镜与相机特性的最佳组合，并以\n[分镜1]：X+Y+Z+S的格式输出\n请你输出分镜1-9\n",
+              "referenceOrder": [
+                "node:541d9df8-d35e-4ba1-a25c-1cd2862bf4cd",
+                "node:b9350e56-1b3b-42c4-86c7-0c58f14a1a18"
+              ]
+            }
+          },
+          {
+            "id": "20ba36b3-2427-42c4-b40c-99718bc11686",
+            "type": "image",
+            "title": "Image",
+            "x": 1244.147040918204,
+            "y": 40,
+            "width": 453.25779036827197,
+            "height": 250,
+            "fullImage": "/assets/workflow-templates/2c006455a8dcb9a87512.png",
+            "image": "/assets/workflow-templates/2c006455a8dcb9a87512.png",
+            "versions": [
+              {
+                "image": "/assets/workflow-templates/2c006455a8dcb9a87512.png"
+              },
+              {
+                "image": "/assets/workflow-templates/0ce0c9aa022f3e696525.png"
+              },
+              {
+                "image": "/assets/workflow-templates/42e1f92ccdd4e0de113c.png"
+              },
+              {
+                "image": "/assets/workflow-templates/43b2c17ec3a3ad6aa8ce.png"
+              }
+            ],
+            "generation": {
+              "aspectRatio": "Auto",
+              "enableGoogleSearch": false,
+              "imageSize": "1K",
+              "model": "tamar-google-gemini-pro",
+              "provider": "google",
+              "times": 4,
+              "prompt": "请基于图片，按【分镜1的X景别距离、Y垂直视角、Z左右方位、S滤镜与特殊视角】生成一张电影帧",
+              "count": 4,
+              "ratio": "Auto",
+              "quality": "1K",
+              "referenceOrder": [
+                "node:b9350e56-1b3b-42c4-86c7-0c58f14a1a18",
+                "node:34f68789-115c-44d1-a14f-e0a3c18d7629",
+                "node:c7d2bd16-39a9-4493-9825-2a6efcb5c3b8"
+              ]
+            }
+          },
+          {
+            "id": "d6b582c0-9039-4c7b-8817-6c34fac786cf",
+            "type": "image",
+            "title": "Image",
+            "x": 1244.147040918204,
+            "y": 490,
+            "width": 453.25779036827197,
+            "height": 250,
+            "fullImage": "/assets/workflow-templates/a81bc85e3a9039dc2d2a.png",
+            "image": "/assets/workflow-templates/a81bc85e3a9039dc2d2a.png",
+            "versions": [
+              {
+                "image": "/assets/workflow-templates/a81bc85e3a9039dc2d2a.png"
+              },
+              {
+                "image": "/assets/workflow-templates/e0ab96c7a9254486e53b.png"
+              },
+              {
+                "image": "/assets/workflow-templates/c328afe94296e16b1ca4.png"
+              },
+              {
+                "image": "/assets/workflow-templates/fbfff0e6b77af94eea14.png"
+              }
+            ],
+            "generation": {
+              "aspectRatio": "Auto",
+              "enableGoogleSearch": false,
+              "imageSize": "1K",
+              "model": "tamar-google-gemini-pro",
+              "provider": "google",
+              "times": 4,
+              "prompt": "请基于图片，按【分镜2】的X景别距离、Y垂直视角、Z左右方位、S滤镜与特殊视角，生成一张电影帧",
+              "count": 4,
+              "ratio": "Auto",
+              "quality": "1K",
+              "referenceOrder": [
+                "node:34f68789-115c-44d1-a14f-e0a3c18d7629",
+                "node:b9350e56-1b3b-42c4-86c7-0c58f14a1a18",
+                "node:c7d2bd16-39a9-4493-9825-2a6efcb5c3b8"
+              ]
+            }
+          },
+          {
+            "id": "3f59a7bc-c015-4520-8b58-dd35c2b7cc6f",
+            "type": "image",
+            "title": "Image",
+            "x": 1241.5495750708214,
+            "y": 940,
+            "width": 458.4527220630373,
+            "height": 250,
+            "fullImage": "/assets/workflow-templates/7c06f0372639930955aa.png",
+            "image": "/assets/workflow-templates/7c06f0372639930955aa.png",
+            "versions": [
+              {
+                "image": "/assets/workflow-templates/7c06f0372639930955aa.png"
+              }
+            ],
+            "generation": {
+              "aspectRatio": "Auto",
+              "enableGoogleSearch": false,
+              "imageSize": "1K",
+              "model": "tamar-google-gemini-pro",
+              "provider": "google",
+              "prompt": "请基于图片，按【分镜3】的X景别距离、Y垂直视角、Z左右方位、S滤镜与特殊视角",
+              "ratio": "Auto",
+              "quality": "1K",
+              "referenceOrder": [
+                "node:b9350e56-1b3b-42c4-86c7-0c58f14a1a18",
+                "node:c7d2bd16-39a9-4493-9825-2a6efcb5c3b8",
+                "node:34f68789-115c-44d1-a14f-e0a3c18d7629"
+              ]
+            }
+          },
+          {
+            "id": "ffbd9518-86dc-4e02-a7b7-4d39af4bb77c",
+            "type": "image",
+            "title": "Image",
+            "x": 1244.147040918204,
+            "y": 1390,
+            "width": 453.25779036827197,
+            "height": 250,
+            "fullImage": "/assets/workflow-templates/827684cb380ecc74c7e9.png",
+            "image": "/assets/workflow-templates/827684cb380ecc74c7e9.png",
+            "versions": [
+              {
+                "image": "/assets/workflow-templates/827684cb380ecc74c7e9.png"
+              },
+              {
+                "image": "/assets/workflow-templates/c76a852941501b2c40b2.png"
+              },
+              {
+                "image": "/assets/workflow-templates/e640a7afd4c1958a4a10.png"
+              },
+              {
+                "image": "/assets/workflow-templates/687342f69bc0796757c8.png"
+              }
+            ],
+            "generation": {
+              "aspectRatio": "Auto",
+              "enableGoogleSearch": false,
+              "imageSize": "1K",
+              "model": "tamar-google-gemini-pro",
+              "provider": "google",
+              "times": 4,
+              "prompt": "请基于图片，按【分镜4】的X景别距离、Y垂直视角、Z左右方位、S滤镜与特殊视角，\n",
+              "count": 4,
+              "ratio": "Auto",
+              "quality": "1K",
+              "referenceOrder": [
+                "node:b9350e56-1b3b-42c4-86c7-0c58f14a1a18",
+                "node:c7d2bd16-39a9-4493-9825-2a6efcb5c3b8",
+                "node:34f68789-115c-44d1-a14f-e0a3c18d7629"
+              ]
+            }
+          },
+          {
+            "id": "8ea2cfe8-fdb3-4070-a4e4-49bb243e56b5",
+            "type": "image",
+            "title": "Image",
+            "x": 1244.147040918204,
+            "y": 1968.5,
+            "width": 453.25779036827197,
+            "height": 250,
+            "fullImage": "/assets/workflow-templates/8c22db4357695e99a982.png",
+            "image": "/assets/workflow-templates/8c22db4357695e99a982.png",
+            "versions": [
+              {
+                "image": "/assets/workflow-templates/8c22db4357695e99a982.png"
+              }
+            ],
+            "generation": {
+              "aspectRatio": "Auto",
+              "enableGoogleSearch": false,
+              "imageSize": "1K",
+              "model": "tamar-google-gemini-pro",
+              "provider": "google",
+              "prompt": "请基于图片，按【分镜5的X景别距离、Y垂直视角、Z左右方位、S滤镜与特殊视角】\n",
+              "ratio": "Auto",
+              "quality": "1K",
+              "referenceOrder": [
+                "node:b9350e56-1b3b-42c4-86c7-0c58f14a1a18",
+                "node:34f68789-115c-44d1-a14f-e0a3c18d7629",
+                "node:c7d2bd16-39a9-4493-9825-2a6efcb5c3b8"
+              ]
+            }
+          },
+          {
+            "id": "b1ad8bff-6452-432b-9990-c99431ae92f8",
+            "type": "image",
+            "title": "Image",
+            "x": 1244.147040918204,
+            "y": 2693.5,
+            "width": 453.25779036827197,
+            "height": 250,
+            "fullImage": "/assets/workflow-templates/db7fe48e49d94dc2ff48.png",
+            "image": "/assets/workflow-templates/db7fe48e49d94dc2ff48.png",
+            "versions": [
+              {
+                "image": "/assets/workflow-templates/db7fe48e49d94dc2ff48.png"
+              }
+            ],
+            "generation": {
+              "aspectRatio": "Auto",
+              "enableGoogleSearch": false,
+              "imageSize": "1K",
+              "model": "tamar-google-gemini-pro",
+              "provider": "google",
+              "prompt": "请基于图片，按【分镜6】的X景别距离、Y垂直视角、Z左右方位、S滤镜与特殊视角，生成一张电影帧",
+              "ratio": "Auto",
+              "quality": "1K",
+              "referenceOrder": [
+                "node:b9350e56-1b3b-42c4-86c7-0c58f14a1a18",
+                "node:c7d2bd16-39a9-4493-9825-2a6efcb5c3b8",
+                "node:34f68789-115c-44d1-a14f-e0a3c18d7629"
+              ]
+            }
+          },
+          {
+            "id": "153e0978-f074-42f3-86f4-25891f8e844b",
+            "type": "image",
+            "title": "图片生成",
+            "x": 1244.147040918204,
+            "y": 3143.5,
+            "width": 453.25779036827197,
+            "height": 250,
+            "fullImage": "/assets/workflow-templates/9c671d153008eead3819.png",
+            "image": "/assets/workflow-templates/9c671d153008eead3819.png",
+            "versions": [
+              {
+                "image": "/assets/workflow-templates/9c671d153008eead3819.png"
+              }
+            ],
+            "generation": {
+              "aspectRatio": "Auto",
+              "enableGoogleSearch": false,
+              "imageSize": "1K",
+              "model": "tamar-google-gemini-pro",
+              "provider": "google",
+              "prompt": "请基于图片，按【分镜7】的X景别距离、Y垂直视角、Z左右方位、S滤镜与特殊视角生成",
+              "ratio": "Auto",
+              "quality": "1K",
+              "referenceOrder": [
+                "node:c7d2bd16-39a9-4493-9825-2a6efcb5c3b8",
+                "node:34f68789-115c-44d1-a14f-e0a3c18d7629",
+                "node:b9350e56-1b3b-42c4-86c7-0c58f14a1a18"
+              ]
+            }
+          },
+          {
+            "id": "bbb345b1-702d-45ce-8392-8629b0b2d02b",
+            "type": "image",
+            "title": "Image",
+            "x": 1244.147040918204,
+            "y": 3593.5,
+            "width": 453.25779036827197,
+            "height": 250,
+            "fullImage": "/assets/workflow-templates/6d55f586daaf665d3044.png",
+            "image": "/assets/workflow-templates/6d55f586daaf665d3044.png",
+            "versions": [
+              {
+                "image": "/assets/workflow-templates/6d55f586daaf665d3044.png"
+              }
+            ],
+            "generation": {
+              "aspectRatio": "Auto",
+              "enableGoogleSearch": false,
+              "imageSize": "1K",
+              "model": "tamar-google-gemini-pro",
+              "provider": "google",
+              "prompt": "请基于图片，按【分镜8】的X景别距离、Y垂直视角、Z左右方位、S滤镜与特殊视角，",
+              "ratio": "Auto",
+              "quality": "1K",
+              "referenceOrder": [
+                "node:34f68789-115c-44d1-a14f-e0a3c18d7629",
+                "node:c7d2bd16-39a9-4493-9825-2a6efcb5c3b8",
+                "node:b9350e56-1b3b-42c4-86c7-0c58f14a1a18"
+              ]
+            }
+          },
+          {
+            "id": "dc0c61b7-0721-48b3-ac2e-52adc22b07be",
+            "type": "image",
+            "title": "Image",
+            "x": 1244.147040918204,
+            "y": 4043.5,
+            "width": 453.25779036827197,
+            "height": 250,
+            "fullImage": "/assets/workflow-templates/bc610e2a495ee54b3305.png",
+            "image": "/assets/workflow-templates/bc610e2a495ee54b3305.png",
+            "versions": [
+              {
+                "image": "/assets/workflow-templates/bc610e2a495ee54b3305.png"
+              }
+            ],
+            "generation": {
+              "aspectRatio": "Auto",
+              "enableGoogleSearch": false,
+              "imageSize": "1K",
+              "model": "tamar-google-gemini-pro",
+              "provider": "google",
+              "prompt": "请基于图片，按【分镜9】的X景别距离、Y垂直视角、Z左右方位、S滤镜与特殊视角，",
+              "ratio": "Auto",
+              "quality": "1K",
+              "referenceOrder": [
+                "node:34f68789-115c-44d1-a14f-e0a3c18d7629",
+                "node:c7d2bd16-39a9-4493-9825-2a6efcb5c3b8",
+                "node:b9350e56-1b3b-42c4-86c7-0c58f14a1a18"
+              ]
+            }
+          },
+          {
+            "id": "video-d43940bb-a1e8-4c43-bf5f-0ffd833c1f9a",
+            "type": "video",
+            "title": "Video",
+            "x": 1968.932813671342,
+            "y": 1959.7154063643002,
+            "width": 444.4444444444444,
+            "height": 250,
+            "video": "/assets/workflow-templates/ffb9119ca577114883fe.mp4",
+            "versions": [
+              {
+                "video": "/assets/workflow-templates/ffb9119ca577114883fe.mp4"
+              }
+            ],
+            "generation": {
+              "aspectRatio": "16:9",
+              "duration": 10,
+              "model": "kling-video-o1",
+              "modelType": "reference_to_video",
+              "prompt": "根据图片先后顺序生成一部电影大片",
+              "ratio": "16:9",
+              "referenceOrder": [
+                "node:d6b582c0-9039-4c7b-8817-6c34fac786cf",
+                "node:3f59a7bc-c015-4520-8b58-dd35c2b7cc6f",
+                "node:ffbd9518-86dc-4e02-a7b7-4d39af4bb77c",
+                "node:8ea2cfe8-fdb3-4070-a4e4-49bb243e56b5",
+                "node:b1ad8bff-6452-432b-9990-c99431ae92f8"
+              ]
+            }
+          },
+          {
+            "id": "video-f1bf437a-0359-41d0-b196-6b8fc518ac02",
+            "type": "video",
+            "title": "Video",
+            "x": 1953.3663149751865,
+            "y": 3323.564503634934,
+            "width": 444.79166666666663,
+            "height": 250,
+            "video": "/assets/workflow-templates/62671875fa4c7a730fcc.mp4",
+            "versions": [
+              {
+                "video": "/assets/workflow-templates/62671875fa4c7a730fcc.mp4"
+              }
+            ],
+            "generation": {
+              "aspectRatio": "16:9",
+              "duration": 10,
+              "model": "kling-video-o1",
+              "modelType": "reference_to_video",
+              "prompt": "根据图片先后顺序生成一部电影大片",
+              "ratio": "16:9",
+              "referenceOrder": [
+                "node:b1ad8bff-6452-432b-9990-c99431ae92f8",
+                "node:153e0978-f074-42f3-86f4-25891f8e844b",
+                "node:bbb345b1-702d-45ce-8392-8629b0b2d02b",
+                "node:dc0c61b7-0721-48b3-ac2e-52adc22b07be"
+              ]
+            }
+          }
+        ],
+        "edges": [
+          {
+            "id": "e48a05d4-fccb-4000-a4be-b5d490a3ee72",
+            "source": "541d9df8-d35e-4ba1-a25c-1cd2862bf4cd",
+            "target": "34f68789-115c-44d1-a14f-e0a3c18d7629",
+            "sourceHandle": "right",
+            "targetHandle": "left"
+          },
+          {
+            "id": "650570d8-634b-4745-8b7f-9436d5cc3355",
+            "source": "b9350e56-1b3b-42c4-86c7-0c58f14a1a18",
+            "target": "34f68789-115c-44d1-a14f-e0a3c18d7629",
+            "sourceHandle": "right",
+            "targetHandle": "left"
+          },
+          {
+            "id": "2530c9c8-e0bf-4e19-95a1-f38cf24e7c46",
+            "source": "b9350e56-1b3b-42c4-86c7-0c58f14a1a18",
+            "target": "20ba36b3-2427-42c4-b40c-99718bc11686",
+            "sourceHandle": "right",
+            "targetHandle": "left"
+          },
+          {
+            "id": "b13a3cc8-cf67-422e-b27a-cad071ef8965",
+            "source": "34f68789-115c-44d1-a14f-e0a3c18d7629",
+            "target": "20ba36b3-2427-42c4-b40c-99718bc11686",
+            "sourceHandle": "right",
+            "targetHandle": "left"
+          },
+          {
+            "id": "b257e7c2-be5d-4462-baca-df38f3836097",
+            "source": "c7d2bd16-39a9-4493-9825-2a6efcb5c3b8",
+            "target": "20ba36b3-2427-42c4-b40c-99718bc11686",
+            "sourceHandle": "right",
+            "targetHandle": "left"
+          },
+          {
+            "id": "e1e1cbf8-fc27-49b5-b574-63aa34a9a856",
+            "source": "34f68789-115c-44d1-a14f-e0a3c18d7629",
+            "target": "d6b582c0-9039-4c7b-8817-6c34fac786cf",
+            "sourceHandle": "right",
+            "targetHandle": "left"
+          },
+          {
+            "id": "7ad671d6-1aea-404e-b754-ea9bd39a2a84",
+            "source": "b9350e56-1b3b-42c4-86c7-0c58f14a1a18",
+            "target": "d6b582c0-9039-4c7b-8817-6c34fac786cf",
+            "sourceHandle": "right",
+            "targetHandle": "left"
+          },
+          {
+            "id": "ed267c26-bb7c-43e6-8399-1091d2948e79",
+            "source": "c7d2bd16-39a9-4493-9825-2a6efcb5c3b8",
+            "target": "d6b582c0-9039-4c7b-8817-6c34fac786cf",
+            "sourceHandle": "right",
+            "targetHandle": "left"
+          },
+          {
+            "id": "c07a5819-5dc5-4964-ab06-6d72452453b9",
+            "source": "b9350e56-1b3b-42c4-86c7-0c58f14a1a18",
+            "target": "3f59a7bc-c015-4520-8b58-dd35c2b7cc6f",
+            "sourceHandle": "right",
+            "targetHandle": "left"
+          },
+          {
+            "id": "a0004251-781b-43e2-9ac3-8c2565233136",
+            "source": "c7d2bd16-39a9-4493-9825-2a6efcb5c3b8",
+            "target": "3f59a7bc-c015-4520-8b58-dd35c2b7cc6f",
+            "sourceHandle": "right",
+            "targetHandle": "left"
+          },
+          {
+            "id": "a2da82cd-cd87-4dbc-9689-af12203873b9",
+            "source": "34f68789-115c-44d1-a14f-e0a3c18d7629",
+            "target": "3f59a7bc-c015-4520-8b58-dd35c2b7cc6f",
+            "sourceHandle": "right",
+            "targetHandle": "left"
+          },
+          {
+            "id": "24749580-8a04-41b2-a17e-3ad701b2a5c8",
+            "source": "b9350e56-1b3b-42c4-86c7-0c58f14a1a18",
+            "target": "ffbd9518-86dc-4e02-a7b7-4d39af4bb77c",
+            "sourceHandle": "right",
+            "targetHandle": "left"
+          },
+          {
+            "id": "7c839d70-8e6a-401b-9ce8-36af6de34e49",
+            "source": "c7d2bd16-39a9-4493-9825-2a6efcb5c3b8",
+            "target": "ffbd9518-86dc-4e02-a7b7-4d39af4bb77c",
+            "sourceHandle": "right",
+            "targetHandle": "left"
+          },
+          {
+            "id": "2e81b571-7740-4827-90ae-9fdff6978958",
+            "source": "34f68789-115c-44d1-a14f-e0a3c18d7629",
+            "target": "ffbd9518-86dc-4e02-a7b7-4d39af4bb77c",
+            "sourceHandle": "right",
+            "targetHandle": "left"
+          },
+          {
+            "id": "b197cd69-1ea1-411b-8e14-ff2b5d240530",
+            "source": "b9350e56-1b3b-42c4-86c7-0c58f14a1a18",
+            "target": "8ea2cfe8-fdb3-4070-a4e4-49bb243e56b5",
+            "sourceHandle": "right",
+            "targetHandle": "left"
+          },
+          {
+            "id": "d6ba6f63-67cf-4528-99bc-6bbbaccdbfc5",
+            "source": "34f68789-115c-44d1-a14f-e0a3c18d7629",
+            "target": "8ea2cfe8-fdb3-4070-a4e4-49bb243e56b5",
+            "sourceHandle": "right",
+            "targetHandle": "left"
+          },
+          {
+            "id": "821d0c9f-93a5-4600-b54b-ec00e8333361",
+            "source": "c7d2bd16-39a9-4493-9825-2a6efcb5c3b8",
+            "target": "8ea2cfe8-fdb3-4070-a4e4-49bb243e56b5",
+            "sourceHandle": "right",
+            "targetHandle": "left"
+          },
+          {
+            "id": "d128c9c8-2a3e-4372-9852-15a1d2c00743",
+            "source": "b9350e56-1b3b-42c4-86c7-0c58f14a1a18",
+            "target": "b1ad8bff-6452-432b-9990-c99431ae92f8",
+            "sourceHandle": "right",
+            "targetHandle": "left"
+          },
+          {
+            "id": "6115b750-4d2b-4262-8d9f-aa3fdaa83cf8",
+            "source": "c7d2bd16-39a9-4493-9825-2a6efcb5c3b8",
+            "target": "b1ad8bff-6452-432b-9990-c99431ae92f8",
+            "sourceHandle": "right",
+            "targetHandle": "left"
+          },
+          {
+            "id": "752534bd-72db-439c-b977-49d0762fa267",
+            "source": "34f68789-115c-44d1-a14f-e0a3c18d7629",
+            "target": "b1ad8bff-6452-432b-9990-c99431ae92f8",
+            "sourceHandle": "right",
+            "targetHandle": "left"
+          },
+          {
+            "id": "bac8c4ae-b640-4392-9f7f-47e1bd4b80b3",
+            "source": "c7d2bd16-39a9-4493-9825-2a6efcb5c3b8",
+            "target": "153e0978-f074-42f3-86f4-25891f8e844b",
+            "sourceHandle": "right",
+            "targetHandle": "left"
+          },
+          {
+            "id": "f30fe7ac-856f-44dd-b9a5-538088f4b744",
+            "source": "34f68789-115c-44d1-a14f-e0a3c18d7629",
+            "target": "153e0978-f074-42f3-86f4-25891f8e844b",
+            "sourceHandle": "right",
+            "targetHandle": "left"
+          },
+          {
+            "id": "1912e479-4ab5-41c0-aae9-53bb719959e3",
+            "source": "b9350e56-1b3b-42c4-86c7-0c58f14a1a18",
+            "target": "153e0978-f074-42f3-86f4-25891f8e844b",
+            "sourceHandle": "right",
+            "targetHandle": "left"
+          },
+          {
+            "id": "9bb16f65-1d4c-4f8e-b851-2663dc41ce4e",
+            "source": "34f68789-115c-44d1-a14f-e0a3c18d7629",
+            "target": "bbb345b1-702d-45ce-8392-8629b0b2d02b",
+            "sourceHandle": "right",
+            "targetHandle": "left"
+          },
+          {
+            "id": "d78d6dea-2d37-4ab6-ab4d-da0fe2b2f435",
+            "source": "c7d2bd16-39a9-4493-9825-2a6efcb5c3b8",
+            "target": "bbb345b1-702d-45ce-8392-8629b0b2d02b",
+            "sourceHandle": "right",
+            "targetHandle": "left"
+          },
+          {
+            "id": "233e57f0-8f2b-4de5-8452-355f977880c9",
+            "source": "b9350e56-1b3b-42c4-86c7-0c58f14a1a18",
+            "target": "bbb345b1-702d-45ce-8392-8629b0b2d02b",
+            "sourceHandle": "right",
+            "targetHandle": "left"
+          },
+          {
+            "id": "5f8ef48c-54bd-4b75-a8ae-741a6da86cf1",
+            "source": "34f68789-115c-44d1-a14f-e0a3c18d7629",
+            "target": "dc0c61b7-0721-48b3-ac2e-52adc22b07be",
+            "sourceHandle": "right",
+            "targetHandle": "left"
+          },
+          {
+            "id": "1073eddb-69d3-4a5e-b024-095c7cd86c23",
+            "source": "c7d2bd16-39a9-4493-9825-2a6efcb5c3b8",
+            "target": "dc0c61b7-0721-48b3-ac2e-52adc22b07be",
+            "sourceHandle": "right",
+            "targetHandle": "left"
+          },
+          {
+            "id": "f84c7c59-8503-490c-ae3c-cecdb04aa596",
+            "source": "b9350e56-1b3b-42c4-86c7-0c58f14a1a18",
+            "target": "dc0c61b7-0721-48b3-ac2e-52adc22b07be",
+            "sourceHandle": "right",
+            "targetHandle": "left"
+          },
+          {
+            "id": "3574c697-7eec-49d9-96ba-3301ac562b60",
+            "source": "d6b582c0-9039-4c7b-8817-6c34fac786cf",
+            "target": "video-d43940bb-a1e8-4c43-bf5f-0ffd833c1f9a",
+            "sourceHandle": "right",
+            "targetHandle": "left"
+          },
+          {
+            "id": "913b3811-2013-4c39-ab9a-bb98e0196940",
+            "source": "3f59a7bc-c015-4520-8b58-dd35c2b7cc6f",
+            "target": "video-d43940bb-a1e8-4c43-bf5f-0ffd833c1f9a",
+            "sourceHandle": "right",
+            "targetHandle": "left"
+          },
+          {
+            "id": "34263cf2-63ad-4e32-9c98-45eb07d95a06",
+            "source": "ffbd9518-86dc-4e02-a7b7-4d39af4bb77c",
+            "target": "video-d43940bb-a1e8-4c43-bf5f-0ffd833c1f9a",
+            "sourceHandle": "right",
+            "targetHandle": "left"
+          },
+          {
+            "id": "8b953be6-814e-4de9-bb33-3f29e09154b8",
+            "source": "8ea2cfe8-fdb3-4070-a4e4-49bb243e56b5",
+            "target": "video-d43940bb-a1e8-4c43-bf5f-0ffd833c1f9a",
+            "sourceHandle": "right",
+            "targetHandle": "left"
+          },
+          {
+            "id": "2e052d39-88ef-4498-b77a-3af8b25a6a57",
+            "source": "b1ad8bff-6452-432b-9990-c99431ae92f8",
+            "target": "video-d43940bb-a1e8-4c43-bf5f-0ffd833c1f9a",
+            "sourceHandle": "right",
+            "targetHandle": "left"
+          },
+          {
+            "id": "80c98a7b-9544-4cac-a56b-7b3bc07d5373",
+            "source": "b1ad8bff-6452-432b-9990-c99431ae92f8",
+            "target": "video-f1bf437a-0359-41d0-b196-6b8fc518ac02"
+          },
+          {
+            "id": "687ceed5-bf2b-4e95-a038-88a4cee57089",
+            "source": "153e0978-f074-42f3-86f4-25891f8e844b",
+            "target": "video-f1bf437a-0359-41d0-b196-6b8fc518ac02",
+            "sourceHandle": "right",
+            "targetHandle": "left"
+          },
+          {
+            "id": "8ac449a4-a0ff-4b61-9f75-cc2be89511b0",
+            "source": "bbb345b1-702d-45ce-8392-8629b0b2d02b",
+            "target": "video-f1bf437a-0359-41d0-b196-6b8fc518ac02",
+            "sourceHandle": "right",
+            "targetHandle": "left"
+          },
+          {
+            "id": "03c422b5-501c-434e-b32e-3d524f8b9c13",
+            "source": "dc0c61b7-0721-48b3-ac2e-52adc22b07be",
+            "target": "video-f1bf437a-0359-41d0-b196-6b8fc518ac02",
+            "sourceHandle": "right",
+            "targetHandle": "left"
+          }
+        ],
+        "width": 2453.3772581157864,
+        "height": 4333.5,
+        "groupColor": ""
+      },
+      "thumbnail": "/assets/workflow-templates/ee51828497179f440989-thumb.webp"
+    },
+    {
+      "id": "ef939124-e8b5-4580-a457-8b257a4bceb1",
+      "name": "九宫格多景别电影演绎",
+      "description": "[应用场景]\n上传一张照片 → 秒出电影级九宫格故事板 + 由这9张自动剪辑成的10秒完整电影短片。每格均采用不同专业景别与角度（低机位、侧脸、过肩、极近景等）。完美用于个人电影海报、抖音九宫格爆款、短剧片头、游戏角色展示、电影风病毒短视频。\n\n[操作步骤]\n[1] 上传一张照片（人、角色、物体均可）\n[2] 直接运行\n\n[注意事项]\n[\\] 内置好莱坞九宫格构图法则+多景别调度+电影调色\n[√] 成果 = 9张完美构图单张 + 1条直接可发的10秒电影短片",
+      "tags": [
+        "人物",
+        "多角度",
+        "一图出九宫格视频",
+        "个人电影"
+      ],
+      "createdAt": "2025-12-06T14:10:15.370402Z",
+      "category": "workflow",
+      "categoryIds": [
+        "68556690-89e1-4c68-9510-4d50820329a2",
+        "0f13316d-956a-4157-8723-8cd14722f42c",
+        "921eb428-6172-4a9c-9485-59e1b2e6b53a",
+        "8296d6d4-a7a0-4bdd-b274-4d050aff4315"
+      ],
+      "image": "/assets/e441581932b0fa5a.png",
+      "graph": {
+        "version": 1,
+        "nodes": [
+          {
+            "id": "10b9c1f6-48b5-4467-90af-a564f6ea5e36",
+            "type": "image",
+            "title": "Image",
+            "x": 692.5495750708216,
+            "y": 265,
+            "width": 453.25779036827197,
+            "height": 250,
+            "fullImage": "/assets/workflow-templates/6ee30cc47d2ed5086b83.png",
+            "image": "/assets/workflow-templates/6ee30cc47d2ed5086b83.png",
+            "versions": [
+              {
+                "image": "/assets/workflow-templates/7cf0a4ed4979479394a8.png"
+              },
+              {
+                "image": "/assets/workflow-templates/6ee30cc47d2ed5086b83.png"
+              }
+            ],
+            "generation": {
+              "aspectRatio": "Auto",
+              "enableGoogleSearch": false,
+              "imageSize": "1K",
+              "mode": "image_to_image",
+              "model": "tamar-google-gemini-pro",
+              "provider": "google",
+              "times": 2,
+              "prompt": "Multi-Angle / Multi-Shot 3×3 Keyframe Generator (No Labels on Frames)**\n\n<role>  \nYou are a top-tier cinematic storyboard artist + cinematographer. Your task: based on ONE reference image, generate a **3×3 grid (9 frames)** of multi-angle, multi–shot-size keyframes.  \nYou must **preserve the original scene exactly**: same subjects, same pose, same action, same expression, same props, same environment, same lighting, same time-of-day, same mood.  \nOnly the **camera angle, shot size, composition, lens choice, and perspective** may change.  \n</role>\n\n<input>  \nUser provides: one reference image (image).  \n</input>\n\n<non-negotiable rules – continuity & truthfulness>\n\n1. **Do NOT change**: pose, gesture, movement, facial expression, clothing, props, objects, environment layout, lighting direction/quality, color palette, weather, time-of-day.\n2. **Do NOT add**: new characters, new props, new objects, new light sources, new environmental elements.\n3. **The moment must remain identical** across all 9 frames. Only the camera moves.\n4. **All frames must obey physical camera logic**: every viewpoint must be spatially consistent with the environment in the reference image.\n5. Depth of field: deeper for wider shots, shallower for closer shots, always natural.\n6. Color grade must be identical across all 9 frames.\n7. **NO labels, NO text, NO graphics may appear inside any frame.**\n\n   * (No KF numbers, no shot types, no duration text, nothing.)\n     </non-negotiable rules – continuity & truthfulness>\n\n<goal>  \nGenerate 9 coherent keyframes representing **the same frozen moment** captured from 9 different cinematic perspectives and shot sizes.  \nThe output will be used to create multi-angle AI video variations.  \n</goal>\n\n<step 1 – scene breakdown>\nOutput (with subheadings):\n\n* **Subjects:** Identify all visible subjects in the reference image; describe appearance, pose, facing direction, spatial position.\n* **Environment & Lighting:** Describe the environment layout, background elements, materials, light direction/quality, time-of-day, and atmosphere.\n* **Visual Anchors:** List 3–6 visual traits that must remain unchanged across all frames (color tone, key props, light direction, environmental markers, etc.).\n  </step 1 – scene breakdown>\n\n<step 2 – theme>\nOutput a single sentence describing the mood/theme conveyed by the original image (for stylistic coherence; does not change content).\n</step 2 – theme>\n\n<step 3 – cinematic approach>\nDescribe:\n\n* **Shot strategy:** 9 frames covering a full range of perspectives and shot sizes (ELS, LS, MLS, MS, MCU, CU, ECU, high-angle, low-angle).\n* **Camera approach:** fixed moment; only camera relocates (left/right, front/back, high/low, close/far).\n* **Lens & DoF:** recommended focal lengths for each shot size and depth-of-field behavior.\n* **Light & color:** must strictly match the reference image.\n  </step 3 – cinematic approach>\n\n<step 4 – keyframes for AI video>\nOutput **9 keyframes**, using the format:\n\n**[KF# | duration (sec) | shot type]**\n\n* **Composition:** describe subject placement, perspective shift, foreground/mid/background.\n* **Perspective:** describe camera position (e.g., left side, low-angle upshot, overhead, telephoto compression).\n* **Camera:** height, angle, static or minimal motion.\n* **Lens/DoF:** focal length, focus point, DoF depth.\n* **Lighting/Grade:** identical to the reference image.\n\n**Hard rules:**\n\n* All 9 frames must preserve the same moment with zero pose/action changes.\n* Includes mandatory shots:\n\n  * 1 extreme wide\n  * 1 wide\n  * 1 medium-wide\n  * 1 medium\n  * 1 medium-close\n  * 1 close-up\n  * 1 extreme close-up\n  * 1 high-angle view\n  * 1 low-angle view\n* **NO text, NO labels, NO graphics inside the images.**\n  </step 4 – keyframes for AI video>\n\n<step 5 – contact sheet output>\nYou must output **ONE single master image**: a 3×3 cinematic contact sheet containing all 9 keyframes.\n\nRequirements:\n\n1. 3×3 layout only.\n2. Each frame = one unique camera angle/shot size.\n3. No visual text labels inside any frame (strict).\n4. Perfect continuity across all 9 frames.\n5. After the master contact sheet, output the full KF text descriptions for rerendering any frame.\n   </step 5 – contact sheet output>\n\n<final output format>  \nA) Scene Breakdown  \nB) Theme  \nC) Cinematic Approach  \nD) Keyframes  \nE) ONE 3×3 Master Contact Sheet Image  \n</final output format>",
+              "count": 2,
+              "ratio": "Auto",
+              "quality": "1K",
+              "referenceOrder": [
+                "node:5db2869d-156c-4b1c-a8e1-8abfa13f4544"
+              ]
+            }
+          },
+          {
+            "id": "5db2869d-156c-4b1c-a8e1-8abfa13f4544",
+            "type": "image",
+            "title": "Snipaste_2025-12-03_16-26-42",
+            "x": 40,
+            "y": 265,
+            "width": 452.54957507082156,
+            "height": 250,
+            "fullImage": "/assets/workflow-templates/6261057bd1b8a2165db0.png",
+            "image": "/assets/workflow-templates/6261057bd1b8a2165db0.png",
+            "generation": {
+              "aspectRatio": "Auto",
+              "enableGoogleSearch": false,
+              "imageSize": "1K",
+              "model": "tamar-google-gemini-pro",
+              "provider": "google",
+              "prompt": "",
+              "ratio": "Auto",
+              "quality": "1K",
+              "referenceOrder": []
+            }
+          },
+          {
+            "id": "video-5cd140a3-78ca-4b7e-9014-bd3508f8da23",
+            "type": "video",
+            "title": "Video",
+            "x": 1345.8073654390937,
+            "y": 40,
+            "width": 453.125,
+            "height": 250,
+            "video": "/assets/workflow-templates/4e624637a61885776676.mp4",
+            "versions": [
+              {
+                "video": "/assets/workflow-templates/4e624637a61885776676.mp4"
+              }
+            ],
+            "generation": {
+              "duration": 10,
+              "generateAudio": true,
+              "model": "kling-v2-6",
+              "modelType": "image_to_video",
+              "prompt": "依次提取九宫格中单独分镜作为视频画面",
+              "audio": true,
+              "referenceOrder": [
+                "node:10b9c1f6-48b5-4467-90af-a564f6ea5e36"
+              ]
+            }
+          },
+          {
+            "id": "video-15e01acb-994a-42cc-8968-4f84d2948f63",
+            "type": "video",
+            "title": "Video",
+            "x": 1350.176903516497,
+            "y": 490,
+            "width": 444.4444444444444,
+            "height": 250,
+            "video": "/assets/workflow-templates/94ba209fddd1659a242a.mp4",
+            "versions": [
+              {
+                "video": "/assets/workflow-templates/94ba209fddd1659a242a.mp4"
+              }
+            ],
+            "generation": {
+              "aspectRatio": "16:9",
+              "duration": 10,
+              "model": "kling-video-o1",
+              "modelType": "reference_to_video",
+              "prompt": "依次提取九宫格中单独分镜作为视频画面",
+              "ratio": "16:9",
+              "referenceOrder": [
+                "node:10b9c1f6-48b5-4467-90af-a564f6ea5e36"
+              ]
+            }
+          }
+        ],
+        "edges": [
+          {
+            "id": "af8af1ee-05b2-4960-bf10-d177a8c389d6",
+            "source": "5db2869d-156c-4b1c-a8e1-8abfa13f4544",
+            "target": "10b9c1f6-48b5-4467-90af-a564f6ea5e36",
+            "sourceHandle": "right",
+            "targetHandle": "left"
+          },
+          {
+            "id": "949aeb4f-a2c0-43c4-b204-6e9eb044272b",
+            "source": "10b9c1f6-48b5-4467-90af-a564f6ea5e36",
+            "target": "video-5cd140a3-78ca-4b7e-9014-bd3508f8da23",
+            "sourceHandle": "right",
+            "targetHandle": "left"
+          },
+          {
+            "id": "d93139cd-e7b7-44bb-9cc1-515eae42d5f4",
+            "source": "10b9c1f6-48b5-4467-90af-a564f6ea5e36",
+            "target": "video-15e01acb-994a-42cc-8968-4f84d2948f63",
+            "sourceHandle": "right",
+            "targetHandle": "left"
+          }
+        ],
+        "width": 1838.9323654390937,
+        "height": 780,
+        "groupColor": ""
+      },
+      "thumbnail": "/assets/workflow-templates/230e317cbd13eb82817c-thumb.webp"
+    },
+    {
+      "id": "3c2b8005-43a7-4313-9b3c-a42b782daced",
+      "name": "景别×视角×特效镜头大全",
+      "description": "[应用场景]\n上传一张人脸 → 秒出「景别×视角×特效镜头」电影级全套大全（30+经典景别×多角度×专业特效镜头：Z1瞳孔反射、荷兰角、移焦、希区柯克变焦、过肩、俯角等）。导演、预告片剪辑、短剧团队、顶级短视频创作者的一键终极镜头武库。\n\n[操作步骤]\n[1] 上传一张清晰人脸\n[2] 直接运行\n\n[注意事项]\n[\\] 内置30+好莱坞标准景别×视角×特效镜头预设，智能自动组合\n[√] 成果 = 30–40条可直接剪辑的电影级镜头 + 多条精选合集视频",
+      "tags": [
+        "导演镜头大全",
+        "视听语言",
+        "预告片镜头包",
+        "一图出全套镜头",
+        "希区柯克变焦生成"
+      ],
+      "createdAt": "2025-12-11T17:51:22.155881Z",
+      "category": "workflow",
+      "categoryIds": [
+        "68556690-89e1-4c68-9510-4d50820329a2",
+        "0f13316d-956a-4157-8723-8cd14722f42c",
+        "921eb428-6172-4a9c-9485-59e1b2e6b53a",
+        "8296d6d4-a7a0-4bdd-b274-4d050aff4315"
+      ],
+      "image": "/assets/7799509d29b58923.png",
+      "graph": {
+        "version": 1,
+        "nodes": [
+          {
+            "id": "d34c8fa2-c4f3-408d-af53-d5db8e978fac",
+            "type": "image",
+            "title": "上传图片",
+            "x": 80.27363896848135,
+            "y": 1561.5,
+            "width": 458.4527220630373,
+            "height": 250,
+            "fullImage": "/assets/workflow-templates/dcbc7b1957cac9817ba2.png",
+            "image": "/assets/workflow-templates/dcbc7b1957cac9817ba2.png",
+            "generation": {
+              "aspectRatio": "16:9",
+              "model": "flux-kontext-pro",
+              "provider": "bfl",
+              "prompt": "",
+              "ratio": "16:9",
+              "referenceOrder": []
+            }
+          },
+          {
+            "id": "dfdfc97d-b51a-4595-aa3b-c7ebc66d8595",
+            "type": "image",
+            "title": "图片生成",
+            "x": 778.9999999999999,
+            "y": 251.5,
+            "width": 458.4527220630373,
+            "height": 250,
+            "fullImage": "/assets/workflow-templates/692dec714738d75ba936.png",
+            "image": "/assets/workflow-templates/692dec714738d75ba936.png",
+            "versions": [
+              {
+                "image": "/assets/workflow-templates/692dec714738d75ba936.png"
+              },
+              {
+                "image": "/assets/workflow-templates/8367352e1906aa9c01f2.png"
+              },
+              {
+                "image": "/assets/workflow-templates/2075da0170744d1e7190.png"
+              },
+              {
+                "image": "/assets/workflow-templates/eef9e86d079aaf280020.png"
+              }
+            ],
+            "generation": {
+              "aspectRatio": "Auto",
+              "enableGoogleSearch": false,
+              "imageSize": "1K",
+              "model": "tamar-google-gemini-pro",
+              "provider": "google",
+              "times": 4,
+              "prompt": "生成一个九宫格，九宫格中是改变了第一维度Z轴\n分别包含，Z1-Z9\nZ1大特写、Z2特写、Z3近景、Z4中近景、Z5中景、Z6三分之四身景、Z7全景、Z8远景、Z9大远景",
+              "count": 4,
+              "ratio": "Auto",
+              "quality": "1K",
+              "referenceOrder": [
+                "node:d34c8fa2-c4f3-408d-af53-d5db8e978fac",
+                "node:02a52b42-ba1b-4730-82c4-bcb5d8265af8"
+              ]
+            }
+          },
+          {
+            "id": "ecb4b7d2-35f7-4f7f-a892-bb998d1fa9ed",
+            "type": "image",
+            "title": "图片生成",
+            "x": 778.9999999999999,
+            "y": 701.5,
+            "width": 458.4527220630373,
+            "height": 250,
+            "fullImage": "/assets/workflow-templates/65477776789fd8de1e18.png",
+            "image": "/assets/workflow-templates/65477776789fd8de1e18.png",
+            "versions": [
+              {
+                "image": "/assets/workflow-templates/65477776789fd8de1e18.png"
+              },
+              {
+                "image": "/assets/workflow-templates/a6614089a806b1db83e4.png"
+              },
+              {
+                "image": "/assets/workflow-templates/0ffe63b490acee8c7841.png"
+              },
+              {
+                "image": "/assets/workflow-templates/2a41f28666b2c104948a.png"
+              }
+            ],
+            "generation": {
+              "aspectRatio": "Auto",
+              "enableGoogleSearch": false,
+              "imageSize": "1K",
+              "model": "tamar-google-gemini-pro",
+              "provider": "google",
+              "times": 4,
+              "prompt": "生成一个九宫格，九宫格中是改变了第二维度Y轴\n分别包含Y1-Y7：\nY1虫视、Y2远视、Y3轻微仰视、Y4平视、Y5轻微俯视、Y6俯视、Y7垂直顶视",
+              "count": 4,
+              "ratio": "Auto",
+              "quality": "1K",
+              "referenceOrder": [
+                "node:d34c8fa2-c4f3-408d-af53-d5db8e978fac",
+                "node:02a52b42-ba1b-4730-82c4-bcb5d8265af8"
+              ]
+            }
+          },
+          {
+            "id": "f657d17a-f37e-44a8-8803-dae8169762b1",
+            "type": "image",
+            "title": "图片生成",
+            "x": 778.9999999999999,
+            "y": 1151.5,
+            "width": 458.4527220630373,
+            "height": 250,
+            "fullImage": "/assets/workflow-templates/2bd283c7006c4130a695.png",
+            "image": "/assets/workflow-templates/2bd283c7006c4130a695.png",
+            "versions": [
+              {
+                "image": "/assets/workflow-templates/2bd283c7006c4130a695.png"
+              },
+              {
+                "image": "/assets/workflow-templates/260544ffa4cac80387ac.png"
+              },
+              {
+                "image": "/assets/workflow-templates/12095d781aa1c9b54bf3.png"
+              },
+              {
+                "image": "/assets/workflow-templates/2299bd9dc0df0f80b211.png"
+              }
+            ],
+            "generation": {
+              "aspectRatio": "Auto",
+              "enableGoogleSearch": false,
+              "imageSize": "1K",
+              "model": "tamar-google-gemini-pro",
+              "provider": "google",
+              "times": 4,
+              "prompt": "生成一个九宫格，九宫格中是改变了第三维度X轴\n生成X1-X4，并在图中下方标注\nX1正面\nX2四分之三侧面\nX3侧面\nX4背面",
+              "count": 4,
+              "ratio": "Auto",
+              "quality": "1K",
+              "referenceOrder": [
+                "node:d34c8fa2-c4f3-408d-af53-d5db8e978fac",
+                "node:02a52b42-ba1b-4730-82c4-bcb5d8265af8"
+              ]
+            }
+          },
+          {
+            "id": "1a08653c-4da7-43ba-b556-54cd8689fe73",
+            "type": "image",
+            "title": "图片生成",
+            "x": 778.9999999999999,
+            "y": 1601.5,
+            "width": 458.4527220630373,
+            "height": 250,
+            "fullImage": "/assets/workflow-templates/d9fdd1e81f693fdb4011.png",
+            "image": "/assets/workflow-templates/d9fdd1e81f693fdb4011.png",
+            "versions": [
+              {
+                "image": "/assets/workflow-templates/2a6524e190f3f7db76dd.png"
+              },
+              {
+                "image": "/assets/workflow-templates/236fb8eb9588e770de2f.png"
+              },
+              {
+                "image": "/assets/workflow-templates/270df7acbc700cfb715a.png"
+              },
+              {
+                "image": "/assets/workflow-templates/d9fdd1e81f693fdb4011.png"
+              }
+            ],
+            "generation": {
+              "aspectRatio": "Auto",
+              "enableGoogleSearch": false,
+              "imageSize": "1K",
+              "model": "tamar-google-gemini-pro",
+              "provider": "google",
+              "times": 4,
+              "prompt": "生成一个九宫格，九宫格中是改变了第四维度Style\n分别包含S1-S7：\nS1焦段变化/虚化、S2畸变鱼脚镜头/广角拉伸、S3身份叙述POV代入角色眼睛、S4过肩镜头OTS建立双人关系、S5构图失衡荷兰角倾斜、S6反射与遮挡镜面或者门缝偷窥、S7几何结构对称线或者引导线",
+              "count": 4,
+              "ratio": "Auto",
+              "quality": "1K",
+              "referenceOrder": [
+                "node:d34c8fa2-c4f3-408d-af53-d5db8e978fac"
+              ]
+            }
+          },
+          {
+            "id": "02a52b42-ba1b-4730-82c4-bcb5d8265af8",
+            "type": "text",
+            "title": "Text",
+            "x": 40,
+            "y": 40,
+            "width": 539,
+            "height": 653,
+            "content": "《视听语言》\n\n- 相机相对位置：前后Z轴、左右X轴、上下Y轴\n- 相机绝对位置：影响构图\n- 相机本身镜头（能力）：焦段、背景虚化\n\n核心模型：相机三维坐标系 + 镜头滤镜 公式：一个镜头 = \\[Z轴距离\\] + \\[Y轴高度\\] + \\[X轴方位\\] + \\[特殊属性\\] 第一维度：Z轴 - 距离与信息量 (Distance & Scale) 逻辑定义： 相机与被摄主体的距离。这决定了画面中是“看清毛孔”还是“看清世界”。 对应图中的“一、景别” 我们将图中的 9 种景别按\\*\\*“关注点”\\*\\*重新归纳为三层：\n\n1. 近距层（关注微观与情绪）：\n\n- Z1 大特写 (Extreme Close-up): 瞳孔反光、手指伤口。极致的感官刺激。\n- Z2 特写 (Big Close-up): 眼睛、嘴巴。强调局部特征。\n- Z3 近景 (Close-up): 脸部。强调面部表情和台词情绪。\n\n2. 中距层（关注动作与交互）：\n\n- Z4 中近景 (Medium Close-up): 胸口以上。最通用的对话、Vlog、情感独白镜头。\n- Z5 中景 (Medium Shot): 腰部以上。展示上半身肢体动作（如拿东西、指路）。\n- Z6 三分之四身景 (Medium Long Shot): 膝盖附近。又称“牛仔镜头”，展示手部与身体重心的关系。\n\n3. 远距层（关注环境与关系）：\n\n- Z7 全景 (Full Shot): 完整的人体带一点环境。展示穿搭、跳舞。\n- Z8 远景 (Long Shot): 人小景大。强调人与环境的融合。\n- Z9 大远景 (Extreme Long Shot): 城市、战场。交代世界观。\n\n---\n\n第二维度：Y轴 - 高度与权力关系 (Height & Power) 逻辑定义： 相机相对于眼睛的垂直高度。这决定了观众对角色的心理态势（崇拜、平等或蔑视）。 对应图中的“二、垂直拍摄角度” 和“上下Y轴”\n\n1. 高位压制（上帝/观察者）：\n\n- Y7 垂直顶视 (Top-down): 90度垂直向下。地图感、平面构成感。\n- Y6 俯视 (High Angle): 弱化角色，表现渺小、被动。\n- Y5 轻微俯视: 客观观察。\n\n2. 平位共情（对话者）：\n\n- Y4 平视 (Eye Level): 视线齐平。平等交流，最日常的视角。\n\n3. 低位崇拜（仰望者）：\n\n- Y3 轻微仰视: 赋予角色正面的高大感。\n- Y2 仰视 (Low Angle): 强化力量、威严或恐惧感。\n- Y1 虫视 (Worm's-eye): 贴地拍摄。极端的夸张视角。\n\n---\n\n第三维度：X轴 - 环绕方位 (Orbit & Profile) 逻辑定义： 相机围绕主体旋转的角度。决定了画面的立体感和叙事视角。 对应图中的“三、水平拍摄角度” 和“左右X轴” (虽然图中此部分被截断，但根据标准视听语言逻辑补充)\n\n1. 正面 (Front View): 直接互动，打破第四面墙。\n2. 四分之三侧面 (3/4 View): 立体感最强，最常用的人像角度。\n3. 侧面 (Side View): 90度侧面。强调轮廓线，表现对峙或行进。\n4. 背面 (Back View): 留白，制造悬念或背影杀。\n\n---\n\n第四维度：滤镜与特殊属性 (Lens & Style) 逻辑定义： 这不是位置，而是相机的\\*\\*“物理能力”和“叙事身份”\\*\\*。 对应图中的“四、特殊视角” 和“相机本身镜头能力”\n\n1. 物理光学类 (Optical):\n\n- 焦段/虚化: 控制背景虚化程度（DOF）。\n- 畸变: 鱼眼镜头、广角拉伸。\n\n2. 身份叙事类 (Identity):\n\n- POV (主观视角): 代入角色眼睛。\n- 过肩镜头 (OTS): 建立双人关系。\n\n3. 构图与结构类 (Composition/Geometry):\n\n- 构图失衡: 荷兰角（倾斜），表现动荡。\n- 反射与遮挡: 镜面、门缝偷窥。\n- 几何结构: 对称、引导线。",
+            "textMode": "generate",
+            "generation": {
+              "model": "gemini-3-pro",
+              "provider": "google",
+              "prompt": "",
+              "referenceOrder": []
+            }
+          },
+          {
+            "id": "dd27ac1c-b3f8-4b66-84c6-3a54b29de63f",
+            "type": "image",
+            "title": "图片生成",
+            "x": 1437.452722063037,
+            "y": 1826.5,
+            "width": 448.1792717086835,
+            "height": 250,
+            "fullImage": "/assets/workflow-templates/c65a8e1c89ff4053e16a.png",
+            "image": "/assets/workflow-templates/c65a8e1c89ff4053e16a.png",
+            "versions": [
+              {
+                "image": "/assets/workflow-templates/c65a8e1c89ff4053e16a.png"
+              }
+            ],
+            "generation": {
+              "aspectRatio": "16:9",
+              "enableGoogleSearch": false,
+              "imageSize": "1K",
+              "model": "tamar-google-gemini-pro",
+              "provider": "google",
+              "prompt": "请提取九宫格中我喜欢的【分镜】",
+              "ratio": "16:9",
+              "quality": "1K",
+              "referenceOrder": [
+                "node:1a08653c-4da7-43ba-b556-54cd8689fe73",
+                "node:b793b1e6-4ed4-42fe-b153-b1e5475be3a5"
+              ]
+            }
+          },
+          {
+            "id": "b793b1e6-4ed4-42fe-b153-b1e5475be3a5",
+            "type": "text",
+            "title": "Text",
+            "x": 883.2263610315185,
+            "y": 2051.5,
+            "width": 250,
+            "height": 250,
+            "content": "我喜欢的分镜是【分镜S3】",
+            "textMode": "generate",
+            "generation": {
+              "model": "gemini-3-pro",
+              "provider": "google",
+              "prompt": "",
+              "referenceOrder": []
+            }
+          },
+          {
+            "id": "video-503f849c-4e64-412a-bfd8-5b1a47ff94f6",
+            "type": "video",
+            "title": "Video",
+            "x": 2054.4505778425155,
+            "y": 2034.040921071885,
+            "width": 446.875,
+            "height": 250,
+            "video": "/assets/workflow-templates/4547b78e0e7376b515f5.mp4",
+            "versions": [
+              {
+                "video": "/assets/workflow-templates/4547b78e0e7376b515f5.mp4"
+              }
+            ],
+            "generation": {
+              "duration": 10,
+              "model": "kling-video-o1",
+              "modelType": "start_end_to_video",
+              "prompt": "以极具张力的视听语言艺术演绎这个电影片段",
+              "referenceOrder": [
+                "node:dd27ac1c-b3f8-4b66-84c6-3a54b29de63f",
+                "node:d34c8fa2-c4f3-408d-af53-d5db8e978fac"
+              ]
+            }
+          }
+        ],
+        "edges": [
+          {
+            "id": "bed762e3-d63a-4463-ad82-3c8917c5e7ea",
+            "source": "d34c8fa2-c4f3-408d-af53-d5db8e978fac",
+            "target": "dfdfc97d-b51a-4595-aa3b-c7ebc66d8595",
+            "sourceHandle": "right",
+            "targetHandle": "left"
+          },
+          {
+            "id": "9014198d-205b-47e9-b11e-a1cef9cd3487",
+            "source": "d34c8fa2-c4f3-408d-af53-d5db8e978fac",
+            "target": "ecb4b7d2-35f7-4f7f-a892-bb998d1fa9ed",
+            "sourceHandle": "right",
+            "targetHandle": "left"
+          },
+          {
+            "id": "7485ba61-8274-41b5-9025-2963a4b875a3",
+            "source": "d34c8fa2-c4f3-408d-af53-d5db8e978fac",
+            "target": "f657d17a-f37e-44a8-8803-dae8169762b1",
+            "sourceHandle": "right",
+            "targetHandle": "left"
+          },
+          {
+            "id": "67f549f9-a3a9-452c-b717-4e6c4b60ab26",
+            "source": "d34c8fa2-c4f3-408d-af53-d5db8e978fac",
+            "target": "1a08653c-4da7-43ba-b556-54cd8689fe73",
+            "sourceHandle": "right",
+            "targetHandle": "left"
+          },
+          {
+            "id": "17c648b2-336b-45d5-835f-fc23b9261072",
+            "source": "02a52b42-ba1b-4730-82c4-bcb5d8265af8",
+            "target": "dfdfc97d-b51a-4595-aa3b-c7ebc66d8595",
+            "sourceHandle": "right",
+            "targetHandle": "left"
+          },
+          {
+            "id": "e691148f-d037-47f5-a707-ef4e639be884",
+            "source": "02a52b42-ba1b-4730-82c4-bcb5d8265af8",
+            "target": "ecb4b7d2-35f7-4f7f-a892-bb998d1fa9ed",
+            "sourceHandle": "right",
+            "targetHandle": "left"
+          },
+          {
+            "id": "61d8cda0-7103-4931-bce0-835a563f99f3",
+            "source": "02a52b42-ba1b-4730-82c4-bcb5d8265af8",
+            "target": "f657d17a-f37e-44a8-8803-dae8169762b1",
+            "sourceHandle": "right",
+            "targetHandle": "left"
+          },
+          {
+            "id": "21251b3c-063e-4ec8-aa98-34c63106b04b",
+            "source": "1a08653c-4da7-43ba-b556-54cd8689fe73",
+            "target": "dd27ac1c-b3f8-4b66-84c6-3a54b29de63f",
+            "sourceHandle": "right",
+            "targetHandle": "left"
+          },
+          {
+            "id": "c895424f-754d-4f2e-9df5-d31a99c33d14",
+            "source": "b793b1e6-4ed4-42fe-b153-b1e5475be3a5",
+            "target": "dd27ac1c-b3f8-4b66-84c6-3a54b29de63f",
+            "sourceHandle": "right",
+            "targetHandle": "left"
+          },
+          {
+            "id": "3e388e1b-5074-4cda-8c58-692cd44e57df",
+            "source": "dd27ac1c-b3f8-4b66-84c6-3a54b29de63f",
+            "target": "video-503f849c-4e64-412a-bfd8-5b1a47ff94f6",
+            "sourceHandle": "right",
+            "targetHandle": "left"
+          },
+          {
+            "id": "3965cdff-8012-4030-b7e6-198696ba2c15",
+            "source": "d34c8fa2-c4f3-408d-af53-d5db8e978fac",
+            "target": "video-503f849c-4e64-412a-bfd8-5b1a47ff94f6",
+            "sourceHandle": "right",
+            "targetHandle": "left"
+          }
+        ],
+        "width": 2541.3255778425155,
+        "height": 2341.5,
+        "groupColor": ""
+      },
+      "thumbnail": "/assets/workflow-templates/cc2f5ee8fe72baef030e-thumb.webp"
+    },
+    {
+      "id": "8f5b8d6b-acd1-4b11-a25a-88adb0c7f48e",
+      "name": "One-Tap Idol Stage",
+      "description": "One-Tap Idol Stage",
+      "tags": [
+        "workflow"
+      ],
+      "createdAt": "2026-04-20T04:04:07.240969Z",
+      "category": "workflow",
+      "categoryIds": [
+        "68556690-89e1-4c68-9510-4d50820329a2",
+        "921eb428-6172-4a9c-9485-59e1b2e6b53a",
+        "0f13316d-956a-4157-8723-8cd14722f42c",
+        "3e630f14-bc32-4e3e-87de-e942b81e1c75"
+      ],
+      "image": "/assets/50bdfc2f844406b8.png",
+      "graph": {
+        "version": 1,
+        "nodes": [
+          {
+            "id": "video-3e591d4b-fd7b-4428-b090-b878fe804642",
+            "type": "video",
+            "title": "[√]Result",
+            "x": 1510,
+            "y": 235,
+            "width": 445,
+            "height": 250,
+            "video": "/assets/workflow-templates/a015a7cb45b7a5833322.mp4",
+            "versions": [
+              {
+                "video": "/assets/workflow-templates/a015a7cb45b7a5833322.mp4"
+              }
+            ],
+            "generation": {
+              "aspectRatio": "16:9",
+              "duration": 10,
+              "generateAudio": true,
+              "model": "seedance-2.0",
+              "modelType": "reference_to_video",
+              "resolution": "720p",
+              "variant": "reference",
+              "prompt": "A 10-second K-pop-style beat-synced MV sequence, 2.35:1 widescreen, 24fps, with 8 rapid-cut shots. The opening must strictly generate from the reference image’s first frame, preserving the given people, their arrangement, camera angle, environmental atmosphere, lighting condition, and overall visual style, then naturally developing from that exact starting point. Replace the girl-group concept with the group of characters provided by the reference image, without specifying gender. All faces, aura, body proportions, and positional relationships must remain faithful to the reference, with no face drift and no unrelated extra subjects.\nOpen on a low-angle shot of the reference-image group in a strong formation, lights pulsing to the beat, with a collective sense of tension and preparation; then cut to a center-subject close-up emphasizing breath, eye contact with the camera, and slight micro-movement, while the background lighting shifts rhythmically between cool and warm tones; then move into a medium group choreography shot as the energy breaks open, footstep sound enters, and the group performs synchronized head turns, body turns, directional movement, or beat-driven formation actions with strong flow and impact; then cut to a hand-detail close-up emphasizing gesture rhythm, accessory reflections, and micro sound detail; then shift into a side two-person shot with denser motion and more complex timing, where the cut follows their coordinated movement and precise hand-body interaction; finally resolve on a near formation hold, landing on the last step or impact beat with a strong finishing pose. Maintain neon high-saturation cool-warm contrast, shallow depth of field to emphasize motion, and cinematic rapid-cut energy throughout. No text, logos, or watermarks.",
+              "ratio": "16:9",
+              "quality": "720p",
+              "audio": true,
+              "referenceOrder": [
+                "node:image-a4f5a87e-ba76-434b-b8ec-24489af043ac"
+              ]
+            }
+          },
+          {
+            "id": "image-d2ee3853-a850-4336-89ca-9851bd3e4538",
+            "type": "image",
+            "title": "[/]No action needed",
+            "x": 40,
+            "y": 40,
+            "width": 448,
+            "height": 250,
+            "fullImage": "/assets/50bdfc2f844406b8.png",
+            "image": "/assets/50bdfc2f844406b8.png",
+            "generation": {
+              "aspectRatio": "16:9",
+              "enableGoogleSearch": false,
+              "imageSize": "1K",
+              "model": "nano-banana-flash",
+              "provider": "google",
+              "prompt": "Use the provided reference image as STRICT guidance for the CENTER (C-position) performer ONLY:\n\n- Replace ONLY the center performer’s face likeness, hairstyle, and body type/proportions with the reference (keep the center performer recognizable to the reference).\n\n- Do NOT change the other four performers’ faces/hair/bodies.\n\n- Do NOT change the group size, formation, outfits, staging, lighting, or color grade.\n\nOUTPUT:\n\nUltra-realistic 4K Hollywood cinematic performance still, widescreen 16:9, perfectly symmetrical front-facing composition on a futuristic concert stage. Exactly five young women stand in a powerful straight-line formation, evenly spaced, legs apart in confident stance, all facing camera with serious expressions; the center performer subtly emphasized by placement and lighting.\n\nWARDROBE (keep exactly):\n\nCoordinated silver metallic mini-dresses with high-shine satin/foil textures, each with slight variations (chain drape accents, glitter/beaded bodice, wrap-style skirt, structured paneling), paired with matching silver lace-up ankle boots. Sleek idol styling, minimal jewelry, polished hair and makeup for all members (except the center performer’s hair must match the reference).\n\nCENTER PERFORMER OVERRIDE (only this changes):\n\nCenter performer’s face, hairstyle, and physique MUST match the reference image. Keep the same pose, outfit, and styling category, but the facial identity and hair silhouette are replaced to match the reference. All other members remain unchanged.\n\nENVIRONMENT / LIGHTING / GRADE (keep exactly):\n\nGlossy reflective stage floor with clear mirror reflections; large rectangular LED screen backdrop displaying a soft pale gradient; symmetrical metallic portal frames on both left and right sides with white light strips; multiple floor spotlights behind the group aimed upward. Light haze to reveal bright cool-white beams from overhead rigging; strong rim light on hair/shoulders, high dynamic range, crisp micro-detail on fabric and skin, subtle film grain, premium cool silver/blue music-video color grade, sharp focus on group with slight background falloff.\n\nCONSTRAINTS:\n\nNo text, no logos, no watermarks, no UI overlays.",
+              "ratio": "16:9",
+              "quality": "1K",
+              "referenceOrder": []
+            }
+          },
+          {
+            "id": "image-9e28f860-bd1a-4850-81ec-553cdad4827d",
+            "type": "image",
+            "title": "[1]Upload your photo",
+            "x": 123,
+            "y": 445,
+            "width": 250,
+            "height": 448,
+            "fullImage": "/assets/workflow-templates/ed2ef7164668c327ca58.png",
+            "image": "/assets/workflow-templates/ed2ef7164668c327ca58.png"
+          },
+          {
+            "id": "image-a4f5a87e-ba76-434b-b8ec-24489af043ac",
+            "type": "image",
+            "title": "[2]Click the Generate button",
+            "x": 785,
+            "y": 242,
+            "width": 448,
+            "height": 250,
+            "fullImage": "/assets/workflow-templates/acae6e76430ece5f5f48.png",
+            "image": "/assets/workflow-templates/acae6e76430ece5f5f48.png",
+            "versions": [
+              {
+                "image": "/assets/workflow-templates/acae6e76430ece5f5f48.png"
+              }
+            ],
+            "generation": {
+              "aspectRatio": "16:9",
+              "enableGoogleSearch": false,
+              "imageSize": "1K",
+              "model": "nano-banana-flash",
+              "provider": "google",
+              "prompt": "IMAGE EDIT (use Picture 1 as the base image)\n\nGoal:\n\nIn Picture 1, replace ONLY the central (C-position) performer’s appearance with the person from Picture 2: same face likeness, hairstyle, and body shape as Picture 2. Keep everything else from Picture 1 unchanged (the other four performers, their faces/bodies/hair, outfits, poses, stage, lighting, background).\n\nWhat to keep from Picture 1 (do not change):\n\n- Overall composition: perfectly symmetrical, five-member straight-line formation, centered framing, 16:9.\n\n- The central performer’s POSITION, POSE, and OUTFIT (silver metallic mini-dress + silver lace-up boots) remain exactly the same.\n\n- Stage environment: glossy reflective floor, rectangular LED backdrop, side portal frames with white light strips, overhead beams, light haze, cool silver/blue grade.\n\nWhat to replace (central performer only):\n\n- Replace the central performer’s FACE, HAIRSTYLE, and BODY PROPORTIONS with Picture 2’s subject while preserving the exact pose and wardrobe of Picture 1.\n\n- Expression: a subtle “pursed-lip smile” (closed lips, slightly puckered, friendly and confident), eyes relaxed, still stage-ready.\n\nNatural lighting & integration (very important):\n\n- Match Picture 1’s lighting direction and intensity: cool-white spotlights from above/behind, rim light on hair/shoulders, soft frontal fill.\n\n- Match exposure and color grade: cool silver/blue tones, controlled highlights on metallic fabric, no blown-out skin.\n\n- Match shadows precisely: facial shadow under chin, neck shadow, shoulder shadows consistent with the stage beams; ensure hair casts believable shadows on face.\n\n- Match reflections on the floor: update the central figure’s reflection to match the new silhouette and hair, consistent with the glossy tiles.\n\n- Match lens/look: same sharpness, depth of field, haze, and subtle film grain as Picture 1; no cutout edges, no haloing, no mismatched blur.\n\n- Ensure skin texture is realistic and consistent with the scene (pores/microtexture), and hair strands blend naturally into the rim light.\n\nConstraints:\n\n- Do not add any text, logos, watermarks, or UI overlays.\n\n- Do not change the other performers at all.\n\n- Keep the image photoreal and seamless, like an official music-video still.",
+              "ratio": "16:9",
+              "quality": "1K",
+              "referenceOrder": [
+                "node:image-d2ee3853-a850-4336-89ca-9851bd3e4538",
+                "node:image-9e28f860-bd1a-4850-81ec-553cdad4827d"
+              ]
+            }
+          }
+        ],
+        "edges": [
+          {
+            "id": "2d45ebef-df22-4863-b2d4-b58df83695e4",
+            "source": "image-d2ee3853-a850-4336-89ca-9851bd3e4538",
+            "target": "image-a4f5a87e-ba76-434b-b8ec-24489af043ac",
+            "sourceHandle": "right",
+            "targetHandle": "left"
+          },
+          {
+            "id": "ff8515f6-0e38-42cb-a299-88ad90cea365",
+            "source": "image-9e28f860-bd1a-4850-81ec-553cdad4827d",
+            "target": "image-a4f5a87e-ba76-434b-b8ec-24489af043ac",
+            "sourceHandle": "right",
+            "targetHandle": "left"
+          },
+          {
+            "id": "15dc0b17-4985-4cdb-bef7-8f47ff69a76d",
+            "source": "image-a4f5a87e-ba76-434b-b8ec-24489af043ac",
+            "target": "video-3e591d4b-fd7b-4428-b090-b878fe804642",
+            "sourceHandle": "right",
+            "targetHandle": "left"
+          }
+        ],
+        "width": 1995,
+        "height": 933,
+        "groupColor": ""
+      },
+      "thumbnail": "/assets/workflow-templates/0812f2461040f1bef4ab-thumb.webp"
+    },
+    {
+      "id": "ad1225a5-4745-49fd-9750-72b2565bf9d2",
+      "name": "Riding Flight POV",
+      "description": "Riding Flight POV",
+      "tags": [
+        "workflow"
+      ],
+      "createdAt": "2026-04-21T12:37:53.811398Z",
+      "category": "workflow",
+      "categoryIds": [
+        "68556690-89e1-4c68-9510-4d50820329a2"
+      ],
+      "image": "/assets/0d1437b70f5b8ca0.png",
+      "graph": {
+        "version": 1,
+        "nodes": [
+          {
+            "id": "video-f222682f-899e-4f1a-943e-7f17f927a85e",
+            "type": "video",
+            "title": "[√]Result",
+            "x": 640.44,
+            "y": 44.879999999999995,
+            "width": 250,
+            "height": 444,
+            "video": "/assets/workflow-templates/20d4756932efdcf13476.mp4",
+            "versions": [
+              {
+                "video": "/assets/workflow-templates/20d4756932efdcf13476.mp4"
+              }
+            ],
+            "generation": {
+              "aspectRatio": "9:16",
+              "duration": 5,
+              "generateAudio": false,
+              "model": "seedance-2.0",
+              "modelType": "reference_to_video",
+              "resolution": "720p",
+              "variant": "reference",
+              "prompt": "Create an ultra-realistic image from a first-person camera perspective. The viewer is riding on the back of a massive, powerful [SUBJECT], moving through [ENVIRONMENT / SCENE].\n\nIn the foreground, the rider’s [HAND/ARM DESCRIPTION] are clearly visible, gripping the [SURFACE / STRUCTURE of SUBJECT] tightly.\n\nThe [SUBJECT]’s body extends forward, with its [DISTINCT BODY PART / STRUCTURE] stretching out to either side, interacting with the surrounding environment and casting dynamic shadows.\n\nThe scene is filled with [ENVIRONMENTAL DETAILS], enhancing immersion and depth. The atmosphere conveys [MOOD / TONE], with [LIGHTING STYLE], [ATMOSPHERIC EFFECTS], and highly detailed, realistic textures. Subtle motion blur and cinematic depth of field.",
+              "ratio": "9:16",
+              "quality": "720p",
+              "audio": false,
+              "referenceOrder": [
+                "node:image-eae062b6-7ed0-4ab3-bab5-9a4bda2df898"
+              ]
+            }
+          },
+          {
+            "id": "image-eae062b6-7ed0-4ab3-bab5-9a4bda2df898",
+            "type": "image",
+            "title": "[1]Upload a picture",
+            "x": 40,
+            "y": 40,
+            "width": 250,
+            "height": 448,
+            "fullImage": "/assets/0d1437b70f5b8ca0.png",
+            "image": "/assets/0d1437b70f5b8ca0.png"
+          }
+        ],
+        "edges": [
+          {
+            "id": "64b09a4f-af98-4141-a819-ac27e88432f6",
+            "source": "image-eae062b6-7ed0-4ab3-bab5-9a4bda2df898",
+            "target": "video-f222682f-899e-4f1a-943e-7f17f927a85e",
+            "sourceHandle": "right",
+            "targetHandle": "left"
+          }
+        ],
+        "width": 930.44,
+        "height": 528.88,
+        "groupColor": ""
+      },
+      "thumbnail": "/assets/workflow-templates/5abb7aa68ac183228a49-thumb.webp"
+    },
+    {
+      "id": "0b1fbead-88f2-47e3-8947-2804ffc57624",
+      "name": "通用产品全套电商图",
+      "description": "[应用场景]\n可为任意品类产品一键生成完整电商图集。包含模特使用图、产品细节图、零部件拆解、功能亮点展示、生活场景应用等，助力商家快速搭建高质感、高一致性的电商页面。\n\n[操作步骤]\n[1] 上传产品图片\n[2] 输入产品特点、卖点与期望风格或展示场景\n[3] 系统自动生成多角度图片（正面、侧面、俯视、细节特写）\n[4] 自动生成配图内容（拆解图、功能展示、生活方式图等）\n[5] 输出可直接用于电商主图、广告与商品详情页的完整图集\n\n[成果]\n[√] 一整套包含细节、功能、生活场景与模特展示的高质量电商产品图，适用于任意品类。",
+      "tags": [],
+      "createdAt": "2025-11-26T12:35:53.077772Z",
+      "category": "workflow",
+      "categoryIds": [
+        "606fbfcf-80d9-4d05-9c29-e342547e9080",
+        "921eb428-6172-4a9c-9485-59e1b2e6b53a"
+      ],
+      "image": "/assets/57db5a1ac02eb5ac.webp",
+      "graph": {
+        "version": 1,
+        "nodes": [
+          {
+            "id": "e013ba2d-a738-4b37-8095-538e8ac75996",
+            "type": "text",
+            "title": "灵感提取",
+            "x": 1148.4527220630373,
+            "y": 10107.960715709283,
+            "width": 250,
+            "height": 250,
+            "content": "Maintain product appearance consistency. This poster showcases the immersive sound and personalized experience of the Soundcore P20i. A single Soundcore P20i earbud is prominently centered in a detailed close-up, its sleek surface reflecting light exquisitely. The background features a deep midnight blue or ink black with a subtle gradient, creating a tranquil and luxurious ambiance. Abstract, glowing, and flowing lines or particles elegantly surround the earbud, symbolizing the powerful bass from its 10mm giant dynamic driver and the customizable sound quality offered by 22 preset EQs. A second, blurred earbud or charging case is subtly placed in the background, adding depth to the composition. The main title, \"Immersive Soundstage, Distinctive Personality,\" is displayed cleanly, accompanied by the selling points \"10mm Giant Dynamic Driver\" and \"22 Preset EQs, Sound Quality At Your Command.\" The overall aesthetic is minimalist, modern, and highly artistic, emphasizing technological sophistication and audio purity.",
+            "textMode": "generate",
+            "generation": {
+              "model": "gemini-2.5-flash",
+              "provider": "google",
+              "prompt": "参考灵感海报1，基于产品信息和白底图，为这个商品生成一个营销创意海报，用200字内的英文描绘这幅图像：首先要精准详细生动的描绘核心内容（尤其是构图、人物姿势、色彩色调、必须文本内容等），然后对其他部分各用一句话带过即可，多用陈述句。你的第一句要起到风格定调的作用，将当前图片的主题说出来，比如黑色星期五促销、圣诞促销等。你的描述要生动形象，让一个盲人读到这段文字都能想象出图像的画面，你可以用情感传达、业务目的来辅助表达。注意，你的描绘不能改变产品特征，比如改变颜色、改变材质等。你的输出必须是英文，直接输出内容，不要带有任何开场白、寒暄、自我介绍等。以\"Maintain product appearance consistency\"开头。",
+              "referenceOrder": [
+                "node:e4453321-fc53-40b6-b023-fedada568720"
+              ]
+            }
+          },
+          {
+            "id": "30999350-a6e0-4884-bcf0-52e926d978c7",
+            "type": "image",
+            "title": "卖点海报1",
+            "x": 1598.4527220630373,
+            "y": 5287.717698435684,
+            "width": 250,
+            "height": 356.0830860534125,
+            "fullImage": "/assets/workflow-templates/d41f96c288a0a73a8bb1.png",
+            "image": "/assets/workflow-templates/d41f96c288a0a73a8bb1.png",
+            "versions": [
+              {
+                "image": "/assets/workflow-templates/d41f96c288a0a73a8bb1.png"
+              }
+            ],
+            "generation": {
+              "aspectRatio": "Auto",
+              "enableGoogleSearch": false,
+              "imageSize": "1K",
+              "model": "tamar-google-gemini-pro",
+              "provider": "google",
+              "prompt": "",
+              "ratio": "Auto",
+              "quality": "1K",
+              "referenceOrder": [
+                "node:8965300c-21ae-4efb-b549-64fdc6351937",
+                "node:51738597-c7f1-4811-81b8-1dd5f6373fa7"
+              ]
+            }
+          },
+          {
+            "id": "1fd293a6-4b09-4a39-9db6-20f6e473cc0b",
+            "type": "text",
+            "title": "灵感提取",
+            "x": 1148.4527220630373,
+            "y": 159.0026130475217,
+            "width": 250,
+            "height": 250,
+            "content": "Maintain product appearance consistency. This poster conveys a serene and elegant travel lifestyle, highlighting the Soundcore P20i's extended battery life and portability. A single Soundcore P20i earbud is casually positioned beside its open, compact charging case, which has a distinct lanyard, all resting on a warm, light-textured surface, possibly refined wood. Soft, natural light from above gently illuminates the product, creating subtle shadows and enhancing its sleek design. The background is softly blurred, subtly hinting at travel essentials like a high-end magazine or stylish sunglasses, evoking a relaxed, on-the-go atmosphere. The prominent main headline reads \"Long-lasting battery, light journey.\" with the sub-text \"30-hour combined playback / Lightweight and portable, empowering endless exploration.\" presented below in a clean, legible font. The overall composition is open and inviting, emphasizing a harmonious integration of technology with a sophisticated, unburdened journey.",
+            "textMode": "generate",
+            "generation": {
+              "model": "gemini-2.5-flash",
+              "provider": "google",
+              "prompt": "参考灵感海报2，基于产品信息和白底图，为这个商品生成一个营销创意海报，用200字内的英文描绘这幅图像：首先要精准详细生动的描绘核心内容（尤其是构图、人物姿势、色彩色调、必须文本内容等），然后对其他部分各用一句话带过即可，多用陈述句。你的第一句要起到风格定调的作用，将当前图片的主题说出来，比如黑色星期五促销、圣诞促销等。你的描述要生动形象，让一个盲人读到这段文字都能想象出图像的画面，你可以用情感传达、业务目的来辅助表达。注意，你的描绘不能改变产品特征，比如改变颜色、改变材质等。你的输出必须是英文，直接输出内容，不要带有任何开场白、寒暄、自我介绍等。以\"Maintain product appearance consistency\"开头。",
+              "referenceOrder": [
+                "node:e4453321-fc53-40b6-b023-fedada568720"
+              ]
+            }
+          },
+          {
+            "id": "886f4be2-cd84-47aa-9976-1e3dd32bb607",
+            "type": "text",
+            "title": "2. 上传产品信息",
+            "x": 40,
+            "y": 5098.438814827936,
+            "width": 250,
+            "height": 250,
+            "content": "Soundcore by Anker P20i True Wireless Earbuds, 10mm Drivers with Big Bass, Bluetooth 5.3, 30H Long Playtime, Water-Resistant, 2 Mics for AI Clear Calls, 22 Preset EQs, Customization via App\nPowerful Bass: soundcore P20i true wireless earbuds have oversized 10mm drivers that deliver powerful sound with boosted bass so you can lose yourself in your favorite songs.\nPersonalized Listening Experience: Use the soundcore app to customize the controls and choose from 22 EQ presets. With \"Find My Earbuds\", a lost earbud can emit noise to help you locate it.\nLong Playtime, Fast Charging: Get 10 hours of battery life on a single charge with a case that extends it to 30 hours. If P20i true wireless earbuds are low on power, a quick 10-minute charge will give you 2 hours of playtime.\nPortable On-the-Go Design: soundcore P20i true wireless earbuds and the charging case are compact and lightweight with a lanyard attached. It's small enough to slip in your pocket, or clip on your bag or keys–so you never worry about space.\nAI-Enhanced Clear Calls: 2 built-in mics and an AI algorithm work together to pick up your voice so that you never have to shout over the phone.\n\nBrand\tSoundcore\nColor\tBlack\nEar Placement\tIn Ear\nForm Factor\tIn Ear\nImpedance\t16 Ohm\nStyle\tClassic\nAutographed\tNo\nSeries Number\t3949\nSize\t5.7 * 5.2 * 2.86 cm",
+            "textMode": "generate",
+            "generation": {
+              "model": "gemini-2.5-flash",
+              "provider": "google",
+              "prompt": "",
+              "referenceOrder": []
+            }
+          },
+          {
+            "id": "7917fd90-ddbe-4b84-be58-67733a25fee4",
+            "type": "image",
+            "title": "卖点海报2",
+            "x": 1598.4527220630373,
+            "y": 40,
+            "width": 250,
+            "height": 356.0830860534125,
+            "fullImage": "/assets/workflow-templates/5337269225982f851e91.png",
+            "image": "/assets/workflow-templates/5337269225982f851e91.png",
+            "versions": [
+              {
+                "image": "/assets/workflow-templates/5337269225982f851e91.png"
+              }
+            ],
+            "generation": {
+              "aspectRatio": "Auto",
+              "enableGoogleSearch": false,
+              "imageSize": "1K",
+              "model": "tamar-google-gemini-pro",
+              "provider": "google",
+              "prompt": "",
+              "ratio": "Auto",
+              "quality": "1K",
+              "referenceOrder": [
+                "node:51738597-c7f1-4811-81b8-1dd5f6373fa7",
+                "node:1fd293a6-4b09-4a39-9db6-20f6e473cc0b"
+              ]
+            }
+          },
+          {
+            "id": "8965300c-21ae-4efb-b549-64fdc6351937",
+            "type": "text",
+            "title": "灵感提取",
+            "x": 1148.4527220630373,
+            "y": 609.0026130475217,
+            "width": 250,
+            "height": 250,
+            "content": "Maintain product appearance consistency. This poster highlights the robust performance features of the Soundcore P20i earbuds. The dynamic composition features two Soundcore P20i earbuds against a cool, futuristic backdrop. One earbud is positioned in the upper left, slightly angled, while the second is dynamically placed in the mid-right, hinting at motion and independence. Below them, the charging case sits as a solid base. The color palette is dominated by deep metallic blue, silver, and stark white, illuminated by electric blue light trails. The background is a sophisticated gradient of dark gray to deep blue, adorned with abstract, glowing lines that subtly suggest both sound waves and artistic water ripples, symbolizing audio purity and water resistance. Hard-edged light sculpts the earbuds, creating sharp reflections. Bold, modern typography presents the main title: 'Pure Call, Fearless Forward,' in clean white. Below, key selling points: 'AI Noise-Canceling Dual Mics, Crystal-Clear Conversations' and 'IPX5 Water Resistance, Stay Unfazed,' clearly communicate the core benefits. The image exudes a powerful, reliable, and technologically advanced feel.",
+            "textMode": "generate",
+            "generation": {
+              "model": "gemini-2.5-flash",
+              "provider": "google",
+              "prompt": "参考灵感海报3，基于产品信息和白底图，为这个商品生成一个营销创意海报，用200字内的英文描绘这幅图像：首先要精准详细生动的描绘核心内容（尤其是构图、人物姿势、色彩色调、必须文本内容等），然后对其他部分各用一句话带过即可，多用陈述句。你的第一句要起到风格定调的作用，将当前图片的主题说出来，比如黑色星期五促销、圣诞促销等。你的描述要生动形象，让一个盲人读到这段文字都能想象出图像的画面，你可以用情感传达、业务目的来辅助表达。注意，你的描绘不能改变产品特征，比如改变颜色、改变材质等。你的输出必须是英文，直接输出内容，不要带有任何开场白、寒暄、自我介绍等。以\"Maintain product appearance consistency\"开头。",
+              "referenceOrder": [
+                "node:e4453321-fc53-40b6-b023-fedada568720"
+              ]
+            }
+          },
+          {
+            "id": "c64bc24b-fc2a-45a3-8ece-d2b2b87660fd",
+            "type": "image",
+            "title": "卖点海报3",
+            "x": 1598.4527220630373,
+            "y": 10009.080118694357,
+            "width": 250,
+            "height": 447.76119402985074,
+            "fullImage": "/assets/workflow-templates/a089d098be049976cc31.png",
+            "image": "/assets/workflow-templates/a089d098be049976cc31.png",
+            "versions": [
+              {
+                "image": "/assets/workflow-templates/a089d098be049976cc31.png"
+              }
+            ],
+            "generation": {
+              "aspectRatio": "Auto",
+              "enableGoogleSearch": false,
+              "imageSize": "1K",
+              "model": "tamar-google-gemini-pro",
+              "provider": "google",
+              "prompt": "",
+              "ratio": "Auto",
+              "quality": "1K",
+              "referenceOrder": [
+                "node:51738597-c7f1-4811-81b8-1dd5f6373fa7",
+                "node:e013ba2d-a738-4b37-8095-538e8ac75996"
+              ]
+            }
+          },
+          {
+            "id": "51738597-c7f1-4811-81b8-1dd5f6373fa7",
+            "type": "image",
+            "title": "1. 上传产品图",
+            "x": 40,
+            "y": 6111.943362152499,
+            "width": 250,
+            "height": 351.0324483775811,
+            "fullImage": "/assets/workflow-templates/b1cf929e15219d4379eb.jpg",
+            "image": "/assets/workflow-templates/b1cf929e15219d4379eb.jpg",
+            "generation": {
+              "aspectRatio": "16:9",
+              "model": "flux-kontext-pro",
+              "provider": "bfl",
+              "prompt": "",
+              "ratio": "16:9",
+              "referenceOrder": []
+            }
+          },
+          {
+            "id": "e4453321-fc53-40b6-b023-fedada568720",
+            "type": "text",
+            "title": "卖点展示海报图",
+            "x": 594.2263610315186,
+            "y": 6473.542672394701,
+            "width": 250,
+            "height": 250,
+            "content": "海报1\n\n**设计理念：沉浸低音，随行律动——强调澎湃音质与无拘束的便携体验。**\n\n*   **整体风格：** 动态、科技感与艺术感融合，营造出强烈的视觉冲击力和高级感。\n*   **色调：** 以深邃的夜空黑为主色调，搭配电光蓝或霓虹绿的流光线条，模拟音波律动与能量爆发，突出产品的科技感和低音震撼力。\n*   **构图方式：** 耳机主体以一种动态倾斜的姿态置于画面中央偏上，仿佛正在释放强大的音能。充电仓及挂绳则置于画面下方，挂绳形成优美的弧线，暗示其便携性。画面中可融入抽象的声波或能量场效果，从耳机周围扩散开来，增强视觉张力。\n*   **商品角度：** 耳机略微仰视，展现其流线型设计和“d”形Logo的精致。充电仓则平稳放置，突出其扎实和一体感。\n*   **文字内容与信息层级：**\n    *   **主标题 (居中，大胆、未来感字体)：** 撼动音浪 · 自由随行\n    *   **副标题 (下方，稍小，精炼字体)：** P20i 无线耳机 | 10mm澎湃低音 | 30小时长续航\n    *   **品牌Logo：** Soundcore (置于右上角或左上角，简洁有力)\n    *   **核心卖点 (可作为小字或图标辅助，点缀在画面边缘)：**\n        *   超大10mm驱动单元，带来深沉低音\n        *   充电仓自带便携挂绳，随身携带\n        *   单次充电10小时，搭配充电仓长达30小时\n*   **创意夸张程度：** 适度夸张，通过光效和抽象元素表现音质的“澎湃”和便携的“自由”。\n*   **有无模特：** 无模特，纯粹展现产品与抽象概念的结合。\n\n---\n\n海报2\n\n**设计理念：智臻通话，私人定制声场——聚焦AI通话降噪、个性化调音与精湛工艺。**\n\n*   **整体风格：** 简约、高级、冷静的科技美学，强调清晰、精确和智能。\n*   **色调：** 采用纯净的白色或浅灰色背景，搭配产品经典的黑色，形成鲜明对比，局部点缀清新的湖蓝色或银色线条，代表AI智能和数字调音。\n*   **构图方式：** 采用对角线或黄金分割构图，将两只耳机以分离但协调的姿态放置，一只耳机可以略微倾斜，另一只则相对垂直，展现其细节。充电仓可以作为背景元素虚化处理，或只露出带有Logo的一小部分，强调耳机的核心功能。画面中可加入极简的几何图形或抽象的声波频率图，暗示EQ调节。\n*   **商品角度：** 耳机以微距特写方式呈现，着重展现其精致的表面处理、麦克风孔位和“d”形Logo，营造出高级的质感。\n*   **文字内容与信息层级：**\n    *   **主标题 (左上角或居中，现代无衬线字体)：** 听清世界，听懂你\n    *   **副标题 (下方或右侧，优雅纤细字体)：** P20i | AI清晰通话 | 22种EQ定制 | Soundcore App\n    *   **品牌Logo：** Soundcore (置于右下角，与整体风格协调)\n    *   **核心卖点 (以简洁的图标或短句形式，散布在画面中)：**\n        *   双麦AI算法，通话如面对面\n        *   22种预设EQ，量身打造听觉盛宴\n        *   通过Soundcore App，随心掌控\n        *   IPX5级防水 (小字提示)\n*   **创意夸张程度：** 极简主义，通过细节和干净的布局来体现高级感，无过多视觉特效。\n*   **有无模特：** 无模特，专注于产品本身及其智能属性。\n\n---\n\n海报3\n\n**设计理念：全天候陪伴，舒适便携——突出产品的轻巧、佩戴舒适感及融入日常的实用性。**\n\n*   **整体风格：** 温暖、生活化的高级感，通过情境暗示产品与用户的紧密连接。\n*   **色调：** 选用柔和的暖色调或中性色调背景，如浅米色、灰褐色、莫兰迪色系，模拟自然光线下的温馨场景，使黑色产品更显沉稳与质感。\n*   **构图方式：** 采用近距离特写构图，耳机和充电仓以一种自然放置的状态呈现。可以模拟放置在书桌一角、咖啡馆桌面或旅行包侧袋的场景。挂绳可以自然垂落，或被一只优雅的手轻巧提起，暗示其便携性。画面留有足够的呼吸空间。\n*   **商品角度：** 耳机和充电仓以一种“触手可及”的角度展现，强调其真实材质和日常感，可以略微俯视或平视。\n*   **文字内容与信息层级：**\n    *   **主标题 (居中，温润的衬线或无衬线字体)：** 随心所欲 · 自由聆听\n    *   **副标题 (下方，略小，描述性文字)：** P20i 无线耳机 | 轻巧随身，乐享全天候\n    *   **品牌Logo：** Soundcore (置于画面一角，低调而不失存在感)\n    *   **核心卖点 (以短小精悍的描述性语句呈现，穿插在画面中)：**\n        *   小巧充电仓，自带便携挂绳\n        *   符合人体工学设计，长时间佩戴无负担\n        *   全天30小时续航，告别电量焦虑\n        *   10分钟快充，续航2小时\n*   **创意夸张程度：** 现实主义，通过场景氛围和材质细节来营造高级感和舒适感，避免脱离实际。\n*   **有无模特：** 可考虑局部特写一只手，优雅地拿起充电仓的挂绳，增加生活气息和互动感，但不出现面部。",
+            "textMode": "generate",
+            "generation": {
+              "model": "gemini-2.5-flash",
+              "provider": "google",
+              "prompt": "目的：现在要为这个产品制作一张 [核心卖点展示海报]，该图一定要切合核心卖点展示的主题，展示高级感\n任务：请你深刻理解提供的产品信息，紧扣该促销主题，同时融入用户的自定义偏好，输出采用三个不同构思灵感的海报内容，以“海报1”、“海报2”这样的标识开头。不同的灵感应该采用截然不同的风格，比如有无模特、商品的角度、色调、艺术风格、创意夸张程度、视觉张力、文字多少（但是一定要有文字）、构图方式、信息层级等等，除了商品相同以外要尽量避免相似。\n注意：\n你的灵感不能对商品特征一致性造成影响，比如不能改变商品的颜色、材质，无法发生形变的地方不能形变。每个灵感都会单独的被拿去做设计思路，所以每个灵感单独看都紧扣且能够直接体现该主题。",
+              "referenceOrder": [
+                "node:886f4be2-cd84-47aa-9976-1e3dd32bb607",
+                "node:51738597-c7f1-4811-81b8-1dd5f6373fa7"
+              ]
+            }
+          },
+          {
+            "id": "80f88dd6-63cd-43a5-9fe4-20dbe557ffb3",
+            "type": "image",
+            "title": "模特手持产品图",
+            "x": 1148.4527220630373,
+            "y": 1059.0026130475214,
+            "width": 250,
+            "height": 356.0830860534125,
+            "fullImage": "/assets/workflow-templates/1aec8757db9b1b5c54ba.png",
+            "image": "/assets/workflow-templates/1aec8757db9b1b5c54ba.png",
+            "versions": [
+              {
+                "image": "/assets/workflow-templates/1aec8757db9b1b5c54ba.png"
+              }
+            ],
+            "generation": {
+              "aspectRatio": "Auto",
+              "enableGoogleSearch": false,
+              "imageSize": "1K",
+              "model": "tamar-google-gemini-pro",
+              "provider": "google",
+              "prompt": "中景，模特手持或在展示这个产品，产品和模特主体保持一致，UGC风格，只展示模特半身就行",
+              "ratio": "Auto",
+              "quality": "1K",
+              "referenceOrder": [
+                "node:51738597-c7f1-4811-81b8-1dd5f6373fa7",
+                "node:3ec99a0b-a63d-492b-bee7-6b35d496afc2"
+              ]
+            }
+          },
+          {
+            "id": "535777ee-5fcd-48cb-adcb-d840776e2065",
+            "type": "image",
+            "title": "模特使用产品图",
+            "x": 1148.4527220630373,
+            "y": 1615.0856991009334,
+            "width": 250,
+            "height": 356.0830860534125,
+            "fullImage": "/assets/workflow-templates/768e0f8ad84a1d150221.png",
+            "image": "/assets/workflow-templates/768e0f8ad84a1d150221.png",
+            "versions": [
+              {
+                "image": "/assets/workflow-templates/768e0f8ad84a1d150221.png"
+              }
+            ],
+            "generation": {
+              "aspectRatio": "Auto",
+              "enableGoogleSearch": false,
+              "imageSize": "1K",
+              "model": "tamar-google-gemini-pro",
+              "provider": "google",
+              "prompt": "中景，模特在合适场景使用该产品，产品和模特主体保持一致，UGC风格，只展示模特半身就行",
+              "ratio": "Auto",
+              "quality": "1K",
+              "referenceOrder": [
+                "node:51738597-c7f1-4811-81b8-1dd5f6373fa7",
+                "node:3ec99a0b-a63d-492b-bee7-6b35d496afc2"
+              ]
+            }
+          },
+          {
+            "id": "4c7e1277-ac10-4752-ac8a-3ad3e068e732",
+            "type": "image",
+            "title": "模特展示产品图",
+            "x": 1148.4527220630373,
+            "y": 6001.918043314582,
+            "width": 250,
+            "height": 356.0830860534125,
+            "fullImage": "/assets/workflow-templates/6ab640cd8459afeb1cf8.png",
+            "image": "/assets/workflow-templates/6ab640cd8459afeb1cf8.png",
+            "versions": [
+              {
+                "image": "/assets/workflow-templates/6ab640cd8459afeb1cf8.png"
+              }
+            ],
+            "generation": {
+              "aspectRatio": "Auto",
+              "enableGoogleSearch": false,
+              "imageSize": "1K",
+              "model": "tamar-google-gemini-pro",
+              "provider": "google",
+              "prompt": "中景，模特在合适的场合展示这个产品，产品和模特主体保持一致，UGC风格，只展示模特半身就行",
+              "ratio": "Auto",
+              "quality": "1K",
+              "referenceOrder": [
+                "node:51738597-c7f1-4811-81b8-1dd5f6373fa7",
+                "node:3ec99a0b-a63d-492b-bee7-6b35d496afc2"
+              ]
+            }
+          },
+          {
+            "id": "319e385b-f552-4f72-896b-68e5b5a83e20",
+            "type": "text",
+            "title": "场景图",
+            "x": 594.2263610315186,
+            "y": 7016.584215421407,
+            "width": 250,
+            "height": 250,
+            "content": "**海报1：音乐沉浸之旅**\n\n*   **场景描述**: 一位年轻女性或男性在傍晚的都市阳台上，或一个舒适的室内角落，身着休闲服饰，戴着Soundcore P20i黑色耳机，身体微微后仰，闭着眼睛，表情陶醉而放松。一束柔和的暖光从侧面洒落在人物身上，营造出宁静而富有质感的氛围。背景是虚化的城市夜景或温馨的室内陈设，暗示外界的喧嚣已被耳机的音质隔绝。焦点集中在人物的脸部和耳机上，突出其佩戴的舒适度和产品带来的沉浸式音乐体验。\n*   **核心卖点体现**: \"Powerful Bass\" (10mm Drivers) 和 \"Personalized Listening Experience\" (22 Preset EQs)。通过人物完全放松和享受的表情，以及背景与主体的对比，直观展现耳机提供的深沉音质和个性化听觉享受，让用户仿佛置身于音乐的私人剧场。\n*   **视觉元素**:\n    *   人物：面部特写，展现沉醉于音乐中的平静与愉悦，耳机清晰可见。\n    *   光线：柔和的暖色光，营造舒适温馨的氛围。\n    *   背景：虚化的都市夜景或室内暖色调家具，突出个人空间感。\n    *   产品：黑色Soundcore P20i耳机紧密贴合耳部，其设计简洁而时尚。\n\n**海报2：活力随行，探索无界**\n\n*   **场景描述**: 一位身穿户外运动服的探险者或徒步旅行者，在阳光明媚的山间小径上行走。Soundcore P20i的黑色充电盒通过其独特的黑色编织挂绳，牢固地系在背包的肩带上，或悬挂在腰间。人物戴着黑色耳机，迈着轻快的步伐，眺望远方或专注于前方的道路。画面捕捉的是一个充满动感和自由的瞬间。背景是壮丽的自然风光，如郁郁葱葱的山林、清澈的溪流。可以有轻微的水雾或露珠效果，暗示产品的防水性能。\n*   **核心卖点体现**: \"Portable On-the-Go Design\" (compact, lightweight, lanyard) 和 \"Long Playtime\" (30H Long Playtime), \"Water-Resistant\"。海报突出充电盒与挂绳的实用性和便携性，直观展示用户可以轻松将耳机携带到任何地方。动态的户外场景和持久续航的特点，强调耳机是户外活动和旅行的理想伴侣。\n*   **视觉元素**:\n    *   人物：穿着运动服，充满活力，戴着耳机，行走在户外。\n    *   产品：黑色耳机在耳中清晰可见，充电盒连同黑色编织挂绳醒目地展示在背包或腰间，强调便携性。\n    *   背景：广阔的自然风光，色彩鲜明，光线充足。\n    *   细节：可以有一个局部特写，展示挂绳和充电盒的连接细节，以及其坚固耐用感。\n\n**海报3：高效商务，清晰互联**\n\n*   **场景描述**: 在一个现代感的开放式办公空间或繁忙的机场休息区，一位专业人士（男性或女性）正戴着Soundcore P20i黑色耳机，通过手机进行视频会议或重要的电话沟通。她的表情专注而自信，丝毫没有受到周围环境中其他模糊背景人物或轻微噪音的干扰。画面色彩偏向商务和效率感，可能有一些科技感的元素作为点缀。重点突出耳机在嘈杂环境下实现清晰沟通的能力。\n*   **核心卖点体现**: \"AI-Enhanced Clear Calls\" (2 Mics for AI Clear Calls) 和 \"Bluetooth 5.3\"。通过在复杂环境中人物依然能保持高效、清晰沟通的场景，直观展现AI通话降噪技术带来的卓越通话体验，以及Bluetooth 5.3提供的稳定连接，让用户在任何场合都能自信交流。\n*   **视觉元素**:\n    *   人物：面部特写，表情专注、专业，耳机清晰佩戴。手持手机，屏幕显示通话界面。\n    *   环境：模糊化的开放式办公区、机场候机厅背景，暗示嘈杂环境。\n    *   光线：明亮、清晰的室内光线，突出专业感。\n    *   产品：黑色Soundcore P20i耳机佩戴在耳中，体现其作为商务沟通工具的隐形和高效。",
+            "textMode": "generate",
+            "generation": {
+              "model": "gemini-2.5-flash",
+              "provider": "google",
+              "prompt": "目的：现在要为这个产品制作3张场景图，该图一定要切合产品的核心使用场景\n任务：请你深刻理解产品卖点和使用场景，输出采3个不同使用场景的场景图灵感，以“海报1”、“海报2”这样的标识开头。不同的灵感应该采用截然不同的使用场景和风格，除了商品相同以外，其他要尽量避免相似。\n注意：\n你的灵感不能对商品特征一致性造成影响，比如不能改变商品的颜色、材质，无法发生形变的地方不能形变。每个灵感都会单独的被拿去做设计思路，所以每个灵感单独看都紧扣且能够直接体现该主题。",
+              "referenceOrder": [
+                "node:51738597-c7f1-4811-81b8-1dd5f6373fa7",
+                "node:886f4be2-cd84-47aa-9976-1e3dd32bb607"
+              ]
+            }
+          },
+          {
+            "id": "c1287adb-8d06-4afd-94e3-c0e58ad61a44",
+            "type": "image",
+            "title": "场景图1",
+            "x": 1148.4527220630373,
+            "y": 6558.0011293679945,
+            "width": 250,
+            "height": 356.0830860534125,
+            "fullImage": "/assets/workflow-templates/d7672d4c48b59e185dde.png",
+            "image": "/assets/workflow-templates/d7672d4c48b59e185dde.png",
+            "versions": [
+              {
+                "image": "/assets/workflow-templates/d7672d4c48b59e185dde.png"
+              }
+            ],
+            "generation": {
+              "aspectRatio": "Auto",
+              "enableGoogleSearch": false,
+              "imageSize": "1K",
+              "model": "tamar-google-gemini-pro",
+              "provider": "google",
+              "prompt": "参考海报1，基于产品信息和白底图，为这个商品生成一个产品场景图海报",
+              "ratio": "Auto",
+              "quality": "1K",
+              "referenceOrder": [
+                "node:319e385b-f552-4f72-896b-68e5b5a83e20",
+                "node:51738597-c7f1-4811-81b8-1dd5f6373fa7",
+                "node:886f4be2-cd84-47aa-9976-1e3dd32bb607"
+              ]
+            }
+          },
+          {
+            "id": "acc16b2e-e45a-4530-9ffb-79bb4eaf2b0a",
+            "type": "image",
+            "title": "场景图2",
+            "x": 1148.4527220630373,
+            "y": 7114.084215421407,
+            "width": 250,
+            "height": 356.0830860534125,
+            "fullImage": "/assets/workflow-templates/451cf137ace8f475d34e.png",
+            "image": "/assets/workflow-templates/451cf137ace8f475d34e.png",
+            "versions": [
+              {
+                "image": "/assets/workflow-templates/451cf137ace8f475d34e.png"
+              }
+            ],
+            "generation": {
+              "aspectRatio": "Auto",
+              "enableGoogleSearch": false,
+              "imageSize": "1K",
+              "model": "tamar-google-gemini-pro",
+              "provider": "google",
+              "prompt": "参考海报2，基于产品信息和白底图，为这个商品生成一个产品场景图海报",
+              "ratio": "Auto",
+              "quality": "1K",
+              "referenceOrder": [
+                "node:319e385b-f552-4f72-896b-68e5b5a83e20",
+                "node:51738597-c7f1-4811-81b8-1dd5f6373fa7"
+              ]
+            }
+          },
+          {
+            "id": "dda20f31-4beb-4776-9233-f06d00327cc4",
+            "type": "image",
+            "title": "场景图3",
+            "x": 1148.4527220630373,
+            "y": 7670.167301474819,
+            "width": 250,
+            "height": 356.0830860534125,
+            "fullImage": "/assets/workflow-templates/66c73ca30f25ff143286.png",
+            "image": "/assets/workflow-templates/66c73ca30f25ff143286.png",
+            "versions": [
+              {
+                "image": "/assets/workflow-templates/66c73ca30f25ff143286.png"
+              }
+            ],
+            "generation": {
+              "aspectRatio": "Auto",
+              "enableGoogleSearch": false,
+              "imageSize": "1K",
+              "model": "tamar-google-gemini-pro",
+              "provider": "google",
+              "prompt": "参考海报3，基于产品信息和白底图，为这个商品生成一个产品场景图海报",
+              "ratio": "Auto",
+              "quality": "1K",
+              "referenceOrder": [
+                "node:319e385b-f552-4f72-896b-68e5b5a83e20",
+                "node:51738597-c7f1-4811-81b8-1dd5f6373fa7"
+              ]
+            }
+          },
+          {
+            "id": "3ec99a0b-a63d-492b-bee7-6b35d496afc2",
+            "type": "image",
+            "title": "生成模特图",
+            "x": 490,
+            "y": 1785.6272421276396,
+            "width": 458.4527220630373,
+            "height": 250,
+            "fullImage": "/assets/workflow-templates/fefc4d6bc04c0e946a5e.png",
+            "image": "/assets/workflow-templates/fefc4d6bc04c0e946a5e.png",
+            "versions": [
+              {
+                "image": "/assets/workflow-templates/fefc4d6bc04c0e946a5e.png"
+              }
+            ],
+            "generation": {
+              "aspectRatio": "Auto",
+              "enableGoogleSearch": false,
+              "imageSize": "1K",
+              "model": "tamar-google-gemini-pro",
+              "provider": "google",
+              "prompt": "根据产品特性，生成一个适合展示该产品且时尚富有高级感的模特图，彩色人像，背景是白底，人物居中，欧美人优先",
+              "ratio": "Auto",
+              "quality": "1K",
+              "referenceOrder": [
+                "node:886f4be2-cd84-47aa-9976-1e3dd32bb607"
+              ]
+            }
+          },
+          {
+            "id": "c642921f-1c94-44e9-9768-e9439efbdbfa",
+            "type": "text",
+            "title": "功能点",
+            "x": 594.2263610315186,
+            "y": 8674.833473581642,
+            "width": 250,
+            "height": 250,
+            "content": "海报1：\n**Prompt:** \"A sleek, high-energy promotional poster for Soundcore P20i earbuds. The earbuds are centrally featured, glowing slightly, surrounded by abstract, dark blue and purple sound waves radiating outwards, giving a powerful and immersive feel. The background is a gradient of deep blues and blacks, suggesting a concert hall or a deep auditory experience. In the foreground, a vibrant, modern typeface reads '震撼低音，澎湃音浪！' (Powerful Bass, Surging Sound Waves!) with 'Soundcore P20i' subtly placed at the bottom. The overall style is dynamic, modern, and emphasizes audio power. Studio lighting, dramatic, high-contrast.\"\n\n海报2：\n**Prompt:** \"A vibrant and adventurous promotional poster for Soundcore P20i earbuds, highlighting portability and long battery life. The Soundcore P20i charging case, with its distinctive lanyard, is held casually in a hand, hanging from a backpack, or clipping onto a belt loop against a bright, slightly blurred outdoor scene (e.g., a mountain trail, a sunny city park). One earbud is peeking out from the case or worn by a person (out of frame, focus on case). The scene evokes freedom and movement. In a clean, sans-serif font, the text '30小时续航，随时随地。' (30 Hours Playtime, Anytime, Anywhere.) is prominently displayed. The image should be bright, active, and lifestyle-oriented, showcasing convenience.\"\n\n海报3：\n**Prompt:** \"A minimalist and technologically advanced promotional poster for Soundcore P20i earbuds, focusing on app customization. The foreground features a close-up of a hand holding a smartphone, displaying a vivid, user-friendly Soundcore app interface with EQ settings clearly visible. The Soundcore P20i earbuds are stylishly placed beside the phone, appearing connected to the app. The background is a soft, diffused light gray or light blue, creating a clean and modern tech aesthetic. The text '你的音乐，你做主。22种EQ，随心定制。' (Your Music, Your Rules. 22 EQs, Customize Freely.) is elegantly integrated into the composition, using a sleek and contemporary font. The overall impression is sophisticated, intelligent, and personalized.\"",
+            "textMode": "generate",
+            "generation": {
+              "model": "gemini-2.5-flash",
+              "provider": "google",
+              "prompt": "目的：现在要为这个产品制作 3张[功能展示海报]，该图一定要切合产品核心卖点，展示出不同的功能和卖点\n任务：请你深刻理解产品功能信息和卖点，输出采用3个不同的展示其核心功能卖点海报图的文生图提示词，以“海报1”、“海报2”这样的标识开头。不同的海报图应该展示截然不同的功能、展示画面和文案，其中文案需紧密围绕卖点，字数适中（适合放在海报里），选取合适的排版方式和字体，让人一眼看图文就知道海报想表达的卖点。",
+              "referenceOrder": [
+                "node:886f4be2-cd84-47aa-9976-1e3dd32bb607",
+                "node:51738597-c7f1-4811-81b8-1dd5f6373fa7"
+              ]
+            }
+          },
+          {
+            "id": "102de3d9-53c2-4eb7-b91f-27e11222ae23",
+            "type": "image",
+            "title": "功能卖点1",
+            "x": 1148.4527220630373,
+            "y": 8226.250387528231,
+            "width": 250,
+            "height": 356.0830860534125,
+            "fullImage": "/assets/workflow-templates/b2e5978c0ac36680c8ec.png",
+            "image": "/assets/workflow-templates/b2e5978c0ac36680c8ec.png",
+            "versions": [
+              {
+                "image": "/assets/workflow-templates/b2e5978c0ac36680c8ec.png"
+              }
+            ],
+            "generation": {
+              "aspectRatio": "Auto",
+              "enableGoogleSearch": false,
+              "imageSize": "1K",
+              "model": "tamar-google-gemini-pro",
+              "provider": "google",
+              "prompt": "参考海报1，基于产品核心卖点和产品图，为这个商品生成一个功能卖点海报图",
+              "ratio": "Auto",
+              "quality": "1K",
+              "referenceOrder": [
+                "node:c642921f-1c94-44e9-9768-e9439efbdbfa",
+                "node:51738597-c7f1-4811-81b8-1dd5f6373fa7"
+              ]
+            }
+          },
+          {
+            "id": "83d2e288-f8d0-41d1-b3fa-09e1b169a132",
+            "type": "image",
+            "title": "功能卖点2",
+            "x": 1148.4527220630373,
+            "y": 8782.333473581642,
+            "width": 250,
+            "height": 356.0830860534125,
+            "fullImage": "/assets/workflow-templates/cc0d84960a6eb2403b79.png",
+            "image": "/assets/workflow-templates/cc0d84960a6eb2403b79.png",
+            "versions": [
+              {
+                "image": "/assets/workflow-templates/cc0d84960a6eb2403b79.png"
+              }
+            ],
+            "generation": {
+              "aspectRatio": "Auto",
+              "enableGoogleSearch": false,
+              "imageSize": "1K",
+              "model": "tamar-google-gemini-pro",
+              "provider": "google",
+              "prompt": "参考海报2，基于产品核心卖点和产品图，为这个商品生成一个功能卖点海报图",
+              "ratio": "Auto",
+              "quality": "1K",
+              "referenceOrder": [
+                "node:c642921f-1c94-44e9-9768-e9439efbdbfa",
+                "node:51738597-c7f1-4811-81b8-1dd5f6373fa7"
+              ]
+            }
+          },
+          {
+            "id": "2e7ea128-d2cd-40e5-9be9-4069dc36693e",
+            "type": "image",
+            "title": "功能卖点3",
+            "x": 1148.4527220630373,
+            "y": 9338.416559635056,
+            "width": 250,
+            "height": 356.0830860534125,
+            "fullImage": "/assets/workflow-templates/30d6838ba3e471581fe9.png",
+            "image": "/assets/workflow-templates/30d6838ba3e471581fe9.png",
+            "versions": [
+              {
+                "image": "/assets/workflow-templates/30d6838ba3e471581fe9.png"
+              }
+            ],
+            "generation": {
+              "aspectRatio": "Auto",
+              "enableGoogleSearch": false,
+              "imageSize": "1K",
+              "model": "tamar-google-gemini-pro",
+              "provider": "google",
+              "prompt": "参考海报3，基于产品核心卖点和产品图，为这个商品生成一个功能卖点海报图",
+              "ratio": "Auto",
+              "quality": "1K",
+              "referenceOrder": [
+                "node:c642921f-1c94-44e9-9768-e9439efbdbfa",
+                "node:51738597-c7f1-4811-81b8-1dd5f6373fa7"
+              ]
+            }
+          },
+          {
+            "id": "48329a90-fd47-4e5c-81f1-ec6e4072d9c5",
+            "type": "image",
+            "title": "侧面展示图",
+            "x": 594.2263610315186,
+            "y": 2235.6272421276394,
+            "width": 250,
+            "height": 250,
+            "fullImage": "/assets/workflow-templates/13fd022fc85e971c5f81.png",
+            "image": "/assets/workflow-templates/13fd022fc85e971c5f81.png",
+            "versions": [
+              {
+                "image": "/assets/workflow-templates/13fd022fc85e971c5f81.png"
+              }
+            ],
+            "generation": {
+              "aspectRatio": "Auto",
+              "enableGoogleSearch": false,
+              "imageSize": "1K",
+              "model": "tamar-google-gemini-pro",
+              "provider": "google",
+              "prompt": "根据产品图和产品信息，生成左侧侧面45度的展示图，高清展示侧面的产品形状和细节，保持产品不变形",
+              "ratio": "Auto",
+              "quality": "1K",
+              "referenceOrder": [
+                "node:51738597-c7f1-4811-81b8-1dd5f6373fa7",
+                "node:886f4be2-cd84-47aa-9976-1e3dd32bb607"
+              ]
+            }
+          },
+          {
+            "id": "507214f4-e351-400c-95a5-094cdd1d5fa7",
+            "type": "image",
+            "title": "俯瞰展示图",
+            "x": 594.2263610315186,
+            "y": 2685.6272421276394,
+            "width": 250,
+            "height": 356.0830860534125,
+            "fullImage": "/assets/workflow-templates/67e360ed41151d1b1a75.png",
+            "image": "/assets/workflow-templates/67e360ed41151d1b1a75.png",
+            "versions": [
+              {
+                "image": "/assets/workflow-templates/67e360ed41151d1b1a75.png"
+              }
+            ],
+            "generation": {
+              "aspectRatio": "Auto",
+              "enableGoogleSearch": false,
+              "imageSize": "1K",
+              "model": "tamar-google-gemini-pro",
+              "provider": "google",
+              "prompt": "根据产品图和产品信息，生成从上往下俯瞰的产品展示图，高清展示俯瞰角度的产品形状和细节，保持产品不变形",
+              "ratio": "Auto",
+              "quality": "1K",
+              "referenceOrder": [
+                "node:51738597-c7f1-4811-81b8-1dd5f6373fa7",
+                "node:886f4be2-cd84-47aa-9976-1e3dd32bb607"
+              ]
+            }
+          },
+          {
+            "id": "558449f9-149c-4b85-b7db-5f4562d9d23f",
+            "type": "image",
+            "title": "背后展示图",
+            "x": 490,
+            "y": 3241.710328181052,
+            "width": 458.4527220630373,
+            "height": 250,
+            "fullImage": "/assets/workflow-templates/460384c67efbc92026a2.png",
+            "image": "/assets/workflow-templates/460384c67efbc92026a2.png",
+            "versions": [
+              {
+                "image": "/assets/workflow-templates/460384c67efbc92026a2.png"
+              }
+            ],
+            "generation": {
+              "aspectRatio": "Auto",
+              "enableGoogleSearch": false,
+              "imageSize": "1K",
+              "model": "tamar-google-gemini-pro",
+              "provider": "google",
+              "prompt": "根据产品图和产品信息，生成从背后平视产品的展示图，高清展示从背后看的产品形状和细节，保持产品不变形",
+              "ratio": "Auto",
+              "quality": "1K",
+              "referenceOrder": [
+                "node:51738597-c7f1-4811-81b8-1dd5f6373fa7",
+                "node:886f4be2-cd84-47aa-9976-1e3dd32bb607"
+              ]
+            }
+          },
+          {
+            "id": "177452ff-5d29-41c0-8d49-713195cfff7d",
+            "type": "image",
+            "title": "细节展示图",
+            "x": 594.2263610315186,
+            "y": 3691.7103281810514,
+            "width": 250,
+            "height": 356.0830860534125,
+            "fullImage": "/assets/workflow-templates/0f9300f9ee58bffbebe3.png",
+            "image": "/assets/workflow-templates/0f9300f9ee58bffbebe3.png",
+            "versions": [
+              {
+                "image": "/assets/workflow-templates/0f9300f9ee58bffbebe3.png"
+              }
+            ],
+            "generation": {
+              "aspectRatio": "Auto",
+              "enableGoogleSearch": false,
+              "imageSize": "1K",
+              "model": "tamar-google-gemini-pro",
+              "provider": "google",
+              "prompt": "根据产品图和产品信息，生成特写产品局部的细节展示展示图，高清展示产品的材质质感、设计等细节，保持产品不变形",
+              "ratio": "Auto",
+              "quality": "1K",
+              "referenceOrder": [
+                "node:51738597-c7f1-4811-81b8-1dd5f6373fa7",
+                "node:886f4be2-cd84-47aa-9976-1e3dd32bb607"
+              ]
+            }
+          },
+          {
+            "id": "ac033b47-3bb5-45d5-8a57-740024b9965d",
+            "type": "image",
+            "title": "产品尺寸图",
+            "x": 594.2263610315186,
+            "y": 4247.793414234464,
+            "width": 250,
+            "height": 356.0830860534125,
+            "fullImage": "/assets/workflow-templates/f8acabba0af81311850b.png",
+            "image": "/assets/workflow-templates/f8acabba0af81311850b.png",
+            "versions": [
+              {
+                "image": "/assets/workflow-templates/f8acabba0af81311850b.png"
+              }
+            ],
+            "generation": {
+              "aspectRatio": "Auto",
+              "enableGoogleSearch": false,
+              "imageSize": "1K",
+              "model": "tamar-google-gemini-pro",
+              "provider": "google",
+              "prompt": "根据产品尺寸和产品图，生成展示产品尺寸的图片，用白色标尺和数字标记产品长宽高、斜角等各项尺寸，让人可以直观看到",
+              "ratio": "Auto",
+              "quality": "1K",
+              "referenceOrder": [
+                "node:51738597-c7f1-4811-81b8-1dd5f6373fa7",
+                "node:886f4be2-cd84-47aa-9976-1e3dd32bb607"
+              ]
+            }
+          },
+          {
+            "id": "e21ed077-8619-47a2-a611-987ccf14b076",
+            "type": "image",
+            "title": "零配件",
+            "x": 594.2263610315186,
+            "y": 4803.876500287876,
+            "width": 250,
+            "height": 356.0830860534125,
+            "fullImage": "/assets/workflow-templates/351097b8aa81f14ab90b.png",
+            "image": "/assets/workflow-templates/351097b8aa81f14ab90b.png",
+            "versions": [
+              {
+                "image": "/assets/workflow-templates/351097b8aa81f14ab90b.png"
+              }
+            ],
+            "generation": {
+              "aspectRatio": "Auto",
+              "enableGoogleSearch": false,
+              "imageSize": "1K",
+              "model": "tamar-google-gemini-pro",
+              "provider": "google",
+              "prompt": "根据产品零配件，生成可视化的零配件展示图，每个零配件都用图片+文字方式呈现，可以用表格、方框等规整的排列方式呈现",
+              "ratio": "Auto",
+              "quality": "1K",
+              "referenceOrder": [
+                "node:51738597-c7f1-4811-81b8-1dd5f6373fa7",
+                "node:886f4be2-cd84-47aa-9976-1e3dd32bb607"
+              ]
+            }
+          },
+          {
+            "id": "144696fc-6959-42b9-af87-1d74754b645d",
+            "type": "image",
+            "title": "拆解图",
+            "x": 490,
+            "y": 5359.959586341289,
+            "width": 458.4527220630373,
+            "height": 250,
+            "fullImage": "/assets/workflow-templates/78a092f47adf4eba0030.png",
+            "image": "/assets/workflow-templates/78a092f47adf4eba0030.png",
+            "versions": [
+              {
+                "image": "/assets/workflow-templates/78a092f47adf4eba0030.png"
+              }
+            ],
+            "generation": {
+              "aspectRatio": "Auto",
+              "enableGoogleSearch": false,
+              "imageSize": "1K",
+              "model": "tamar-google-gemini-pro",
+              "provider": "google",
+              "prompt": "根据产品材质功能，生成一张产品核心部件的结构示意图，要展现出产品核心部件的内部构造，画面清晰呈现产品关键部件，背景为简洁的浅色调，同时包含核心卖点文案",
+              "ratio": "Auto",
+              "quality": "1K",
+              "referenceOrder": [
+                "node:51738597-c7f1-4811-81b8-1dd5f6373fa7",
+                "node:886f4be2-cd84-47aa-9976-1e3dd32bb607"
+              ]
+            }
+          },
+          {
+            "id": "image-2429ffeb-a7bb-4de6-a9ee-1ceef69da476",
+            "type": "image",
+            "title": "Image",
+            "x": 490,
+            "y": 5809.959586341289,
+            "width": 458.4527220630373,
+            "height": 250,
+            "fullImage": "/assets/workflow-templates/11f036ac85572d914f2f.png",
+            "image": "/assets/workflow-templates/11f036ac85572d914f2f.png",
+            "versions": [
+              {
+                "image": "/assets/workflow-templates/11f036ac85572d914f2f.png"
+              }
+            ],
+            "generation": {
+              "aspectRatio": "Auto",
+              "enableGoogleSearch": false,
+              "imageSize": "1K",
+              "model": "tamar-google-gemini-pro",
+              "provider": "google",
+              "prompt": "根据文本内容生产核心参数图",
+              "ratio": "Auto",
+              "quality": "1K",
+              "referenceOrder": [
+                "node:886f4be2-cd84-47aa-9976-1e3dd32bb607"
+              ]
+            }
+          }
+        ],
+        "edges": [
+          {
+            "id": "76462c2f-1524-44b0-80f7-e5c2eeb5bdd4",
+            "source": "51738597-c7f1-4811-81b8-1dd5f6373fa7",
+            "target": "7917fd90-ddbe-4b84-be58-67733a25fee4",
+            "sourceHandle": "right",
+            "targetHandle": "left",
+            "data": {
+              "valueKey": "images"
+            }
+          },
+          {
+            "id": "e590dcb5-7ac0-4b02-b081-f23c86f5e334",
+            "source": "51738597-c7f1-4811-81b8-1dd5f6373fa7",
+            "target": "c64bc24b-fc2a-45a3-8ece-d2b2b87660fd",
+            "sourceHandle": "right",
+            "targetHandle": "left",
+            "data": {
+              "valueKey": "images"
+            }
+          },
+          {
+            "id": "b507d479-2f66-4192-9f65-97740e7a49ec",
+            "source": "e4453321-fc53-40b6-b023-fedada568720",
+            "target": "1fd293a6-4b09-4a39-9db6-20f6e473cc0b",
+            "sourceHandle": "right",
+            "targetHandle": "left"
+          },
+          {
+            "id": "521edaa3-abe1-4dbf-8465-104839491090",
+            "source": "e4453321-fc53-40b6-b023-fedada568720",
+            "target": "8965300c-21ae-4efb-b549-64fdc6351937",
+            "sourceHandle": "right",
+            "targetHandle": "left"
+          },
+          {
+            "id": "ea1c823f-121b-4b2b-942b-53be8884552b",
+            "source": "886f4be2-cd84-47aa-9976-1e3dd32bb607",
+            "target": "e4453321-fc53-40b6-b023-fedada568720",
+            "sourceHandle": "right",
+            "targetHandle": "left"
+          },
+          {
+            "id": "e05cb691-b50e-4357-8fd6-3ef64a86fef7",
+            "source": "e4453321-fc53-40b6-b023-fedada568720",
+            "target": "e013ba2d-a738-4b37-8095-538e8ac75996",
+            "sourceHandle": "right",
+            "targetHandle": "left"
+          },
+          {
+            "id": "47953ddc-7c09-46e9-9ec6-41652ad3e890",
+            "source": "1fd293a6-4b09-4a39-9db6-20f6e473cc0b",
+            "target": "7917fd90-ddbe-4b84-be58-67733a25fee4",
+            "sourceHandle": "right",
+            "targetHandle": "left",
+            "data": {
+              "valueKey": "images"
+            }
+          },
+          {
+            "id": "6adf74eb-eb19-430b-aa34-42ed6f701a0e",
+            "source": "8965300c-21ae-4efb-b549-64fdc6351937",
+            "target": "30999350-a6e0-4884-bcf0-52e926d978c7",
+            "sourceHandle": "right",
+            "targetHandle": "left",
+            "data": {
+              "valueKey": "images"
+            }
+          },
+          {
+            "id": "7406bdc6-8066-4505-bf44-beb9907e8992",
+            "source": "51738597-c7f1-4811-81b8-1dd5f6373fa7",
+            "target": "30999350-a6e0-4884-bcf0-52e926d978c7",
+            "sourceHandle": "right",
+            "targetHandle": "left",
+            "data": {
+              "valueKey": "images"
+            }
+          },
+          {
+            "id": "af1bc54f-8e53-44f3-8ab5-7f4a74cd7d2d",
+            "source": "e013ba2d-a738-4b37-8095-538e8ac75996",
+            "target": "c64bc24b-fc2a-45a3-8ece-d2b2b87660fd",
+            "sourceHandle": "right",
+            "targetHandle": "left",
+            "data": {
+              "valueKey": "images"
+            }
+          },
+          {
+            "id": "1a3ef9f0-b9e2-491f-b931-e3b0e143c31a",
+            "source": "51738597-c7f1-4811-81b8-1dd5f6373fa7",
+            "target": "e4453321-fc53-40b6-b023-fedada568720",
+            "sourceHandle": "right",
+            "targetHandle": "left"
+          },
+          {
+            "id": "db6e7aac-79f5-42d9-8546-d0476e4783b1",
+            "source": "51738597-c7f1-4811-81b8-1dd5f6373fa7",
+            "target": "80f88dd6-63cd-43a5-9fe4-20dbe557ffb3",
+            "sourceHandle": "right",
+            "targetHandle": "left",
+            "data": {
+              "valueKey": "images"
+            }
+          },
+          {
+            "id": "2058a6c4-ba6c-462e-bbb3-4a4988439c94",
+            "source": "51738597-c7f1-4811-81b8-1dd5f6373fa7",
+            "target": "535777ee-5fcd-48cb-adcb-d840776e2065",
+            "sourceHandle": "right",
+            "targetHandle": "left",
+            "data": {
+              "valueKey": "images"
+            }
+          },
+          {
+            "id": "057d9929-30bb-48b5-9190-fc2037ecc9ae",
+            "source": "51738597-c7f1-4811-81b8-1dd5f6373fa7",
+            "target": "4c7e1277-ac10-4752-ac8a-3ad3e068e732",
+            "sourceHandle": "right",
+            "targetHandle": "left",
+            "data": {
+              "valueKey": "images"
+            }
+          },
+          {
+            "id": "6582208c-5cad-44a6-a8de-c2d09cd77f94",
+            "source": "51738597-c7f1-4811-81b8-1dd5f6373fa7",
+            "target": "319e385b-f552-4f72-896b-68e5b5a83e20",
+            "sourceHandle": "right",
+            "targetHandle": "left"
+          },
+          {
+            "id": "3331da2b-dfa1-48a8-a7a8-8eed9003ae85",
+            "source": "886f4be2-cd84-47aa-9976-1e3dd32bb607",
+            "target": "319e385b-f552-4f72-896b-68e5b5a83e20",
+            "sourceHandle": "right",
+            "targetHandle": "left"
+          },
+          {
+            "id": "aab93881-8b09-46f5-99fe-da94737e6082",
+            "source": "319e385b-f552-4f72-896b-68e5b5a83e20",
+            "target": "c1287adb-8d06-4afd-94e3-c0e58ad61a44",
+            "sourceHandle": "right",
+            "targetHandle": "left",
+            "data": {
+              "valueKey": "images"
+            }
+          },
+          {
+            "id": "af49177a-f558-42ec-be30-95bb1db3af6c",
+            "source": "51738597-c7f1-4811-81b8-1dd5f6373fa7",
+            "target": "c1287adb-8d06-4afd-94e3-c0e58ad61a44",
+            "sourceHandle": "right",
+            "targetHandle": "left",
+            "data": {
+              "valueKey": "images"
+            }
+          },
+          {
+            "id": "f5049d68-0e4d-4b87-92e7-80878b72cc70",
+            "source": "886f4be2-cd84-47aa-9976-1e3dd32bb607",
+            "target": "c1287adb-8d06-4afd-94e3-c0e58ad61a44",
+            "sourceHandle": "right",
+            "targetHandle": "left",
+            "data": {
+              "valueKey": "images"
+            }
+          },
+          {
+            "id": "25cfdaf3-1b87-4322-bdec-7810904dc04f",
+            "source": "51738597-c7f1-4811-81b8-1dd5f6373fa7",
+            "target": "c1287adb-8d06-4afd-94e3-c0e58ad61a44",
+            "sourceHandle": "right",
+            "targetHandle": "left",
+            "data": {
+              "valueKey": "images"
+            }
+          },
+          {
+            "id": "fe0fbd92-844e-4a3c-9c81-a606724158cb",
+            "source": "319e385b-f552-4f72-896b-68e5b5a83e20",
+            "target": "acc16b2e-e45a-4530-9ffb-79bb4eaf2b0a",
+            "sourceHandle": "right",
+            "targetHandle": "left",
+            "data": {
+              "valueKey": "images"
+            }
+          },
+          {
+            "id": "d193f4aa-d29c-47c3-8762-7598a6720b77",
+            "source": "51738597-c7f1-4811-81b8-1dd5f6373fa7",
+            "target": "acc16b2e-e45a-4530-9ffb-79bb4eaf2b0a",
+            "sourceHandle": "right",
+            "targetHandle": "left",
+            "data": {
+              "valueKey": "images"
+            }
+          },
+          {
+            "id": "f1dfd827-830e-4537-9773-d767afbe4545",
+            "source": "319e385b-f552-4f72-896b-68e5b5a83e20",
+            "target": "dda20f31-4beb-4776-9233-f06d00327cc4",
+            "sourceHandle": "right",
+            "targetHandle": "left",
+            "data": {
+              "valueKey": "images"
+            }
+          },
+          {
+            "id": "091861f1-55b2-4276-b085-81846a0058ea",
+            "source": "51738597-c7f1-4811-81b8-1dd5f6373fa7",
+            "target": "dda20f31-4beb-4776-9233-f06d00327cc4",
+            "sourceHandle": "right",
+            "targetHandle": "left",
+            "data": {
+              "valueKey": "images"
+            }
+          },
+          {
+            "id": "c1c4c118-d681-4741-b9e2-0b7febf84d73",
+            "source": "3ec99a0b-a63d-492b-bee7-6b35d496afc2",
+            "target": "80f88dd6-63cd-43a5-9fe4-20dbe557ffb3",
+            "sourceHandle": "right",
+            "targetHandle": "left",
+            "data": {
+              "valueKey": "images"
+            }
+          },
+          {
+            "id": "23279440-ce70-49c4-a719-aa9c9209dcd7",
+            "source": "886f4be2-cd84-47aa-9976-1e3dd32bb607",
+            "target": "3ec99a0b-a63d-492b-bee7-6b35d496afc2",
+            "sourceHandle": "right",
+            "targetHandle": "left",
+            "data": {
+              "valueKey": "images"
+            }
+          },
+          {
+            "id": "39621475-6b6c-49e6-881c-09f2afb86592",
+            "source": "3ec99a0b-a63d-492b-bee7-6b35d496afc2",
+            "target": "535777ee-5fcd-48cb-adcb-d840776e2065",
+            "sourceHandle": "right",
+            "targetHandle": "left",
+            "data": {
+              "valueKey": "images"
+            }
+          },
+          {
+            "id": "00d68b7b-7f80-426b-92ca-4f948d0038dd",
+            "source": "3ec99a0b-a63d-492b-bee7-6b35d496afc2",
+            "target": "4c7e1277-ac10-4752-ac8a-3ad3e068e732",
+            "sourceHandle": "right",
+            "targetHandle": "left",
+            "data": {
+              "valueKey": "images"
+            }
+          },
+          {
+            "id": "f3c950db-af13-49fc-81f8-8fb0b2a5e25e",
+            "source": "886f4be2-cd84-47aa-9976-1e3dd32bb607",
+            "target": "c642921f-1c94-44e9-9768-e9439efbdbfa",
+            "sourceHandle": "right",
+            "targetHandle": "left"
+          },
+          {
+            "id": "7ff304f8-4261-415b-b414-4cf5da14bf0e",
+            "source": "51738597-c7f1-4811-81b8-1dd5f6373fa7",
+            "target": "c642921f-1c94-44e9-9768-e9439efbdbfa",
+            "sourceHandle": "right",
+            "targetHandle": "left"
+          },
+          {
+            "id": "2ffd0888-74d0-41af-8048-f37a17d85f62",
+            "source": "c642921f-1c94-44e9-9768-e9439efbdbfa",
+            "target": "102de3d9-53c2-4eb7-b91f-27e11222ae23",
+            "sourceHandle": "right",
+            "targetHandle": "left",
+            "data": {
+              "valueKey": "images"
+            }
+          },
+          {
+            "id": "c11c61a3-b2f0-4c71-becd-c87b5a9804e2",
+            "source": "51738597-c7f1-4811-81b8-1dd5f6373fa7",
+            "target": "102de3d9-53c2-4eb7-b91f-27e11222ae23",
+            "sourceHandle": "right",
+            "targetHandle": "left",
+            "data": {
+              "valueKey": "images"
+            }
+          },
+          {
+            "id": "896f4581-fce3-4944-8ad1-6f7a6609c088",
+            "source": "c642921f-1c94-44e9-9768-e9439efbdbfa",
+            "target": "83d2e288-f8d0-41d1-b3fa-09e1b169a132",
+            "sourceHandle": "right",
+            "targetHandle": "left",
+            "data": {
+              "valueKey": "images"
+            }
+          },
+          {
+            "id": "e617751a-6e0d-4bbe-bcec-a98b99961e1c",
+            "source": "51738597-c7f1-4811-81b8-1dd5f6373fa7",
+            "target": "83d2e288-f8d0-41d1-b3fa-09e1b169a132",
+            "sourceHandle": "right",
+            "targetHandle": "left",
+            "data": {
+              "valueKey": "images"
+            }
+          },
+          {
+            "id": "ad735808-14f5-43b3-a5be-2b4292bd0ec5",
+            "source": "c642921f-1c94-44e9-9768-e9439efbdbfa",
+            "target": "2e7ea128-d2cd-40e5-9be9-4069dc36693e",
+            "sourceHandle": "right",
+            "targetHandle": "left",
+            "data": {
+              "valueKey": "images"
+            }
+          },
+          {
+            "id": "5501c724-d1c8-4ca7-bc50-3503c6a80ff2",
+            "source": "51738597-c7f1-4811-81b8-1dd5f6373fa7",
+            "target": "2e7ea128-d2cd-40e5-9be9-4069dc36693e",
+            "sourceHandle": "right",
+            "targetHandle": "left",
+            "data": {
+              "valueKey": "images"
+            }
+          },
+          {
+            "id": "268ac7a3-7f0d-4d34-b904-46c74a95b581",
+            "source": "51738597-c7f1-4811-81b8-1dd5f6373fa7",
+            "target": "48329a90-fd47-4e5c-81f1-ec6e4072d9c5",
+            "sourceHandle": "right",
+            "targetHandle": "left",
+            "data": {
+              "valueKey": "images"
+            }
+          },
+          {
+            "id": "4c00a1f7-f3b6-44c2-a895-37bf83c331a7",
+            "source": "886f4be2-cd84-47aa-9976-1e3dd32bb607",
+            "target": "48329a90-fd47-4e5c-81f1-ec6e4072d9c5",
+            "sourceHandle": "right",
+            "targetHandle": "left",
+            "data": {
+              "valueKey": "images"
+            }
+          },
+          {
+            "id": "bf149004-07dc-495d-97a5-e15dbd43044a",
+            "source": "51738597-c7f1-4811-81b8-1dd5f6373fa7",
+            "target": "507214f4-e351-400c-95a5-094cdd1d5fa7",
+            "sourceHandle": "right",
+            "targetHandle": "left",
+            "data": {
+              "valueKey": "images"
+            }
+          },
+          {
+            "id": "5f60291b-6bfe-48e9-8b2b-4ca31a84a38c",
+            "source": "886f4be2-cd84-47aa-9976-1e3dd32bb607",
+            "target": "507214f4-e351-400c-95a5-094cdd1d5fa7",
+            "sourceHandle": "right",
+            "targetHandle": "left",
+            "data": {
+              "valueKey": "images"
+            }
+          },
+          {
+            "id": "07603245-7a77-46ae-b934-e0dfff7b4e64",
+            "source": "51738597-c7f1-4811-81b8-1dd5f6373fa7",
+            "target": "558449f9-149c-4b85-b7db-5f4562d9d23f",
+            "sourceHandle": "right",
+            "targetHandle": "left",
+            "data": {
+              "valueKey": "images"
+            }
+          },
+          {
+            "id": "76e66714-cce3-449e-a0db-c2ac59631548",
+            "source": "886f4be2-cd84-47aa-9976-1e3dd32bb607",
+            "target": "558449f9-149c-4b85-b7db-5f4562d9d23f",
+            "sourceHandle": "right",
+            "targetHandle": "left",
+            "data": {
+              "valueKey": "images"
+            }
+          },
+          {
+            "id": "48ea32fe-ea74-4297-b5a3-12ca6adc2499",
+            "source": "51738597-c7f1-4811-81b8-1dd5f6373fa7",
+            "target": "177452ff-5d29-41c0-8d49-713195cfff7d",
+            "sourceHandle": "right",
+            "targetHandle": "left",
+            "data": {
+              "valueKey": "images"
+            }
+          },
+          {
+            "id": "33307651-b647-478a-8e1e-1707c386c22c",
+            "source": "886f4be2-cd84-47aa-9976-1e3dd32bb607",
+            "target": "177452ff-5d29-41c0-8d49-713195cfff7d",
+            "sourceHandle": "right",
+            "targetHandle": "left",
+            "data": {
+              "valueKey": "images"
+            }
+          },
+          {
+            "id": "9bfd6392-1ceb-4bf3-90a3-fdc4260998a5",
+            "source": "51738597-c7f1-4811-81b8-1dd5f6373fa7",
+            "target": "ac033b47-3bb5-45d5-8a57-740024b9965d",
+            "sourceHandle": "right",
+            "targetHandle": "left",
+            "data": {
+              "valueKey": "images"
+            }
+          },
+          {
+            "id": "28e89d74-6f73-42bd-8d51-fdcac09dc757",
+            "source": "886f4be2-cd84-47aa-9976-1e3dd32bb607",
+            "target": "ac033b47-3bb5-45d5-8a57-740024b9965d",
+            "sourceHandle": "right",
+            "targetHandle": "left",
+            "data": {
+              "valueKey": "images"
+            }
+          },
+          {
+            "id": "4f7cdfa3-0f96-44c1-9058-15dbc65f28cf",
+            "source": "51738597-c7f1-4811-81b8-1dd5f6373fa7",
+            "target": "e21ed077-8619-47a2-a611-987ccf14b076",
+            "sourceHandle": "right",
+            "targetHandle": "left",
+            "data": {
+              "valueKey": "images"
+            }
+          },
+          {
+            "id": "ae56d86d-acf6-4d4d-ac01-4df05e56caf8",
+            "source": "886f4be2-cd84-47aa-9976-1e3dd32bb607",
+            "target": "e21ed077-8619-47a2-a611-987ccf14b076",
+            "sourceHandle": "right",
+            "targetHandle": "left",
+            "data": {
+              "valueKey": "images"
+            }
+          },
+          {
+            "id": "73c2aa8d-317b-4395-a581-47cda43ff895",
+            "source": "51738597-c7f1-4811-81b8-1dd5f6373fa7",
+            "target": "144696fc-6959-42b9-af87-1d74754b645d",
+            "sourceHandle": "right",
+            "targetHandle": "left",
+            "data": {
+              "valueKey": "images"
+            }
+          },
+          {
+            "id": "d6e574c1-49c0-48d5-a819-a3f8b57d3d87",
+            "source": "886f4be2-cd84-47aa-9976-1e3dd32bb607",
+            "target": "144696fc-6959-42b9-af87-1d74754b645d",
+            "sourceHandle": "right",
+            "targetHandle": "left",
+            "data": {
+              "valueKey": "images"
+            }
+          },
+          {
+            "id": "29a7a075-7d29-4331-82cb-035d5d9a6c83",
+            "source": "886f4be2-cd84-47aa-9976-1e3dd32bb607",
+            "target": "image-2429ffeb-a7bb-4de6-a9ee-1ceef69da476",
+            "sourceHandle": "right",
+            "targetHandle": "left"
+          }
+        ],
+        "width": 1888.4527220630373,
+        "height": 10496.841312724207,
+        "groupColor": ""
+      },
+      "thumbnail": "/assets/workflow-templates/2aa55d574139577c3309-thumb.webp"
+    }
+  ]
+}

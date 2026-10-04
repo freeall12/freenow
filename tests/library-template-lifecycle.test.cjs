@@ -29,8 +29,8 @@ test('template list updates retain card focus and modal close resolves the rebui
 test('template readiness cannot render a closed owner or report an error on a newer panel',async()=>{
  for(const fail of [false,true]){const pending=deferred(),f=fixture({ready:pending.promise});try{const old=f.open('模板'),before=old.querySelector('.panel-scroll').innerHTML;f.trigger('模板').click();assert.equal(old.isConnected,false);const next=f.open('素材库');fail?pending.reject(Error('storage denied')):pending.resolve();await tick();assert.equal(old.querySelector('.panel-scroll').innerHTML,before);assert.equal(f.document.querySelector('#left-panel-library'),next);assert.deepEqual(f.notifications,[]);}finally{f.close();}}
 });
-test('a current template readiness failure shows a visible error without unhandled rejection',async()=>{
- const pending=deferred(),f=fixture({ready:pending.promise});try{const panel=f.open('模板');pending.reject(Error('storage denied'));await tick();assert.match(panel.textContent,/模板读取失败：storage denied/);}finally{f.close();}
+test('a personal template readiness failure preserves public templates and shows a visible error in my templates',async()=>{
+ const pending=deferred(),f=fixture({ready:pending.promise});try{const panel=f.open('模板');pending.reject(Error('storage denied'));await tick();assert.ok(panel.querySelector('.template-card'));Array.from(panel.querySelectorAll('.template-tabs button')).find(button=>button.textContent==='我的模板').click();assert.match(panel.textContent,/模板读取失败：storage denied/);}finally{f.close();}
 });
 function templateFixture(){
  const f=fixture(),{window,document}=f,pending=deferred();let request;const context={window,document,console,structuredClone,crypto:{randomUUID:()=> 't'},innerWidth:1100,innerHeight:800,CustomEvent:window.CustomEvent,Option:window.Option,indexedDB:{open(){request={};return request;}}};window.CanvasProjects={id:()=> 'project-a',registerNavigationGuard(){}};window.TemplatesCore={capture:()=>({nodes:[]})};

@@ -38,7 +38,26 @@
 node --test tests/ecommerce-photoset.test.cjs tests/ecommerce-photoset-runtime.test.cjs
 ```
 
-当前16个定向测试通过。直接执行官方zb/jb/Eb函数核对初始状态、逐项参数和token正文；使用实际TaskService核对逐项派发、taskId持久门阻塞、完整原图输入、unknown查询、不同callId去重、配置缺失、源字节/项目/会话变化、画布与会话保存失败、撤销删除与上下文真实性。Node中的图片解码和供应商输出为明确测试适配，不是实际供应商生成或浏览器视觉证据。
+当前18个定向测试通过。直接执行官方zb/jb/Eb函数核对初始状态、逐项参数和token正文；使用实际TaskService核对逐项派发、taskId持久门阻塞、完整原图输入、unknown查询、不同callId去重、配置缺失、源字节/项目/会话变化、画布与会话保存失败、撤销删除与上下文真实性。Node中的图片解码和供应商输出为明确测试适配，不是实际供应商生成或浏览器视觉证据。
+
+## 2026-10-05 官方交互与参数复核
+
+本次设计来源仍为manifest绑定的原HTML；安装包 `web/assets/page-DVqoHdTT.js` 的 `SN` 也使用同一 `ui://tapnow/ecommerce-photoset@v2` URI。以下为原HTML函数与现有接线核对，不代表本次完成了浏览器点击或真实供应商生成。
+
+| 官方操作或状态 | 原HTML实现 | 本地接线与证据 |
+| --- | --- | --- |
+| 点击行、Enter/Space展开，编辑主题/画面/文案，完成收起 | `qs/vy/yc`，主题30字、两正文各500字 | 使用原页面；`validateEcommercePhotosetState`保留相同编辑长度与状态结构 |
+| 模型、比例、分辨率、张数、质量选择 | `Gb/Bb/qi/zb` | Amazon质量固定low/medium/high，忽略quality.values限制；freeform使用提供的质量选项，未提供时省略quality |
+| 确认层、取消、Escape返回按钮焦点 | `sy/Py/Sc` | 原页面保留；取消不调用生成工具，确认提交先保存pending |
+| Amazon确认后逐行真实任务 | `uy/ly/Eb/Ub` | 精确核验已存pending、callId、真实源图SHA，再接生产TaskService；18项定向测试覆盖配置缺失与持久派发门 |
+| freeform确认方案与已接受但未存最终状态的恢复 | `ry/iy/ay` | 精确原计划正文、handoffId、真实来源与正常Agent队列接线；原页面处理accepted恢复 |
+| 普通重绘、刷新、unknown重新核对 | `zb`与`xi`还原uncertain序号 | 账本绑定原taskId并GET recover；不同callId的等价请求不新增POST，原节点缺失不重建 |
+| 保存期间关闭、会话/项目变化、源字节替换 | 原页串行`zi/wc`，宿主生命周期 | runtime的scope/状态身份/SHA守卫拒绝失效动作，已接受任务继续由实际任务历史核对 |
+| 任务结果应用 | 官方提示Canvas节点为真相来源 | 生产GenerationAPI的spread占位与标准结果回填；submitted仅表示已提交，真实产物与视觉验收另行核对 |
+
+本次修复前，Amazon输入 `param_options.quality.values:["medium"]` 后原页面允许选low/high，但宿主保存会拒绝；freeform省略quality或只给high/low选项时，宿主初始值错误地补medium。新增回归直接执行原HTML的`zb/jb/Eb`，先重现这两处不一致，再验证修复。原HTML及其SHA没有修改。
+
+最短CUA复核入口：`/src/features/agent-apps/qa/ecommerce-photoset.html`。导入真实产品图片 → 在方案JSON将`param_options.quality.values`设为`["medium"]` → 打开官方组图 → 质量选择低/高 → 展开行编辑并点完成 → 确认并生成 → 取消或Escape → 再次确认提交。检查保存状态quality保留选择；无配置时失败原因为configuration_required且jobs为0。freeform分支将mode改为freeform、删除params.quality、把quality.values设为`["high","low"]`；开新卡后初始质量应为high，确认方案的持久队列params.quality同为high。此入口沿用专用IndexedDB，不使用其他项目或私密任务库；有配置时确认会真实调用供应商，应由根任务安排受控验收。
 
 专属真实浏览器页：`/src/features/agent-apps/qa/ecommerce-photoset.html`。默认无产品素材，由文件上传进入专用IndexedDB。页面使用生产registry/controller/host、GenerationAPI、生成历史与TaskService；实际配置会联系本机gateway并派发真实任务。可核对原图、编辑计划、逐项生成、配置缺失、保存失败、普通重绘、reload、持久回读和原任务GET恢复。恢复只应用原canvasResults占位；已存在且与taskId/实际媒体完全相同的产物仅回读，不创建重复节点。不提供合成示例媒体或固定产物假生成。“连接本机生成 API”直接调用生产GenerationAPI.configure弹窗；沿用现有本机配置链，不另实现配置UI。
 
@@ -46,6 +65,8 @@ node --test tests/ecommerce-photoset.test.cjs tests/ecommerce-photoset-runtime.t
 
 ## 根任务当前浏览器证据
 
-根任务已通过CUA从真实本地Sony产品PNG导入616×497像素来源，打开官方面板并实际编辑、保存第一行主题。在没有API配置的状态下点击官方确认提交，两行均显示failed/configuration_required，实际生成jobs为0。此证据覆盖真实上传、编辑保存、官方确认与无配置拒绝；不能证明配置后的供应商生成、全部语言或完整视觉验收通过。
+2026-10-05根任务通过CUA在 `?session=20261005-photoset-quality` 的独立数据库中导入真实Sony产品PNG（616×497）。输入质量选项仅medium，原页面仍可选择high/low并持久保存；第一行主题改为“产品主图本地”并点完成。确认层展示低质量，Escape关闭后焦点回确认按钮；再次确认时两行均为configuration_required，jobs为0。本机公开配置当时明确 `configured:false`。
+
+Freeform新卡省略params.quality、只提供high/low，初始值为high；实际“确认方案”完成一次交接，队列保留high、真实来源SHA及handed_off状态。通过原生Tab/Shift+Tab/Return完成双层iframe操作，没有脚本绕过确认。截图为[本地实际质量与编辑页面](../../../docs/screenshots/photoset-quality-20261005.jpg)。这些证据不能证明配置后的供应商生成、全部语言或完整像素验收通过。
 
 共享生产接线与工具/费用边界见 项目根 `docs/agent-apps-local-generation-contract.md`。共享controller测试验证真实保存状态后freeform新用户队列、MCP structuredContent包装、投影换源capture重建；这些检查不替代供应商实际生成与官方视觉验收。官方五语言确认层经原SHA绑定的本地展示派生显示“未提供费用估算”和配置供应商实际用量计费，原HTML字节保留，未接入Tapies扣费。
