@@ -1,5 +1,5 @@
-import {open} from '../../../../video-trim-ui.mjs';
-import {openVideoFrames} from '../../../../video-frames.mjs';
+import {open} from '../ui.mjs';
+import {openVideoFrames} from '../../video-media/frames.mjs';
 
 const app=window.CanvasApp,fixture=window.VideoTrimFixture;
 const panel=document.createElement('aside');panel.setAttribute('aria-label','本机剪辑事务验收');panel.style.cssText='position:fixed;right:12px;bottom:12px;z-index:10000;width:360px;padding:12px;background:#171717;color:#eee;border:1px solid #555;font:13px sans-serif';

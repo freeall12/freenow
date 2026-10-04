@@ -1,6 +1,6 @@
-import {parameters,changeParameters,parentVideo,mediaSource,upscaleFactor,validationError,buildRequest} from './video-upscale-core.mjs';
-import {chevron} from './video-upscale-icons.mjs';
-import {openVideoFrames} from './video-frames.mjs';
+import {parameters,changeParameters,parentVideo,mediaSource,upscaleFactor,validationError,buildRequest} from './core.mjs';
+import {chevron} from './icons.mjs';
+import {openVideoFrames} from '../video-media/frames.mjs';
 const app=window.CanvasApp,icons=window.CANVAS_MENU_ICONS,operations=new Map();
 const el=(tag,cls='',text)=>{const e=document.createElement(tag);e.className=cls;if(text!==undefined)e.textContent=text;return e;};
 const button=(label,fn,cls='')=>{const e=el('button',cls);e.type='button';e.setAttribute('aria-label',label);e.onclick=fn;return e;};
@@ -75,7 +75,7 @@ class Upscale {
       }
       const request=buildRequest(n,parent,info,url);if(parent.clip&&window.GenerationAPI.isConfigured())delete request.inputs[0].clip;guard();
       unsubscribe=window.GenerationAPI.subscribe(job=>{if(job.request.nodeId===id&&job.request.kind==='video.upscale'&&['queued','running'].includes(job.status)){op.jobId=job.id;if(this.alive){this.signature=null;this.sync();}}});
-      await window.GenerationAPI.runInPlace(request,{type:'video',guard,apply:async output=>{const history=await import('./video-history-core.mjs');guard();const n=this.node();app.updateNode(id,history.record(n,{id:crypto.randomUUID(),createdAt:Date.now(),request,outputs:[output]},window.NodeEditor.getConfig(n)));}});op.status='succeeded';
+      await window.GenerationAPI.runInPlace(request,{type:'video',guard,apply:async output=>{const history=await import('../video-history/core.mjs');guard();const n=this.node();app.updateNode(id,history.record(n,{id:crypto.randomUUID(),createdAt:Date.now(),request,outputs:[output]},window.NodeEditor.getConfig(n)));}});op.status='succeeded';
     }catch(error){op.status='failed';op.error=error.message;}finally{unsubscribe?.();if(this.alive){this.signature=null;this.sync();}}
   }
   close(){this.alive=false;this.listeners.abort();this.readController?.abort();this.closeMenu(false);this.root.remove();}

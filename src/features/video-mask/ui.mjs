@@ -1,8 +1,8 @@
-import * as core from './video-mask-core.mjs';
-import * as segmentation from './video-segmentation.mjs';
-import {mediaSource} from './video-creation-core.mjs';
-import {openVideoFrames} from './video-frames.mjs';
-import icons from './video-mask-icons.mjs';
+import * as core from './core.mjs';
+import * as segmentation from './segmentation.mjs';
+import {mediaSource} from '../video-creation/core.mjs';
+import {openVideoFrames} from '../video-media/frames.mjs';
+import icons from './icons.mjs';
 const app=window.CanvasApp,el=(tag,cls,text)=>{const e=document.createElement(tag);e.className=cls||'';if(text!==undefined)e.textContent=text;return e;};
 const button=(label,icon,fn,showText=false)=>{const b=el('button');b.type='button';b.setAttribute('aria-label',label);b.dataset.tooltip=label;b.innerHTML=icons[icon]||'';if(showText)b.append(el('span','',label));b.onclick=fn;return b;};
 const clock=time=>`${String(Math.floor(time/60)).padStart(2,'0')}:${String(Math.floor(time%60)).padStart(2,'0')}`;

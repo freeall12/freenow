@@ -4,7 +4,7 @@
 
 ## 实际媒体字段
 
-`video-tools.js` 的播放源是 `node.video || EDITOR_DATA.nodes[id].video`，封面来自 `node.image`。因此修复既支持显式旧 `video`，也支持缺失时的旧 EDITOR_DATA 回退；只写所选 `node.video`，不改共享 EDITOR_DATA。
+`src/features/video-tools/entry.js` 的播放源是 `node.video || EDITOR_DATA.nodes[id].video`，封面来自 `node.image`。因此修复既支持显式旧 `video`，也支持缺失时的旧 EDITOR_DATA 回退；只写所选 `node.video`，不改共享 EDITOR_DATA。
 
 新视频真实解码后，以同一已解码 reader 的首帧生成 JPEG 封面，写 `image` 并同步此节点已有 `fullImage/poster/thumbnail` 封面别名。黑色首帧也是真实结果，不使用无关样图。像素写 `pixelWidth/pixelHeight`，实际秒数换算 `durationMs`，与现有历史归档 `archive.mjs:78` 的 node 合同一致。`generation.duration` 是未来生成设置，保持不变。
 

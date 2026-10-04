@@ -1,5 +1,5 @@
 // Persisted generation history is independent of the transient gallery preview.
-import {resultProvenance,retainedProvenance,historicalProvenance} from './src/features/media-preview/provenance.mjs';
+import {resultProvenance,retainedProvenance,historicalProvenance} from '../media-preview/provenance.mjs';
 const clone=value=>structuredClone(value);
 export const mediaSource=n=>n?.video||'';
 export function option(value,index=0){

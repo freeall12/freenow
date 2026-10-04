@@ -1,6 +1,6 @@
 import * as core from './image-history-core.mjs';
 import {src,closed,spring} from './image-versions-core.mjs';
-import icons from './video-history-icons.mjs';
+import icons from './src/features/video-history/icons.mjs';
 const app=window.CanvasApp,el=(tag,cls='',text)=>{const e=document.createElement(tag);e.className=cls;if(text!==undefined)e.textContent=text;return e;};
 const css=el('link');css.rel='stylesheet';css.href='image-history.css';document.head.append(css);
 const node=id=>app.getState().nodes.find(n=>n.id===id),element=id=>app.getNodeElement?app.getNodeElement(id):document.querySelector(`.node[data-id="${CSS.escape(id)}"]`),signature=n=>JSON.stringify([src(n),n.imageHistory,n.generation,n.params,n.pendingOperation,n.x,n.y,n.width,n.height]);

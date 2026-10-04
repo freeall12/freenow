@@ -19,7 +19,7 @@ async function fixture(overrides={}){
   service.subscribe(job=>{for(const fn of listeners)fn(job);if(job.status==='succeeded')void runner.run(job.id);});
   // Read the actual UI adapter, so this test requires the dispatch receipt hook
   // to be wired through submitDerived rather than a separate test substitute.
-  const ui=fs.readFileSync(require.resolve('../generation-ui.js'),'utf8'),context={service,submitJob:(request,options)=>{calls.submit++;return service.submit(request,overrides.beforeDispatchReady?{...options,beforeDispatchReady:context=>overrides.beforeDispatchReady(context,options.beforeDispatchReady)}:options);},derivedTargets};
+  const ui=fs.readFileSync(require.resolve('../generation-ui.js'),'utf8'),context={service,localProvider:null,submitJob:(request,options)=>{calls.submit++;return service.submit(request,overrides.beforeDispatchReady?{...options,beforeDispatchReady:context=>overrides.beforeDispatchReady(context,options.beforeDispatchReady)}:options);},derivedTargets};
   vm.runInNewContext(ui.slice(ui.indexOf('  async function availability('),ui.indexOf('  function submitJob(')),context);
   vm.runInNewContext(ui.slice(ui.indexOf('  function submitDerived('),ui.indexOf('  window.GenerationAPI=')),context);
   const api={availability:options=>{calls.availability.push(options);return overrides.availability?overrides.availability(options):context.availability(options);},submitDerived:context.submitDerived,getJobs:()=>[...service.jobs.values()],cancel:id=>service.cancel(id),subscribe:fn=>{listeners.add(fn);return()=>listeners.delete(fn);},retryApplication:id=>runner.run(id)};

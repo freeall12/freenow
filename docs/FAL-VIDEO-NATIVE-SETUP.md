@@ -31,11 +31,11 @@ export GENERATION_ROUTES='{"video.upscale":{"models":{"flux-video-upscale":"falV
 
 ## 请求与结果合同
 
-输入保持现有 `video-upscale-core.mjs` 的 `video.upscale` 请求：一个 `source_video`、原尺寸、目标长边。FLUX 的 `mode/creativity/upscaleFactor/durationSeconds/duration` 必须一致；Topaz 的 `width/height/frameRate/slowMotion` 必须对应原尺寸与目标，拒绝裁画幅、缩小、额外滑块、多结果和供应商不明参数。
+输入保持现有 `src/features/video-upscale/core.mjs` 的 `video.upscale` 请求：一个 `source_video`、原尺寸、目标长边。FLUX 的 `mode/creativity/upscaleFactor/durationSeconds/duration` 必须一致；Topaz 的 `width/height/frameRate/slowMotion` 必须对应原尺寸与目标，拒绝裁画幅、缩小、额外滑块、多结果和供应商不明参数。
 
 本机来源须为实际 MP4 数据 URI。API 页面明确允许 Base64 data URI；本模块验证规范 Base64、完整 MP4 容器、真实字节大小上限。完整解码、尺寸与时长由既有浏览器读取流程及官方模型 API 验证；容器检查不声称证明文件一定可完整播放。公网输入只允许不含凭据的 HTTPS，拒绝原站、localhost、私网 IP 等；公网真实大小和时长最终受 fal 的官方限制，未提前下载整片做额外收费操作。
 
-片段必须先用既有 `LocalMedia.process('trim',...)` 得到真实选段 MP4，再移除裁片指令。任何遗留 `clip`、`trim`、`sourceClip` 都拒绝，不能处理整片替代选区。`video-upscale-ui.mjs` 已有这一实际裁片流程。
+片段必须先用既有 `LocalMedia.process('trim',...)` 得到真实选段 MP4，再移除裁片指令。任何遗留 `clip`、`trim`、`sourceClip` 都拒绝，不能处理整片替代选区。`src/features/video-upscale/ui.mjs` 已有这一实际裁片流程。
 
 Topaz发送 `{video_url,model:"Proteus",upscale_factor,H264_output:true,target_fps?}`；auto 不发送 target_fps。FLUX发送 `{video_url,upscale_factor,creativity,prompt?}`，不自动放宽安全参数。结果必须是官方单个 `video` File 的公网 MP4 URL；若声明 image/png、私网或带凭据 URL、无效文件大小则保持 unknown。缺省/nullable content_type 不捏造 MIME，交既有本机 materializer 下载和识别实际视频字节。不会虚构封面、输出尺寸或进度百分比。
 

@@ -1,5 +1,5 @@
-import {directions,modes,clampDuration,fitCreation,extendRequest,mediaSource} from './video-creation-core.mjs';
-import {openSubjects} from './subject-library.mjs';
+import {directions,modes,clampDuration,fitCreation,extendRequest,mediaSource} from './core.mjs';
+import {openSubjects} from '../../../subject-library.mjs';
 const app=window.CanvasApp,icons=window.CANVAS_MENU_ICONS;
 const el=(tag,cls,text)=>{const e=document.createElement(tag);e.className=cls||'';if(text!==undefined)e.textContent=text;return e;};
 const button=(label,icon,fn,cls='')=>{const b=el('button',cls);b.type='button';b.setAttribute('aria-label',label);b.dataset.tooltip=label;b.innerHTML=icons[icon]||'';b.onclick=fn;return b;};

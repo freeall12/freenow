@@ -1,7 +1,7 @@
 import {createAppController, prepareApp} from '../integration.mjs';
 import {cutlistReviewUri, initialCutlistReviewState} from '../cutlist-review.mjs';
 import {createCutlistReviewRuntime, createCutlistReviewExecutor} from '../cutlist-review-runtime.mjs';
-import {openVideoFrames} from '../../../../video-frames.mjs';
+import {openVideoFrames} from '../../video-media/frames.mjs';
 const status=document.getElementById('status'),cards=document.getElementById('cards'),reply=document.getElementById('reply'),busy=document.getElementById('busy'),outputs=document.getElementById('outputs');
 let database,chat={id:'qa-cutlist-review-chat',messages:[],replies:[]},graph={nodes:[],edges:[]},saving=false,queueSaving=false,executing=false,pageLeaving=false,lastOperation=null;
 async function openDatabase(){database=await new Promise((resolve,reject)=>{const request=indexedDB.open('tapnow-qa-cutlist-review-v1',1);request.onupgradeneeded=()=>{request.result.createObjectStore('sessions');request.result.createObjectStore('assets');};request.onsuccess=()=>{request.result.onversionchange=()=>request.result.close();resolve(request.result);};request.onerror=()=>reject(request.error);request.onblocked=()=>reject(Error('专用验收存储被旧页面阻塞'));});}

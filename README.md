@@ -112,7 +112,7 @@ scripts/、tests/         构建、派生资源、定向检查与回归
 docs/                  配置、功能合同、验收证据与历史记录
 ```
 
-根目录旧业务模块仍是运行依赖，按修改范围逐步迁移，不要直接移动或删除。[结构约定](docs/PROJECT-STRUCTURE.md) · [功能入口、构建与定向验证](docs/DEVELOPMENT-GUIDE.md)
+视频相关的 23 个源码与样式文件已归入 `src/features/video-*/`，根目录不再保留转发文件。其余旧业务模块按功能分批迁移，并同步更新生产入口、组件目录、服务端和验证页面。[结构约定](docs/PROJECT-STRUCTURE.md) · [功能入口、构建与定向验证](docs/DEVELOPMENT-GUIDE.md)
 
 普通前端模块直接加载。修改对应编辑器入口后运行相应构建命令：
 

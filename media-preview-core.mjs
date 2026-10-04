@@ -1,4 +1,4 @@
-import {batches,primaryPatch} from './video-history-core.mjs';
+import {batches,primaryPatch} from './src/features/video-history/core.mjs';
 import * as imageHistory from './image-history-core.mjs';
 import {previewModel} from './src/features/media-preview/provenance.mjs';
 export const resourceProvenance=resource=>resource.provenance||{kind:resource.model?'generation-result':'imported',mediaSource:resource.src,model:resource.model||null,prompt:resource.prompt||''};

@@ -1,7 +1,7 @@
 import {isGenerationMediaRef} from '../generation-results/media-ref.mjs';
 import {cutlistReviewUri, cutlistReviewBudget, prepareCutlistReview} from './cutlist-review.mjs';
 import {materializationScope} from '../world-node/materialization.mjs';
-import {openVideoFrames} from '../../../video-frames.mjs';
+import {openVideoFrames} from '../video-media/frames.mjs';
 const fail = message => {throw Error(message);};
 const hash = async bytes => [...new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))].map(byte => byte.toString(16).padStart(2, '0')).join('');
 const signature = node => JSON.stringify([node?.id, node?.type, node?.video, node?.clip ?? null, node?.trim ?? null]);

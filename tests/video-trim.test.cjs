@@ -1,5 +1,5 @@
 const test=require('node:test'),assert=require('node:assert/strict');
-const core=import('../video-trim-core.mjs');
+const core=import('../src/features/video-trim/core.mjs');
 test('clip starts centered for 3 seconds and keeps short source whole',async()=>{const {initialRange}=await core;assert.deepEqual(initialRange(8),{start:2.5,end:5.5});assert.deepEqual(initialRange(.6),{start:0,end:.6});assert.deepEqual(initialRange(NaN),{start:0,end:0});});
 test('clip movement holds length at both boundaries and resizing holds minimum second',async()=>{const {moveRange,resizeRange}=await core,r={start:2,end:5};assert.deepEqual(moveRange(r,-100,8),{start:0,end:3});assert.deepEqual(moveRange(r,100,8),{start:5,end:8});assert.deepEqual(resizeRange(r,'start',20,8),{start:4,end:5});assert.deepEqual(resizeRange(r,'end',-2,8),{start:2,end:3});});
 test('screen snap tolerance is 15px and Shift bypasses snapping at any scale',async()=>{const {pointerTime}=await core;assert.equal(pointerTime(48,100,10),5);assert.equal(pointerTime(48,100,10,true),4.8);assert.equal(pointerTime(480,1000,10),4.8);});

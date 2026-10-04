@@ -234,7 +234,7 @@
         else if(o.type==='video')patch={video:o.video||o.url,...(o.poster?{image:o.poster}:{} )};
         else patch={image:o.image||o.url||o.fullImage,fullImage:o.fullImage||o.image||o.url};
         target.guard();audioGuard();
-        if(!restored&&o.type==='video'&&!target.apply){const history=await import('./video-history-core.mjs'),n=app.getState().nodes.find(n=>n.id===job.request.nodeId);target.guard();patch=history.record({...n,video:n.video||window.EDITOR_DATA?.nodes[n.id]?.video},job,window.NodeEditor.getConfig(n));window.NodeEditor.invalidate();}
+        if(!restored&&o.type==='video'&&!target.apply){const history=await import('./src/features/video-history/core.mjs'),n=app.getState().nodes.find(n=>n.id===job.request.nodeId);target.guard();patch=history.record({...n,video:n.video||window.EDITOR_DATA?.nodes[n.id]?.video},job,window.NodeEditor.getConfig(n));window.NodeEditor.invalidate();}
         if(!restored&&o.type==='image'&&!target.apply){const history=await import('./image-history-core.mjs'),n=app.getState().nodes.find(n=>n.id===job.request.nodeId);target.guard();patch=history.record(n,job,window.NodeEditor.getConfig(n),window.VERSION_DATA?.[n.id]);window.NodeEditor.invalidate();}
         if(!restored&&!target.apply&&patch.generation&&target.patch?.generation)patch.generation={...patch.generation,...target.patch.generation};
         let proposed;
@@ -265,7 +265,7 @@
         const expected=videoTargets.get(job.id),n=app.getState().nodes.find(n=>n.id===job.request.nodeId);
         const guard=()=>{if(!n||!app.getState().nodes.includes(n)||videoSignature(n)!==expected)throw Error('视频或生成参数已变化，请重新生成');draftGuards.get(job.id)?.();};guard();
         if(job.outputs.some(o=>o.type!=='video'))throw Error('视频节点需要视频生成结果');
-        await Promise.all(job.outputs.map(validateOutputMedia));const history=await import('./video-history-core.mjs');guard();
+        await Promise.all(job.outputs.map(validateOutputMedia));const history=await import('./src/features/video-history/core.mjs');guard();
         window.NodeEditor.invalidate();app.updateNode(n.id,history.record({...n,video:n.video||window.EDITOR_DATA?.nodes[n.id]?.video},job,window.NodeEditor.getConfig(n)));stored.resultIds=[n.id];
       }
       if(!stored.resultIds&&imageTargets.has(job.id)){

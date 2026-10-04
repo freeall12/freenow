@@ -1,4 +1,4 @@
-import {openVideoFrames} from '../../../video-frames.mjs';
+import {openVideoFrames} from '../video-media/frames.mjs';
 const encode=canvas=>new Promise((resolve,reject)=>canvas.toBlob(blob=>blob?.size?resolve(blob):reject(Error('视频缩略图编码失败')),'image/jpeg',.85));
 // Use the same decoded reader for validation and the genuine first frame. A
 // black first frame is a valid result; never replace it with unrelated artwork.

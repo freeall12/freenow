@@ -1,5 +1,5 @@
 import {createWorkflowMediaResolver} from '../agent-workflows/media-resolver.mjs';
-import {openVideoFrames} from '../../../video-frames.mjs';
+import {openVideoFrames} from '../video-media/frames.mjs';
 
 const kind='widget-media-handoff';
 const fail=(code,message,details={})=>Object.assign(Error(message),{code,...details});

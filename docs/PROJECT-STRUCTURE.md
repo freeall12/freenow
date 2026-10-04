@@ -6,6 +6,26 @@
 
 ## 已落地的功能目录
 
+### 视频工具目录
+
+视频模块已从根目录整体迁入以下业务目录；`index.html` 直接加载 `video-tools/entry.js`，不保留根目录兼容壳。
+
+| 目录（均在 `src/features/` 下） | 文件与职责 |
+| --- | --- |
+| `video-tools/` | `entry.js`：画布视频工具桥接、菜单及按需加载 |
+| `video-creation/` | `core.mjs`、`ui.mjs`：创建、延长视频及参数面板 |
+| `video-analysis/` | `ui.mjs`：视频解析面板与任务交互 |
+| `video-capture/` | `core.mjs`：取帧与本机捕获 |
+| `video-media/` | `frames.mjs`：共享帧读取 |
+| `video-history/` | `core.mjs`、`ui.mjs`、`icons.mjs`、`styles.css`：历史数据、卡片与样式 |
+| `video-mask/` | `core.mjs`、`ui.mjs`、`icons.mjs`、`segmentation.mjs`：蒙版编辑及分割客户端 |
+| `video-reshoot/` | `core.mjs`、`ui.mjs`、`icons.mjs`、`stage.mjs`：重拍参数、预览及片场 |
+| `video-trim/` | `core.mjs`、`ui.mjs`：剪辑范围、检测与本机处理 |
+| `video-upscale/` | `core.mjs`、`ui.mjs`、`icons.mjs`：增强参数与任务交互 |
+
+现有 `video-generation/` 保存节点生成规格；上述工具不与它合并。服务端仍在 `server/`；接口地址、节点存储身份、图标来源和模型适配合同不因源码搬迁变化。模块内部相对导入与 `new URL('./styles.css', import.meta.url)` 按所在目录解析；媒体输入继续相对页面 origin 解析。后续移动其他模块也需核对经典脚本中的动态导入、组件 catalog、静态 QA 入口及 VM 测试夹具。
+
+
 `src/features/generation-results/`
 
 - `plan.mjs`、`workflow.mjs`、`counts.mjs`：生成结果布局、事务编排、模型数量规则；画布事务的宿主桥接保留在 `app.js`。

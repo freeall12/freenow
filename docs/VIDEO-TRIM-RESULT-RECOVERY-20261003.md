@@ -6,7 +6,7 @@
 
 官方本地行为证据为 `reference/video-trim.md`、`reference/video-trim-live.json`、`reference/video-trim-shortcuts-live.json` 与 `reference/video-player-live.json`。已捕获的流程包含手动选区、智能剪辑、后台进度/停止、真实片段与来源连线。此次恢复保护属于本地可靠交付补齐，不声称捕获了官方同名保存恢复面板。
 
-此前生产 `video-trim-ui.mjs` 用节点 ID、video URL、clip 判断来源。编辑器关闭后允许后台继续，但该判断不能区分另一个项目的同 ID/URL，或删除后撤销恢复的新对象。结果 `createConnected` 已触发自动保存，但 handler 立即显示成功，没有等待 `saveProject()` / store flush 确认；保存失败没有独立重试入口。
+此前生产 `src/features/video-trim/ui.mjs` 用节点 ID、video URL、clip 判断来源。编辑器关闭后允许后台继续，但该判断不能区分另一个项目的同 ID/URL，或删除后撤销恢复的新对象。结果 `createConnected` 已触发自动保存，但 handler 立即显示成功，没有等待 `saveProject()` / store flush 确认；保存失败没有独立重试入口。
 
 ## 实现
 
@@ -19,7 +19,7 @@
 
 ```bash
 node --test tests/video-trim-result-transaction.test.cjs tests/video-trim-ui-ownership.test.cjs tests/video-trim.test.cjs tests/agent-video-trim.test.cjs
-node --check video-trim-ui.mjs
+node --check src/features/video-trim/ui.mjs
 node --check src/features/video-trim/result-transaction.mjs
 node --check src/features/video-trim/qa/fixture.js
 node --check src/features/video-trim/qa/controls.mjs

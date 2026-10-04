@@ -1,5 +1,5 @@
 import {createWorkflowMediaResolver} from '../agent-workflows/media-resolver.mjs';
-import {openVideoFrames} from '../../../video-frames.mjs';
+import {openVideoFrames} from '../video-media/frames.mjs';
 
 const failure=(code,message,details={})=>Object.assign(Error(message),{code,...details});
 const MAX_BYTES=80*1024*1024;

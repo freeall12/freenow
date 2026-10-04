@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import {point} from './video-reshoot-core.mjs';
+import {point} from './core.mjs';
 export function createStage(mount,image,onChange,onHandle){
   const scene=new THREE.Scene(),camera=new THREE.PerspectiveCamera(50,1,.1,100),renderer=new THREE.WebGLRenderer({alpha:true,antialias:true,preserveDrawingBuffer:true});renderer.setSize(216,216);renderer.setPixelRatio(Math.min(devicePixelRatio,2));mount.append(renderer.domElement);camera.position.set(0,1,15);camera.lookAt(0,0,0);
   const shell=new THREE.Mesh(new THREE.SphereGeometry(6.464,64,64),new THREE.ShaderMaterial({uniforms:{baseColor:{value:new THREE.Color('#cccccc')}},vertexShader:'varying vec3 n;varying vec3 v;void main(){n=normalize(normalMatrix*normal);vec4 p=modelViewMatrix*vec4(position,1.);v=normalize(-p.xyz);gl_Position=projectionMatrix*p;}',fragmentShader:'uniform vec3 baseColor;varying vec3 n;varying vec3 v;void main(){float e=pow(1.-max(dot(normalize(n),normalize(v)),0.),2.);gl_FragColor=vec4(mix(baseColor,vec3(0.),e*.5),.08+e*.45);}',transparent:true,side:THREE.FrontSide,depthWrite:false}));scene.add(shell, new THREE.AmbientLight(0xf2f2f7,.55));for(const [color,intensity,pos]of[[0xfff6df,1.05,[4,7,9]],[0xc5d9ff,.42,[-6,3,-2]],[0xffffff,.28,[0,2,-8]]]){const light=new THREE.DirectionalLight(color,intensity);light.position.set(...pos);scene.add(light);}

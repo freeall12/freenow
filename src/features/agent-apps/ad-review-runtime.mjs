@@ -1,7 +1,7 @@
 import {isGenerationMediaRef} from '../generation-results/media-ref.mjs';
 import {adReviewUri,adReviewBudget as budget,adReviewFields,adReviewText,prepareAdReview,resolveAdReviewReply} from './ad-review.mjs';
 import {materializationScope} from '../world-node/materialization.mjs';
-import {openVideoFrames} from '../../../video-frames.mjs';
+import {openVideoFrames} from '../video-media/frames.mjs';
 const fail=message=>{throw Error(message);};
 const hash=async bytes=>[...new Uint8Array(await crypto.subtle.digest('SHA-256',bytes))].map(byte=>byte.toString(16).padStart(2,'0')).join('');
 const clone=value=>structuredClone(value);

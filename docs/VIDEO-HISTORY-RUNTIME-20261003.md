@@ -1,6 +1,6 @@
 # 视频历史本地媒体与交互复验
 
-本批只修改 `video-history-ui.mjs`，不改历史持久化契约、生成接口、世界坐标、撤销记录或现有媒体。页面上的元数据读取只更新 `core.batches` 克隆出的临时选项，明确选择主图后才提交节点变更。
+本批只修改 `src/features/video-history/ui.mjs`，不改历史持久化契约、生成接口、世界坐标、撤销记录或现有媒体。页面上的元数据读取只更新 `core.batches` 克隆出的临时选项，明确选择主图后才提交节点变更。
 
 ## 官方依据与实现
 
@@ -15,7 +15,7 @@
 
 ## 已验证
 
-一次聚焦组合：`node --test tests/video-history-runtime.test.cjs tests/media-history-render.test.cjs tests/video-history.test.cjs`，21 项通过。独立交叉审核随后指出小预览 metadata 可能污染原源分辨率、错误层点击可能冒泡选择失败的视频，本批已修复并增加真实生产 `card.onclick → setMain` 与 DOM 父链冒泡回归；受影响专项 `node --test tests/video-history-runtime.test.cjs` 最终 9 项通过，`node --check video-history-ui.mjs` 通过。
+一次聚焦组合：`node --test tests/video-history-runtime.test.cjs tests/media-history-render.test.cjs tests/video-history.test.cjs`，21 项通过。独立交叉审核随后指出小预览 metadata 可能污染原源分辨率、错误层点击可能冒泡选择失败的视频，本批已修复并增加真实生产 `card.onclick → setMain` 与 DOM 父链冒泡回归；受影响专项 `node --test tests/video-history-runtime.test.cjs` 最终 9 项通过，`node --check src/features/video-history/ui.mjs` 通过。
 
 专项覆盖混合横/竖/方尺寸、首项小数 cell、原站媒体及 resolver redirect 阻止、asset poster/回退/重试、换批次/关闭后迟到解析和 metadata、主图保留原源分辨率、未知元数据不伪造、上层 dialog/菜单/Agent/IME、outside 与 Escape 回焦。VM 测试运行实际模块，不代表原生浏览器媒体播放或 Computer Use 已通过。
 

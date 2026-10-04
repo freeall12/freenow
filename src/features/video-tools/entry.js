@@ -1,7 +1,7 @@
 (() => {
   'use strict';
   const app=window.CanvasApp,ui=window.NodeActions,$=s=>document.querySelector(s);
-  const mediaDisplayReady=window.CanvasResourceDisplayReady||import('./src/features/local-resource-migration/display-media.mjs');
+  const mediaDisplayReady=window.CanvasResourceDisplayReady||import('../local-resource-migration/display-media.mjs');
   mediaDisplayReady.catch(()=>{});
   const unavailableMedia='原站资源已停用，请重新导入本地资源';
   const {el,btn,select,slider,toggle,start,place,close,popup,closePop,colors,footer,notify}=ui;
@@ -16,11 +16,11 @@
       const a=document.createElement('a');a.href=url;a.download=n.title+(src.startsWith('data:video/webm')?'.webm':'.mp4');a.click();
     }catch(error){notify(error.message);}
   }
-  async function extend(n){try{const ui=await import('./video-creation-ui.mjs');ui.openExtend(n);}catch(e){notify(e.message);}}
+  async function extend(n){try{const ui=await import('../video-creation/ui.mjs');ui.openExtend(n);}catch(e){notify(e.message);}}
   let enhancementModule;
   function upscale(n,existing=false){
     if(!existing){app.createConnected(n.id,[{type:'video',title:'视频增强',tool:'video-upscale',params:{resolution:'1080p',frame_rate:'auto',slow_motion:1,provider:'topazlabs'}}],{gap:100,preserveSize:true});return;}
-    enhancementModule ||= import('./video-upscale-ui.mjs');enhancementModule.then(m=>m.sync()).catch(e=>notify(e.message));
+    enhancementModule ||= import('../video-upscale/ui.mjs');enhancementModule.then(m=>m.sync()).catch(e=>notify(e.message));
   }
   const capturing=new Set();
   async function capture(n,mode='current'){
@@ -31,7 +31,7 @@
     preview.pause();const currentTime=preview.currentTime;let reader;
     capturing.add(n.id);document.querySelector('#node-toolbar [data-video-action="保存当前帧"]')?.setAttribute('disabled','');app.notify('正在截取画面...');
     try{
-      const [{openVideoFrames},{captureTime}]=await Promise.all([import('./video-frames.mjs'),import('./video-capture-core.mjs')]);
+      const [{openVideoFrames},{captureTime}]=await Promise.all([import('../video-media/frames.mjs'),import('../video-capture/core.mjs')]);
       const requested=captureTime({mode,currentTime,duration:preview.duration,clip:n.clip});
       reader=await openVideoFrames(await window.LocalAssets.url(src));
       const frame=await reader.at(requested,reader.width);
@@ -49,18 +49,18 @@
     menu.onkeydown=e=>{if(e.key==='Escape'||e.key==='Tab'){if(e.key==='Escape')e.preventDefault();e.stopPropagation();closePop();document.querySelector('#node-toolbar [data-video-action="保存当前帧"]')?.focus({preventScroll:true});return;}if(!['ArrowUp','ArrowDown','Home','End'].includes(e.key))return;e.preventDefault();e.stopPropagation();const items=[...menu.children].filter(item=>!item.disabled),i=items.indexOf(document.activeElement);items[e.key==='Home'?0:e.key==='End'?items.length-1:i<0?(e.key==='ArrowDown'?0:items.length-1):(i+(e.key==='ArrowDown'?1:-1)+items.length)%items.length].focus({preventScroll:true});};menu.focus({preventScroll:true});
   }
 
-  async function trim(n){try{const editor=await import('./video-trim-ui.mjs');editor.open(n);}catch(error){notify(error.message);}}
+  async function trim(n){try{const editor=await import('../video-trim/ui.mjs');editor.open(n);}catch(error){notify(error.message);}}
   function edit(n,kind='edit'){
-    if(['replace','erase'].includes(kind)){import('./video-mask-ui.mjs').then(m=>m.open(n,kind)).catch(e=>notify(e.message));return;}
-    if(kind==='edit'){import('./video-reshoot-ui.mjs').then(m=>m.open(n)).catch(e=>notify(e.message));return;}
-    if(kind==='compliance'){import('./media-review-ui.mjs').then(m=>m.submit(n.id)).catch(e=>notify(e.message));return;}
-    if(kind==='analyze')import('./video-analysis-ui.mjs').then(m=>m.analyze(n.id)).catch(e=>app.notify(e.message));
+    if(['replace','erase'].includes(kind)){import('../video-mask/ui.mjs').then(m=>m.open(n,kind)).catch(e=>notify(e.message));return;}
+    if(kind==='edit'){import('../video-reshoot/ui.mjs').then(m=>m.open(n)).catch(e=>notify(e.message));return;}
+    if(kind==='compliance'){import('../../../media-review-ui.mjs').then(m=>m.submit(n.id)).catch(e=>notify(e.message));return;}
+    if(kind==='analyze')import('../video-analysis/ui.mjs').then(m=>m.analyze(n.id)).catch(e=>app.notify(e.message));
   }
 
   function more(n,anchor){
     if(document.querySelector('.video-more-menu')){closePop();return;}
     const menu=popup(anchor,'video-more-menu');menu.dataset.nodeId=n.id;menu.setAttribute('role','menu');menu.setAttribute('aria-orientation','vertical');menu.tabIndex=-1;menu.setAttribute('aria-label','视频更多操作');anchor.setAttribute('aria-expanded','true');
-    for(const [name,kind,icon]of [['解析','analyze','videoAnalyze'],['Seedance 2.0 合规验证','compliance','compliance']]){const b=btn(name,()=>{closePop();edit(n,kind);});b.insertAdjacentHTML('afterbegin',window.CANVAS_MENU_ICONS[icon]);b.setAttribute('role','menuitem');b.onpointerenter=e=>{if(e.pointerType==='mouse'&&!b.disabled)b.focus({preventScroll:true});};menu.append(b);if(kind==='compliance')import('./media-review-ui.mjs').then(m=>m.bindMenu(b,n.id));}
+    for(const [name,kind,icon]of [['解析','analyze','videoAnalyze'],['Seedance 2.0 合规验证','compliance','compliance']]){const b=btn(name,()=>{closePop();edit(n,kind);});b.insertAdjacentHTML('afterbegin',window.CANVAS_MENU_ICONS[icon]);b.setAttribute('role','menuitem');b.onpointerenter=e=>{if(e.pointerType==='mouse'&&!b.disabled)b.focus({preventScroll:true});};menu.append(b);if(kind==='compliance')import('../../../media-review-ui.mjs').then(m=>m.bindMenu(b,n.id));}
     const r=anchor.getBoundingClientRect();menu.style.left=Math.max(8,Math.min(innerWidth-menu.offsetWidth-8,r.left))+'px';menu.style.top=Math.max(8,Math.min(innerHeight-menu.offsetHeight-8,r.bottom+8))+'px';
     menu.onkeydown=e=>{if(e.key==='Escape'||e.key==='Tab'){if(e.key==='Escape')e.preventDefault();e.stopPropagation();closePop();$('#node-toolbar [data-video-action="更多操作"]')?.focus({preventScroll:true});return;}if(!['ArrowUp','ArrowDown','Home','End'].includes(e.key))return;e.preventDefault();e.stopPropagation();const items=[...menu.children].filter(item=>!item.disabled),i=items.indexOf(document.activeElement);items[e.key==='Home'?0:e.key==='End'?items.length-1:i<0?(e.key==='ArrowDown'?0:items.length-1):(i+(e.key==='ArrowDown'?1:-1)+items.length)%items.length]?.focus({preventScroll:true});};menu.focus({preventScroll:true});
   }
@@ -132,7 +132,7 @@
   function positionToolbar(){const bar=$('#node-toolbar');if(bar.hidden||!bar.firstElementChild?.dataset.videoAction)return;const r=bar.getBoundingClientRect();if(r.right>innerWidth)bar.style.left=Math.max(10,innerWidth-r.width-10)+'px';}
   function render(event){const state=app.getState();if(event?.detail?.viewportOnly){trackViewport(state.view);if(lastTool)$('#node-toolbar').hidden=true;return;}reconcilePlayers(state);const n=state.selected.length===1?state.nodes.find(n=>n.id===state.selected[0]):null;if(n?.type!=='video'){media=null;lastTool=null;toolbarNode=null;return;}if(n.tool==='video-upscale'){const body=$(`.node[data-id="${n.id}"] .placeholder`);if(body)body.textContent='配置参数生成高清视频';if(lastTool!==n.id){lastTool=n.id;upscale(n,true);}if(source(n))media=inlinePlayer(n);else if(media)disposePlayer(media);$('#node-toolbar').hidden=true;return;}lastTool=null;media=inlinePlayer(n);const bar=$('#node-toolbar');bar.dataset.videoFor=n.id;if(toolbarNode===n&&bar.firstElementChild?.dataset.videoAction==='剪辑'){positionToolbar();return;}toolbarNode=n;bar.replaceChildren();const items=[['剪辑','✂',()=>trim(n)],['视频增强','▣',()=>upscale(n)],['主体替换','⇄',()=>edit(n,'replace')],['物体移除','▱',()=>edit(n,'erase')],['延长视频','◷',()=>extend(n)],['视频编辑','✎',()=>edit(n)],['保存当前帧','▧',b=>captureMenu(n,b)],['更多操作','⋯',b=>more(n,b)],['Pin','⚑',b=>colors(n,b)],['保存到素材库','⊞',()=>app.saveSelection()],['下载视频','↓',()=>downloadVideo(n)],['预览','⛶',()=>app.preview(n)]];for(const [label,icon,fn]of items){const b=btn('',()=>fn(b),'icon-btn');b.innerHTML=toolIcon(label);b.dataset.videoAction=label;b.setAttribute('aria-label',label);b.dataset.tooltip=label;if(['延长视频','视频编辑'].includes(label))b.append(el('i','video-new-dot'));if(label==='保存当前帧')b.disabled=capturing.has(n.id);if(['更多操作','保存当前帧'].includes(label)){b.setAttribute('aria-haspopup','menu');b.setAttribute('aria-expanded','false');}bar.append(b);}positionToolbar();}
   document.addEventListener('canvas:video-history-open',()=>{clearTimeout(hoverTimer);for(const p of players.values()){p.video.pause();p.sync();}});
-  import('./media-preview-ui.mjs').catch(e=>notify(e.message));
-  import('./video-history-ui.mjs').catch(e=>notify(e.message));
+  import('../../../media-preview-ui.mjs').catch(e=>notify(e.message));
+  import('../video-history/ui.mjs').catch(e=>notify(e.message));
   document.addEventListener('canvas:render',render);render();
 })();

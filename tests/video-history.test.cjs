@@ -1,5 +1,5 @@
 const test=require('node:test'),assert=require('node:assert/strict');
-const core=import('../video-history-core.mjs');
+const core=import('../src/features/video-history/core.mjs');
 const node={id:'v',type:'video',video:'red.mp4',image:'red.png',x:52000.25,y:-1800.5,width:435.125,height:250.375,generation:{prompt:'old',model:'old-model',count:3},params:{provider:'topazlabs'}};
 const job={id:'job',createdAt:1,request:{kind:'video.generate',prompt:'new',parameters:{model:'new-model',count:1}},outputs:[{type:'video',url:'blue.mp4',width:180,height:320},{type:'video',url:'green.mp4',width:320,height:180}]};
 test('record retains previous source and groups one real generation into a batch',async()=>{const c=await core,patch=c.record(node,job);assert.equal(patch.videoHistory.length,2);assert.equal(patch.videoHistory[1].options.length,2);assert.equal(patch.videoHistory[0].options[0].video,'red.mp4');assert.equal(patch.video,'blue.mp4');assert.equal(patch.generation.prompt,'new');assert.equal(patch.generation.model,'new-model');assert.equal(patch.generation.count,3);assert.equal(patch.height,435.125*320/180);assert.equal(node.video,'red.mp4');assert.equal(patch.x,undefined);});

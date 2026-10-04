@@ -1,5 +1,5 @@
 'use strict';
-const core=import('../video-mask-core.mjs');
+const core=import('../src/features/video-mask/core.mjs');
 const {assertNetworkDestination,protectGenerationFetch}=require('./generation-endpoint-policy.cjs');
 const {assertCredentialFree}=require('./outbound-client.cjs');
 const fail=(message,code,status=400)=>Object.assign(Error(message),{code,status});

@@ -1,6 +1,6 @@
 import {src,values} from './image-versions-core.mjs';
 import {resultProvenance,retainedProvenance,historicalProvenance} from './src/features/media-preview/provenance.mjs';
-export {copyPosition,grid} from './video-history-core.mjs';
+export {copyPosition,grid} from './src/features/video-history/core.mjs';
 const clone=value=>structuredClone(value);
 export function option(value,index=0){
   if(!value)return null;

@@ -2,7 +2,7 @@
 
 入口：`/src/features/video-history/qa/history-main.html?session=video-history-live-1003`。
 
-生成器从当前生产 `index.html` 复制主壳，追加本目录的 fixture / controls；正式 `video-history-ui.mjs`、CanvasApp、CanvasStore、LocalAssets、菜单及帮助 dialog 均使用生产代码。页面不含自动点击流程。开发者未操作浏览器；以下是待主任务执行的验收步骤。
+生成器从当前生产 `index.html` 复制主壳，追加本目录的 fixture / controls；正式 `src/features/video-history/ui.mjs`、CanvasApp、CanvasStore、LocalAssets、菜单及帮助 dialog 均使用生产代码。页面不含自动点击流程。开发者未操作浏览器；以下是待主任务执行的验收步骤。
 
 ```sh
 node src/features/video-history/qa/generate-history-app.cjs

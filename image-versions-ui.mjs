@@ -1,5 +1,5 @@
 import * as core from './image-versions-core.mjs';
-import icons from './video-history-icons.mjs';
+import icons from './src/features/video-history/icons.mjs';
 import * as history from './image-history-core.mjs';
 import {historySummary} from './image-history-ui.mjs';
 const app=window.CanvasApp,el=(tag,cls='',text)=>{const e=document.createElement(tag);e.className=cls;if(text!==undefined)e.textContent=text;return e;},node=id=>app.getState().nodes.find(n=>n.id===id),element=id=>app.getNodeElement?app.getNodeElement(id):document.querySelector(`.node[data-id="${CSS.escape(id)}"]`),values=n=>core.values(n,window.VERSION_DATA?.[n.id]);

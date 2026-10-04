@@ -1,8 +1,8 @@
-import * as core from './video-history-core.mjs';
-import icons from './video-history-icons.mjs';
-import {displayMediaRef,pendingImportMessage} from './src/features/local-resource-migration/display-media.mjs';
+import * as core from './core.mjs';
+import icons from './icons.mjs';
+import {displayMediaRef,pendingImportMessage} from '../local-resource-migration/display-media.mjs';
 const app=window.CanvasApp,el=(tag,cls,text)=>{const e=document.createElement(tag);e.className=cls||'';if(text!==undefined)e.textContent=text;return e;};
-const css=el('link');css.rel='stylesheet';css.href=new URL('./video-history.css',import.meta.url).href;document.head.append(css);
+const css=el('link');css.rel='stylesheet';css.href=new URL('./styles.css',import.meta.url).href;document.head.append(css);
 const node=id=>app.getState().nodes.find(n=>n.id===id),element=id=>app.getNodeElement?app.getNodeElement(id):document.querySelector(`.node[data-id="${CSS.escape(id)}"]`);
 let active=null;const decorations=new WeakMap();
 function historyCount(n){let total=0;for(const batch of n.videoHistory||[])for(const item of batch.options||[])if(typeof item==='string'?item:item?.video||item?.url)total++;return total||((n.versions||[]).filter(item=>item?.video).length);}

@@ -1,4 +1,4 @@
-import {prepareWorkflowInputs} from './src/features/agent-workflows/media-transport.mjs';
+import {prepareWorkflowInputs} from '../agent-workflows/media-transport.mjs';
 
 const app=window.CanvasApp,loading=new Map(),watching=new Map();
 const source=n=>n.video||window.EDITOR_DATA?.nodes[n.id]?.video;

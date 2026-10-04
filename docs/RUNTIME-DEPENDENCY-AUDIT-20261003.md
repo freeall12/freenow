@@ -225,7 +225,7 @@ App 外层卡片 `card.mjs:67` 使用 `sandbox="allow-scripts"`，文档安全 o
 | 入口 | 实际运行路径 | 被撤回的全局CSP影响 | 最小正确方向 |
 | --- | --- | --- | --- |
 | 生成配置中的直接tasks-v1网关 | `generation-ui.js:247–250` 允许URL+Key，切换到 `GenerationCore.httpProvider`；`generation-api.js:112–126` 发DELETE/POST/GET、轮询；`generation-ui.js:287` 对非本地provider仅判断是否存在 | 远程或另一本机端口会被connect-src拦截；界面可显示已配置但请求不能工作 | 保留合同和取消/查询语义，通过本地受控适配器连接用户网关；在适配完成前配置入口需准确显示不支持，不能静默保存成可用 |
-| 视频分割API配置 | `video-segmentation.mjs:11–12` URL+Key，POST `/segment-video`，可再fetch返回的rleUrl；`video-mask-ui.mjs:2,38` 实际调用 | POST与跨源蒙层文件读取均会被拦截 | 本地分割适配器需同时处理请求、取消与有界蒙层下载，而不只代理第一个POST |
+| 视频分割API配置 | `src/features/video-mask/segmentation.mjs:11–12` URL+Key，POST `/segment-video`，可再fetch返回的rleUrl；`src/features/video-mask/ui.mjs:2,38` 实际调用 | POST与跨源蒙层文件读取均会被拦截 | 本地分割适配器需同时处理请求、取消与有界蒙层下载，而不只代理第一个POST |
 
 全项目浏览器源码扫描中，上述两个是找到的内置用户URL+Key配置UI。其他可注入扩展hook应另外区分：
 

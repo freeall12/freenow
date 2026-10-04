@@ -35,7 +35,7 @@ test('sourceRange and previous/imported history omit defaults while genuine batc
 test('recorded variants preserve each origin and switching main survives reloading and subsequent edits',async()=>{
  const c=await modulePromise;
  for(const type of ['image','video']){
-  const history=await import(type==='video'?'../video-history-core.mjs':'../image-history-core.mjs'),source={id:'source',type,width:250,height:200,[type]:'studio-file',provenance:{kind:'studio-render'},generation:{model:'default-model'}},job={id:'job',request:{kind:`${type}.generate`,prompt:'real prompt',parameters:{model:'actual-model'}},outputs:[{type,url:'generated-file',width:100,height:100}]};
+  const history=await import(type==='video'?'../src/features/video-history/core.mjs':'../image-history-core.mjs'),source={id:'source',type,width:250,height:200,[type]:'studio-file',provenance:{kind:'studio-render'},generation:{model:'default-model'}},job={id:'job',request:{kind:`${type}.generate`,prompt:'real prompt',parameters:{model:'actual-model'}},outputs:[{type,url:'generated-file',width:100,height:100}]};
   const generated={...source,...history.record(source,job)},resources=c.resources(generated,{model:'edited-model'});assert.equal(resources[0].model,'actual-model');assert.equal(resources[1].model,null);
   const restored=JSON.parse(JSON.stringify({...generated,...c.mainPatch(generated,resources[1],{model:'next-model'})}));assert.equal(restored.provenance.kind,'studio-render');assert.equal(c.resources(restored,{model:'changed-again'})[0].model,null);
   const back={...restored,...c.mainPatch(restored,c.resources(restored).find(r=>r.src==='generated-file'),{model:'next-model'})};assert.equal(c.resources(back,{model:'next-model'})[0].model,'actual-model');

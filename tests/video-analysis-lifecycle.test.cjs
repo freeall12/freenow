@@ -1,6 +1,6 @@
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
 const transport=import('../src/features/agent-workflows/media-transport.mjs'),serialization=import('../src/features/agent-workflows/local-clip-resolver.mjs');
-const source=fs.readFileSync(require.resolve('../video-analysis-ui.mjs'),'utf8').replace(/^import[^\n]+\n/,'').replace('export async function analyze','async function analyze');
+const source=fs.readFileSync(require.resolve('../src/features/video-analysis/ui.mjs'),'utf8').replace(/^import[^\n]+\n/,'').replace('export async function analyze','async function analyze');
 const deferred=()=>{let resolve,reject;const promise=new Promise((a,b)=>{resolve=a;reject=b;});return{promise,resolve,reject};};
 const tick=()=>new Promise(resolve=>setImmediate(resolve));
 async function fixture({resolveUrl=async src=>src,availability=async()=>({configured:true}),fetchImpl,manualMetadata=false,manualReader=false,initialJobs=[]}={}){

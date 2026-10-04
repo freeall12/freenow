@@ -1,6 +1,6 @@
-import {initialRange,constrainRange,moveRange,resizeRange,pointerTime,keyboardRange,frameSignature,cutDistance,segmentsFromCuts} from './video-trim-core.mjs';
-import {openVideoFrames} from './video-frames.mjs';
-import {captureTrimOwner,createTrimResultTransaction} from './src/features/video-trim/result-transaction.mjs';
+import {initialRange,constrainRange,moveRange,resizeRange,pointerTime,keyboardRange,frameSignature,cutDistance,segmentsFromCuts} from './core.mjs';
+import {openVideoFrames} from '../video-media/frames.mjs';
+import {captureTrimOwner,createTrimResultTransaction} from './result-transaction.mjs';
 const app=window.CanvasApp, $=(q,root=document)=>root.querySelector(q), make=(tag,cls,text)=>{const e=document.createElement(tag);e.className=cls||'';if(text!==undefined)e.textContent=text;return e;};
 const icons=window.CANVAS_MENU_ICONS, source=n=>n.video||window.EDITOR_DATA?.nodes[n.id]?.video;
 const shortcuts=[['Arrow Left / Arrow Right','移动选区'],['Arrow Left / Arrow Right','扩展/收缩选区'],['Shift + Arrow Left / Arrow Right','精确微调 (0.01s)'],['Ctrl/Cmd + Arrow Left / Arrow Right','快速调整 (1s)'],['I / O','设置入点/出点'],['Enter','确认剪辑'],['Esc','取消'],['Space','播放/暂停预览'],['Hold Shift','精确模式（禁用吸附）']];

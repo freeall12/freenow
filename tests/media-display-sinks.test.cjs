@@ -89,7 +89,7 @@ function videoFixture(policy,node,ready=Promise.resolve(policy),assetResolver=as
  const f=dom(policy),state={nodes:[node],selected:[node.id]},nodeBody=f.el('div');f.body.append(nodeBody);const notices=[],assetReads=[],trims=[],downloads=[],players=new Map();
  const window={CANVAS_MENU_ICONS:{},CanvasLibrary:{isFavorite:()=>false},LocalAssets:{url:async source=>{assetReads.push(source);return assetResolver(source);}},LocalMedia:{trim:async value=>{trims.push(value);return {blob:{}};},download:(...args)=>downloads.push(args)}};
  const c=context({window,document:f.document,app:{getState:()=>state,preview(){}},$:()=>nodeBody,el:f.el,btn:(label,onclick,cls)=>Object.assign(f.el('button',cls,label),{onclick}),players,source:n=>n.video,muted:true,hoveredId:null,editing:()=>false,notify:message=>notices.push(message),mediaDisplayReady:ready,unavailableMedia:'原站资源已停用，请重新导入本地资源'});
- const source=read('video-tools.js');vm.runInContext(between(source,'  function player(','  async function extend(')+between(source,'  function inlinePlayer(','  function editing('),c);
+ const source=read('src/features/video-tools/entry.js');vm.runInContext(between(source,'  function player(','  async function extend(')+between(source,'  function inlinePlayer(','  function editing('),c);
  return {...f,c,state,notices,assetReads,trims,downloads,players};
 }
 test('inline player waits for policy, blocks originals, and rejects late or original asset resolution',async()=>{

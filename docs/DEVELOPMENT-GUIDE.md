@@ -21,6 +21,7 @@
 | 生成请求、结果布局、错误、历史 | `src/features/generation-results/`、`generation-history/`、`video-history/` | `generation-ui.js`、`server/generation.cjs`、`generation-durable.cjs`；结果保存后才确认已应用 |
 | 图片文档、蒙版及关联输入 | `src/features/image-editor/` 与根目录 `image-*-core.mjs` / `image-*-ui.mjs` | `image-editor-entry.mjs`、`image-mask-entry.mjs`；改对应打包入口后重建产物 |
 | 文本节点、引用和编辑器 | `src/features/text-generation/`、`text-editor-entry.mjs` | `canvas-text.js`、`canvas-text-ui.js`、`text-generation-ui.js`；正文/引用/连线保存是一条事务链 |
+| 视频创建、解析、剪辑、蒙版、重拍与增强 | `src/features/video-creation/`、`video-analysis/`、`video-trim/`、`video-mask/`、`video-reshoot/`、`video-upscale/` | `src/features/video-tools/entry.js`；取帧共用 `video-capture/` / `video-media/`，历史样式放 `video-history/` |
 | 音频、音色、字幕结果 | `src/features/audio-voices/`、`audio-subtitles/`、`agent-generation/audio.mjs` | `audio-core.js`、`audio-ui.js`、`server/generation-audio-subtitle.cjs`；字幕按源音频/任务身份更新 |
 | 分组运行和刷新恢复 | `src/features/workflow-recovery/` | `workflow-core.js`、`workflow-ui.js`、`GenerationAPI`、`CanvasStore`；先登记原任务再派发 |
 | Agent 输入、流、消息、历史和队列 | `src/features/agent-composer/`、`agent-stream/`、`agent-messages/`、`agent-history/`、`agent-queue/` | `agent-client.js`、`server/agent.cjs`、`server/agent-stream.cjs` |
@@ -29,7 +30,7 @@
 | 主体库、素材读取和历史资源修复 | `src/features/subject-library/`、`local-resource-migration/` | `local-assets.js`、`project-context.js`、`CanvasStore`；修复需要精确来源和保存守卫 |
 | 3D 资源预览、导入和独立片场 | `src/features/world-node/`、`studio-v2/` | `studio.mjs`、`studio-state.js`；`world` 是资源，`studio` 是可编辑场景，存储与导航规则分别维护 |
 | 供应商协议、媒体处理和下载 | `server/generation-*.cjs`、`media.cjs`、`playlist.cjs`、`video-segmentation.cjs` | `server/server.cjs`；配置路由、任务持久化、落盘与出站策略分别核对 |
-| 视频手动/智能剪辑与保存重试 | `src/features/video-trim/result-transaction.mjs`、`video-trim-ui.mjs` | `CanvasApp.createConnected/saveProject`、`LocalMedia`；归属与应用收据不依赖编辑器可见状态 |
+| 视频手动/智能剪辑与保存重试 | `src/features/video-trim/result-transaction.mjs`、`src/features/video-trim/ui.mjs` | `CanvasApp.createConnected/saveProject`、`LocalMedia`；归属与应用收据不依赖编辑器可见状态 |
 
 新增业务放入 `src/features/<feature>/`，复用已有宿主接口；只有实际共享的逻辑才放入 `src/shared/`。根目录旧模块在修改对应功能时逐步拆分。`component-library/` 是复用目录及预览宿主，部分组件依赖画布状态、存储或服务，不是全体可独立移植。
 

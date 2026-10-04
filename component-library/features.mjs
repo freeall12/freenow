@@ -11,10 +11,10 @@ const imageTools = Object.freeze({
   annotate: '../image-annotation-ui.mjs'
 });
 const videoTools = Object.freeze({
-  trim: ['../video-trim-ui.mjs', 'open'],
-  extend: ['../video-creation-ui.mjs', 'openExtend'],
-  reshoot: ['../video-reshoot-ui.mjs', 'open'],
-  mask: ['../video-mask-ui.mjs', 'open']
+  trim: ['../src/features/video-trim/ui.mjs', 'open'],
+  extend: ['../src/features/video-creation/ui.mjs', 'openExtend'],
+  reshoot: ['../src/features/video-reshoot/ui.mjs', 'open'],
+  mask: ['../src/features/video-mask/ui.mjs', 'open']
 });
 
 function canvasHost() {

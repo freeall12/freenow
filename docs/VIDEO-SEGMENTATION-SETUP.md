@@ -47,7 +47,7 @@ VIDEO_SEGMENTATION_API_KEY=
 
 也可返回 `{width,height,fps?,rleUrl}`：服务端读取供应商同 origin 的 HTTP(S) JSON数组，把逐帧RLE内联返回浏览器。相对地址按供应商基础地址解析；其他 origin、凭据地址和非HTTP(S)被拒绝。RLE GET 保留原接口的无额外认证行为，不转发分割 POST 的 Key；需要认证的供应商应直接返回 `frames`，或提供可直接读取的同源蒙层URL。
 
-结果使用 `video-mask-core.mjs` 原验证器：尺寸匹配、时长/帧率匹配、游程合法不重叠、不能全部为空。没有 `fps` 时按帧数/视频时长推导。服务端只返回 `width/height/fps/frames`，不返回供应商链接、额外元数据或错误正文。视频编辑的后续生成仍使用既有 `video.replace/video.erase` 网关。
+结果使用 `src/features/video-mask/core.mjs` 原验证器：尺寸匹配、时长/帧率匹配、游程合法不重叠、不能全部为空。没有 `fps` 时按帧数/视频时长推导。服务端只返回 `width/height/fps/frames`，不返回供应商链接、额外元数据或错误正文。视频编辑的后续生成仍使用既有 `video.replace/video.erase` 网关。
 
 ## 权限、失败与取消
 
@@ -87,8 +87,8 @@ if(pathname.startsWith('/api/video-segmentation/'))
 
 ```sh
 node --test tests/video-mask.test.cjs tests/video-segmentation-server.test.cjs
-node --check video-segmentation.mjs
-node --check video-mask-ui.mjs
+node --check src/features/video-mask/segmentation.mjs
+node --check src/features/video-mask/ui.mjs
 node --check server/video-segmentation.cjs
 ```
 

@@ -1,8 +1,8 @@
-import * as core from './video-reshoot-core.mjs';
-import {mediaSource} from './video-creation-core.mjs';
-import {openVideoFrames} from './video-frames.mjs';
-import {createStage} from './video-reshoot-stage.mjs';
-import icons from './video-reshoot-icons.mjs';
+import * as core from './core.mjs';
+import {mediaSource} from '../video-creation/core.mjs';
+import {openVideoFrames} from '../video-media/frames.mjs';
+import {createStage} from './stage.mjs';
+import icons from './icons.mjs';
 const app=window.CanvasApp,el=(tag,cls,text)=>{const e=document.createElement(tag);e.className=cls||'';if(text!==undefined)e.textContent=text;return e;};
 const button=(label,fn,icon=false)=>{const b=el('button','',icon?'':label);b.type='button';b.setAttribute('aria-label',label);if(icon){b.innerHTML=icons[label]||'';b.dataset.tooltip=label;}b.onclick=fn;return b;};
 let current;
