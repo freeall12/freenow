@@ -1,5 +1,6 @@
 import {audioIcons} from './audio-assets.mjs';
 import {videoModels} from './video-catalog.mjs';
+import {resolveProviderConfiguration,providerConfigurationStatus} from '../node-composer/provider-configuration.mjs';
 // Official Agent registry/schema, release eb1c357; MiniMax follows the verified native API extension.
 export const audioModels=[
  {id:'minimax-music-26',name:'MiniMax Music 2.6',icon:videoModels.find(model=>model.id==='MiniMax-H3').icon,virtual:'minimax-music-26',scenes:{Music:'music-2.6'}},
@@ -35,7 +36,7 @@ export function normalizeAudio(draft){
  }
  // Null is an explicit automatic duration, distinct from an omitted override.
  if(s.duration&&draft.duration===null)next.duration=null;
- if(s.duration&&next.duration!==null&&(next.duration<s.duration.min||next.duration>s.duration.max))next.duration=s.defaults.duration;
+ if(s.duration&&next.duration!==null&&(next.duration<s.duration.min||next.duration>s.duration.max)&&!(model.scenes[audioScene]==='sonilo-sfx'&&next.audioDurationExplicit))next.duration=s.defaults.duration;
  // Native MiniMax rejects residual lyrics in auto/instrumental mode; keep user input visible.
  if(next.lyricsMode!=='custom'&&!s.preserveLyrics)next.lyrics='';
  if(!('lyricsMode'in next))delete next.lyrics;
@@ -44,7 +45,7 @@ export function normalizeAudio(draft){
 const paramKeys={voice:'voice_id',stability:'stability',promptInfluence:'prompt_influence',loop:'loop',subtitle:'enable_subtitle',audioFormat:'format',sampleRate:'sample_rate',speechRate:'speech_rate',pitchRate:'pitch_rate',loudnessRate:'loudness_rate'};
 export function createAudioDraft(args,nodes=[]){
  const source=nodes.find(n=>n.id===args.nodeId)?.audioConfig||{},params=source.params||{};
- const base={kind:args.kind,nodeId:args.nodeId,prompt:source.prompt||'',model:args.model||source.model||'elevenlabs',audioScene:source.scene};
+ const base={kind:args.kind,nodeId:args.nodeId,prompt:source.prompt||'',model:args.model||source.model||'elevenlabs',audioScene:source.scene,audioDurationExplicit:args.duration!==undefined};
  const model=audioModel(base.model),wire=aliases[args.model]||args.model;
  if(args.model)base.audioScene=args.audioScene||Object.entries(model?.scenes||{}).find(([,id])=>id===wire)?.[0]||(model?.scenes[base.audioScene]?base.audioScene:undefined);
  const same=audioWire(normalizeAudio(base))===source.model;
@@ -58,6 +59,27 @@ export function audioCompatibility(draft,shape){
  if(shape.image>(s.images||0)||shape.audio>(s.audios||0)||shape.image&&shape.audio)return '当前模型不支持这些参考素材';return '';
 }
 export function audioOptions(draft){return {...audioSpec(draft)?.options,audioScene:Object.keys(audioModel(draft.model)?.scenes||{})};}
+// Duration provenance belongs to the local confirmation draft, never tool args.
+export function audioSourceVideoState(metadata,draft,nodes=[]){
+ if(audioWire(draft)!=='sonilo-sfx')return {candidate:false,active:false};
+ const refs=(draft.referenceIds??[]).map(id=>nodes.find(node=>node.id===id));
+ if(refs.length!==1||!refs[0]?.video)return {candidate:false,active:false};
+ const request={kind:'audio.generate',parameters:{model:'sonilo-sfx'}},selected=resolveProviderConfiguration(metadata,request);
+ if(!metadata)return {candidate:true,active:false,pending:true,label:'视频拟音供应商待确认'};
+ const profile=selected?.capabilities?.videoAudio?.['sonilo-sfx'];
+ if(selected?.protocol!=='fal-video-audio-native')return {candidate:true,active:false};
+ const availability=providerConfigurationStatus(metadata,request);
+ if(availability.configured!==true)return {candidate:true,active:false,reason:availability.message};
+ if(profile?.semantics!=='explicit-native-alternative'||profile.durationMode!=='source-video')return {candidate:true,active:false,reason:'视频拟音替代身份未明确配置'};
+ return {candidate:true,active:true,label:'跟随视频',hint:'实际供应商：ThinkSound Video-to-Audio（显式替代 Sonilo 音效）。生成前读取真实视频时长；未指定时长时跟随源视频。'};
+}
+export function audioConfirmationArguments(metadata,original,draft,next,nodes=[]){
+ const state=audioSourceVideoState(metadata,next,nodes);
+ if(state.active&&Object.keys(original).some(key=>!['kind','nodeId','model','audioScene','prompt','referenceIds','duration','count','position'].includes(key)))throw Error('ThinkSound 视频拟音不支持原始 Agent 设置，不会在确认时忽略指令');
+ if(state.active&&original.count!==undefined&&original.count!==1)throw Error('ThinkSound 视频拟音每个任务仅生成一个音频结果');
+ if(state.active&&original.duration===undefined&&draft.audioDurationExplicit!==true)delete next.duration;
+ return next;
+}
 export function validateAudioDraft(draft,refs=[]){
  const s=audioSpec(draft);if(!s)throw Error('音频模型或场景未识别');
  const reason=audioCompatibility(draft,{image:refs.filter(n=>n.type==='image').length,video:refs.filter(n=>n.type==='video').length,audio:refs.filter(n=>n.type==='audio').length});if(reason)throw Error(reason);

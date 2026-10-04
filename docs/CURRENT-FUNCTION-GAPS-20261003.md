@@ -8,6 +8,8 @@
 
 ## 已有实现，不重复开发
 
+2026-10-05补充：[视频工具与存储批次](LOCAL-VIDEO-TOOLS-STORAGE-BRAND-20261005.md)已接 ThinkSound 单视频拟音、Toolbar 延长镜头参考生成、个人素材库IndexedDB容量迁移、模板离页保护及嵌套制作进度卡品牌。Ark本地视频公网传输、Sonilo音乐/分段、92份HTML原文、SPZ渲染与真实Key验收仍开放；不要将新增适配简化为“所有菜单仅填Key即可”。
+
 - 当前 `agent-apps/registry.mjs` 已登记官方 manifest 全部22个版本URI、20个功能族，包括历史 animatic v1 / character-blocking v1；Creative 已接受严格 family 参数及拒绝退役A05推荐。登记不等于全部状态/视觉验收。
 - `show_form` 的九类字段、新用户轮提交合同；Seedance 样片→正式片专用引用/投影；Agent 父子检查点与终态委派结果核对后继续，均已有生产入口。
 - HTML讨论、内层Escape、本地正文编辑与CAS保存；文本原子引用、共享音色目录/试听；图片/视频/音频旧节点文件导入修复；生成媒体实际本机归档均已有专项代码和最新文档。

@@ -108,3 +108,10 @@ test('official cloud media stays in library data but is not exposed or imported 
  for(const key of ['source_url','preview_url'])assert.throws(()=>f.m.prepareLibraryPicker({...data,assets:[{...item,[key]:'https://files.tapnow.media/private-image.png'}]}));
  await assert.rejects(ctx.addToCanvas({asset:{media_type:'image',source_url:'library://private/a1',name:'小猫'}},{userAction:true}));assert.equal(f.nodes.length,0);
 });
+
+test('runtime waits for actual library hydration and rejects project changes during that wait',async()=>{
+ const {createLibraryPickerRuntime}=await import('../src/features/agent-apps/library-picker-runtime.mjs'),m=await load();
+ for(const change of [false,true]){let loaded=false,reads=0,project='original';const gate=deferred(),library={async ready(){await gate.promise;loaded=true;},get items(){reads++;if(!loaded)throw Error('not ready');return [{id:'old',name:'真实记录',type:'text',folder:'测试'}];},get folders(){if(!loaded)throw Error('not ready');return ['测试'];}};
+  const runtime=createLibraryPickerRuntime({library,app:{getState:()=>({nodes:[]}),insertAsset(){}},store:{save:async()=>true},getProjectId:()=>project,persistConversation:async()=>true}),pending=runtime.prepareAppArgs({resource_uri:m.libraryPickerUri,data:{}});assert.equal(reads,0);if(change)project='other';gate.resolve();if(change)await assert.rejects(pending,/已变化/);else{const result=await pending;assert.equal(result.data.folders.find(item=>item.path==='测试').asset_count,1);assert.ok(reads>0);}
+ }
+});

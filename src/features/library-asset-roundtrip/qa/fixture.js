@@ -1,7 +1,7 @@
 (() => {
  'use strict';
  const session=new URLSearchParams(location.search).get('session')||'default',prefix='qa-library-roundtrip:'+encodeURIComponent(session)+':',preferences=new Map(),nativeLocks=navigator.locks;
- let writes=Promise.resolve(),database;
+ let writes=Promise.resolve(),database,libraryWriteAttempts=0;const capacity=new URLSearchParams(location.search).get('capacity')==='1';
  const ready=new Promise((resolve,reject)=>{
   const request=indexedDB.open(prefix+'preferences',1);
   request.onupgradeneeded=()=>request.result.createObjectStore('records');
@@ -13,11 +13,11 @@
   writes.catch(error=>console.error('QA preferences:',error));
  }
  const flush=async()=>{let pending;do{pending=writes;await pending;}while(pending!==writes);};
- Object.defineProperty(window,'localStorage',{value:{getItem:key=>preferences.get(key)??null,setItem(key,value){preferences.set(key,String(value));persist(key,String(value));},removeItem(key){preferences.delete(key);persist(key,null);},key:index=>[...preferences.keys()][index]??null,get length(){return preferences.size;}}});
- // The production library still calls its real CAS/Web Locks write path.
- // Its QA lock only resolves after the independent IDB transaction commits.
+ Object.defineProperty(window,'localStorage',{value:{getItem:key=>preferences.get(key)??null,setItem(key,value){if(capacity&&['tapnow-library','tapnow-folders'].includes(key)){libraryWriteAttempts++;throw new DOMException('QA localStorage quota exceeded','QuotaExceededError');}preferences.set(key,String(value));persist(key,String(value));},removeItem(key){preferences.delete(key);persist(key,null);},key:index=>[...preferences.keys()][index]??null,get length(){return preferences.size;}}});
+ // Older QA preference consumers still use locks. Production CanvasLibrary
+ // commits through its actual CanvasStore record transaction in the session DB.
  Object.defineProperty(navigator,'locks',{value:{request(name,options,callback){if(typeof options==='function'){callback=options;options=undefined;}const operation=async lock=>{const result=await callback(lock);await flush();return result;};return nativeLocks?.request?(options?nativeLocks.request(prefix+name,options,operation):nativeLocks.request(prefix+name,operation)):operation(null);}}});
- window.LibraryRoundtripQAStorage={ready,flush,namespace:prefix};
+ window.LibraryRoundtripQAStorage={ready,flush,namespace:prefix,get libraryWriteAttempts(){return libraryWriteAttempts;}};
  window.CANVAS_DB_NAME=prefix+'canvas';window.LOCAL_ASSETS_DB_NAME=prefix+'assets';window.TEMPLATE_DB_NAME=prefix+'templates';
  window.CANVAS_DATA={referenceWidth:889,referenceHeight:1011,nodes:[],edges:[]};
  window.addEventListener('pagehide',()=>database?.close());

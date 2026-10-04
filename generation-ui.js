@@ -48,7 +48,8 @@
     }
     if(request.kind==='video.extend'){
       extensionMedia||=import('./src/features/video-creation/media.mjs');
-      return (await extensionMedia).prepareExtensionMedia(request,{signal,validateSources,localAssets:window.LocalAssets,localMedia:window.LocalMedia,baseUrl:document.baseURI});
+      const nativeConfiguration=service.jobs.get(jobId)?.transport===localProvider?taskNativeConfigurations.get(signal):null;
+      return (await extensionMedia).prepareExtensionMedia(request,{signal,validateSources,localAssets:window.LocalAssets,localMedia:window.LocalMedia,baseUrl:document.baseURI,nativeConfiguration});
     }
     if(request.kind==='video.analyze'){
       videoAnalysisMedia||=import('./src/features/node-composer/video-analysis-media.mjs');

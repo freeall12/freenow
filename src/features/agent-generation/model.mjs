@@ -1,7 +1,7 @@
 import {isDraftFinal,createDraftFinalDraft,confirmDraftFinal} from './draft-final.mjs';
 export {isDraftFinal};
 export {draftSummary} from './draft-final.mjs';
-import {audioModels,audioModel,createAudioDraft,normalizeAudio,audioOptions,audioCompatibility,validateAudioDraft,audioFields} from './audio.mjs';
+import {audioModels,audioModel,audioWire,createAudioDraft,normalizeAudio,audioOptions,audioCompatibility,validateAudioDraft,audioFields,audioConfirmationArguments} from './audio.mjs';
 export {audioModels};
 import {models,modelFor,normalize,countsFor,sizesFor,inputCompatibility} from '../image-generation/catalog.mjs';
 import {videoModels} from './video-catalog.mjs';
@@ -85,7 +85,7 @@ export function parameterOptions(draft,nodes=[]){
  return {videoMode:variants.map(v=>v.modelType),aspect:variant.options.aspectRatios,duration:variant.options.durations,resolution:variant.options.resolutions,quality:variant.options.modes,generateAudio:variant.options.supportsAudio?[true,false]:undefined};
 }
 const editableFields=[...audioFields,'prompt','model','aspect','imageSize','quality','count','duration','resolution','generateAudio','videoMode'];
-export function confirmedArguments(original,draft,nodes=[],edges=[]){
+export function confirmedArguments(original,draft,nodes=[],edges=[],{audioMetadata}={}){
  if(isDraftFinal(original))return confirmDraftFinal(original,draft,nodes,edges);
  if(!nodes.some(n=>n.id===original.nodeId))throw Error('来源节点已删除');
  if((original.referenceIds||[]).some(id=>!nodes.some(n=>n.id===id)))throw Error('参考素材已删除，请取消后重新提交');
@@ -93,7 +93,13 @@ export function confirmedArguments(original,draft,nodes=[],edges=[]){
  const next={...structuredClone(original)};
  for(const key of editableFields){if(draft[key]===undefined)delete next[key];else next[key]=draft[key];}
  // Never let confirmation editing change tool authority, target, or references.
- if(next.kind==='audio.generate'){validateAudioDraft(next,referencesFor(next,nodes));return next;}
+ if(next.kind==='audio.generate'){
+  audioConfirmationArguments(audioMetadata,original,draft,next,nodes);
+  // A source-video confirmation may intentionally omit duration. Validate the
+  // local default without turning it back into an explicit tool instruction.
+  const refs=referencesFor(next,nodes),sourceVideoDuration=next.duration===undefined&&audioWire(next)==='sonilo-sfx'&&refs.length===1&&!!refs[0].video;
+  validateAudioDraft(sourceVideoDuration?normalizeAudio(next):next,refs);return next;
+ }
  const model=findModel(next.kind,next.model);
  if(model){const error=compatibility(next.kind,model,referenceShape(next,nodes));if(error)throw Error(error);const options=parameterOptions({...next,...next.kind==='image.generate'?{resultMode:generationResultMode(draft.resultMode)}:{}},nodes);for(const [key,values]of Object.entries(options))if(values?.length&&next[key]!==undefined&&!values.includes(next[key]))throw Error('生成参数无效：'+key);}
  return next;

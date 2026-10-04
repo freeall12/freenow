@@ -226,6 +226,12 @@
             if (!response.ok) throw new Error("template fetch failed: " + response.status);
             return response.text();
           })
+          .then(async function (templateHtml) {
+            var brand = await import("../production-progress-local-brand.mjs");
+            var response = await fetch(brand.productionProgressBrandUrl);
+            if (!response.ok) throw new Error("local production brand fetch failed: " + response.status);
+            return brand.localizeProductionProgressBrand(templateHtml, name, version, await response.text());
+          })
           .then(function (templateHtml) {
             inner.srcdoc = buildSrcdocWithCsp(templateHtml, buildCspPolicy(params.csp));
           })

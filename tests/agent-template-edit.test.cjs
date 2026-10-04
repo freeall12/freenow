@@ -191,3 +191,53 @@ test('save restores lost button focus to the textarea without stealing an intent
     }
   } finally { dom.window.close(); }
 });
+
+test('template editor protects unsaved and pending HTML on page leave and removes its unload guard on close', async () => {
+  const {openTemplateSourceEditor} = await import(base + 'template-source-editor.mjs');
+  const dom = makeDom(), document = dom.window.document;
+  const initial = {title: '合成离页验证', artifact_path: 'artifacts/unload.html', revision: 1, content: '<html>initial</html>'};
+  let resolveSave, rejectSave, resolveRefresh, closeCount = 0, detached = 0;
+  const originalRemove = dom.window.removeEventListener.bind(dom.window);
+  dom.window.removeEventListener = (type, ...args) => { if (type === 'beforeunload') detached++; originalRemove(type, ...args); };
+  const session = {
+    read: () => initial,
+    save: ({content}) => new Promise((resolve, reject) => { resolveSave = () => resolve({...initial, revision: 2, content}); rejectSave = reject; }),
+    close: () => { closeCount++; },
+  };
+  const editor = openTemplateSourceEditor({session, document, onSaved: () => new Promise(resolve => { resolveRefresh = resolve; })});
+  const textarea = editor.element.querySelector('textarea'), save = [...editor.element.querySelectorAll('button')].find(button => button.textContent === '保存修改');
+  const leavePrevented = () => { const event = new dom.window.Event('beforeunload', {cancelable: true}); dom.window.dispatchEvent(event); return event.defaultPrevented; };
+  const input = content => { textarea.value = content; textarea.dispatchEvent(new dom.window.Event('input')); };
+  try {
+    assert.equal(leavePrevented(), false, 'clean editor allows page leave');
+    input('<html>unsaved local draft</html>');
+    assert.equal(leavePrevented(), true, 'unsaved HTML cannot silently disappear on reload');
+    const failedSave = save.onclick();
+    assert.equal(leavePrevented(), true, 'pending save stays protected');
+    rejectSave(Error('合成保存失败')); await failedSave;
+    assert.equal(leavePrevented(), true, 'failed draft remains protected');
+    const successfulSave = save.onclick(); resolveSave();
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(leavePrevented(), true, 'committed HTML stays protected while the save callback is pending');
+    resolveRefresh(); await successfulSave;
+    assert.equal(leavePrevented(), false, 'successful save no longer warns');
+    input('<html>invalidated draft</html>'); editor.invalidate('合成来源已失效');
+    assert.equal(leavePrevented(), true, 'source invalidation does not discard the draft');
+    editor.close();
+    assert.equal(editor.element.querySelector('.agent-template-discard').hidden, false);
+    [...editor.element.querySelectorAll('button')].find(button => button.textContent === '放弃修改并关闭').onclick();
+    assert.equal(closeCount, 1); assert.equal(detached, 1);
+    assert.equal(leavePrevented(), false, 'explicit discard removes the unload listener');
+    for (let index = 0; index < 2; index++) {
+      const reopened = openTemplateSourceEditor({session, document});
+      assert.equal(leavePrevented(), false, 'a fresh clean editor does not inherit a closed draft');
+      const reopenedText = reopened.element.querySelector('textarea');
+      reopenedText.value = '<html>reopened draft</html>'; reopenedText.dispatchEvent(new dom.window.Event('input'));
+      assert.equal(leavePrevented(), true);
+      reopenedText.value = initial.content; reopenedText.dispatchEvent(new dom.window.Event('input'));
+      assert.equal(leavePrevented(), false, 'returning to saved content allows navigation');
+      reopened.close(); assert.equal(leavePrevented(), false);
+    }
+    assert.equal(closeCount, 3); assert.equal(detached, 3, 'every opened editor detaches its own guard');
+  } finally { dom.window.close(); }
+});

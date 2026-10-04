@@ -17,7 +17,7 @@ node --env-file=.env.local server/server.cjs
 | `GENERATION_PROVIDERS` | JSON：供应商 ID → 配置 |
 | `GENERATION_ROUTES` | JSON：准确操作 kind → 供应商 ID 或 `{default,models}` |
 
-供应商配置允许 `protocol`、`apiKeyEnv`、`baseUrl` / `baseUrlEnv`、`modelMap` / `modelMapEnv`。Key 只允许通过环境变量名称引用；JSON 中的 `apiKey` 会使路由无效。地址和模型映射的内联值与环境引用不能同时提供。`modelMapEnv` 所引用的值同样为 JSON。协议支持 `openai-native`、`ark-native`、`fal-native`、`fal-video-native`、`minimax-native`、`minimax-music-native`、`tripo-native`、`elevenlabs-native`、`elevenlabs-sound-native`、`elevenlabs-music-native`、`mureka-native`、`seed-audio-native`、`openai-masked-edit-native`、`marble-native` 和 `tasks-v1`。fal 抠图和 Topaz 放大的可直接使用配置见 [fal 图片工具](FAL-NATIVE-SETUP.md)。
+供应商配置允许 `protocol`、`apiKeyEnv`、`baseUrl` / `baseUrlEnv`、`modelMap` / `modelMapEnv`。Key 只允许通过环境变量名称引用；JSON 中的 `apiKey` 会使路由无效。地址和模型映射的内联值与环境引用不能同时提供。`modelMapEnv` 所引用的值同样为 JSON。协议支持 `openai-native`、`ark-native`、`ark-video-extend-reference`、`fal-native`、`fal-video-native`、`fal-video-audio-native`、`minimax-native`、`minimax-music-native`、`tripo-native`、`elevenlabs-native`、`elevenlabs-sound-native`、`elevenlabs-music-native`、`mureka-native`、`seed-audio-native`、`openai-masked-edit-native`、`marble-native` 和 `tasks-v1`。fal 抠图和 Topaz 放大的可直接使用配置见 [fal 图片工具](FAL-NATIVE-SETUP.md)。
 
 两项路由变量都未设置时，原单供应商配置保持不变。只设置一项、JSON 损坏或路由引用不存在的供应商时，整个路由禁用，不借用旧 Key。某个供应商缺 Key 或能力时只阻止选到它的功能，不影响其他已配置功能。Key 名称未设置等同该供应商未就绪。
 
@@ -46,6 +46,24 @@ GENERATION_ROUTES='{"audio.generate":{"models":{"mureka-8":"mureka","mureka-o2":
 Mureka 自动模式最多2000字符；自定义模式为1024字符提示词和1–5000字符歌词，单次一首。Seed支持WAV/MP3/Ogg Opus、1张图或最多3条音频参考与真实字幕文本；Ogg仅48000Hz，参考不能混用或带尚未物化的裁切选区。显式空 `modelMap:{}` 禁用该供应商，不使用默认替身。[Mureka完整合同](MUREKA-NATIVE-20261005.md) / [Seed完整合同](SEED-AUDIO-NATIVE-20261005.md)。
 
 本机HTTP与正式节点已验证媒体归档/播放/刷新及缺配置零提交；实际供应商账号资格、型号访问权、声线和成曲质量仍需真实Key验收。
+
+### 视频拟音与延长镜头
+
+视频拟音使用独立 fal Key，显式把画布 `sonilo-sfx` 别名绑定到 ThinkSound；界面说明真实执行模型，不声称取得 Sonilo 私有接口。以下条目须合并到已有路由，保留其他模型：
+
+```sh
+GENERATION_PROVIDERS='{"videoSound":{"protocol":"fal-video-audio-native","apiKeyEnv":"FAL_KEY","modelMapEnv":"VIDEO_AUDIO_MODEL_MAP"}}'
+GENERATION_ROUTES='{"audio.generate":{"models":{"sonilo-sfx":"videoSound"}}}'
+VIDEO_AUDIO_MODEL_MAP='{"sonilo-sfx":{"kind":"audio.generate","model":"fal-ai/thinksound/audio","semantics":"explicit-native-alternative"}}'
+```
+
+在私有环境文件填写 `FAL_KEY`。支持一个完整MP4，提示词可空；WAV时长必须与源视频一致，Agent默认时长会跟随视频，用户明确时长发生冲突则提交前拒绝。分段、音乐、循环等不支持项不忽略。[视频拟音合同](VIDEO-AUDIO-NATIVE-20261005.md)
+
+延长镜头使用 `ark-video-extend-reference`，`video.extend.models.seedance-2.5` 路由、`ARK_API_KEY` 以及 `capabilityMode:prompt_simulation` 的精确映射；完整profile示例见 [`.env.example`](../.env.example)。源视频的分辨率和声音按能力预检，显式参数不静默降级。方向、4–30秒和四类连续性使用官方工具栏参考生成语义，效果仍需真实模型确认。
+
+**Ark 本地视频还需要公网素材发布通道，单填 Key 不足。** 当前前端在读取本地视频或裁片前即禁用提交；公开 Files API 的 ID不能替代视频生成需要的URL/Asset ID。[延长镜头合同](VIDEO-EXTEND-NATIVE-20261005.md) · [本地传输调查](ARK-LOCAL-VIDEO-TRANSPORT-20261005.md)
+
+两组示例已由生产配置读取器及路由执行零网络dry-run；本机HTTP媒体验收见[本批记录](LOCAL-VIDEO-TOOLS-STORAGE-BRAND-20261005.md)。不代表真实供应商Key、账号资格或模型质量已验。
 
 ## 恢复、凭据和界面
 

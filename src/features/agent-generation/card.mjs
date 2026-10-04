@@ -5,7 +5,7 @@ import {createGenerationPromptEditor} from '../../../assets/agent-editor.js';
 import {generationPromptPreviews} from './prompt-preview.mjs';
 import {renderGenerationPrompt,generationMentionData} from './prompt.mjs';
 import {audioTypeIcon} from './audio-assets.mjs';
-import {audioModels,audioLabels,sceneNames,audioSpec,audioModel,audioCompatibility,normalizeAudio} from './audio.mjs';
+import {audioModels,audioLabels,sceneNames,audioSpec,audioModel,audioCompatibility,normalizeAudio,audioSourceVideoState} from './audio.mjs';
 import {icons} from './icons.mjs';
 import {referenceIcons} from '../agent-composer/reference-icons.mjs';
 import {imageModels,videoModels,findModel,createGenerationDraft,normalizeDraft,parameterOptions,referenceShape,referencesFor,compatibility,confirmedArguments,generationStatus,generationResultMode} from './model.mjs';
@@ -16,12 +16,13 @@ const el=(tag,cls,text)=>{const n=document.createElement(tag);n.className=cls;if
 const glyph=key=>{const n=el('span','generation-glyph');n.innerHTML=key==='audioType'?audioTypeIcon:icons[key]||referenceIcons[key]||'';return n;};
 const labels={...audioLabels,model:'模型',videoMode:'生成方式',aspect:'比例',imageSize:'尺寸',quality:'质量',count:'数量',duration:'时长',resolution:'分辨率',generateAudio:'声音'};
 const modeNames={TEXT_TO_VIDEO:'文生视频',IMAGE_TO_VIDEO:'图生视频',START_END_TO_VIDEO:'首尾帧',REFERENCE_TO_VIDEO:'全能参考',REFERENCE_VIDEO_TO_VIDEO:'视频参考',VIDEO_EDIT:'视频编辑'};
-const valueLabel=(key,v)=>key==='audioScene'?sceneNames[v]:key==='lyricsMode'?({auto:'自动',custom:'自定义',instrumental:'纯音乐'})[v]:['speechRate','loudnessRate'].includes(key)?Math.round((1+v/100)*100)/100+'×':key==='sampleRate'?v+' Hz':key==='audioFormat'?String(v).toUpperCase().replace('_',' '):typeof v==='boolean'?v?'开启':'关闭':key==='count'?v+'×':key==='duration'?v===-1||v===null?'自动':v+'s':key==='generateAudio'?v?'开启':'关闭':key==='videoMode'?modeNames[v]||v:/^(auto|adaptive)$/i.test(String(v))?'自适应':String(v);
+const valueLabel=(key,v)=>key==='audioScene'?sceneNames[v]:key==='lyricsMode'?({auto:'自动',custom:'自定义',instrumental:'纯音乐'})[v]:['speechRate','loudnessRate'].includes(key)?Math.round((1+v/100)*100)/100+'×':key==='sampleRate'?v+' Hz':key==='audioFormat'?String(v).toUpperCase().replace('_',' '):typeof v==='boolean'?v?'开启':'关闭':key==='count'?v+'×':key==='duration'?v===-1||v===null?'自动':typeof v==='number'?v+'s':String(v):key==='generateAudio'?v?'开启':'关闭':key==='videoMode'?modeNames[v]||v:/^(auto|adaptive)$/i.test(String(v))?'自适应':String(v);
 
-export function createGenerationCard(initial,{getNodes=()=>[],getEdges=()=>[],getConfig=()=>({}),listVoices=options=>window.AudioAPI?.listVoices(options)||Promise.resolve({voices:[],configured:false}),previewVoice=(voice,options)=>window.AudioAPI?.previewVoice(voice,options),getMode=()=> 'ask',setMode=()=>{},onConfirm,onChange=()=>{},onOpenNode=()=>{},resolveAsset=async url=>url}={}){
+export function createGenerationCard(initial,{getNodes=()=>[],getEdges=()=>[],getConfig=()=>({}),getAudioConfiguration=()=>window.GenerationAPI?.configuration?.(),listVoices=options=>window.AudioAPI?.listVoices(options)||Promise.resolve({voices:[],configured:false}),previewVoice=(voice,options)=>window.AudioAPI?.previewVoice(voice,options),getMode=()=> 'ask',setMode=()=>{},onConfirm,onChange=()=>{},onOpenNode=()=>{},resolveAsset=async url=>url}={}){
  if(isDraftFinal(initial.args))return createDraftFinalCard(initial,{getNodes,getEdges,getMode,setMode,onConfirm,onChange,onOpenNode,resolveAsset});
  let trace=initial,draft=trace.confirmationDraft||createGenerationDraft(trace.args,getConfig(trace.args.nodeId),getNodes()),items=isBatch(trace)?batchDraft(trace,getConfig,getNodes()):null;
  let voiceState=null,menu=null,signature=stamp(initial),focusState=null,formError='';
+ let audioMetadata=null,audioMetadataError='',audioMetadataScope='',audioMetadataPending=false,audioMetadataRevision=0,disposed=false;
  const modes=new Map(),inputs=new Map(),root=el('section','agent-generation-card');
  root.setAttribute('aria-label',(items?'批量':'')+(trace.args.kind==='image.generate'?'图片生成确认':trace.args.kind==='audio.generate'?'音频生成确认':'视频生成确认'));
  root.dataset.batch=String(!!items);
@@ -41,13 +42,26 @@ export function createGenerationCard(initial,{getNodes=()=>[],getEdges=()=>[],ge
   if(applyResultMode(mode)){formError='';persist();render();}
  }
  function resultModeStorage(event){if(event.key==='tapnow.canvas.generation-result-mode'||event.key===null)updateResultMode({detail:{mode:generationResultMode()}});}
- function change(key,value){captureInputs();formError='';draft=items?changeBatch(draft,items,key,value,getNodes()):normalizeDraft({...draft,[key]:value},getNodes());persist();render();}
+ function change(key,value){captureInputs();formError='';draft=items?changeBatch(draft,items,key,value,getNodes()):normalizeDraft({...draft,[key]:value},getNodes());if(key==='duration'&&draft.kind==='audio.generate'){draft.audioDurationExplicit=true;draft.audioDurationEdited=true;}persist();render();}
+ function refreshAudioMetadata(){
+  const state=audioSourceVideoState(null,draft,getNodes());if(!state.candidate){if(audioMetadataScope){audioMetadataScope='';audioMetadata=null;audioMetadataError='';audioMetadataPending=false;audioMetadataRevision++;}return;}
+  const scope=JSON.stringify([draft.model,draft.audioScene,draft.nodeId,draft.referenceIds]);if(scope===audioMetadataScope)return;
+  audioMetadataScope=scope;audioMetadata=null;audioMetadataError='';audioMetadataPending=true;const revision=++audioMetadataRevision;
+  Promise.resolve().then(getAudioConfiguration).then(metadata=>{if(disposed||revision!==audioMetadataRevision)return;audioMetadata=metadata;if(!metadata)audioMetadataError='无法确认视频拟音供应商，请检查生成服务后重新打开确认卡';}).catch(()=>{if(!disposed&&revision===audioMetadataRevision)audioMetadataError='无法确认视频拟音供应商，请检查生成服务后重新打开确认卡';}).finally(()=>{
+   if(disposed||revision!==audioMetadataRevision)return;
+   const entry=[...inputs].find(([,input])=>input.dom.contains(document.activeElement)),focus=entry?{index:entry[0],range:entry[1].capture()}:null;
+   audioMetadataPending=false;captureInputs();render();
+   if(focus)queueMicrotask(()=>{const input=inputs.get(focus.index);if(!disposed&&input?.dom.isConnected)input.restore(focus.range);});
+  });
+ }
  function captureInputs(){for(const [index,input]of inputs)(items?items[index].args:draft).prompt=input.getText();}
  function destroyInputs(){for(const input of inputs.values())input.destroy();inputs.clear();}
  function confirm(allowed){
   try{
    captureInputs();
-   const args=allowed?(items?{decisions:batchDecisions(trace,draft,items,getNodes())}:confirmedArguments(trace.args,draft,getNodes())):undefined;
+   const sourceVideo=audioSourceVideoState(audioMetadata,draft,getNodes());
+   if(allowed&&sourceVideo.candidate&&(audioMetadataPending||sourceVideo.pending||audioMetadataError||sourceVideo.reason))throw Error(audioMetadataError||sourceVideo.reason||'视频拟音供应商待确认');
+   const args=allowed?(items?{decisions:batchDecisions(trace,draft,items,getNodes(),{audioMetadata})}:confirmedArguments(trace.args,draft,getNodes(),getEdges(),{audioMetadata})):undefined;
    persist();closeMenu();root.querySelectorAll('button,input,textarea').forEach(e=>e.disabled=true);for(const input of inputs.values())input.setEditable(false);onConfirm(trace,allowed,args);
   }catch(error){formError=error.message;render();}
  }
@@ -99,13 +113,14 @@ export function createGenerationCard(initial,{getNodes=()=>[],getEdges=()=>[],ge
    const numericSpec=draft.kind==='audio.generate'&&key==='duration'?audioSpec(draft)?.duration:null;
    const duration=!!numericSpec||key==='duration'&&draft.model==='seedance-2.5'&&options.every(o=>o.value>=0);if(!duration)b.append(glyph('chevron'));
    b.onclick=()=>{if(menu){closeMenu();return;}menu=openParameterMenu(b,{label:labels[key],options,value,model,duration,numericSpec,onSelect:nextValue=>{value=nextValue;
-    if(duration){draft=items?changeBatch(draft,items,key,value,getNodes()):normalizeDraft({...draft,[key]:value},getNodes());persist();valueText.textContent=valueLabel(key,value);b.setAttribute('aria-label',labels[key]+': '+valueLabel(key,value));}
+    if(duration){draft=items?changeBatch(draft,items,key,value,getNodes()):normalizeDraft({...draft,[key]:value},getNodes());if(draft.kind==='audio.generate'){draft.audioDurationExplicit=true;draft.audioDurationEdited=true;}persist();valueText.textContent=valueLabel(key,value);b.setAttribute('aria-label',labels[key]+': '+valueLabel(key,value));}
     else change(key,value);
    },onClose:()=>{menu=null;}});};
   }
   return b;
  }
  function render(){
+  refreshAudioMetadata();
   closeMenu();previews.hide();destroyInputs();root.replaceChildren();const status=generationStatus(trace),kind=draft.kind==='image.generate'?'image':draft.kind==='audio.generate'?'audio':'video';root.dataset.status=status.state;
   const header=el('header','generation-card-header');header.append(glyph(kind+'Type'),el('span','',kind==='image'?'图片生成':kind==='audio'?'音频生成':'视频生成'));
   if(status.label)header.append(el('span','generation-card-status',status.label));root.append(header,prompt());
@@ -116,13 +131,14 @@ export function createGenerationCard(initial,{getNodes=()=>[],getEdges=()=>[],ge
   chips.append(chip('model',model?.id||draft.model,model?modelOptions:[],{model:true}));
   const options=items?batchOptions(draft,items,nodes):parameterOptions(draft,nodes);
   if(kind==='audio'){
-   const shape=referenceShape(draft,nodes),s=audioSpec(draft);
+   const shape=referenceShape(draft,nodes),s=audioSpec(draft),sourceVideo=audioSourceVideoState(audioMetadata,draft,nodes);
    const order=['audioScene','duration','lyricsMode','stability','promptInfluence','sampleRate','speechRate','pitchRate','loudnessRate','audioFormat','subtitle','loop'];
    for(const key of order){
     if(draft[key]===undefined||key==='audioScene'&&Object.keys(model?.scenes||{}).length<2)continue;
     let choices=options[key]?.map(value=>({value,label:valueLabel(key,value)}));
     if(key==='audioScene')choices=['Music','Sound','Text-to-Speech'].map(value=>({value,label:sceneNames[value],disabled:!model?.scenes[value],reason:'所选模型不支持此场景'}));
-    chips.append(el('span','generation-divider'),chip(key,key==='duration'&&shape.video?'自适应':draft[key],choices,{disabled:key==='duration'&&!!shape.video,prefix:['stability','promptInfluence','sampleRate','speechRate','pitchRate','loudnessRate','subtitle','loop'].includes(key),icon:key==='audioScene'||key==='lyricsMode'?'method':key==='duration'?'duration':undefined}));
+    const value=key==='duration'&&sourceVideo.candidate?(audioMetadataPending||sourceVideo.pending?'待确认':sourceVideo.active?'跟随视频'+(trace.args.duration!==undefined||draft.audioDurationExplicit?'（要求 '+draft.duration+'s）':''):shape.video?'自适应':draft[key]):key==='duration'&&shape.video?'自适应':draft[key];
+    chips.append(el('span','generation-divider'),chip(key,value,choices,{disabled:key==='duration'&&!!shape.video,prefix:['stability','promptInfluence','sampleRate','speechRate','pitchRate','loudnessRate','subtitle','loop'].includes(key),icon:key==='audioScene'||key==='lyricsMode'?'method':key==='duration'?'duration':undefined}));
    }
    if(s?.voice){const voice=button(voiceState?.voices?.find(v=>v.id===draft.voice)?.name||draft.voice||'音色',e=>{
     const trigger=e.currentTarget;if(menu){closeMenu();return;}if(!window.AudioAPI?.openVoiceMenu){formError='音色菜单尚未加载，请稍后重试';render();return;}
@@ -135,10 +151,11 @@ export function createGenerationCard(initial,{getNodes=()=>[],getEdges=()=>[],ge
    chips.append(el('span','generation-divider'),chip(key,draft[key],options[key]?.map(v=>({value:v,label:valueLabel(key,key==='count'&&kind==='image'&&model?.midjourney?v*4:v)})),{icon:({videoMode:'method',generateAudio:'audio',aspect:'aspect',imageSize:'size',quality:'quality',duration:'duration',resolution:'size',count:'count'})[key]}));
   }
   parameters.append(chips);const shared=items?sharedReferences(items):undefined,refs=items?(shared?references({...draft,referenceIds:shared}):null):references(draft);if(refs)parameters.append(refs);root.append(parameters);
+  const sourceVideo=audioSourceVideoState(audioMetadata,draft,nodes);if(sourceVideo.candidate){const text=audioMetadataError||sourceVideo.reason||(audioMetadataPending||sourceVideo.pending?'视频拟音供应商待确认':sourceVideo.hint);if(text)root.append(el('p','generation-native-audio-note',text));}
   if(kind==='audio'&&draft.lyricsMode==='custom'){const lyrics=el(trace.status==='pending'?'textarea':'div','generation-lyrics');lyrics.setAttribute('aria-label','lyrics-editor');if(trace.status==='pending'){lyrics.rows=4;lyrics.maxLength=12000;lyrics.value=draft.lyrics||'';lyrics.placeholder='在此输入或粘贴歌词…';lyrics.oninput=()=>{draft.lyrics=lyrics.value;persist();};}else lyrics.textContent=draft.lyrics;root.append(lyrics);}
   if(trace.status==='pending'){
    const footer=el('footer','generation-confirm-footer'),auto=el('label','generation-auto'),toggle=button('',()=>{try{setMode(getMode()==='auto'?'ask':'auto');updateMode();}catch(error){formError=error.message;render();}},'generation-auto-switch');toggle.role='switch';toggle.setAttribute('aria-label','自动生成');toggle.setAttribute('aria-checked',String(getMode()==='auto'));toggle.append(el('span',''));auto.append(toggle,el('span','','Act'));footer.append(auto,el('span','generation-spacer'));
-   const allRejected=items?.every(item=>item.rejected),issue=items&&!allRejected?batchCompatibility(draft,items,nodes):kind==='audio'?audioCompatibility(draft,referenceShape(draft,nodes)):'';
+   const allRejected=items?.every(item=>item.rejected),issue=sourceVideo.candidate&&(audioMetadataPending||sourceVideo.pending||audioMetadataError||sourceVideo.reason)?audioMetadataError||sourceVideo.reason||'视频拟音供应商待确认':items&&!allRejected?batchCompatibility(draft,items,nodes):kind==='audio'?audioCompatibility(draft,referenceShape(draft,nodes)):'';
    if(!allRejected)footer.append(button('取消',()=>confirm(false),'generation-small-button'));
    const submit=button(allRejected?'全部拒绝':'确认',()=>confirm(!allRejected),'generation-confirm-button');submit.disabled=!!issue;if(issue)submit.title=issue;footer.append(submit);root.append(footer);
    if(issue)root.append(el('p','generation-error',issue));
@@ -155,7 +172,7 @@ export function createGenerationCard(initial,{getNodes=()=>[],getEdges=()=>[],ge
  return {
   element:root,
   suspend(){closeMenu();const entry=[...inputs].find(([,input])=>input.dom.contains(document.activeElement));focusState=entry?{index:entry[0],range:entry[1].capture()}:null;},
-  destroy(){closeMenu();previews.destroy();destroyInputs();window.removeEventListener('agent:confirmation-mode',updateMode);window.removeEventListener('canvas:generation-result-mode',updateResultMode);window.removeEventListener('storage',resultModeStorage);root.remove();},
+  destroy(){disposed=true;audioMetadataRevision++;closeMenu();previews.destroy();destroyInputs();window.removeEventListener('agent:confirmation-mode',updateMode);window.removeEventListener('canvas:generation-result-mode',updateResultMode);window.removeEventListener('storage',resultModeStorage);root.remove();},
   update(next){
    trace=next;const nextStamp=stamp(trace);
    if(signature!==nextStamp){signature=nextStamp;if(trace.status!=='pending'){

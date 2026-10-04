@@ -46,3 +46,14 @@
 3. 对应 92 个精确摘要的独立 HTML 字节（包含已退役 A05 引用；A05 不可建立新导入）。真实可编辑验收仍需当前真实选择的正文，不能由 picker 全库页面、预览函数或合成 fixture 代替。
 
 拿到这些材料后，先离线校验精确 identity + 原始字节 SHA256，再沿已有本地原模板导入机制保存来源与可编辑 revision。研究时的公开读取不构成产品 runtime 的远程依赖；本轮未增加自动 fetch。
+
+## 2026-10-05 增量刷新
+
+核验时间为 2026-10-04 20:49–20:52 UTC（北京时间 10 月 5 日）。没有重做已完成的 Resources/ASAR 全量穷举，也没有猜测模板下载 URL。
+
+- 安装包仍为 **0.4.81**。两个关键合同文件仍是 `HtmlArtifactFrame-BLzUcmrV.js` 与 `context-D6hXl-WU.js`，本次 SHA256 分别仍为 `a9a1b46d7e7b0c7d02cf2adbf914c9ca391c6d0123aab70a8bd9f34ad823d21b`、`256ea01872d5939d760bb71fbf22cddc53bb626dc3a1410bf49257ff41d8c01a`，与上次完全一致。
+- 本次 GET [官方 Web 首页](https://app.tapnow.media/) 为 82,096 bytes，原始 SHA256 `175db42d9afd4486f9a0f0b09b986af731a207aea8a6383d52077ab0e91e3d69`。页面实际引用 Next.js chunk，入口是 `/_next/static/chunks/turbopack-01c945f0a1652e7c.js`；逐一读取页面中实际列出的 **19 个** `/_next/static/chunks/*.js`（均 HTTP 200），不执行这些远程脚本。
+- 这些 chunk 中未发现 `html-templates`、`template_ref`、`object_key`、`SKILL.md`、`download_url`、`resource_uri`、`getSkill`、`getPluginSkill` 字面标记。`27fce3e2a2ae9516.js` 的真实应用入口合同是同一 app domain 的 `/#/home` 与 `/#/pricing`；URL fragment 不构成额外正文 GET 路径。首页脚本没有给出可将 92 个对象身份解析为正文的权威映射。此结果只描述当前首页静态依赖，不声称检查了所有登录后懒加载模块或未知编码内容。
+- 上表五个公开 app-store GET 本次全部 HTTP 200，**bytes 与原始 SHA256 均与 10 月 3 日完全相同**；响应仍没有独立正文或资源下载身份。没有请求私人会话、技能网关、账号数据或付费 Agent。
+
+本次原始快照及逐 chunk 的路径/bytes/SHA256 报告仅在本机临时目录 `/tmp/tapnow-creative-public-20261005/`，没有提交第三方原始源码。**新增匹配官方模板正文仍为 0；92 个原引用的正文缺口未完成。** 当前需要的下一份外部材料仍是官方完整技能资源包或明确的 `template_ref.object_key` 获取合同；已知预览代理 origin 不能代替它。

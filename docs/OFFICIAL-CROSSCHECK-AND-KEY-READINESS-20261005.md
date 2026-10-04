@@ -1,6 +1,6 @@
 # 官方功能交叉核验与 Key 接入状态
 
-更新：2026-10-05，含Mureka/Seed原生接口、10个公共工作流模板及Agent组图复核。**不代表全站一比一完成，也不代表每个菜单填入任意 Key 即可使用**。真实供应商生成仍未验；测试使用本机合同服务及真实媒体字节。
+更新：2026-10-05，含视频拟音、工具栏延长镜头、素材库容量和嵌套品牌复核。**不代表全站一比一完成，也不代表每个菜单填入任意 Key 即可使用**。真实供应商生成仍未验；测试使用本机合同服务及真实媒体字节。
 
 ## 参考与判定方式
 
@@ -32,6 +32,8 @@
 
 ## 能否仅填 Key 使用
 
+本次新增：`fal-video-audio-native` 以操作者显式映射提供 ThinkSound 视频拟音；`ark-video-extend-reference`按安装包和实际官方Web菜单接延长镜头参考生成。两者的供应商限制、Agent时长、菜单操作与本机媒体证据见[本批记录](LOCAL-VIDEO-TOOLS-STORAGE-BRAND-20261005.md)。
+
 | 状态 | 能力 | 必须同时满足 |
 | --- | --- | --- |
 | 已有原生适配，本机合同已验证，真实 Key 待验 | OpenAI 文本/图片/参考图/视觉分析/语音，GPT Image 2 蒙版编辑 | 正确供应商 Key、实际型号访问权、明确公开别名及尺寸/质量/参考能力映射；不是所有原站品牌的替身 |
@@ -40,11 +42,15 @@
 | 新增受限原生替代 | 多角度 | `image.multiAngle` 明确映射到 Qwen 2511；关闭广角，倾斜至少 -30°；效果不承诺与原站模型同态 |
 | 已有原生适配，本机合同已验证，真实 Key 待验 | ElevenLabs V3 TTS、SFX、Music，MiniMax Music 2.6 | 正确音色/模型、格式参数与账号 API 资格；Music自定义歌词须明确3–120秒；不能代替未实现的参考/字幕/cover功能 |
 | 同上 | Mureka 8/O2 歌曲，Seed Audio 1.0 多模态音频 | 各自供应商Key和服务资格；Mureka两种歌词模式的字数子集，Seed参考数量/30秒/格式和采样率合同；不支持项提交前拒绝 |
+| 新增显式原生替代，本机合同已验证 | 单视频拟音：ThinkSound | 独立fal Key、明确sonilo-sfx映射、一个完整MP4；跟随真实视频时长。供应商最大时长未公开，音乐/分段/循环未覆盖 |
+| 参考生成适配已接线，本地媒体传输仍有限制 | Toolbar `video.extend` | 正确Ark Key/真实型号/profile、4–30秒、明确prompt_simulation及公网HTTPS视频；本地视频需额外发布通道，方向/连续性效果待真实模型验收 |
 | 有原生生成但部分格式仍阻塞 | Tripo / Marble 3D | 正确 Key/模型/输入；GLB 可本地渲染，SPZ 片场渲染尚未完成 |
-| 前端与任务合同已有，专用供应商仍待补 | 全景编辑/严格全景生成、打光、皮肤/Magnific；视频替换/移除/延长/重拍/深度；部分音频品牌 | 必须补供应商适配或提供已经实现这些操作的 tasks-v1 网关；单独填写品牌 Key 不够 |
+| 前端与任务合同已有，专用供应商仍待补 | 全景编辑/严格全景生成、打光、皮肤/Magnific；视频替换/移除/重拍/深度；Sonilo音乐及部分音频场景 | 必须补供应商适配或提供已经实现这些操作的 tasks-v1 网关；单独填写品牌 Key 不够 |
 | 仍开放 | 92 份精确创意模板、全部页面细节/资源/交互及最终性能验收 | 需要继续官方逐项证据和真实运行验证，不能由模型 Key 解锁 |
 
-`video.generate` 中供应商的 edit/extend 子模式，和 Toolbar 的 `video.extend`、`video.replace`、`video.erase`、`video.reshoot` 是不同任务合同。不能因为某供应商支持编辑就自动宣传 Toolbar 全部已接通。
+`video.generate` 中供应商的 edit/extend 子模式，和 Toolbar 的 `video.extend`、`video.replace`、`video.erase`、`video.reshoot` 是不同任务合同。`video.extend`本次已做独立接线，其余不能由供应商支持编辑自动推定完成。
+
+打光专项已核对 IC-Light v2、Image Apps v2、BRIA Fibo 和 Light-X 的公开 schema，均不能完整承接现有26光位、亮度、Kelvin和独立轮廓光合同。没有丢弃参数后冒充适配成功；可另做显式方向/风格模式，当前仍待实现。[精确来源与差异](IMAGE-RELIGHT-NATIVE-20261005.md)
 
 ## 验证证据
 

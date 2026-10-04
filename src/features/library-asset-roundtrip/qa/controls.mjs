@@ -1,7 +1,7 @@
 const app=window.CanvasApp,output=document.createElement('pre'),panel=document.createElement('aside');
 panel.ariaLabel='素材往返验收';panel.style.cssText='position:fixed;right:12px;top:70px;width:360px;z-index:5000;padding:12px;background:#222;color:#eee;font:12px monospace;max-height:70vh;overflow:auto';output.ariaLabel='素材往返结果';output.style.whiteSpace='pre-wrap';
 const note=document.createElement('p');note.textContent='隔离QA：固定本地测试素材，非模型生成。准备源→画布真实保存到素材库→空白右键添加资产→真实下载→刷新。';panel.append(note);
-const session=new URLSearchParams(location.search).get('session')||'default';
+const session=new URLSearchParams(location.search).get('session')||'default',capacity=new URLSearchParams(location.search).get('capacity')==='1';
 // QA receipts share no quota with the user's existing localStorage content.
 const receiptDatabase=new Promise((resolve,reject)=>{
  const request=indexedDB.open('qa-library-roundtrip:'+encodeURIComponent(session)+':receipts',1);
@@ -20,16 +20,16 @@ const bitmap=async blob=>{const image=await createImageBitmap(blob);const size={
 function button(label,action){const b=document.createElement('button');b.textContent=label;b.onclick=async()=>{b.disabled=true;try{await action();}catch(error){output.textContent='失败：'+error.message;}finally{b.disabled=false;}};panel.append(b);return b;}
 const blobOf=async source=>{const response=await fetch(await LocalAssets.url(source));if(!response.ok)throw Error('本地素材读取失败');return response.blob();};
 async function baseline(){await receiptsReady;await receiptWrites;if(!cachedBaseline)throw Error('先准备测试源');return cachedBaseline;}
-function report(value){output.textContent=JSON.stringify(value,null,2);window.LIBRARY_ROUNDTRIP_QA_REPORT=value;}
+function report(value){const summary=JSON.parse(JSON.stringify(value,(_key,item)=>typeof item==='string'&&item.startsWith('data:')?item.slice(0,item.indexOf(',')+1)+'['+item.length+' characters]':item));output.textContent=JSON.stringify(summary,null,2);window.LIBRARY_ROUNDTRIP_QA_REPORT=summary;}
 async function prepare(type){
  let media,preview,details,dimensions;
  if(type==='image'){
-  const c=document.createElement('canvas');c.width=2048;c.height=1152;const ctx=c.getContext('2d');ctx.fillStyle='#55765d';ctx.fillRect(0,0,c.width,c.height);ctx.fillStyle='#d9c9a5';ctx.fillRect(120,120,1800,900);ctx.fillStyle='#3d493f';ctx.font='100px sans-serif';ctx.fillText('LOCAL ORIGINAL · 2048 × 1152',170,600);media=await new Promise(resolve=>c.toBlob(resolve,'image/png'));
+  const c=document.createElement('canvas');c.width=2048;c.height=1152;const ctx=c.getContext('2d');ctx.fillStyle='#55765d';ctx.fillRect(0,0,c.width,c.height);ctx.fillStyle='#d9c9a5';ctx.fillRect(120,120,1800,900);ctx.fillStyle='#3d493f';ctx.font='100px sans-serif';ctx.fillText('LOCAL ORIGINAL · 2048 × 1152',170,600);if(capacity){const pixels=ctx.createImageData(c.width,c.height);for(let offset=0;offset<pixels.data.length;offset+=65536)crypto.getRandomValues(pixels.data.subarray(offset,Math.min(offset+65536,pixels.data.length)));for(let offset=3;offset<pixels.data.length;offset+=4)pixels.data[offset]=255;ctx.putImageData(pixels,0,0);ctx.fillStyle='#111';ctx.fillRect(150,400,1748,260);ctx.fillStyle='#fff';ctx.fillText('LOCAL CAPACITY · 2048 × 1152',170,560);}media=await new Promise(resolve=>c.toBlob(resolve,'image/png'));
   const p=document.createElement('canvas');p.width=128;p.height=72;p.getContext('2d').drawImage(c,0,0,128,72);preview=await new Promise(resolve=>p.toBlob(resolve,'image/png'));details={pixelWidth:2048,pixelHeight:1152};dimensions={width:444.625,height:250.125};
  }else{
   media=await (await fetch('/src/features/video-history/qa/landscape.mp4')).blob();preview=await (await fetch('/src/features/video-history/qa/landscape.png')).blob();details={videoMetadata:{width:320,height:180,duration:4},clip:{start:.5,end:2.5}};dimensions={width:435.125,height:244.75};
  }
- const original=await LocalAssets.put(media),thumb=await LocalAssets.put(preview),title=type==='image'?'往返原图2048':'往返裁切视频',patch={x:54015.125,y:-4155.375,...dimensions,...details,currentSourceFileId:'qa-local-'+type,provenance:{kind:'imported',mediaSource:original,model:null},editorDoc:{qaOnly:'should not follow asset'},agentImageEditor:{qaOnly:'source editor state'},...(type==='image'?{fullImage:original}:{video:original})};
+ const original=capacity&&type==='image'?await new Promise(resolve=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.readAsDataURL(media);}):await LocalAssets.put(media),thumb=await LocalAssets.put(preview),title=type==='image'?(capacity?'容量原图2048':'往返原图2048'):'往返裁切视频',patch={x:54015.125,y:-4155.375,...dimensions,...details,currentSourceFileId:'qa-local-'+type,provenance:{kind:'imported',mediaSource:original,model:null},editorDoc:{qaOnly:'should not follow asset'},agentImageEditor:{qaOnly:'source editor state'},...(type==='image'?{fullImage:original}:{video:original})};
  const node=app.addNode(type,{x:600,y:400},thumb,title,patch);app.fitNode(node.id,{duration:0});await app.saveProject();
  await receiptsReady;await saveBaseline({type,nodeId:node.id,node:structuredClone(node),original,thumbnail:thumb,originalSha:await sha(media),originalBytes:media.size});report({prepared:true,type,title,originalBytes:media.size,originalSha:await sha(media),originalPixelDimensions:type==='image'?await bitmap(media):{width:320,height:180},clip:details.clip||null,step:'使用实际画布工具栏「保存到素材库」，再关闭素材库，空白右键→添加资产→选择同名素材。'});
 }
@@ -43,17 +43,18 @@ document.addEventListener('click',event=>{
  b.pickerEvidence={name:selectedButton.getAttribute('aria-label'),naturalWidth:image.naturalWidth,naturalHeight:image.naturalHeight,resolvedSource:image.currentSrc||image.src,literalAssetSource:!!image.getAttribute('src')?.startsWith('asset:')};void saveBaseline(b).catch(error=>{output.textContent='失败：'+error.message;});
 },true);
 async function check(){
- await window.LibraryRoundtripQAStorage.flush();
+ await CanvasLibrary.flush();await window.LibraryRoundtripQAStorage.flush();
  const b=await baseline(),state=app.getState(),source=state.nodes.find(n=>n.id===b.nodeId),saved=CanvasLibrary.items.filter(item=>item.nodeId===b.nodeId).at(-1),selected=state.nodes.find(n=>state.selected.includes(n.id)&&n.id!==b.nodeId)||state.nodes.find(n=>n.id===b.insertedNodeId);
  if(!saved)throw Error('先通过实际保存到素材库对话框保存');if(!selected)throw Error('先通过实际素材picker加入，并选择新节点');
  const fields=b.type==='image'?['image','fullImage','pixelWidth','pixelHeight','width','height','currentSourceFileId','provenance']:['image','video','videoMetadata','clip','width','height','currentSourceFileId','provenance'];
  const savedExact=fields.every(field=>JSON.stringify(saved[field])===JSON.stringify(b.node[field])),insertedExact=fields.every(field=>JSON.stringify(selected[field])===JSON.stringify(b.node[field])),sourceExact=source&&JSON.stringify(source)===JSON.stringify(b.node),noSourceDocuments=!['tool','editorDoc','agentImageEditor','pendingOperation','generationRun','worldResource'].some(field=>selected[field]!==undefined),sourceUrl=b.type==='image'?selected.fullImage:selected.video,blob=await blobOf(sourceUrl),actualSha=await sha(blob);
  const displayed=document.querySelector(`.node[data-id="${CSS.escape(selected.id)}"] .node-body img`),display={naturalWidth:displayed?.naturalWidth||0,naturalHeight:displayed?.naturalHeight||0,resolvedSource:displayed?.currentSrc||displayed?.src||'',literalAssetSource:!!displayed?.getAttribute('src')?.startsWith('asset:')},picker=b.pickerEvidence||null,pickerDecoded=!!picker&&picker.naturalWidth>0&&picker.naturalHeight>0&&!picker.literalAssetSource,canvasDecoded=display.naturalWidth>0&&display.naturalHeight>0&&!display.literalAssetSource&&(b.type!=='image'||display.naturalWidth===2048&&display.naturalHeight===1152);
- const result={type:b.type,picker,pickerDecoded,display,canvasDecoded,literalAssetImageErrors:[...literalAssetImageErrors],savedExact,insertedExact,sourceExact:!!sourceExact,noSourceDocuments,originalHashExact:actualSha===b.originalSha,insertedNodeId:selected.id,actualSourceBytes:blob.size,...(b.type==='image'?{decoded:await bitmap(blob)}:{clip:selected.clip,metadata:selected.videoMetadata})};
- result.passed=[savedExact,insertedExact,sourceExact,noSourceDocuments,result.originalHashExact,pickerDecoded,canvasDecoded,literalAssetImageErrors.length===0].every(Boolean);if(result.passed){b.insertedNodeId=selected.id;await saveBaseline(b);}report(result);return {baseline:b,node:selected,result};
+ const durable=await CanvasStore.readRecord('agent-library:personal-v1');const authorityExact=durable?.items?.some(item=>JSON.stringify(item)===JSON.stringify(saved));
+ const result={type:b.type,capacity,authorityExact,libraryWriteAttempts:window.LibraryRoundtripQAStorage.libraryWriteAttempts,picker,pickerDecoded,display,canvasDecoded,literalAssetImageErrors:[...literalAssetImageErrors],savedExact,insertedExact,sourceExact:!!sourceExact,noSourceDocuments,originalHashExact:actualSha===b.originalSha,insertedNodeId:selected.id,actualSourceBytes:blob.size,...(b.type==='image'?{decoded:await bitmap(blob)}:{clip:selected.clip,metadata:selected.videoMetadata})};
+ result.passed=[authorityExact,window.LibraryRoundtripQAStorage.libraryWriteAttempts===0,(!capacity||b.type!=='image'||b.originalBytes>5*1024*1024),savedExact,insertedExact,sourceExact,noSourceDocuments,result.originalHashExact,pickerDecoded,canvasDecoded,literalAssetImageErrors.length===0].every(Boolean);if(result.passed){b.insertedNodeId=selected.id;await saveBaseline(b);}report(result);return {baseline:b,node:selected,result};
 }
 let releaseCapture;
-button('准备原图验收',()=>prepare('image'));button('准备视频裁切验收',()=>prepare('video'));button('核对保存 / picker / 刷新',check);
+button(capacity?'准备容量原图验收':'准备原图验收',()=>prepare('image'));button('准备视频裁切验收',()=>prepare('video'));button('核对保存 / picker / 刷新',check);
 button('捕获下一次真实下载',async()=>{
  const {baseline:b,node}=await check();releaseCapture?.();const original=URL.createObjectURL;
  releaseCapture=()=>{if(URL.createObjectURL===capture)URL.createObjectURL=original;releaseCapture=null;};

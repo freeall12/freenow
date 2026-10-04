@@ -88,3 +88,15 @@ ElevenLabs Music 的正式参数、生成、播放和刷新已完成浏览器交
 [组图质量与编辑](photoset-quality-20261005.jpg)来自隔离入口 `src/features/agent-apps/qa/ecommerce-photoset.html?session=20261005-photoset-quality`，实际593×783页面截图。产品图为仓库公开Sony PNG，原HTML的质量选择、行编辑、确认/Escape回焦、配置缺失零任务与freeform交接已实际操作。未调用供应商生成；[专项结果](../../src/features/agent-apps/ecommerce-photoset.md)。
 
 [工作流模板详情](workflow-template-detail-20261005.jpg)来自正式入口隔离页 `src/features/workflow-templates/qa/main.html?session=workflow-template-1005-local`，保留完整1100×700弹窗及邻近画布。封面、节点和媒体来自公开模板的本地归档；已实际应用29内容节点/51连线，刷新、撤销和本地视频播放通过。浏览器默认缩放导致整页截图尺寸异常，本图使用截图API按实测比例裁出整个弹窗，没有改viewport或页面样式，没有生成式修图。[完整范围](../LOCAL-WORKFLOW-AND-NATIVE-AUDIO-20261005.md)。
+
+## 2026-10-05 视频工具与制作进度
+
+以下三张均由主线程真实 Computer Use 保存，裁剪保留完整组件和周围上下文，没有改造布局或 viewport，没有生成式修图。全部数据是本地合成内容；图片不是原站截图，也不证明真实供应商生成质量。
+
+| 文件 | 来源与验证范围 |
+| --- | --- |
+| [Agent 视频拟音卡](agent-video-audio-native-20261005.jpg) | `scripts/qa-video-audio-native.cjs` 的隔离 HTTP 正式画布；真实 Agent 卡显示 ThinkSound 显式替代 / 跟随视频。正式按钮与 Agent 卡各提交一个 fixture 任务；8 秒真实 MP4及两份固定 440 Hz PCM WAV 原生播放、刷新恢复；无真实模型 |
+| [延长镜头参考流程](video-extend-reference-20261005.jpg) | `qa/video-extension-app.html?mode=native` 的生产创作层；片头 30 秒 / 延续运镜、1080p / 无声和固定 seedance-2.5。Ark 本地传输缺口使确认禁用，POST / trim 为 0；截图为本地页面，官方只读操作对照另记文档 |
+| [制作进度 freenow](freenow-production-progress-brand-20261005.jpg) | `src/features/agent-apps/qa/production-progress-brand.html` 的真实 card / host / opaque iframe；两条精确 CORS 修复并重启后，中英 / 深浅 / 错误额度状态为 freenow，F 图已解码，用户标题“TapNow 用户自定义项目”保留 |
+
+[本批完整实机记录](../LOCAL-VIDEO-TOOLS-STORAGE-BRAND-20261005.md)另载素材容量保存 / picker / 两次刷新及模板脏稿 reload 边界；没有把未观察到的 beforeunload 原生 dialog 写成已见到，也没有为这些无独立截图的路径杜撰图片。

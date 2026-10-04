@@ -9,5 +9,6 @@ try{
    document.body.append(script);if(!descriptor.src)resolve();
   });
  }
+ await window.CanvasLibrary.ready();
  await import('./controls.mjs');
 }catch(error){const output=document.createElement('pre');output.textContent='QA bootstrap失败：'+error.message;output.setAttribute('role','alert');document.body.append(output);console.error(error);}

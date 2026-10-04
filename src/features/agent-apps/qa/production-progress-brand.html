@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>freenow · 制作进度品牌验收</title>
+<style>body{margin:24px;max-width:760px;background:#161616;color:#eee;font:14px/1.6 system-ui}label{display:block;margin:12px 0}input,select,button{font:inherit;padding:6px 10px}input{width:min(90%,440px)}button{margin:0 8px 8px 0}output{display:block;margin:12px 0}#cards{margin-top:20px}body[data-theme=light]{background:#fafafa;color:#222}</style></head>
+<body>
+<h1>freenow · 制作进度品牌验收</h1>
+<p>此页使用生产 card、host、registry 与制作进度专属双层 iframe。仅提供明确标记的本地显示测试状态，不提交生成任务、不调用供应商、不修改已有存储。用户标题中的 TapNow 保留原文。</p>
+<label>用户标题 <input id="title" value="TapNow 用户自定义项目"></label>
+<label>界面语言 <select id="locale"><option value="zh-CN">中文</option><option value="en-US">English</option></select></label>
+<label>界面主题 <select id="theme"><option value="dark">深色</option><option value="light">浅色</option></select></label>
+<button id="running">显示本地待处理状态</button><button id="blocked">显示供应商额度不足状态</button>
+<output id="status" aria-live="polite">正在加载生产显示管线…</output>
+<section id="cards"></section>
+<script type="module" src="./production-progress-brand.mjs"></script>
+</body></html>

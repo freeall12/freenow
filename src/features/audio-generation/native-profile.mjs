@@ -1,5 +1,5 @@
 import {resolveProviderConfiguration,providerConfigurationStatus} from '../node-composer/provider-configuration.mjs';
-const model=request=>request?.parameters?.modelId??request?.parameters?.model;
+const model=request=>request?.parameters?.providerParameters?.model??request?.parameters?.modelId??request?.parameters?.model;
 const fail=message=>Object.assign(Error(message),{code:'unsupported_generation',providerDispatched:false});
 const protocol=metadata=>metadata?.protocol;
 const musicProtocols=['elevenlabs-music-native','mureka-native'];
@@ -11,10 +11,12 @@ const promptWithReferences=request=>{
 export function audioNativeProfile(metadata,request){
  const selected=resolveProviderConfiguration(metadata,request),alias=model(request);
  if(musicProtocols.includes(protocol(selected)))return selected.capabilities?.music?.[alias]??null;
+ if(protocol(selected)==='fal-video-audio-native')return selected.capabilities?.videoAudio?.[alias]??null;
  return protocol(selected)==='seed-audio-native'?selected.capabilities?.seedAudio?.[alias]??null:null;
 }
-export function audioNativeParameters(metadata,request,{nodeDraft=false,explicitOverrides}={}){
+export function audioNativeParameters(metadata,request,{nodeDraft=false,explicitOverrides,sourceParameters}={}){
  const parameters={...request.parameters},selected=resolveProviderConfiguration(metadata,request),profile=audioNativeProfile(metadata,request);
+ if(profile&&protocol(selected)==='fal-video-audio-native')return {...sourceParameters,...parameters};
  if(!profile||!musicProtocols.includes(protocol(selected)))return parameters;
  // A hidden node textarea is an editable draft. Native wire inputs only carry
  // active lyrics; explicit Agent lyrics remain an instruction and must conflict.
@@ -60,12 +62,43 @@ function seedState(profile,request,p){
  if(text!==null)for(const match of text.matchAll(/@音频(\d+)/g))if(Number(match[1])<1||Number(match[1])>audios.length)return reject('Seed Audio 音频编号未绑定到对应参考素材');
  return {ready:true,reason:'',hint};
 }
+function videoAudioState(profile,request,p,options={}){
+ const hint='实际供应商：ThinkSound Video-to-Audio（显式替代 Sonilo 音效）。仅一个完整 MP4 视频；音频跟随源视频，本地边界 1–180 秒，供应商未公开最大时长。';
+ const reject=reason=>({ready:false,reason,hint});
+ if(profile.semantics!=='explicit-native-alternative'||profile.durationMode!=='source-video'||model(request)!=='sonilo-sfx')return reject('ThinkSound 替代身份未明确配置，不能作为 Sonilo 原生接口提交');
+ if(p.scene!==profile.scene)return reject('ThinkSound 显式替代仅支持音效场景');
+ if(p.virtualModel!==undefined&&p.virtualModel!=='sonilo-music'||[p.model,p.modelId,p.providerParameters?.model].some(alias=>alias!==undefined&&alias!=='sonilo-sfx'))return reject('ThinkSound 显式替代只支持 Sonilo 选择器的音效场景');
+ const keys=['model','modelId','virtualModel','scene','duration','providerParameters','count','times','resultMode','canvasResults','batch_count','batch_id','is_regeneration','layout'];
+ for(const parameters of [p,options.sourceParameters].filter(Boolean))if(Object.keys(parameters).some(key=>!keys.includes(key)))return reject('ThinkSound 视频拟音含不支持的参数或分段设置，请明确移除后重试');
+ const overrides=options.explicitOverrides;
+ if(overrides&&Object.keys(overrides).some(key=>!['kind','nodeId','model','audioScene','prompt','referenceIds','duration','count','position'].includes(key)))return reject('ThinkSound 视频拟音不支持所填 Agent 设置，不会忽略指令后提交');
+ for(const count of [request.count,p.count,p.times,p.batch_count,p.canvasResults?.targetNodeIds?.length,overrides?.count])if(count!==undefined&&count!==1)return reject('ThinkSound 视频拟音每个任务仅生成一个音频结果');
+ const inputs=request.inputs??[];
+ if(request.references!==undefined&&(!Array.isArray(request.references)||request.references.length)||inputs.length!==1||inputs[0]?.type!=='video')return reject('ThinkSound 视频拟音须且只能绑定一个真实参考视频，不支持文字参考或纯文字生成');
+ const input=inputs[0],inputKeys=['id','nodeId','type','url','title','role','duration','sizeBytes','mime','mimeType'];
+ if(Object.entries(input).some(([key,value])=>value!==undefined&&!inputKeys.includes(key))||['clip','trim','sourceClip','segments'].some(key=>request[key]!==undefined)||input.role!==undefined&&!['source_video','reference_video'].includes(input.role))return reject('ThinkSound 参考选区或分段须先导出为完整 MP4，不会使用整片代替选段');
+ if(typeof input.url!=='string'||!input.url.trim())return reject('ThinkSound 参考视频尚未上传真实内容');
+ if([input.mime,input.mimeType].some(value=>value!==undefined&&value!=='video/mp4')||input.url.startsWith('data:')&&!input.url.startsWith('data:video/mp4;base64,'))return reject('ThinkSound 参考视频须为 MP4');
+ if(input.sizeBytes!==undefined&&(!Number.isSafeInteger(input.sizeBytes)||input.sizeBytes<1||input.sizeBytes>profile.maxVideoBytes))return reject('ThinkSound 参考视频大小须在 50 MB 内');
+ if(request.prompt!==undefined&&(typeof request.prompt!=='string'||request.prompt.length>profile.maxCharacters))return reject('ThinkSound 提示词须为不超过 '+profile.maxCharacters+' 字符的文字');
+ const wire=p.providerParameters??{};
+ if(!wire||typeof wire!=='object'||Array.isArray(wire)||Object.keys(wire).some(key=>!['model','seed','num_inference_steps','cfg_scale'].includes(key)))return reject('ThinkSound 原生参数含不支持的设置');
+ if(wire.seed!==undefined&&wire.seed!==null&&!Number.isSafeInteger(wire.seed)||wire.num_inference_steps!==undefined&&(!Number.isSafeInteger(wire.num_inference_steps)||wire.num_inference_steps<2||wire.num_inference_steps>100)||wire.cfg_scale!==undefined&&(!Number.isFinite(wire.cfg_scale)||wire.cfg_scale<1||wire.cfg_scale>20))return reject('ThinkSound 种子、推理步数或引导强度超出支持范围');
+ const duration=input.duration,range=profile.localVideoDuration;
+ if(overrides?.duration!==undefined&&(!Number.isFinite(overrides.duration)||overrides.duration<range.min||overrides.duration>range.max))return reject('明确指定的音频时长须在本地 '+range.min+'–'+range.max+' 秒范围内，且跟随源视频');
+ if(duration===undefined&&options.deferVideoDuration)return {ready:true,reason:'',hint:hint+' 生成前读取真实视频时长。'};
+ if(!Number.isFinite(duration)||duration<range.min||duration>range.max)return reject('ThinkSound 视频拟音须读取真实视频时长且在本地 '+range.min+'–'+range.max+' 秒范围内');
+ if(!options.deferVideoDuration&&p.duration!==duration)return reject('ThinkSound 音频时长须跟随真实源视频，不支持指定另一时长');
+ if(overrides?.duration!==undefined&&overrides.duration!==duration)return reject('明确指定的音频时长与源视频不一致，请修改指令；不会覆盖后提交');
+ return {ready:true,reason:'',hint};
+}
 export function audioNativeRequestState(metadata,request,options){
  const availability=providerConfigurationStatus(metadata,request);
  if(availability.configured===false)return {ready:false,reason:availability.message,hint:''};
  const profile=audioNativeProfile(metadata,request);if(!profile)return {ready:true,reason:'',hint:''};
  let p;try{p=audioNativeParameters(metadata,request,options);}catch(error){return {ready:false,reason:error.message,hint:''};}
  const selected=resolveProviderConfiguration(metadata,request),inputs=request.inputs??[];
+ if(protocol(selected)==='fal-video-audio-native')return videoAudioState(profile,request,p,options);
  if(inputs.length>30)return {ready:false,reason:'音频原生接口每个请求最多 30 个参考素材',hint:''};
  for(const count of [request.count,p.count,p.times])if(count!==undefined&&count!==profile.maxCount)return {ready:false,reason:'当前音频原生接口每个任务只生成一个结果',hint:''};
  if(p.scene!==profile.scene)return {ready:false,reason:'所选音频场景与实际供应商能力不一致',hint:''};

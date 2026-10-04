@@ -40,18 +40,19 @@ export function batchOptions(shared,items,nodes){
 export function changeBatch(shared,items,key,value,nodes){
  const active=items.find(item=>!item.rejected)||items[0];
  const next=normalizeDraft({...shared,nodeId:active.args.nodeId,referenceIds:active.args.referenceIds,[key]:value},nodes);
+ if(key==='duration'&&next.kind==='audio.generate'){next.audioDurationExplicit=true;next.audioDurationEdited=true;}
  const options=batchOptions(next,items,nodes);
  for(const [field,values]of Object.entries(options))if(!(shared.kind==='audio.generate'&&field==='duration')&&values.length&&!values.includes(next[field]))next[field]=values[0];
  return next;
 }
-export function batchDecisions(trace,shared,items,nodes){
+export function batchDecisions(trace,shared,items,nodes,options){
  if(items.length!==trace.batchItems.length)throw Error('批量任务记录不完整');
  const issue=batchCompatibility(shared,items,nodes);if(issue)throw Error(issue);
  return trace.batchItems.map((item,index)=>{
   if(items[index].rejected)return {callId:item.callId,allowed:false};
   const draft={...items[index].args};
   for(const field of fields){if(shared[field]===undefined)delete draft[field];else draft[field]=shared[field];}
-  return {callId:item.callId,allowed:true,args:confirmedArguments(item.args,draft,nodes)};
+  return {callId:item.callId,allowed:true,args:confirmedArguments(item.args,{...draft,audioDurationExplicit:shared.audioDurationEdited?true:items[index].args.audioDurationExplicit},nodes,[],options)};
  });
 }
 export function sharedReferences(items){

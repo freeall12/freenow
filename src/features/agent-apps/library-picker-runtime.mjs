@@ -69,6 +69,8 @@ export function createLibraryPickerRuntime({library, app, store, getProjectId, l
   }
   async function prepareAppArgs(args, {isCurrent = () => true, signal} = {}) {
     if (args.resource_uri !== libraryPickerUri) return args;
+    const projectId=getProjectId();await library.ready?.();
+    if(projectId!==getProjectId()||!isCurrent()||signal?.aborted)throw failure('stale_source','画布或素材库操作已变化，请重试');
     const data = args.data || {};
     if (Object.keys(data).some(key => !['applied', 'can_add_to_canvas'].includes(key))) throw failure('invalid_input', '素材库来源必须由宿主读取，不能由Agent提供素材或地址');
     const snapshot = read(), captured = signature(snapshot), scope = {projectId: getProjectId()};const check = () => guard(scope, captured, isCurrent, signal);check();

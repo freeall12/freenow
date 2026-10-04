@@ -8,48 +8,97 @@
   function mediaSource(element,src){if(!src)return;if(officialMedia(src)){element.title='此媒体需迁移或重新导入本地素材';return;}if(src.startsWith('asset:')){const pending=window.LocalAssets?.url?.(src);if(!pending){element.title='本地素材存储尚未就绪';return;}pending.then(url=>{if(!officialMedia(url))element.src=url;}).catch(error=>{element.title=error.message;});}else element.src=src;}
   const img=(src,alt='')=>{const i=el('img');mediaSource(i,src);i.alt=alt;return i;};
   const folders=['角色','场景','道具','风格','音效','Others'];
-  let library=[],extraFolders=[],libraryBaseline=null,folderBaseline=null,libraryReadFailed=false;try{libraryBaseline=localStorage.getItem('tapnow-library');folderBaseline=localStorage.getItem('tapnow-folders');library=JSON.parse(libraryBaseline||'[]');extraFolders=JSON.parse(folderBaseline||'[]');if(!Array.isArray(library)||!Array.isArray(extraFolders))throw Error('素材库数据无效');}catch{library=[];extraFolders=[];libraryReadFailed=true;}
-  let libraryWrites=Promise.resolve(),libraryPending=0,libraryUnsaved=false,migrationPending=null,libraryMigration=null;
-  const locks=window.navigator?.locks;
-  const libraryLock=operation=>locks?.request?locks.request('tapnow-library-write',operation):Promise.resolve().then(operation);
-  const conflict=()=>Object.assign(Error('另一窗口已修改素材库，当前修改尚未保存，请保留此页面'),{name:'LibraryConflictError'});
+  let library=[],extraFolders=[],libraryLoaded=false,libraryError=null,hydration=null,libraryRevision=0;
+  let libraryWrites=Promise.resolve(),libraryPending=0,libraryUnsaved=false,migrationPending=null,libraryMigration=null,libraryConflict=false,favoriteIntents=0;
+  const recordKey='agent-library:personal-v1',store=window.CanvasStore;
+  const conflict=()=>Object.assign(Error('另一窗口已修改素材库，当前草稿尚未保存；请先导出草稿并确认本机文件，再刷新读取当前库'),{name:'LibraryConflictError'});
+  function validateLibrary(items,folderNames){
+    if(!Array.isArray(items)||items.some(item=>!item||typeof item!=='object'||typeof item.id!=='string')||new Set(items.map(item=>item.id)).size!==items.length||!Array.isArray(folderNames)||folderNames.some(name=>typeof name!=='string'))throw Error('素材库数据无效，原记录已保留');
+    return {items,folders:folderNames};
+  }
+  function legacyLibrary(){
+    // Never treat an unavailable legacy source as an empty library.
+    const raw=localStorage.getItem('tapnow-library'),folderRaw=localStorage.getItem('tapnow-folders');
+    return {...validateLibrary(JSON.parse(raw??'[]'),JSON.parse(folderRaw??'[]')),raw,folderRaw};
+  }
+  function emitLibrary(){
+    // UI listeners cannot turn a committed database receipt into a save failure.
+    try{document.dispatchEvent(new CustomEvent('library:changed'));}catch(error){console.error('Library UI:',error);}
+    try{app.render?.();}catch(error){console.error('Library render:',error);}
+  }
+  function assertLibraryReady(){if(!libraryLoaded)throw libraryError||Error('素材库正在读取，请稍后重试');}
+  function readyLibrary(){
+    if(libraryLoaded)return Promise.resolve();if(hydration)return hydration;
+    hydration=Promise.resolve().then(async()=>{
+      if(typeof store?.readRecord!=='function'||typeof store?.writeRecord!=='function')throw Error('本地素材库数据库尚未就绪，旧记录保持只读');
+      const record=await store.readRecord(recordKey);let next;
+      if(record==null){
+        const source=legacyLibrary();next={items:source.items,folders:source.folders};
+        const receipt=await store.writeRecord(recordKey,{version:1,...next},{expectedRevision:0,canCommit:()=>localStorage.getItem('tapnow-library')===source.raw&&localStorage.getItem('tapnow-folders')===source.folderRaw});
+        if(!receipt||receipt===false)throw Error('旧素材库迁移未能提交，原记录已保留');libraryRevision=receipt.storageRevision;
+      }else{
+        if(record.version!==1)throw Error('素材库版本不匹配，原记录已保留');
+        next=validateLibrary(record.items,record.folders);libraryRevision=record.storageRevision??0;
+      }
+      library=structuredClone(next.items);extraFolders=structuredClone(next.folders);libraryLoaded=true;libraryError=null;
+    }).catch(error=>{libraryError=error;throw error;}).finally(()=>{hydration=null;emitLibrary();});return hydration;
+  }
+  async function writeLibrary(items,folderNames,{canCommit}={}){
+    validateLibrary(items,folderNames);
+    let receipt;try{receipt=await store.writeRecord(recordKey,{version:1,items,folders:folderNames},{expectedRevision:libraryRevision,...(canCommit?{canCommit}:{})});}catch(error){if(error.name==='AgentConversationConflictError')throw conflict();throw error;}
+    if(!receipt||receipt===false)throw Error('素材库记录未能提交');libraryRevision=receipt.storageRevision;
+  }
   function persistLibrary(){
-    const items=JSON.stringify(library),foldersValue=JSON.stringify(extraFolders);libraryUnsaved=true;
-    const write=()=>{if(libraryReadFailed)throw Error('素材库读取失败，已停止保存以保护原记录');if(localStorage.getItem('tapnow-library')!==libraryBaseline||localStorage.getItem('tapnow-folders')!==folderBaseline)throw conflict();localStorage.setItem('tapnow-library',items);libraryBaseline=items;localStorage.setItem('tapnow-folders',foldersValue);folderBaseline=foldersValue;if(JSON.stringify(library)===items&&JSON.stringify(extraFolders)===foldersValue)libraryUnsaved=false;};
-    // Legacy environments retain their synchronous write behavior. Migration
-    // requires Web Locks so every cooperating window commits under one lock.
-    if(!locks?.request){try{write();return libraryWrites=Promise.resolve();}catch(error){app.notify('素材库保存失败：'+error.message);const failed=libraryWrites=Promise.reject(error);failed.catch(()=>{});return failed;}}
-    libraryPending++;const pending=libraryWrites.catch(()=>{}).then(()=>libraryLock(write));libraryWrites=pending;pending.catch(error=>app.notify('素材库保存失败：'+error.message)).finally(()=>libraryPending--);return pending;
+    assertLibraryReady();if(libraryConflict){const blocked=Promise.reject(conflict());blocked.catch(()=>{});return blocked;}const items=structuredClone(library),folderNames=structuredClone(extraFolders),baseline=JSON.stringify({items,folders:folderNames});libraryUnsaved=true;libraryPending++;
+    const pending=libraryWrites.catch(()=>{}).then(async()=>{await writeLibrary(items,folderNames);if(JSON.stringify({items:library,folders:extraFolders})===baseline)libraryUnsaved=false;emitLibrary();});libraryWrites=pending;
+    pending.catch(error=>{if(error.name==='LibraryConflictError')libraryConflict=true;app.notify('素材库保存失败：'+error.message);}).finally(()=>{libraryPending--;emitLibrary();});return pending;
   }
   function libraryReport(report){libraryMigration=report;document.dispatchEvent(new CustomEvent('library:changed'));return report;}
   async function migrateLibraryResources(options={}){
     if(migrationPending)return migrationPending;
     migrationPending=(async()=>{
-      await libraryWrites;if(libraryReadFailed)throw Error('素材库读取失败，原记录已保留');if(libraryUnsaved)return libraryReport({status:'local_edits',persisted:false});
-      if(!locks?.request)return libraryReport({status:'lock_unavailable',persisted:false});
+      await readyLibrary();await libraryWrites;if(libraryUnsaved)return libraryReport({status:'local_edits',persisted:false});
       const [{migrateLibrarySnapshot},{loadResourceIndex}]=await Promise.all([import('./src/features/local-resource-migration/snapshot.mjs'),import('./src/features/local-resource-migration/canvas-load.mjs')]);
       const indexState=options.indexState||(options.index?{state:'ready',index:options.index}:await loadResourceIndex());
       if(indexState.state!=='ready')return libraryReport({status:indexState.state,persisted:false});
-      const baseline=JSON.stringify(library),stored=libraryBaseline;
+      const baseline=JSON.stringify(library),folderBaseline=JSON.stringify(extraFolders);
       // Older saved videos contain only their seed node ID. Migrate the actual
       // preview/insert source into the authority record, not just its poster.
       const source=library.map(item=>{const video=item.type==='video'?(item.video||window.EDITOR_DATA?.nodes?.[item.nodeId]?.video):null;return !item.video&&video?{...item,video}:item;});
       const result=await (options.migrate||migrateLibrarySnapshot)(source,{index:indexState.index,...(options.hashSource?{hashSource:options.hashSource}:{})});
       const report={status:result.unresolved.length?'pending_import':'ready',persisted:false,summary:result.summary,diagnostics:result.unresolved.map(({path,code})=>({path,code}))};
-      await libraryLock(()=>{
-        if(JSON.stringify(library)!==baseline||localStorage.getItem('tapnow-library')!==stored||libraryUnsaved){report.status='local_edits';return;}
-        if(!result.changes.length)return;
-        const value=JSON.stringify(result.snapshot);localStorage.setItem('tapnow-library',value);libraryBaseline=value;library=result.snapshot;report.persisted=true;
-      });return libraryReport(report);
-    })().catch(error=>{libraryReport({status:error.name==='LibraryConflictError'?'local_edits':'migration_failed',persisted:false});throw error;}).finally(()=>{migrationPending=null;});return migrationPending;
+      if(JSON.stringify(library)!==baseline||JSON.stringify(extraFolders)!==folderBaseline||libraryUnsaved){report.status='local_edits';return libraryReport(report);}
+      if(result.changes.length){
+        await writeLibrary(result.snapshot,structuredClone(extraFolders),{canCommit:()=>JSON.stringify(library)===baseline&&JSON.stringify(extraFolders)===folderBaseline&&!libraryUnsaved});
+        library=result.snapshot;report.persisted=true;
+      }
+      return libraryReport(report);
+    })().catch(error=>{const conflict=['LibraryConflictError','AgentConversationConflictError','CanvasRecordCommitRejectedError'].includes(error.name);const report=libraryReport({status:conflict?'local_edits':'migration_failed',persisted:false});if(conflict)return report;throw error;}).finally(()=>{migrationPending=null;});return migrationPending;
   }
-  window.CanvasProjects?.registerNavigationGuard(()=>migrationPending||libraryPending?'素材库正在保存或迁移，请稍后切换项目':libraryUnsaved?'素材库修改尚未保存，请保留此页面并重试':null);
-  window.addEventListener('beforeunload',event=>{if(libraryUnsaved){event.preventDefault();event.returnValue='';}});
+  window.CanvasProjects?.registerNavigationGuard(()=>favoriteIntents||hydration||migrationPending||libraryPending?'素材库正在保存或迁移，请稍后切换项目':libraryConflict?'素材库版本冲突，请先导出草稿并确认本机文件后再刷新':libraryUnsaved?'素材库修改尚未保存，请保留此页面并重试':null);
+  window.addEventListener('beforeunload',event=>{if(libraryUnsaved||favoriteIntents){event.preventDefault();event.returnValue='';}});
   const favoriteMedia=n=>n?.type==='video'?(n.video||window.EDITOR_DATA?.nodes[n.id]?.video):n?.type==='image'?(n.fullImage||n.image):null;
   const favoriteKey=n=>['video','image'].includes(n?.type)?n.type+':'+(n.currentSourceFileId||n.sourceFileId||favoriteMedia(n)):null;
   const favoriteMatches=(asset,n)=>asset.folder==='收藏'&&(['video','image'].includes(n?.type)?asset.mediaKey===favoriteKey(n)||(n.type==='video'?asset.video:asset.fullImage||asset.image)===favoriteMedia(n):asset.nodeId===n?.id);
-  window.CanvasLibrary={get items(){return library;},get folders(){return [...folders,...extraFolders];},isFavorite(value){const n=typeof value==='string'?app.getState().nodes.find(n=>n.id===value)||{id:value}:value;return library.some(a=>favoriteMatches(a,n));},toggleFavorite(n){const existing=library.findIndex(a=>favoriteMatches(a,n));if(existing>=0)library.splice(existing,1);else library.push({id:crypto.randomUUID(),name:n.title,image:n.image,type:n.type,folder:'收藏',nodeId:n.id,mediaKey:favoriteKey(n),audio:n.audio,video:n.type==='video'?favoriteMedia(n):null,fullImage:n.type==='image'?favoriteMedia(n):null});persistLibrary();return existing<0;}};
-  Object.assign(window.CanvasLibrary,{migrateResources:migrateLibraryResources,migrationStatus:()=>libraryMigration&&structuredClone(libraryMigration),async flush(){let pending;do{pending=libraryWrites;await pending;}while(pending!==libraryWrites);}});
+  function toggleFavorite(n){
+    if(!libraryLoaded){const captured=structuredClone(n);favoriteIntents++;const pending=readyLibrary().then(()=>toggleFavorite(captured)).finally(()=>{favoriteIntents--;emitLibrary();});pending.catch(error=>app.notify('收藏尚未保存：'+error.message));return pending;}
+    const existing=library.findIndex(a=>favoriteMatches(a,n));if(existing>=0)library.splice(existing,1);else library.push({id:crypto.randomUUID(),name:n.title,image:n.image,type:n.type,folder:'收藏',nodeId:n.id,mediaKey:favoriteKey(n),audio:n.audio,video:n.type==='video'?favoriteMedia(n):null,fullImage:n.type==='image'?favoriteMedia(n):null});persistLibrary();return existing<0;
+  }
+  async function exportLibraryDraft(){
+    assertLibraryReady();const snapshot={format:'freenow-library-draft',version:1,exportedAt:new Date().toISOString(),baseStorageRevision:libraryRevision,items:structuredClone(library),folders:structuredClone(extraFolders),media:{}};
+    const references=new Set();function collect(value){if(typeof value==='string'&&/^asset:[A-Za-z0-9_-]+$/.test(value))references.add(value);else if(value&&typeof value==='object')for(const child of Object.values(value))collect(child);}collect(snapshot.items);
+    for(const ref of references){
+      if(typeof window.LocalAssets?.url!=='function')throw Error('本地媒体存储尚未就绪，未导出草稿');
+      const url=await window.LocalAssets.url(ref);if(!/^(?:blob:|data:)/.test(url))throw Error('草稿媒体不是本地Blob，未导出');const response=await fetch(url);if(!response.ok)throw Error('草稿媒体读取失败，未导出');const media=await response.blob(),bytes=new Uint8Array(await media.arrayBuffer());let binary='';for(let offset=0;offset<bytes.length;offset+=32768)binary+=String.fromCharCode(...bytes.subarray(offset,offset+32768));snapshot.media[ref]={mime:media.type,bytes:media.size,dataUrl:'data:'+media.type+';base64,'+btoa(binary)};
+    }
+    return new Blob([JSON.stringify(snapshot)],{type:'application/json'});
+  }
+  async function downloadLibraryDraft(button){
+    button.disabled=true;let url;try{const blob=await exportLibraryDraft();url=URL.createObjectURL(blob);const link=el('a');link.href=url;link.download='freenow-library-unsaved-'+Date.now()+'.json';document.body.append(link);link.click();link.remove();app.notify('草稿导出已交给浏览器；确认本机文件已保存后再刷新读取当前库');}catch(error){app.notify('草稿未能导出：'+error.message);}finally{if(url)window.setTimeout(()=>URL.revokeObjectURL(url),60000);button.disabled=false;}
+  }
+  window.CanvasLibrary={ready:readyLibrary,exportDraft:exportLibraryDraft,get conflict(){return libraryConflict;},retrySave:async()=>{await readyLibrary();return persistLibrary();},get loaded(){return libraryLoaded;},get error(){return libraryError;},get items(){assertLibraryReady();return library;},get folders(){assertLibraryReady();return [...folders,...extraFolders];},isFavorite(value){if(!libraryLoaded)return false;const n=typeof value==='string'?app.getState().nodes.find(n=>n.id===value)||{id:value}:value;return library.some(a=>favoriteMatches(a,n));},toggleFavorite};
+  Object.assign(window.CanvasLibrary,{migrateResources:migrateLibraryResources,migrationStatus:()=>libraryMigration&&structuredClone(libraryMigration),async flush(){await readyLibrary();let pending;do{if(migrationPending)await migrationPending;pending=libraryWrites;await pending;}while(pending!==libraryWrites||migrationPending);}});
+  readyLibrary().catch(error=>app.notify('素材库读取失败：'+error.message));
   function migrationText(report){if(!report)return '';if(report.status==='migration_failed')return '资源迁移尚未保存，原记录已保留，请重试';if(report.status==='local_edits')return '素材已有新修改，迁移已暂停，请先保存当前修改';if(report.status==='lock_unavailable')return '此浏览器不支持安全迁移，请使用支持 Web Locks 的浏览器';if(report.status.startsWith('index_'))return '本地资源索引尚未就绪，原引用已保留';return report.summary?.unresolved?`已映射 ${report.summary.changed} 项，${report.summary.unresolved} 项需重新导入本地素材，原引用已保留`:`本地资源检查完成，${report.summary?.changed||0} 项已映射`;}
   function migrationStatusElement(report){const status=el('p','panel-empty',migrationText(report));status.setAttribute('role','status');status.dataset.migrationStatus=report.status;return status;}
   const effectiveLibraryAsset=item=>({...item,...item.type==='video'?{video:item.video||window.EDITOR_DATA?.nodes?.[item.nodeId]?.video}:{}});
@@ -84,21 +133,24 @@
   function searchBox(placeholder,callback){const input=el('input','panel-search');input.type='search';input.placeholder=placeholder;input.setAttribute('aria-label',placeholder);input.oninput=()=>callback(input.value);return input;}
   function folderButton(name,fn){const b=btn('',fn,'folder-row');const chevron=el('span','folder-chevron');chevron.innerHTML=window.UI_ICONS.arrowRight;const folder=el('span','folder-resource-icon');folder.innerHTML=window.UI_ICONS.folder;b.append(chevron,folder,el('span','',name));return b;}
   function assetPreview(item){try{assertLibraryReadable(item);}catch(error){app.notify(error.message);return;}const n={id:item.id,title:item.name,image:item.image,fullImage:item.fullImage,type:item.type||'image',content:item.content,color:item.color,audio:item.audio,video:item.video||window.EDITOR_DATA?.nodes[item.nodeId]?.video};app.preview(n);}
-  function saveAsset(nodes){const assets=nodes.filter(n=>n.image||n.fullImage||n.audio||n.video||window.EDITOR_DATA?.nodes[n.id]?.video||n.type==='text'&&n.content?.trim());if(!assets.length)return;const d=el('dialog','save-library-dialog');d.append(el('h2','','保存到素材库'));const name=el('input');name.value=assets.length===1?assets[0].title:`${assets.length} 个素材`;name.setAttribute('aria-label','素材名称');const select=el('select');select.setAttribute('aria-label','素材文件夹');[...folders,...extraFolders,'收藏'].forEach(n=>select.append(el('option','',n)));let preparedAssets=null;const save=btn('保存',async()=>{save.disabled=true;try{if(!preparedAssets){const capture=window.CanvasLibraryAssetRoundtrip?.capture||((n,o)=>({id:o.id,name:o.name,folder:o.folder,type:n.type,nodeId:n.id,image:['image','video'].includes(n.type)?n.image:undefined,fullImage:n.type==='image'?n.fullImage:undefined,audio:n.type==='audio'?n.audio:undefined,video:n.type==='video'?n.video||o.legacyVideo:undefined,content:n.type==='text'?n.content:undefined,color:n.type==='text'?n.color:undefined}));preparedAssets=assets.map(n=>capture(n,{id:crypto.randomUUID(),name:assets.length===1?name.value:n.title,folder:select.value,legacyVideo:window.EDITOR_DATA?.nodes[n.id]?.video}));library.push(...preparedAssets);}preparedAssets.forEach((item,i)=>{item.name=assets.length===1?name.value:assets[i].title;item.folder=select.value;});await persistLibrary();d.close();showLibrary();}catch(error){app.notify('素材尚未保存：'+error.message);}finally{save.disabled=false;}},'solid-button');d.append(name,select,save);showDialog(d);}
+  function saveAsset(nodes){if(typeof readyLibrary==='function'&&!libraryLoaded){const projectId=window.CanvasProjects?.id?.();readyLibrary().then(()=>{if(projectId!==window.CanvasProjects?.id?.())throw Error('画布已切换，请重新保存素材');saveAsset(nodes);}).catch(error=>app.notify('素材尚未保存：'+error.message));return;}const assets=nodes.filter(n=>n.image||n.fullImage||n.audio||n.video||window.EDITOR_DATA?.nodes[n.id]?.video||n.type==='text'&&n.content?.trim());if(!assets.length)return;const d=el('dialog','save-library-dialog');d.append(el('h2','','保存到素材库'));const name=el('input');name.value=assets.length===1?assets[0].title:`${assets.length} 个素材`;name.setAttribute('aria-label','素材名称');const select=el('select');select.setAttribute('aria-label','素材文件夹');[...folders,...extraFolders,'收藏'].forEach(n=>select.append(el('option','',n)));let preparedAssets=null;const save=btn('保存',async()=>{save.disabled=true;try{if(typeof readyLibrary==='function')await readyLibrary();if(!preparedAssets){const capture=window.CanvasLibraryAssetRoundtrip?.capture||((n,o)=>({id:o.id,name:o.name,folder:o.folder,type:n.type,nodeId:n.id,image:['image','video'].includes(n.type)?n.image:undefined,fullImage:n.type==='image'?n.fullImage:undefined,audio:n.type==='audio'?n.audio:undefined,video:n.type==='video'?n.video||o.legacyVideo:undefined,content:n.type==='text'?n.content:undefined,color:n.type==='text'?n.color:undefined}));preparedAssets=assets.map(n=>capture(n,{id:crypto.randomUUID(),name:assets.length===1?name.value:n.title,folder:select.value,legacyVideo:window.EDITOR_DATA?.nodes[n.id]?.video}));library.push(...preparedAssets);}preparedAssets.forEach((item,i)=>{item.name=assets.length===1?name.value:assets[i].title;item.folder=select.value;});await persistLibrary();d.close();showLibrary();}catch(error){app.notify('素材尚未保存：'+error.message);if(typeof libraryConflict!=='undefined'&&libraryConflict&&!d.querySelector('[data-library-export]')){const recovery=el('p','','版本冲突：先导出并确认本机文件，再刷新读取当前库。本页保留未保存素材。'),exportButton=btn('导出未保存素材',()=>downloadLibraryDraft(exportButton));exportButton.dataset.libraryExport='true';d.append(recovery,exportButton,btn('保留草稿并关闭',()=>d.close()));}}finally{save.disabled=typeof libraryConflict!=='undefined'&&libraryConflict;}},'solid-button');d.append(name,select,save);showDialog(d);}
   document.addEventListener('canvas:save-assets',e=>saveAsset(e.detail));
   function subjectShortcut(){const b=btn('主体库',showSubjectLibrary,'library-shortcut');b.setAttribute('aria-label','主体库');return b;}
   function showLibrary(){
     const {panel:p,head}=panel('素材库','library');if(!p)return;let scope='个人',folder=null,q='';const ai=iconButton('AI 角色','user',()=>showSubjectLibrary());ai.title='AI 角色';const add=iconButton('添加素材','plus',()=>libraryAddMenu(),'panel-plus',false);add.setAttribute('aria-label','添加素材');add.setAttribute('aria-haspopup','menu');add.setAttribute('aria-expanded','false');head.append(ai,add);
     p.append(segments(['个人','团队'],v=>{scope=v;folder=null;render();}),searchBox('搜索',v=>{q=v;render();}));const content=el('div','panel-scroll');p.append(content);
-    function render(){const focused=document.activeElement?.closest?.('.asset-tile')?.dataset.assetId;content.replaceChildren();if(libraryMigration)content.append(migrationStatusElement(libraryMigration));if(scope==='团队'){content.append(el('p','panel-empty','暂无团队素材'));return;}
+    function render(){const focused=document.activeElement?.closest?.('.asset-tile')?.dataset.assetId;content.replaceChildren();if(!libraryLoaded){content.append(el('p','panel-empty',libraryError?'素材库读取失败：'+libraryError.message:'正在读取素材库…'));if(libraryError)content.append(btn('重试',()=>readyLibrary().catch(error=>app.notify(error.message))));return;}if(libraryUnsaved){const status=el('p','panel-empty',libraryConflict?'素材库版本冲突。本页保留未保存草稿；先导出并确认本机文件，再刷新读取当前库。不会自动覆盖新版。':libraryPending?'素材库正在保存…':'素材修改尚未保存，请保留此页面并重试');status.setAttribute('role','status');content.append(status);if(!libraryPending){if(libraryConflict){const exportButton=btn('导出未保存素材',()=>downloadLibraryDraft(exportButton));content.append(exportButton);}else content.append(btn('重试保存',()=>persistLibrary().catch(()=>{})));}}if(libraryMigration)content.append(migrationStatusElement(libraryMigration));if(scope==='团队'){content.append(el('p','panel-empty','暂无团队素材'));return;}
       if(folder!==null||q){const back=()=>{folder=null;q='';p.querySelector('input').value='';render();},path=folder?iconButton(folder,'arrowLeft',back,'library-shortcut'):btn('搜索结果',back,'library-shortcut');content.append(path);const grid=el('div','library-grid');const items=library.filter(i=>(!folder||i.folder===folder)&&i.name.toLowerCase().includes(q.toLowerCase()));items.forEach(item=>{const b=btn('',()=>assetPreview(item),'asset-tile');b.dataset.assetId=item.id;if(item.image)b.append(img(item.image,item.name));else{const glyph=el('div','asset-audio-placeholder');glyph.innerHTML=window.UI_ICONS[item.type==='text'?'text':'music'];b.append(glyph);}b.append(el('span','',item.name));b.ondblclick=()=>insertLibraryAsset(item);b.oncontextmenu=e=>{e.preventDefault();simplePopup(e.clientX,e.clientY,[['添加到画布',()=>insertLibraryAsset(item)],['移到收藏',()=>{item.folder='收藏';persistLibrary();render();}],['重命名',()=>{const name=prompt('素材名称',item.name);if(name?.trim()){item.name=name.trim();persistLibrary();render();}}]],b);};grid.append(b);});content.append(grid);if(!items.length)content.append(el('p','panel-empty','暂无素材'));if(focused)Array.from(content.querySelectorAll('.asset-tile')).find(b=>b.dataset.assetId===focused)?.focus({preventScroll:true});return;}
       content.append(iconButton('收藏','star',()=>{folder='收藏';render();},'library-shortcut'),subjectShortcut(),el('div','library-divider'),el('div','library-caption','文件夹'));
       [...folders,...extraFolders].forEach(name=>{const b=folderButton(name,()=>{folder=name;render();});const dots=el('span','folder-more resource-icon-button');dots.setAttribute('aria-hidden','true');dots.innerHTML=window.UI_ICONS.more||'';b.append(dots);content.append(b);});
     }
-    function libraryAddMenu(){const r=add.getBoundingClientRect();simplePopup(r.right,r.bottom+8,[['上传图片',()=>uploadLibrary(folder||'Others',()=>{if(left===p&&p.isConnected&&activePanel==='library')render();})],['保存选中节点',()=>saveAsset(app.getState().nodes.filter(n=>app.getState().selected.includes(n.id)))],['迁移本地资源',()=>migrateLibraryResources().catch(error=>app.notify('迁移尚未保存：'+error.message))],['新建文件夹',()=>{const name=prompt('文件夹名称');if(name?.trim()&&![...folders,...extraFolders].includes(name.trim())){extraFolders.push(name.trim());persistLibrary();render();}}]],add);}
+    function libraryAddMenu(){if(!libraryLoaded){app.notify(libraryError?.message||'素材库正在读取，请稍后重试');return;}const r=add.getBoundingClientRect();simplePopup(r.right,r.bottom+8,[['上传图片',()=>uploadLibrary(folder||'Others',()=>{if(left===p&&p.isConnected&&activePanel==='library')render();})],['保存选中节点',()=>saveAsset(app.getState().nodes.filter(n=>app.getState().selected.includes(n.id)))],['迁移本地资源',()=>migrateLibraryResources().catch(error=>app.notify('迁移尚未保存：'+error.message))],['新建文件夹',()=>{const name=prompt('文件夹名称');if(name?.trim()&&![...folders,...extraFolders].includes(name.trim())){extraFolders.push(name.trim());persistLibrary();render();}}]],add);}
     const refresh=()=>{if(left===p&&p.isConnected)render();};document.addEventListener('library:changed',refresh);surfaceDisposers.set(p,()=>document.removeEventListener('library:changed',refresh));render();
   }
-  function uploadLibrary(folder,onSaved){const input=el('input');input.type='file';input.accept='image/*';input.multiple=true;input.onchange=()=>{[...input.files].forEach(file=>{const reader=new FileReader();reader.onload=async()=>{library.push({id:crypto.randomUUID(),name:file.name,image:reader.result,folder,type:'image'});const pending=persistLibrary();if(!locks?.request)onSaved?.();try{await pending;if(locks?.request)onSaved?.();}catch{}};reader.readAsDataURL(file);});};input.click();}
+  function uploadLibrary(folder,onSaved){
+    const input=el('input');input.type='file';input.accept='image/*';input.multiple=true;
+    input.onchange=async()=>{try{await readyLibrary();for(const file of input.files){if(!file.type.startsWith('image/'))throw Error('仅支持图片素材');if(typeof window.LocalAssets?.put!=='function')throw Error('本地媒体存储尚未就绪');const image=await window.LocalAssets.put(file);library.push({id:crypto.randomUUID(),name:file.name,image,folder,type:'image'});await persistLibrary();onSaved?.();}}catch(error){app.notify('素材尚未保存：'+error.message);}};input.click();
+  }
   async function showSubjectLibrary(){
     const previous=left;
     const {openSubjectManager}=await import('./src/features/subject-library/manager.mjs');

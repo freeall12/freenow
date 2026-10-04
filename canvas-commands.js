@@ -22,9 +22,9 @@
   const d=el('dialog','command-assets');d.setAttribute('aria-label','添加资产');
   const head=el('header'),title=el('h2',null,'添加资产'),exit=el('button');exit.setAttribute('aria-label','关闭');exit.innerHTML=window.UI_ICONS.close;exit.onclick=()=>d.close();head.append(title,exit);d.append(head);
   const search=el('input');search.type='search';search.placeholder='搜索素材';search.setAttribute('aria-label','搜索素材');const grid=el('div','command-assets-grid');d.append(search,grid);
-  let revision=0;const bindings=new Set(),disposeImages=()=>{revision++;for(const binding of bindings)binding.dispose();bindings.clear();};
+  let ready=!window.CanvasLibrary?.ready,error=null;let revision=0;const bindings=new Set(),disposeImages=()=>{revision++;for(const binding of bindings)binding.dispose();bindings.clear();};
   const render=()=>{
-   disposeImages();grid.replaceChildren();const version=revision;
+   disposeImages();grid.replaceChildren();const version=revision;if(!ready){grid.append(el('p',null,error?'素材库读取失败：'+error.message:'正在读取素材库…'));return;}
    for(const a of window.CanvasLibrary.items.filter(a=>a.name.toLowerCase().includes(search.value.toLowerCase()))){
     const b=el('button');b.setAttribute('aria-label',a.name);
     if(a.image||a.fullImage){
@@ -38,7 +38,7 @@
    }
    if(!grid.children.length)grid.append(el('p',null,'暂无素材，请先将节点保存到素材库'));
   };
-  search.oninput=render;render();d.onclose=()=>{disposeImages();d.remove();};document.body.append(d);d.showModal();
+  search.oninput=render;render();d.onclose=()=>{disposeImages();d.remove();};document.body.append(d);d.showModal();if(window.CanvasLibrary?.ready)window.CanvasLibrary.ready().then(()=>{ready=true;if(d.isConnected)render();}).catch(cause=>{error=cause;if(d.isConnected)render();});
  }
 
  function context(x,y,history){close();const point={x,y};window.CanvasMenus.show(x,y,[{label:'上传',run:()=>upload(point)},{label:'添加资产',run:()=>assets(point)},null,{label:'添加节点',run:()=>open(x,y,'nodes',point)},{label:'添加辅助工具',run:()=>open(x,y,'tools',point)},null,{label:'撤销',key:'⌘Z',run:history.undo?()=>app.undo():null},{label:'重做',key:'⇧⌘Z',run:history.redo?()=>app.undo(true):null},null,{label:'粘贴',key:'⌘V',run:window.CanvasMenus.hasCopy?()=>window.CanvasMenus.paste(point):null}]);}

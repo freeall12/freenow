@@ -78,7 +78,7 @@
     const control=(label,icon,action)=>{const b=btn('',action);b.type='button';b.setAttribute('aria-label',label);b.dataset.tooltip=label;b.innerHTML=icons[icon];return b;};
     const top=el('div','video-player-top'),bottom=el('div','video-player-bottom');
     const mute=control('取消静音','playerMuted',()=>{muted=!video.muted;for(const p of players.values()){p.video.muted=muted;p.sync();}});
-    const star=control('收藏','playerStar',()=>{window.CanvasLibrary?.toggleFavorite(n);sync();});top.append(mute,star);
+    const star=control('收藏','playerStar',()=>{Promise.resolve(window.CanvasLibrary?.toggleFavorite(n)).then(sync).catch(()=>{});});top.append(mute,star);
     const togglePlay=()=>{if(document.body.classList.contains('video-trimming'))return;if(video.paused){const {start,end}=bounds();if(video.currentTime>=end-.02||video.currentTime<start)video.currentTime=start;video.play().catch(e=>notify(e.message));}else video.pause();};
     const play=control('播放视频','playerPlay',togglePlay),time=el('output','video-player-time'),duration=el('output','video-player-duration'),seek=el('input','video-player-seek'),full=control('全屏查看','playerFullscreen',()=>{video.pause();app.preview(app.getState().nodes.find(v=>v.id===n.id)||n);});
     seek.type='range';seek.min='0';seek.max='0';seek.step='.1';seek.value='0';seek.setAttribute('aria-label','视频播放进度');

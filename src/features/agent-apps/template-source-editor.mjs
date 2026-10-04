@@ -18,6 +18,12 @@ export function openTemplateSourceEditor({session, onSaved = () => {}, onError =
   const status = document.createElement('p'); status.role = 'status'; status.className = 'agent-artifact-status';
   const actions = document.createElement('div'); actions.className = 'agent-html-actions';
   const dirty = () => textarea.value !== saved.content;
+  // A dialog-close check cannot protect a draft when the user reloads or leaves the page.
+  const beforeUnload = event => {
+    if (!closed && (dirty() || saving)) { event.preventDefault(); event.returnValue = ''; }
+  };
+  const root = document.defaultView;
+  root?.addEventListener('beforeunload', beforeUnload);
   const button = (label, action) => { const node = document.createElement('button'); node.type = 'button'; node.textContent = label; node.onclick = action; return node; };
   const discard = document.createElement('div'); discard.className = 'agent-template-discard'; discard.hidden = true;
   const warning = document.createElement('p'); warning.textContent = '还有未保存的修改。';
@@ -73,7 +79,7 @@ export function openTemplateSourceEditor({session, onSaved = () => {}, onError =
     if (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom) requestClose();
   };
   dialog.addEventListener('close', () => {
-    if (closed) return; closed = true; session.close(); dialog.remove();
+    if (closed) return; closed = true; root?.removeEventListener('beforeunload', beforeUnload); session.close(); dialog.remove();
     if (previousFocus?.isConnected) previousFocus.focus();
   }, {once: true});
   sync(); dialog.showModal(); textarea.focus();

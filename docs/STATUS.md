@@ -15,6 +15,12 @@
 
 ## 本次交付
 
+- 视频拟音新增 ThinkSound 显式替代协议，延长镜头新增 Ark 参考生成协议；节点、Agent 卡、路由和缺配置预检已接线。正式按钮/Agent各一次本机HTTP提交，真实8秒WAV播放结束并刷新恢复；时长冲突、缺Key、缺映射零新增任务。延长菜单和两级Escape已实操，本地Ark视频在读取/裁片前阻止。[本批证据](LOCAL-VIDEO-TOOLS-STORAGE-BRAND-20261005.md)。
+- 个人素材与文件夹改由现有IndexedDB record单事务保存，旧库只读迁移；6.6MB原图经正式保存、picker插入和刷新后原始SHA/像素一致，旧localStorage库键零写入。补素材加载中的Agent队列取消、收藏离页保护和冲突草稿导出；不盲目覆盖另一标签数据。[容量与恢复](LIBRARY-LOCAL-CAPACITY-20261005.md)。
+- 创意HTML编辑器补未保存/保存中的离页保护。官方Web新入口和目录复查未发现92份缺失原文；不制造模板URL。制作进度卡在原文SHA校验后替换固定品牌、F图片和供应商错误指引；深浅色/中英文嵌套iframe实际加载通过。[品牌记录](FREENOW-PRODUCTION-PROGRESS-BRAND-20261005.md)。
+
+## 前批工作流与音频交付
+
 - 10个公开工作流模板、8个真实分类和全部引用媒体本地化，保留72个原节点、112条连线、提示词及相对坐标。实际应用简单/29节点复杂模板、单次撤销/重做、刷新与MP4播放通过；约95MB原封面的列表派生资源降至332KB，原图保留。[本批记录](LOCAL-WORKFLOW-AND-NATIVE-AUDIO-20261005.md)。
 - Mureka 8/O2与Seed Audio 1.0原生接口、路由和节点预检接入。31项适配器、3项接线检查及音频前端专项通过；正式按钮播放MP3/Ogg、字幕落图、刷新和缺配置零提交已验，真实供应商待Key。[Mureka](MUREKA-NATIVE-20261005.md) / [Seed Audio](SEED-AUDIO-NATIVE-20261005.md)。
 - Agent电商组图质量选项与freeform默认值修复；18项专项及原HTML真实编辑/确认/Escape回焦/无配置零任务通过，freeform提交保留high与真实来源。[组图记录](../src/features/agent-apps/ecommerce-photoset.md)。
@@ -40,7 +46,7 @@
 - Agent流式代码即时复制/自动换行；增量和完成保留code/toolbar身份、焦点及横向滚动，复制读取当前内容。实际复制粘贴、流式增量、完成与切空通过，见[流式代码](AGENT-STREAMING-CODE-CONTROLS-20261005.md)。
 - 片场对象聚焦保持整场导航速度，仅全景按当前场景半径重算。真实GLB场景树、F、对象聚焦与查看全景通过，见[聚焦导航](STUDIO-V2-FOCUS-NAVIGATION-SPEED-20261005.md)。
 
-- 素材库保留高清原图、像素、裁切和来源；picker解析本地资源。修复 `asset:` 视频下载并补项目/源身份保护，真实PNG哈希、FFmpeg两秒320×180导出和刷新通过，见[素材往返](LIBRARY-ASSET-ROUNDTRIP-20261005.md)。正式素材库容量限制仍待完善；相邻侧栏检查有两项旧主体库fixture缺变量，专项文档已记录。
+- 素材库保留高清原图、像素、裁切和来源；picker解析本地资源。修复 `asset:` 视频下载并补项目/源身份保护，真实PNG哈希、FFmpeg两秒320×180导出和刷新通过，见[素材往返](LIBRARY-ASSET-ROUNDTRIP-20261005.md)。正式素材库容量迁移已在本批接入；浏览器配额、长期运行和自动冲突合并仍不在完成范围。
 
 - 图片编辑器补官方逻辑像素吸附与瞬时辅助线；真实左边缘/半倍中心拖动、一次撤销、PNG排除辅助线与刷新恢复已验，见[图片吸附](IMAGE-EDITOR-ALIGNMENT-GUIDES-20261005.md)。
 - 「应用所有历史」按生成批次分行并允许单个真实结果；新节点隔离源编辑文档，解码及保存后保护项目身份。正式菜单、整组一次撤销/重做和刷新已验，见[历史展开](CANVAS-HISTORY-EXPANSION-20261005.md)。

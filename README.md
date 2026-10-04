@@ -98,12 +98,14 @@ node --env-file=.env.local server/server.cjs
 | `openai-native` | 文本、文生图/参考图、语音、视觉识别与分镜描述 | [网关](docs/GENERATION-GATEWAY.md) / [参考图](docs/OPENAI-IMAGE-REFERENCES.md) |
 | `openai-masked-edit-native` | 擦除、局部重绘、扩图 | [蒙版编辑](docs/OPENAI-MASKED-EDIT-NATIVE.md) |
 | `ark-native` | 火山方舟视频任务 | [Ark](docs/ARK-VIDEO.md) |
+| `ark-video-extend-reference` | 工具栏延长镜头：片头/片尾、4–30秒、连续性与参考 | [延长镜头](docs/VIDEO-EXTEND-NATIVE-20261005.md)，明确为参考生成；本地视频另需公网发布通道 |
 | `minimax-native` | MiniMax H3 视频 | [H3](docs/MINIMAX-H3-SETUP.md) |
 | `minimax-music-native` | MiniMax Music 2.6 | [音乐](docs/MINIMAX-MUSIC-NATIVE.md)，存在账号资格限制 |
 | `elevenlabs-native` / `elevenlabs-sound-native` | TTS 与音效 | [TTS](docs/ELEVENLABS-NATIVE-TTS.md) / [音效](docs/ELEVENLABS-NATIVE-SOUND.md) |
 | `elevenlabs-music-native` | Music 普通/纯音乐与单节自定义歌词 | [音乐](docs/elevenlabs-music-native.md)，自定义歌词须明确3–120秒；节点目录上限300秒 |
 | `mureka-native` | Mureka 8 / O2 自动与自定义歌词歌曲 | [Mureka](docs/MUREKA-NATIVE-20261005.md)，精确型号、原任务查询与本地音频归档 |
 | `seed-audio-native` | Seed Audio 1.0 多模态音频及字幕文本 | [Seed Audio](docs/SEED-AUDIO-NATIVE-20261005.md)，独立语音 Key；Ogg Opus 仅48kHz |
+| `fal-video-audio-native` | 单个完整 MP4 → ThinkSound 拟音 | [视频拟音](docs/VIDEO-AUDIO-NATIVE-20261005.md)，显式替代 Sonilo SFX；时长跟随视频，供应商最大时长待验 |
 | `fal-native` / `fal-video-native` | 图片抠图/增强、视频增强 | [图片](docs/FAL-NATIVE-SETUP.md) / [视频](docs/FAL-VIDEO-NATIVE-SETUP.md) |
 | `tripo-native` | 3D 模型生成 | [Tripo](docs/TRIPO-NATIVE-SETUP.md) |
 | `marble-native` | World Labs 世界生成后端 | [Marble](docs/MARBLE-NATIVE-SETUP.md)，SPZ 渲染尚未完成，前端阻止派发 |
@@ -114,6 +116,7 @@ node --env-file=.env.local server/server.cjs
 ## 本地数据与资源
 
 - 浏览器 IndexedDB 保存项目、素材、Agent 会话及工作流记录；部分偏好、技能等仍使用 localStorage。没有云同步。
+- 个人素材库和文件夹现由 IndexedDB 单事务保存，旧 localStorage 数据只读迁移；大图保持原始字节。多标签冲突时保留草稿并可导出，不能盲目覆盖较新数据。[容量与恢复](docs/LIBRARY-LOCAL-CAPACITY-20261005.md)
 - 服务端任务、生成媒体与 Agent 检查点保存在 `server/` 下的私有隐藏目录，不提供静态访问、不纳入 Git。
 - `localhost` 与 `127.0.0.1` 是不同浏览器 origin，存储不互通；日常使用请保持同一个入口。清理站点数据会移除浏览器侧内容。
 - 新克隆使用 `defaults/` 空数据；个人素材、原始账号抓包、本机运行数据与 API Key 不发布。
@@ -121,25 +124,25 @@ node --env-file=.env.local server/server.cjs
 
 ## 最新接入与核验
 
-本批补齐 10 个公开工作流模板的真实节点图、8 类筛选、搜索、详情、应用和撤销恢复；72 个原节点、112 条连线和全部引用媒体落在本地。列表使用约332KB缩略图，详情保留约95MB原封面。它们与仍待补齐的92份创意HTML模板是两套内容。[本批实现与验收](docs/LOCAL-WORKFLOW-AND-NATIVE-AUDIO-20261005.md)
+本批接入视频拟音与延长镜头的独立供应商协议，并补齐真实 Agent 确认卡的时长、配置预检和素材加载保护。正式按钮和 Agent 卡均通过本机 HTTP 服务，8 秒 WAV 实际播放到结束、刷新可读；明确时长冲突及缺配置不会派发。这里验证的是调用与媒体链路，音频是固定测试音调。[本批实现与验收](docs/LOCAL-VIDEO-TOOLS-STORAGE-BRAND-20261005.md)
+
+| Agent 视频拟音：实际供应商与跟随时长 | 延长镜头：完整参数菜单与接入条件 |
+| --- | --- |
+| ![正式Agent视频拟音确认卡](docs/screenshots/agent-video-audio-native-20261005.jpg) | ![延长镜头参数与本地视频传输条件](docs/screenshots/video-extend-reference-20261005.jpg) |
+
+个人素材库已用 6.6 MB、2048×1152 原图完成正式保存、picker 插入及刷新核对，原始 SHA、像素和来源保持；旧库键零写入。Agent 等待素材加载时可以取消排队，未保存模板有离页保护。嵌套制作进度卡完成 freenow 名称、F 图片、深浅色与中英文替换，用户正文和来源保持。[存储](docs/LIBRARY-LOCAL-CAPACITY-20261005.md) · [进度卡品牌](docs/FREENOW-PRODUCTION-PROGRESS-BRAND-20261005.md)
+
+Ark 延长镜头使用官方工具栏的参考生成语义，当前仍要求公网 HTTPS 视频，不能只靠 Ark Key 上传本地视频。ThinkSound 是操作者明确选择的 Sonilo SFX 替代，未覆盖 Sonilo 音乐及分段。所有真实账号权限和生成效果仍待 Key 验收。
+
+此前已落地 10 个公开工作流、8 类筛选、72 个原节点、112 条连线及全部引用媒体；列表约332KB缩略图，保留约95MB原封面。Mureka、Seed Audio 与 ElevenLabs Music 已接原生协议；Agent 组图质量及编辑交互也有专项证据。[工作流与音频](docs/LOCAL-WORKFLOW-AND-NATIVE-AUDIO-20261005.md) · [Music](docs/elevenlabs-music-native.md)
 
 ![本地工作流模板详情、分类与应用](docs/screenshots/workflow-template-detail-20261005.jpg)
 
-Mureka 8/O2 与 Seed Audio 1.0 已接各自原生协议、路由及节点预检；本机 HTTP 与正式按钮验证 MP3/Ogg 播放、字幕落图、刷新和缺配置零提交。Agent 电商组图修复质量选项与 freeform 默认值，原页面编辑、确认、取消和回焦已实测。没有真实 Key，不能据此宣称账号资格或生成效果通过。
-
-![Agent电商组图的真实编辑与质量选择](docs/screenshots/photoset-quality-20261005.jpg)
-
-此前接入 ElevenLabs Music 公开 Compose API，节点根据实际路由禁用缺 Key、缺映射和不支持的歌词时长；模式切换保留歌词草稿。已用本机 HTTP 上游验证请求、真实 MP3 归档、播放、刷新与不重复提交，尚未调用真实供应商。[Music 配置与边界](docs/elevenlabs-music-native.md)。四个原生音频适配器同时补齐 UTF-16 媒体标签中的凭据回显拒绝。[音频字节保护](docs/AUDIO-CREDENTIAL-BYTES-20261005.md)
-
-合法同源资源会规范为稳定本地路径，多角度 QA 改为先归档再加载；刷新后两张 PNG 解码且坐标保持，旧会话数据保留。[资源修复](docs/LOCAL-RESOURCE-SAME-ORIGIN-20261005.md)。堆叠索引减少全图扫描与临时数组分配，落点/隐藏标题/撤销已浏览器复验；不据此宣称整体 FPS 提升。[性能记录](docs/CANVAS-PILE-INDEX-ALLOCATION-20261005.md)
-
-已新增 fal Qwen 2511 多角度原生替代，并修复 Agent 续轮、Ark 视频参数和截断图片响应。生成 API 配置现在列出 24 类操作，明确缺失路由与通用网关能力边界。[官方/安装包/社区交叉核验及 Key 接入清单](docs/OFFICIAL-CROSSCHECK-AND-KEY-READINESS-20261005.md) · [多角度配置](docs/FAL-MULTI-ANGLE-NATIVE-20261005.md)
+生成配置列出 24 类操作的实际就绪条件；多角度已有受限 Qwen 2511 替代，不能将通用网关登记当作专用能力完成。[逐项 Key 条件](docs/OFFICIAL-CROSSCHECK-AND-KEY-READINESS-20261005.md) · [多角度](docs/FAL-MULTI-ANGLE-NATIVE-20261005.md)
 
 ![freenow 配置与能力状态](docs/screenshots/generation-readiness-routed-20261005.png)
 
-![freenow 多角度原生替代](docs/screenshots/freenow-multi-angle-native-20261005.png)
-
-新多角度后端需要显式选择该模型，广角及倾斜低于 -30° 会在提交前提示。真实供应商效果、部分专用接口和 SPZ 仍待补齐，不能把通用网关或已有 Key 当作全部功能可运行。
+堆叠索引已减少全图扫描与临时数组分配；本批素材写入移出同步 localStorage，QA 也避免将数 MB data URL 展开成 DOM 文本。尚未完成全局帧率和长时间内存验收。[性能记录](docs/CANVAS-PILE-INDEX-ALLOCATION-20261005.md)
 
 ## 开发
 

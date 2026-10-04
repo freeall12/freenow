@@ -62,3 +62,13 @@ node --test tests/agent-template-edit.test.cjs tests/agent-template-source.test.
 CUA 另发现成功 Save disabled 后焦点掉到 body。本轮补丁仅在发起保存时 Save 拥有焦点、异步期间未主动换焦点且完成时仍在 Save/body 的情况下回正文；用户的 focusin、pointerdown 或 Tab 选择会阻止抢焦点。定向只运行 `node --test --test-name-pattern='save restores lost button focus' tests/agent-template-edit.test.cjs`，1/1 通过，涵盖 disabled 落焦恢复及主动焦点/空白/Tab/pointer 边界；未全量重复测试。
 
 主任务补丁 CUA 复验通过：重载 → 重开 → 编辑 → 保存，实际 revision 3，状态「已保存版本 3」，Save disabled，真实 DOM activeElement 为 `TEXTAREA`、aria-label 为「HTML 正文」。随后 Escape 无脏稿提示正常关闭，焦点回「打开合成 HTML 编辑器」按钮。截图 `/tmp/freenow-template-editor-saved-20261003.png`。官方正文缺失边界不变。
+
+## 2026-10-05 未保存正文的离页保护
+
+当前源码弹窗的未保存确认原先只覆盖 Escape、关闭按钮和外部点击；浏览器刷新/离页会越过弹窗确认并丢失 textarea 草稿。本地补丁在编辑器存活时监听宿主 window 的 `beforeunload`：**正文与已保存版本不同，或 save/onSaved callback 尚未完成**时调用 `preventDefault()` 与 `returnValue=''`，触发浏览器原生离页确认；不会新增自动保存或覆盖原模板。
+
+保存失败、来源失效但草稿尚在时继续保护。保存成功且 callback 完成、用户把正文改回当前已保存版本时允许离页；真正关闭编辑器时移除其监听器，反复重开不会继承旧草稿的保护。原生确认的文案/展示条件由浏览器决定，此项不能保证系统强制退出时保存草稿。
+
+定向验证：`node --test tests/agent-template-edit.test.cjs` **7/7** 通过；随后扩展同一新增测试覆盖已提交但 callback pending、反复重开与解绑，再运行 `node --test --test-name-pattern='protects unsaved and pending HTML' tests/agent-template-edit.test.cjs` **1/1** 通过。使用合成 UI session + jsdom 的可取消事件核验真实生产编辑器的守卫及解绑，没有冒称官方正文导入或实机原生确认弹窗验收。
+
+主线程后续真实 CUA：脏 HTML 的 reload 尝试保留编辑器及正文，页面加载计数未增加。工具没有呈现可观测的原生 beforeunload dialog，**不声称见到或点击了浏览器原生提示**。保存至 version 2 后正常 reload，实际正文和 version 2 保持。此次仍是合成普通 HTML + 独立真实 store，不是 92 份精确官方模板的导入证据。[本批完整记录](LOCAL-VIDEO-TOOLS-STORAGE-BRAND-20261005.md)。

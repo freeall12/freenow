@@ -24,6 +24,12 @@
 
 | 记录 | 范围 |
 | --- | --- |
+| [视频工具、素材容量与嵌套品牌](LOCAL-VIDEO-TOOLS-STORAGE-BRAND-20261005.md) | 正式音频/Agent调用、延长菜单、6.6MB原图刷新、离页保护与实际截图 |
+| [ThinkSound视频拟音](VIDEO-AUDIO-NATIVE-20261005.md) | 显式替代协议、完整MP4/WAV、时长与原任务恢复 |
+| [延长镜头参考生成](VIDEO-EXTEND-NATIVE-20261005.md) | 官方Toolbar合同、Ark参数和本地媒体预检；[传输限制](ARK-LOCAL-VIDEO-TRANSPORT-20261005.md) |
+| [个人素材库容量与冲突](LIBRARY-LOCAL-CAPACITY-20261005.md) | IndexedDB单事务、只读迁移、加载队列取消与草稿导出 |
+| [制作进度卡本地品牌](FREENOW-PRODUCTION-PROGRESS-BRAND-20261005.md) | 原文校验后派生、中英文/深浅色、准确CORS资源范围 |
+| [图片打光接口核查](IMAGE-RELIGHT-NATIVE-20261005.md) | 四个公开模型与26光位/色温/轮廓光的差异；显式替代模式仍待实现 |
 | [工作流模板、原生音频与Agent组图](LOCAL-WORKFLOW-AND-NATIVE-AUDIO-20261005.md) | 10个真实图、8类筛选、媒体离线化、缩略图优化与浏览器验收 |
 | [Mureka 8/O2原生接口](MUREKA-NATIVE-20261005.md) | 自动/自定义歌词、原任务恢复、真实音频归档与凭据保护 |
 | [Seed Audio 1.0原生接口](SEED-AUDIO-NATIVE-20261005.md) | 多模态引用、三种音频容器、字幕与供应商参数限制 |
