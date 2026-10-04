@@ -15,6 +15,10 @@
 
 ## 本次交付
 
+- 片场数字草稿补官方取消/提交语义，未编辑失焦与Escape保持真实精度；跨轴拖动保留控件和两笔历史，见[片场精度验收](STUDIO-V2-NUMERIC-DRAFT-20261004.md)。
+- Agent目录返回/整目录引用纳入键盘索引，补Tab、两级Escape和鼠标焦点；正式bundle写入真实引用已验，见[目录导航](AGENT-REFERENCE-FOLDER-NAVIGATION-20261004.md)。
+- 无效正式片连线落点按官方结束手势；六条实际鼠标路径及正常回退菜单已验，见[连线验收](CANVAS-CONNECTION-FINAL-DROP-20261004.md)。
+
 - 公开仓库移出5件冗余/无引用资源，扫描当前树和可达历史未发现真实凭据；补静态抓包读取隔离与可复用检查，见[仓库检查](PUBLIC-REPOSITORY-AUDIT-20261004.md)。
 - 视频23个根模块移入业务目录；Agent禁用模型说明补官方hover/focus覆盖层及关闭保护，并经真实Computer Use，见[视频目录整理](VIDEO-MODULE-ORGANIZATION-20261004.md)、[模型反馈](AGENT-GENERATION-DISABLED-MODEL-HOVER-20261004.md)。
 - Agent整数时长数字输入补两级Escape，音频取消抑制关闭/回焦期间的重复blur提交；真实输入与回调已复验，见[时长取消](AGENT-GENERATION-DURATION-ESCAPE-20261004.md)。

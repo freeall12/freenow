@@ -24,6 +24,9 @@
 
 | 记录 | 范围 |
 | --- | --- |
+| [片场数字草稿](STUDIO-V2-NUMERIC-DRAFT-20261004.md) | 原始精度、取消/失焦、精确提交和跨轴拖动 |
+| [Agent目录导航](AGENT-REFERENCE-FOLDER-NAVIGATION-20261004.md) | 返回/整目录引用、键盘边界、焦点与正式bundle |
+| [正式片连线落点](CANVAS-CONNECTION-FINAL-DROP-20261004.md) | 无效落点取消、合法样片、普通回退和拖动Escape |
 | [Agent 时长取消层级](AGENT-GENERATION-DURATION-ESCAPE-20261004.md) | 整数时长两级Escape、音频取消不重复提交、真实blur复验 |
 | [Agent 禁用模型反馈](AGENT-GENERATION-DISABLED-MODEL-HOVER-20261004.md) | 原因悬停/键盘反馈、禁用选择与关闭生命周期 |
 | [视频模块目录整理](VIDEO-MODULE-ORGANIZATION-20261004.md) | 23 个根目录文件迁入功能目录，同步运行引用、组件库与验证入口 |

@@ -120,6 +120,8 @@ export function install(app) {
     if (target && target.dataset.id !== state.id) {
       const pair = direction(state.id, target.dataset.id, state.side), error = validate(pair.source, pair.target);
       if (!error) {app.connect(pair.source, pair.target); return;}
+      // Official onConnectEnd ends invalid final-video drops without creating a command node.
+      if (isFinalNode(app.getState().nodes.find(node => node.id === pair.target))) return;
       app.notify(error); open(state.id, state.side, anchor); return;
     }
     if (document.elementFromPoint(anchor.x, anchor.y)?.closest('#canvas')) open(state.id, state.side, anchor);

@@ -55,7 +55,9 @@ FFmpeg 已安装在其他位置时，可配置 `FFMPEG_PATH`、`FFPROBE_PATH`。
 
 Agent 应用已登记 22 个版本 URI、20 个功能族，包含剧本、分镜、人物、学习、产品等工作流。**登记覆盖不等于全部页面和交互验收完成。**
 
-最新增量：视频手动/智能剪辑增加项目和来源保护，等待实际保存确认，保存失败可复用原结果重试；实际 FFmpeg、刷新回读与迟到拒绝见[剪辑验收](docs/VIDEO-TRIM-RESULT-RECOVERY-20261003.md)。此前的原生蒙版、ElevenLabs 音效及画布/片场性能优化见[上一批验收](docs/LOCAL-MASKED-SOUND-AND-PERFORMANCE-20261003.md)。
+最新增量：片场取消数字草稿和未编辑失焦保留真实坐标精度，跨轴拖动可连续提交；Agent补目录键盘引用、两级Escape与鼠标焦点；正式视频节点无效连线落点正确取消。均已定向Computer Use，见[片场](docs/STUDIO-V2-NUMERIC-DRAFT-20261004.md)、[Agent目录](docs/AGENT-REFERENCE-FOLDER-NAVIGATION-20261004.md)、[连线](docs/CANVAS-CONNECTION-FINAL-DROP-20261004.md)。
+
+![本地片场运镜参数和 Agent 目录引用](docs/screenshots/studio-numeric-draft.jpg)
 
 ## API 配置
 

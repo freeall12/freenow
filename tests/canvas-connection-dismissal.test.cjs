@@ -39,8 +39,8 @@ function fixture() {
   const canvas = new Element('div'); canvas.id = 'canvas'; canvas.tabIndex = 0; const edges = new Element('svg'); edges.id = 'edges'; canvas.append(edges); document.body.append(canvas);
   const state = {nodes: [{id: 'a', type: 'image', x: 0, y: 0, width: 200, height: 250}, {id: 'b', type: 'image', x: 350, y: 50, width: 200, height: 250}], edges: [], selected: [], view: {x: 0, y: 0, scale: 1}};
   const node = new Element('div'); node.className = 'node'; node.dataset.id = 'a'; const port = new Element('button'); port.className = 'port'; port.dataset.port = 'right'; node.append(port); canvas.append(node);
-  let renderCount = 0;
-  const app = {getState: () => state, select(id) {state.selected = id == null ? [] : [id];}, render() {renderCount++;}, notify() {}, setView(view) {state.view = {...view};}};
+  let renderCount = 0; const notices = [], connections = [];
+  const app = {getState: () => state, select(id) {state.selected = id == null ? [] : [id];}, render() {renderCount++;}, notify(message) {notices.push(message);}, connect(source, target) {connections.push({source, target});}, setView(view) {state.view = {...view};}};
   const window = {addEventListener: (type, fn, options) => listen('window', type, fn, options), CanvasGeometry: {toWorld: point => point}, CanvasPiles: {index: () => ({owner: new Map()})}, WorldNode: {}, CanvasImageEditor: {}};
   Object.assign(global, {document, window, innerWidth: 1000, innerHeight: 700, CSS: {escape: value => value}, requestAnimationFrame: fn => {frames.set(++sequence, fn); return sequence;}, cancelAnimationFrame: id => frames.delete(id), ResizeObserver: class {observe() {} disconnect() {}}, matchMedia: () => ({matches: false})});
   function dispatch(target, type, extra = {}) {
@@ -52,8 +52,60 @@ function fixture() {
     for (const parent of path) {run(parent.handlers.get(type), false); if (!e.stopped && parent === target) parent['on' + type]?.(e); if (e.stopped) return e;}
     run(handlers.get('document:' + type), false); return e;
   }
-  return {document, window, Element, canvas, edges, node, port, state, app, frames, dispatch, renderCount: () => renderCount, menu: () => document.querySelector('.connection-menu')};
+  return {document, window, Element, canvas, edges, node, port, state, app, frames, notices, connections, dispatch, renderCount: () => renderCount, menu: () => document.querySelector('.connection-menu')};
 }
+
+function prepareDrop(f, target = f.state.nodes[1]) {
+  const element = new f.Element('div'); element.className = 'node'; element.dataset.id = target.id; f.canvas.append(element);
+  f.document.elementFromPoint = () => element;
+  return () => {
+    f.dispatch(f.port, 'pointerdown', {clientX: 100, clientY: 100});
+    f.dispatch(f.canvas, 'pointermove', {clientX: 450, clientY: 150});
+    f.dispatch(f.canvas, 'pointerup', {clientX: 450, clientY: 150});
+  };
+}
+
+test('incompatible final-video drop ends without a command menu, notice, or graph change in either direction', async () => {
+  for (const side of ['right', 'left']) {
+    const f = fixture(), final = side === 'right' ? f.state.nodes[1] : f.state.nodes[0];
+    Object.assign(final, {type: 'video', generation: {model: 'Seedance 2.5', draftVideoId: 'draft-file'}});
+    f.port.dataset.port = side;
+    (await import('../src/features/canvas-connections/entry.mjs')).install(f.app);
+    const before = structuredClone(f.state), drop = prepareDrop(f); drop();
+    assert(!f.menu()); assert.deepEqual(f.notices, []); assert.deepEqual(f.connections, []); assert.deepEqual(f.state, before);
+    assert.equal(f.frames.size, 0); assert(!f.canvas.hasPointerCapture(1)); assert.equal(f.canvas.dataset.connectionActive, undefined);
+    assert(!f.edges.querySelector('.connection-preview')); assert.equal(f.document.activeElement, f.canvas);
+  }
+});
+
+test('ordinary incompatible targets retain the command menu and compatible draft-to-final drops connect', async () => {
+  const ordinary = fixture(); Object.assign(ordinary.state.nodes[1], {type: 'text', textMode: 'pure'});
+  (await import('../src/features/canvas-connections/entry.mjs')).install(ordinary.app); prepareDrop(ordinary)();
+  assert(ordinary.menu()); assert.deepEqual(ordinary.notices, ['纯文本节点不接受输入连接']); assert.deepEqual(ordinary.connections, []);
+  const compatible = fixture();
+  Object.assign(compatible.state.nodes[0], {type: 'video', video: '/qa/playlist-red.mp4', currentSourceFileId: 'draft-file', generation: {model: 'Seedance 2.5 Draft'}});
+  Object.assign(compatible.state.nodes[1], {type: 'video', generation: {model: 'Seedance 2.5', draftVideoId: 'draft-file'}});
+  (await import('../src/features/canvas-connections/entry.mjs')).install(compatible.app); prepareDrop(compatible)();
+  assert(!compatible.menu()); assert.deepEqual(compatible.notices, []); assert.deepEqual(compatible.connections, [{source: 'a', target: 'b'}]);
+});
+
+test('Escape before final-video drop cancels the pending frame and pointerup cannot create an edge or menu', async () => {
+  const f = fixture(); Object.assign(f.state.nodes[1], {type: 'video', generation: {model: 'Seedance 2.5', draftVideoId: 'draft-file'}});
+  (await import('../src/features/canvas-connections/entry.mjs')).install(f.app); prepareDrop(f);
+  const before = structuredClone(f.state);
+  f.dispatch(f.port, 'pointerdown'); f.dispatch(f.canvas, 'pointermove', {clientX: 450}); assert(f.frames.size);
+  assert(f.dispatch(f.canvas, 'keydown').defaultPrevented); f.dispatch(f.canvas, 'pointerup', {clientX: 450});
+  assert(!f.menu()); assert.deepEqual(f.connections, []); assert.deepEqual(f.state, before); assert.equal(f.frames.size, 0); assert(!f.canvas.hasPointerCapture(1));
+});
+
+test('dropping a usable draft on an already referenced final ends without replacing its existing edge', async () => {
+  const f = fixture();
+  Object.assign(f.state.nodes[0], {type: 'video', video: '/qa/playlist-red.mp4', currentSourceFileId: 'draft-file', generation: {model: 'Seedance 2.5 Draft'}});
+  Object.assign(f.state.nodes[1], {type: 'video', generation: {model: 'Seedance 2.5', draftVideoId: 'draft-file'}});
+  f.state.edges.push({id: 'existing', source: 'a', target: 'b', purpose: 'draft-reference'});
+  (await import('../src/features/canvas-connections/entry.mjs')).install(f.app); const before = structuredClone(f.state); prepareDrop(f)();
+  assert(!f.menu()); assert.deepEqual(f.notices, []); assert.deepEqual(f.connections, []); assert.deepEqual(f.state, before);
+});
 
 test('single-node menu toggles the same pointer/keyboard port and restores the port on Escape', async () => {
   const f = fixture(), api = (await import('../src/features/canvas-connections/entry.mjs')).install(f.app);

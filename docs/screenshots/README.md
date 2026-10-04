@@ -36,3 +36,7 @@ node scripts/prepare-screenshot-demo.cjs
 Agent 模型反馈截图来自 `/src/features/agent-generation/qa/disabled-model.html`，使用真实生产菜单。鼠标进入禁用行出现原因，离开撤销；键盘焦点、点击禁用项、Escape与外部关闭的复验见[专项记录](../AGENT-GENERATION-DISABLED-MODEL-HOVER-20261004.md)。
 
 时长取消截图来自 `/src/features/agent-generation/qa/duration-dismissal.html`；输入19后Escape，恢复5并保留浮层。实际第二次关闭、Enter提交及音频取消blur回调的结果见[专项记录](../AGENT-GENERATION-DURATION-ESCAPE-20261004.md)。
+
+2026-10-04新增：`canvas-final-drop.jpg` 来自生产连线隔离QA的普通不兼容回退菜单，诊断同时证明菜单打开而原图不变；`studio-numeric-draft.jpg` 来自正式WebGL片场/运镜编辑和Agent，使用隔离精确坐标夹具与本机目录引用。见[连线](../CANVAS-CONNECTION-FINAL-DROP-20261004.md)、[片场数字草稿](../STUDIO-V2-NUMERIC-DRAFT-20261004.md)、[目录导航](../AGENT-REFERENCE-FOLDER-NAVIGATION-20261004.md)。没有调用真实模型。
+
+`studio-meshopt-local.jpg` 为上述数字QA通过正式文件选择/上传模型添加仓库tree.glb后，刷新重入并聚焦的实际画面；树的压缩字节本机解码，未调用模型API。
