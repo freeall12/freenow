@@ -2,13 +2,41 @@
 
 视频替换/移除编辑器的目标识别现在只请求本机 `/api/video-segmentation/`。实际分割由操作者在服务端配置的独立供应商执行，地址和 Key 不进入浏览器、画布、版本、运行记录或日志。本机 UI、选区、蒙层验证/播放、保存流程不依赖 TapNow 服务。
 
-这仍是已有的 `POST /segment-video` 自定义协议适配，不是任意厂商 Key 的通用支持。没有真实供应商配置或实测结果时，不宣称模型识别可用或效果已验证。
+支持两种显式协议：默认的 `segment-video` 自定义服务，以及固定模型版本的 `replicate-sam2-native` 原生分割。二者不会根据 Key 自动切换。配置状态不等于真实账号、模型效果或端到端验收通过。
 
-## 配置
+## 原生 Replicate SAM2
+
+需要本机 FFmpeg/FFprobe 和独立的 Replicate Token。服务读取进程环境，不自动读取 `.env`。从 `.env.example` 复制到私有配置后，由自己的启动方式载入：
+
+```dotenv
+VIDEO_SEGMENTATION_PROTOCOL=replicate-sam2-native
+REPLICATE_API_TOKEN=
+REPLICATE_SEGMENTATION_VERSION=
+```
+
+版本留空使用已核对的固定 `33432afdfc06a10da6b4018932893d39b0159f838b6d11dd1236dff85cc5ec1d`；其他版本会明确拒绝。认证仅发送到固定 Replicate API origin，不需要填写自定义服务地址。`FFMPEG_PATH`、`FFPROBE_PATH` 可覆盖本机工具位置，默认使用 PATH。
+
+打开视频的物体移除/替换工具，点击“添加蒙层”，在原视频提示帧框选并确认。原生模式会先展示上传和计费说明：本机物化提示帧起始的前向片段；中间提示帧另物化倒序片段，最多两次独立推理。准备片段不包含音轨，逐帧RGB验证和来源索引保留，不能通过复制首帧或遮罩补齐时间轴。
+
+输入沿用原尺寸、全源时长与中心像素点合同。原生路径要求实际零起点、方形像素、偶数尺寸和恒定5–30 FPS视频；来源32 MiB、全部准备片段90 MiB、raw磁盘2 GiB，完整预算见[媒体模块](VIDEO-SEGMENTATION-MEDIA-20261005.md)。不支持的来源会在上传前拒绝，不暗中截断、改速或降采样。
+
+| 操作 | 本机接口与行为 |
+| --- | --- |
+| 创建 | UUID意图先保存，再 `POST /api/video-segmentation/tasks`，带同 UUID `Idempotency-Key`。 |
+| 查看/恢复 | `GET /api/video-segmentation/tasks/:id`，只查询既有任务、下载及合并，不重新推理。 |
+| 续发 | `needs_resume` 时用户确认后 `POST /tasks/:id/resume`，仅派发已准备且尚未提交的方向。 |
+| 取消 | `POST /tasks/:id/cancel`，分别处理已知预测；回执未知不能宣称远程取消成功。 |
+
+后台私有目录 `server/.segmentation-tasks` 保存任务及实际片段/PNG，不公开静态访问且被 Git 忽略。重启不自动重新提交；未知 POST 不自动重试。两路实际二值PNG必须覆盖完整原时间轴、提示帧逐像素相同，全部通过才返回RLE。前端等待实际画布保存与flush确认，失败保留同任务、同资产再保存；供应商身份、模型、来源、clip或选择变化会阻断旧结果。配置和状态响应不包含Key、上传URL或视频字节。
+
+分割与后续 Wan VACE 编辑是两个独立能力：Replicate Token用于识别，fal Key用于已有蒙层的移除/替换。后者还要求选段81–241帧。不能将“分割成功”解释为后续编辑也满足输入条件或已生成成片。完整合同见[任务后台](REPLICATE-SAM2-NATIVE-20261005.md)、[前端与恢复](VIDEO-SEGMENTATION-FRONTEND-20261005.md)。真实供应商的RGB H.264解码兼容、双向跟踪一致性及实际效果仍待授权验收。
+
+## 自定义同步服务配置
 
 `.env.example` 只提供空变量；服务读取进程环境，不自动读取文件。
 
 ```dotenv
+VIDEO_SEGMENTATION_PROTOCOL=segment-video
 VIDEO_SEGMENTATION_API_BASE_URL=https://your-segmentation-service.example/api
 VIDEO_SEGMENTATION_API_KEY=
 ```
@@ -17,7 +45,7 @@ VIDEO_SEGMENTATION_API_KEY=
 
 配置状态中的 `configured:true` 只说明地址和可选 Key 的格式符合本地规则；`availabilityVerified:false` 保留真实可用性未验证。配置响应不返回地址或 Key。
 
-## 合同
+## 自定义同步服务合同
 
 浏览器 `GET /api/video-segmentation/config` 查询状态，`POST /api/video-segmentation/segment` 提交实际请求。服务端固定向环境配置地址加 `/segment-video` 发送 POST，不接受浏览器指定供应商地址或凭据。
 
@@ -49,7 +77,7 @@ VIDEO_SEGMENTATION_API_KEY=
 
 结果使用 `src/features/video-mask/core.mjs` 原验证器：尺寸匹配、时长/帧率匹配、游程合法不重叠、不能全部为空。没有 `fps` 时按帧数/视频时长推导。服务端只返回 `width/height/fps/frames`，不返回供应商链接、额外元数据或错误正文。视频编辑的后续生成仍使用既有 `video.replace/video.erase` 网关。
 
-## 权限、失败与取消
+## 自定义同步服务的权限、失败与取消
 
 - 只有点击编辑器的识别确认才提交视频。服务最多同时处理2项，默认5分钟总等待；不自动重发 POST。
 - 配置及输入检查在派发前完成。禁止 `tapnow.{media,ai,art,top,zone,plus,tv}`、`tamaredge.top` 及子域，另拒绝采集记录中具名的 `conversation-service-131786869360.asia-northeast1.run.app` 服务及子域；大小写及尾点规范化后检查。不扩大禁止其他 Google 托管服务。
@@ -62,15 +90,18 @@ VIDEO_SEGMENTATION_API_KEY=
 
 ## 服务端接线
 
-模块 `server/video-segmentation.cjs` 导出 `createVideoSegmentationAdapter({baseUrl,apiKey,fetchImpl})`、`config()`、`segment(request,{signal})` 与 `handle(req,res,pathname,{json,body})`。
+模块 `server/video-segmentation.cjs` 提供 `createVideoSegmentationService` 选择器，原 `createVideoSegmentationAdapter` 保留给同步协议。正式服务器显式传入协议、独立凭据、私有目录和本机媒体工具，启动等待 `ready`，退出等待 `close`（如该协议提供）。
 
 初始化：
 
 ```js
-const {createVideoSegmentationAdapter}=require('./video-segmentation.cjs');
-const videoSegmentation=createVideoSegmentationAdapter({
+const {createVideoSegmentationService}=require('./video-segmentation.cjs');
+const videoSegmentation=createVideoSegmentationService({
+  protocol:process.env.VIDEO_SEGMENTATION_PROTOCOL,
   baseUrl:process.env.VIDEO_SEGMENTATION_API_BASE_URL,
-  apiKey:process.env.VIDEO_SEGMENTATION_API_KEY
+  apiKey:process.env.VIDEO_SEGMENTATION_API_KEY,
+  replicateApiToken:process.env.REPLICATE_API_TOKEN,
+  version:process.env.REPLICATE_SEGMENTATION_VERSION
 });
 ```
 
@@ -81,7 +112,7 @@ if(pathname.startsWith('/api/video-segmentation/'))
   return await videoSegmentation.handle(req,res,pathname,{json,body});
 ```
 
-`body` 必须接收第二个字节限制参数；handler 请求上限为68MiB。模块不新增依赖、不写磁盘、不使用日志、不接受任意URL代理参数。
+`body` 必须接收第二个字节限制参数；handler 请求上限为68MiB。同步协议不写磁盘，原生协议保存私有任务与媒体；两者均不接受任意供应商代理地址，不记录视频请求正文或Key。
 
 ## 验证
 

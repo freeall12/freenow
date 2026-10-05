@@ -1,0 +1,255 @@
+{
+  "audit_utc": "2026-10-05T09:44:14.843565+00:00",
+  "package_version": "0.4.81",
+  "build_meta": {
+    "schemaVersion": 1,
+    "flavor": "stable",
+    "appEnv": "prod",
+    "region": "GLOBAL",
+    "protocol": "tapnow",
+    "webAuthOrigin": "https://app.tapnow.ai",
+    "apiBaseUrl": "https://app.tapnow.ai",
+    "fileUploadUrl": "https://app.tapnow.ai",
+    "fileAccessUrl": "",
+    "release": {
+      "schemaVersion": 1,
+      "sourceSha": "b1a75561566795406992a219a7d9189978e3cdd5",
+      "webBundleVersion": "2026.09.24.36028447352.1"
+    }
+  },
+  "reference_count": 92,
+  "resources": {
+    "file_count": 883,
+    "matches": []
+  },
+  "asar": {
+    "bytes": 21559524,
+    "sha256": "ebf99b3b70514d71b5d862f1b6e230ec3b87861a670c987dd5902e7a32bea8bc",
+    "leaf_count": 2521,
+    "hashed_leaf_count": 2521,
+    "matches": []
+  },
+  "key_files": [
+    {
+      "file": "assets/HtmlArtifactFrame-BLzUcmrV.js",
+      "bytes": 1796,
+      "sha256": "a9a1b46d7e7b0c7d02cf2adbf914c9ca391c6d0123aab70a8bd9f34ad823d21b"
+    },
+    {
+      "file": "assets/context-D6hXl-WU.js",
+      "bytes": 13851,
+      "sha256": "256ea01872d5939d760bb71fbf22cddc53bb626dc3a1410bf49257ff41d8c01a"
+    },
+    {
+      "file": "assets/use-chat-attachment-file-input-BcpbCD8t.js",
+      "bytes": 300886,
+      "sha256": "990461a9b1f38b6311465d992b7c0ce5a33af388e9eebfe1e1b4414936c9d84b"
+    },
+    {
+      "file": "assets/page-DVqoHdTT.js",
+      "bytes": 1785533,
+      "sha256": "8334adc98d6ec24265d45ed4f45458be19d137b5391e5b3abb77e064d221cd86"
+    },
+    {
+      "file": "assets/index-BsHyQ2qj.js",
+      "bytes": 12943515,
+      "sha256": "a24bbe7de925ccc68aa332dbec6ad6a96e50db11867b21f15c20b7f128ef33a4"
+    },
+    {
+      "file": "usercontent-proxy/apps/manifest.json",
+      "bytes": 853,
+      "sha256": "8c2c08873c86f14d7d28e0c5fb9ef0a5b0f834292144bed98855cd6b414c3e79"
+    }
+  ],
+  "official_manifest": {
+    "uri_count": 22,
+    "family_count": 20,
+    "html_file_count": 24,
+    "local_manifest_same_bytes": false,
+    "local_widget_differences": [
+      {
+        "widget": "product-kit@v1",
+        "official": "758d09b3",
+        "local": "bf378d28"
+      }
+    ],
+    "local_derivation": {
+      "product-kit@v1": {
+        "operation": "inline-local-demo-thumbnail",
+        "sourceFile": "src/features/agent-apps/resources/apps/product-kit@v1.758d09b3.html",
+        "sourceSha256": "758d09b3f06e99a6b4e47a782d33ef90b9f12935c140b8bdfe88ca41f76e2535",
+        "derivedFile": "src/features/agent-apps/resources/apps/product-kit@v1.bf378d28.html",
+        "derivedSha256": "bf378d28fe79d46390b75b4f5ab0d1cbc2bbf7ab46f360154c6de234c5d02234",
+        "assetFile": "assets/studio/library/chair-office.webp",
+        "assetSha256": "a9725ab50f95e875598d68a29afc30e9313b6a2e4abbab66c74302d208eaa98a"
+      }
+    },
+    "declared_files": [
+      {
+        "resource_uri": "ui://tapnow/actor-emotion@v1",
+        "file": "actor-emotion@v1.63ee986b.html",
+        "bytes": 7297073,
+        "sha256": "63ee986bdf5b9572cad5edc838da540eda6147007ab3f011604959467616437f",
+        "local_original_same_bytes": true
+      },
+      {
+        "resource_uri": "ui://tapnow/ad-review@v1",
+        "file": "ad-review@v1.e990e21f.html",
+        "bytes": 355034,
+        "sha256": "e990e21ffb1ccf2851678f16d527a2c90de83fd1b6de3344b90cc1f7717d74d3",
+        "local_original_same_bytes": true
+      },
+      {
+        "resource_uri": "ui://tapnow/animatic@v1",
+        "file": "animatic@v1.7f4d2fcb.html",
+        "bytes": 355549,
+        "sha256": "7f4d2fcbbfff4d2b01b38d562a760683b4dcdf9f558976ec0ce22c9996539e1b",
+        "local_original_same_bytes": true
+      },
+      {
+        "resource_uri": "ui://tapnow/animatic@v2",
+        "file": "animatic@v2.bc00a3a5.html",
+        "bytes": 409789,
+        "sha256": "bc00a3a525a598e8266cb9ac8576250e7e47ee2ba31d18ae5a7ae331cbc5ba28",
+        "local_original_same_bytes": true
+      },
+      {
+        "resource_uri": "ui://tapnow/character-blocking@v1",
+        "file": "character-blocking@v1.596deb3b.html",
+        "bytes": 372402,
+        "sha256": "596deb3b4e840b54f9636d8641a00b1a698f02db7877a8fca94d42163cb68d24",
+        "local_original_same_bytes": true
+      },
+      {
+        "resource_uri": "ui://tapnow/character-blocking@v3",
+        "file": "character-blocking@v3.f1fd0e23.html",
+        "bytes": 384444,
+        "sha256": "f1fd0e23de67bf00f60ccf333b7d5b57262a01726a37adeef28c800d51a8815b",
+        "local_original_same_bytes": true
+      },
+      {
+        "resource_uri": "ui://tapnow/color-adjust@v2",
+        "file": "color-adjust@v2.285e6ccb.html",
+        "bytes": 355686,
+        "sha256": "285e6ccbe35c7178fb8953514c2c2956af1be15e5a19dbf3dcbe38ee69f97337",
+        "local_original_same_bytes": true
+      },
+      {
+        "resource_uri": "ui://tapnow/creative-picker@v1",
+        "file": "creative-picker@v1.2a07bc2e.html",
+        "bytes": 1303718,
+        "sha256": "2a07bc2e7e3874c49f012f1022cbf838939bf8ea502ca33af31b277986dadcc9",
+        "local_original_same_bytes": true
+      },
+      {
+        "resource_uri": "ui://tapnow/cutlist-review@v1",
+        "file": "cutlist-review@v1.a3b10365.html",
+        "bytes": 350144,
+        "sha256": "a3b103653d65e220bde4ce6503a499d4a659a79dccf525dff0f59b1bf95771a8",
+        "local_original_same_bytes": true
+      },
+      {
+        "resource_uri": "ui://tapnow/director-markup@v1",
+        "file": "director-markup@v1.4b53a29e.html",
+        "bytes": 368274,
+        "sha256": "4b53a29e33ef9c42a56045a678279e99f5f5aa5aad654cbb46fa1ef4bbd3850f",
+        "local_original_same_bytes": true
+      },
+      {
+        "resource_uri": "ui://tapnow/ecommerce-photoset@v2",
+        "file": "ecommerce-photoset@v2.a7b6a057.html",
+        "bytes": 411533,
+        "sha256": "a7b6a057ceeb55ec0cef26e35d33e18c42c53aec26b2c1d6032e04294b401861",
+        "local_original_same_bytes": true
+      },
+      {
+        "resource_uri": "ui://tapnow/interactive-learning@v1",
+        "file": "interactive-learning@v1.cd0bb18c.html",
+        "bytes": 358732,
+        "sha256": "cd0bb18c590b6756297844b460633beb0ab5be666b95c45afbddc507139254fe",
+        "local_original_same_bytes": true
+      },
+      {
+        "resource_uri": "ui://tapnow/layer-composer@v1",
+        "file": "layer-composer@v1.067126cf.html",
+        "bytes": 369348,
+        "sha256": "067126cfabf7768c81af9e5a5718d3cc1d2e0f5e126cdf63e65c5ad16fd5f080",
+        "local_original_same_bytes": true
+      },
+      {
+        "resource_uri": "ui://tapnow/library-picker@v1",
+        "file": "library-picker@v1.3449ff83.html",
+        "bytes": 350062,
+        "sha256": "3449ff83132f4655eccfeca2074415762b201a6bfd430a3df15ac79470e32237",
+        "local_original_same_bytes": true
+      },
+      {
+        "resource_uri": "ui://tapnow/motion-picker@v1",
+        "file": "motion-picker@v1.11addd0c.html",
+        "bytes": 557978,
+        "sha256": "11addd0cd6cdf70ec7896452ea607ce3dc9800d95c0e0279c7cc30fdd7e2ff33",
+        "local_original_same_bytes": true
+      },
+      {
+        "resource_uri": "ui://tapnow/performance-rhythm@v3",
+        "file": "performance-rhythm@v3.9ead0d0b.html",
+        "bytes": 389824,
+        "sha256": "9ead0d0bb847a55c3598ba90626b3fba85f9d2acbc773a447b12ee57d8994ae3",
+        "local_original_same_bytes": true
+      },
+      {
+        "resource_uri": "ui://tapnow/platform-resize@v1",
+        "file": "platform-resize@v1.897f4688.html",
+        "bytes": 346411,
+        "sha256": "897f46887563e4ed59db6b0f33cb0896631715c0c39a7e8793470978c7383365",
+        "local_original_same_bytes": true
+      },
+      {
+        "resource_uri": "ui://tapnow/previs@v3",
+        "file": "previs@v3.584fd5b2.html",
+        "bytes": 447207,
+        "sha256": "584fd5b21ed83b53dfd0b55c2ab5edf36956b22a5b2ef0adae9dcad068b30394",
+        "local_original_same_bytes": true
+      },
+      {
+        "resource_uri": "ui://tapnow/product-kit@v1",
+        "file": "product-kit@v1.758d09b3.html",
+        "bytes": 358964,
+        "sha256": "758d09b3f06e99a6b4e47a782d33ef90b9f12935c140b8bdfe88ca41f76e2535",
+        "local_original_same_bytes": true
+      },
+      {
+        "resource_uri": "ui://tapnow/production-progress@v1",
+        "file": "production-progress@v1.acd4e750.html",
+        "bytes": 365458,
+        "sha256": "acd4e750bc11ca20c2e44a87a7a7c1ba0bfd0053d8d1c8ecbf87d38be98a9b4f",
+        "local_original_same_bytes": true
+      },
+      {
+        "resource_uri": "ui://tapnow/story-room@v1",
+        "file": "story-room@v1.dae7d235.html",
+        "bytes": 354282,
+        "sha256": "dae7d235df8887af866f8b1984b75075c651f1b4d8f79775a0470a4b89f569a0",
+        "local_original_same_bytes": true
+      },
+      {
+        "resource_uri": "ui://tapnow/website-design-picker@v1",
+        "file": "website-design-picker@v1.2a07bc2e.html",
+        "bytes": 1303718,
+        "sha256": "2a07bc2e7e3874c49f012f1022cbf838939bf8ea502ca33af31b277986dadcc9",
+        "local_original_same_bytes": true
+      }
+    ]
+  },
+  "public_docs": {
+    "url": "https://docs.tapnow.media/zh/docs/agent/apps",
+    "status": 200,
+    "bytes": 108537,
+    "sha256": "e62fc79e615fd31e215a724cad297a05380daada37bc5e2f84d1129d80ee647c",
+    "SKILL.md_count": 0,
+    "html-templates_count": 0,
+    "template_ref_count": 0,
+    "object_key_count": 0,
+    "download_url_count": 0
+  }
+}

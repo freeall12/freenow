@@ -1,5 +1,14 @@
 # 功能截图与复现
 
+## 2026-10-05 原生视频识别与人物走位补验
+
+| 文件 | 实际内容与来源 |
+| --- | --- |
+| [原生视频识别](video-segmentation-native-20261005.jpg) | `src/features/video-mask/qa/segmentation-app.html?mode=native&session=sam2-native-final1005n-b`；独立QA端口，真实本机FFmpeg、PNG/RLE、IndexedDB；同UUID/asset保存重试后直接刷新，提示2.5秒对应原帧25。供应商边界为合成响应。 |
+| [人物走位原生拖动](agent-character-blocking-native-drag-20261005.jpg) | `src/features/agent-apps/qa/character-blocking.html?session=blocking-1005n-root1`；官方v3原件、合成PNG，本批clamp/吸附/朝向与失败重试后刷新，实际位置650/740/90°、队列1。 |
+
+两图均为Browser Use直接截图，分别1280×720视口和1280×939全页JPEG。没有图片生成、修图、样式覆盖或拼接。实际故障、保存及服务器累计计数见[本批记录](../LOCAL-SAM2-AND-BLOCKING-20261005.md)，截图不代表真实模型效果。127.0.0.1继承33%缩放的早期页面不作为最终视觉证据，临时设备模拟已清除。
+
 ## 2026-10-05 原生 LOD、分组复制与拼装审阅
 
 | 文件 | 实际内容与来源 |

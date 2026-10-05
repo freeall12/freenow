@@ -18,7 +18,7 @@
 | `video-capture/` | `core.mjs`：取帧与本机捕获 |
 | `video-media/` | `frames.mjs`：共享帧读取 |
 | `video-history/` | `core.mjs`、`ui.mjs`、`icons.mjs`、`styles.css`：历史数据、卡片与样式 |
-| `video-mask/` | `core.mjs`、`ui.mjs`、`icons.mjs`、`segmentation.mjs`：蒙版编辑及分割客户端 |
+| `video-mask/` | `core.mjs`、`ui.mjs`、`icons.mjs`、`segmentation.mjs`、`recovery.mjs`：蒙层编辑、分割客户端、原UUID恢复与受守卫保存；隔离验收在本目录 `qa/` |
 | `video-reshoot/` | `core.mjs`、`ui.mjs`、`icons.mjs`、`stage.mjs`：重拍参数、预览及片场 |
 | `video-trim/` | `core.mjs`、`ui.mjs`：剪辑范围、检测与本机处理 |
 | `video-upscale/` | `core.mjs`、`ui.mjs`、`icons.mjs`：增强参数与任务交互 |

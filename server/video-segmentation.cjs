@@ -104,6 +104,22 @@ function createVideoSegmentationAdapter({baseUrl='',apiKey='',fetchImpl=fetch,ti
    if(!res.destroyed&&!controller.signal.aborted)return json(res,known?error.status||400:400,{error:known?error.message:'视频分割请求格式无效',code:known?error.code:'segmentation_invalid_request'});
   }finally{res.removeListener('close',close);}
  }
- return {config,segment,handle};
+ return {config,segment,handle,prepareRequest:prepare};
 }
-module.exports={createVideoSegmentationAdapter,checkedUrl};
+
+// Keep the legacy gateway opt-in separate from the native provider. Supplying
+// a different service's key must never select an upload destination implicitly.
+function createVideoSegmentationService({protocol='segment-video',baseUrl='',apiKey='',replicateApiToken='',directory,version,...options}={}){
+ const legacy=createVideoSegmentationAdapter({baseUrl,apiKey,...options});
+ if(protocol==='segment-video')return legacy;
+ if(protocol==='replicate-sam2-native'){
+  const {createReplicateSam2SegmentationService}=require('./video-segmentation-replicate.cjs');
+  return createReplicateSam2SegmentationService({...options,directory,apiKey:replicateApiToken,...version?{version}:{},prepareRequest:legacy.prepareRequest});
+ }
+ const config=()=>({configured:false,protocol:null,missing:[],configurationError:'configuration_invalid',availabilityVerified:false,remoteCancellation:'unknown'});
+ return {config,async handle(req,res,pathname,{json}){
+  if(pathname==='/api/video-segmentation/config'&&req.method==='GET')return json(res,200,config());
+  return json(res,503,{code:'configuration_required',error:'视频分割协议无效，请检查 VIDEO_SEGMENTATION_PROTOCOL 并重启本地服务'});
+ }};
+}
+module.exports={createVideoSegmentationAdapter,createVideoSegmentationService,checkedUrl};

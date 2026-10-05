@@ -1,5 +1,7 @@
 # 新视频首次识别：Replicate SAM2 接入评估 · 2026-10-05 / 1005m
 
+后续1005n已按下述方案实现[原生任务后台](REPLICATE-SAM2-NATIVE-20261005.md)、[媒体准备](VIDEO-SEGMENTATION-MEDIA-20261005.md)、[PNG/RLE解码](VIDEO-SEGMENTATION-MASK-CODEC-20261005.md)和[前端保存恢复](VIDEO-SEGMENTATION-FRONTEND-20261005.md)。以下保留1005m研究时点，不再代表适配器未实现；真实账号及模型效果仍未验证。当前使用入口见[配置文档](VIDEO-SEGMENTATION-SETUP.md)。
+
 **推荐下批实现一个固定版本的 Replicate SAM2 分割 adapter：从真实提示帧物化前向、倒序两段，各以 frame0 点击提示，接收二值 PNG 序列并拼回原来源时轴。** 公开供应商页面和其链接的部署源码提供了明确像素语义，可避开 fal RLE 编码未知的缺口。它仍是待实现、待真实供应商验收的候选；本批只读研究，没有新增 adapter，也没有改变现有分割配置。
 
 ## 新证据

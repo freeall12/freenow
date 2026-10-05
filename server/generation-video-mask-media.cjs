@@ -147,3 +147,5 @@ function createVideoMaskMediaTools(options={}){
  return {prepareMedia,inspectVideo,validateResult,preserveAudio,limits:Object.freeze({...LIMITS,...Object.fromEntries(Object.keys(LIMITS).map(key=>[key,tools[key]]))})};
 }
 module.exports={createVideoMaskMediaTools,LIMITS};
+// Server-only primitives shared with segmentation; the existing editing path is unchanged.
+module.exports.mediaInternals=Object.freeze({command,decodeArgs,probeVideo,envelope,sameTiming});

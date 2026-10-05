@@ -15,10 +15,16 @@
 
 ## 本次交付
 
+- 新视频首次识别接入独立Replicate SAM2原生协议：前向/倒序实际视频、逐帧二值PNG、完整原轴RLE、持久UUID、原任务恢复、兄弟任务失败收尾及显式续发。前后端和本机整链已接通；缺Key时不会调用，真实模型效果未验。[配置](VIDEO-SEGMENTATION-SETUP.md) · [实现与实机记录](LOCAL-SAM2-AND-BLOCKING-20261005.md)。
+- 实机与独立审阅补齐来源指纹/供应商身份、下载中状态竞态、短窗口恢复按钮可达性和画布保存恢复。人物站位新增超界clamp、吸附开关、0°/90°朝向、失败原卡重试和一次CB3/刷新证据。[人物站位](AGENT-CHARACTER-BLOCKING-INTERACTIONS-20261005.md)。
+- 官方安装包重算883个Resources文件、2,521个ASAR叶文件，92份精确模板正文仍无匹配；22份已存官方应用原件逐字节相同。不以猜测URL或替代模板冒充完成。[来源审计](AGENT-TEMPLATE-SOURCE-AUDIT-20261005.md)。
+
+## 前批分组、拼装与LOD
+
 - 分组/多选复制补完整后代、父子坐标、内部与外部入边、图库和运行归属清理及旧参数引用映射。真实⌘C/⌘V、40像素重复粘贴、Shift多选、⌘D与精确撤销通过；44项定向回归，最终params改动独立单项复核通过。[复制粘贴](CANVAS-GROUP-COPY-PASTE-20261005.md)。
 - Agent 拼装审阅补最后编辑保存、同快照CR1、复原建议后“再改改”、关闭等待/失败保留。真实8秒视频播放/seek、慢保存、失败重试、重开与刷新恢复通过；交互6项、实际SDK3项和精确版本宿主回归通过。[拼装审阅](AGENT-CUTLIST-REVIEW-INTERACTIONS-20261005.md)。
 - SPZ 使用官方tiny-lod；每视图最多25万参与绘制/排序，完整源与LOD树保留。实机近249,999/远83,321、实际点选、照片/两秒视频、删除释放与撤销/刷新已验。发现并修复主视图/镜头共享场景覆盖拾取状态；补修版近远往返、缓存点选和PNG导出保持同一LOD。原9项LOD、1项相关拾取及新增2项跨视图回归通过。驻留内存、跨设备FPS和长视频未作完成承诺。[LOD实现与实机记录](SPZ-LOD-20261005.md)。
-- 原生视频分割找到Replicate SAM2的二值PNG源码和双向时轴候选，尚未实现适配器；不能只填Key启用。导出品牌审计未发现本批新增旧标识，Widget捕获下载仍缺实机证据。[分割接入研究](VIDEO-SEGMENTATION-REPLICATE-READINESS-20261005.md) · [导出审计](FREENOW-EXPORT-BRAND-AUDIT-20261005.md)。
+- Replicate二值PNG与双向时轴的前批研究已进入上方1005n实现。导出品牌审计未发现前批新增旧标识，Widget捕获下载仍缺实机证据。[研究来源](VIDEO-SEGMENTATION-REPLICATE-READINESS-20261005.md) · [导出审计](FREENOW-EXPORT-BRAND-AUDIT-20261005.md)。
 
 ## 前批副本、人物走位与生命周期
 
@@ -69,7 +75,7 @@
 - 视频物体移除／替换新增显式 Wan VACE 原生协议：完整 MP4 与时序蒙层同裁、fal CDN 上传、原任务持久恢复、真实结果校验、原音轨保留和本地归档。正式面板已验证缺配置禁用、关闭阻止迟到派发、移除/替换各一次本机生成、实际播放和刷新恢复。[本批验收](LOCAL-VIDEO-MASK-AGENT-20261005.md)。
 - Agent 已保存蒙层编辑接通正式审批与单结果任务，绑定审批时来源和供应商配置；高清替换图、派发前持久回执、连接结果与保存失败重试已验证。结果使用真实首帧封面，刷新保持。[Agent合同](AGENT-VIDEO-MASK-CLOSURE-20261005.md)。
 - 平台尺寸应用固定提示改为 freenow / 本机图片裁切，原文按版本和 SHA 派生；保留用户内容与来源。后续1005k已验中文拖动、三张真实PNG及成功回执；其他语言尚未复验。[品牌记录](FREENOW-RUNTIME-BRAND-AUDIT-20261005.md)。
-- 新视频首次识别仍需独立分割服务；原fal SAM2 RLE合同缺口保留，1005m新增Replicate二值PNG候选研究，未将研究记作适配完成。真实供应商权限与模型效果待Key。[原合同缺口](VIDEO-SEGMENTATION-FAL-CONTRACT-20261005.md) · [新候选](VIDEO-SEGMENTATION-REPLICATE-READINESS-20261005.md)。
+- 新视频首次识别需独立分割配置：1005n已接Replicate二值PNG原生协议，原fal SAM2 RLE合同缺口仍保留。真实供应商权限与模型效果待Key。[原合同缺口](VIDEO-SEGMENTATION-FAL-CONTRACT-20261005.md) · [当前配置](VIDEO-SEGMENTATION-SETUP.md)。
 
 ## 前批全景、重拍与图片处理
 

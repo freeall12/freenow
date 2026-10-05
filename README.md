@@ -196,7 +196,15 @@ Magnific 高清放大已接独立公开原生 API，正式面板和 Agent 保留
 | --- | --- |
 | ![本地视频物体替换正式面板](docs/screenshots/video-mask-native-panel-20261005.jpg) | ![Agent视频移除正式审批卡](docs/screenshots/agent-video-mask-approval-20261005.jpg) |
 
-这是显式 Wan VACE 独立替代。选段须为恒定 5–30 fps、81–241 帧；不截断、补帧或改速。首次目标识别仍需独立分割服务，**仅填 fal Key 不能完成新视频从识别到编辑的全流程**。截图使用合成蒙层和固定结果，不代表模型效果。[接口配置](docs/WAN-VACE-VIDEO-MASK-NATIVE-20261005.md) · [媒体处理](docs/VIDEO-MASK-MEDIA-PREPARATION-20261005.md) · [分割合同缺口](docs/VIDEO-SEGMENTATION-FAL-CONTRACT-20261005.md)
+这是显式 Wan VACE 独立替代。选段须为恒定 5–30 fps、81–241 帧；不截断、补帧或改速。**仅填 fal Key 不能完成新视频从识别到编辑的全流程**；首次识别可另选下方独立 Replicate SAM2。截图使用合成蒙层和固定结果，不代表模型效果。[编辑接口配置](docs/WAN-VACE-VIDEO-MASK-NATIVE-20261005.md) · [媒体处理](docs/VIDEO-MASK-MEDIA-PREPARATION-20261005.md)
+
+新视频首次目标识别已接 `replicate-sam2-native`：按原提示帧准备前向/倒序真实视频，接收逐帧二值PNG并合并完整原轴蒙层。UUID先保存，刷新只恢复原任务，保存失败重用结果，停止后的未派发分支需再次确认。需独立 Replicate Token、FFmpeg及符合预算的源视频；最多两次推理，界面在上传前明确说明。模型效果和真实账号尚未验收。[配置](docs/VIDEO-SEGMENTATION-SETUP.md) · [实现与实机证据](docs/LOCAL-SAM2-AND-BLOCKING-20261005.md)
+
+| 首次视频识别：真实本机链路与保存恢复 | Agent人物走位：真实拖动、吸附与朝向 |
+| --- | --- |
+| ![视频蒙层本机链路刷新后恢复](docs/screenshots/video-segmentation-native-20261005.jpg) | ![人物走位原生拖动及保存恢复](docs/screenshots/agent-character-blocking-native-drag-20261005.jpg) |
+
+视频截图使用原创移动方块、真实FFmpeg/PNG/RLE和明确的合成供应商响应，未调用外部模型。人物板使用本地合成头像，确认仅进入真实Agent队列，没有生成媒体。
 
 图片转 360° 全景已接正式节点菜单、Agent 确认卡和独立供应商协议；真实 PNG 解码、WebGL 预览、刷新恢复及错误画幅拒绝均已实操。Agent 抠图与自动多角度使用高清原图，先保存任务身份再派发；补齐中文任务标题和固定欢迎文案。[本批实现与浏览器证据](docs/LOCAL-PANORAMA-RESHOOT-AGENT-20261005.md)
 
@@ -271,7 +279,7 @@ pnpm test    # 全库回归，需要时运行
 
 - 全站菜单、hover、微动效、坐标与性能的逐态对照和交叉验收。
 - 92 份精确创意模板正文；SPZ 的跨设备压力、复杂半透明场景、按页流式加载与长视频验收。
-- 新视频的原生目标分割适配；已找到[Replicate SAM2二值PNG及双向时序方案](docs/VIDEO-SEGMENTATION-REPLICATE-READINESS-20261005.md)，持久子任务和真实模型结果尚未接入验收。
+- 原生目标分割已实现；[Replicate SAM2](docs/REPLICATE-SAM2-NATIVE-20261005.md)的真实账号、线上解码、双向跟踪一致性与输出质量仍需验证。
 - 其余专用生成能力的原生供应商适配，及真实 Key/账号下的端到端验证。
 - 部分本地存储容量和长期运行边界的继续完善。
 - 主要运行位置已替换为 **freenow** 名称和本地标识；剩余嵌套应用、导出和旧内容的品牌清点仍需逐项验收，保留来源与用户原文。

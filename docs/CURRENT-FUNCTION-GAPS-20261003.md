@@ -12,7 +12,7 @@
 
 用户已批准 Spark 2.3.1，预算内 SPZ 已完成真实解码、预览、片场保存/撤销、照片与2秒视频；[混合拾取](SPZ-MIXED-PICKING-20261005.md)及[原生tiny-lod](SPZ-LOD-20261005.md)已实机验证。不能再将依赖授权、基础渲染、普通混合遮挡或LOD列为尚未实现。LOD最多25万参与绘制/排序，不减少全量解码或驻留数据；仍需多设备压力、长视频、复杂半透明、按页流式加载及真实Marble生成/碰撞对齐验收。前批已补[视频深度普通节点、双结果、布局和恢复](LOCAL-DEPTH-BATCH-AND-CANVAS-20261005.md)。
 
-2026-10-05 视频蒙层补充：[Wan VACE 原生适配](WAN-VACE-VIDEO-MASK-NATIVE-20261005.md)、完整来源/蒙层共同裁片、fal CDN 上传、分阶段持久恢复、原音轨与本地归档已实现。Toolbar 和 Agent 已保存蒙层入口已接线。新视频首次识别仍需独立分割服务：原fal候选的[RLE合同缺口](VIDEO-SEGMENTATION-FAL-CONTRACT-20261005.md)保留；本批找到[Replicate SAM2二值PNG/双向时序方案](VIDEO-SEGMENTATION-REPLICATE-READINESS-20261005.md)，尚待持久子任务适配、真实输出像素与部署版本验证。真实Key权限、模型效果、长视频预算及全站逐态验收仍开放。
+2026-10-05 / 1005n 视频蒙层补充：[Wan VACE编辑](WAN-VACE-VIDEO-MASK-NATIVE-20261005.md)和[Replicate SAM2首次识别](REPLICATE-SAM2-NATIVE-20261005.md)均已有独立原生适配。后者真实双向片段、PNG/RLE、持久任务、保存恢复、前端守卫与本机整链已实现；需独立Replicate Token，不能用fal Key代替。原fal候选的[RLE合同缺口](VIDEO-SEGMENTATION-FAL-CONTRACT-20261005.md)保留。真实供应商账号、线上RGB H.264兼容、PNG/跟踪质量及双向首帧一致率仍未验；[本批实机范围](LOCAL-SAM2-AND-BLOCKING-20261005.md)不等于所有模型可用。
 
 2026-10-05补充：[视频工具与存储批次](LOCAL-VIDEO-TOOLS-STORAGE-BRAND-20261005.md)已接 ThinkSound 单视频拟音、Toolbar 延长镜头参考生成、个人素材库IndexedDB容量迁移、模板离页保护及嵌套制作进度卡品牌。Ark本地视频公网传输、Sonilo音乐/分段、92份HTML原文与真实Key验收仍开放；不要将新增适配简化为“所有菜单仅填Key即可”。
 

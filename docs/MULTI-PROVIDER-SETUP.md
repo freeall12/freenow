@@ -118,7 +118,9 @@ Enhancor 公开协议仍要求公网 `img_url` 与 `webhookUrl`，原三档的�
 
 ## 恢复、凭据和界面
 
-视频物体移除／替换使用独立 `fal-video-mask-native` 协议，将 `video.erase` 和 `video.replace` 各自唯一映射到 `fal-ai/wan-vace-14b/inpainting` 并声明 `semantics:"explicit-native-alternative"`。这两个专用操作没有模型菜单，按 kind 路由；不借用来源节点的普通视频模型标签。配置示例及媒体预算见 [Wan VACE 接入](WAN-VACE-VIDEO-MASK-NATIVE-20261005.md)。已有完整时序蒙层时，来源片段、黑白蒙层视频及替换参考会真实上传到 fal CDN；首次识别目标另需 `VIDEO_SEGMENTATION_API_BASE_URL` 服务。Fal Key 不等于分割能力已经可用。
+视频物体移除／替换使用独立 `fal-video-mask-native` 协议，将 `video.erase` 和 `video.replace` 各自唯一映射到 `fal-ai/wan-vace-14b/inpainting` 并声明 `semantics:"explicit-native-alternative"`。这两个专用操作没有模型菜单，按 kind 路由；不借用来源节点的普通视频模型标签。配置示例及媒体预算见 [Wan VACE 接入](WAN-VACE-VIDEO-MASK-NATIVE-20261005.md)。已有完整时序蒙层时，来源片段、黑白蒙层视频及替换参考会真实上传到 fal CDN。
+
+首次识别目标独立配置 `VIDEO_SEGMENTATION_PROTOCOL`：`segment-video` 使用自定义分割地址；`replicate-sam2-native` 使用固定Replicate SAM2版本和单独的 `REPLICATE_API_TOKEN`，最多两次推理，需FFmpeg并受媒体预算限制。两者均有明确本机接口，不由通用生成模型路由暗中切换。Fal Key不能代替Replicate Token；配置成功不表示真实模型效果已验证。[分割配置与恢复](VIDEO-SEGMENTATION-SETUP.md)。
 
 - 浏览器只收到功能、公开别名和配置状态；不返回 Key、端点或真实模型 ID。任务在读取媒体前按操作和别名检查配置。
 - 配置弹窗显示每个操作/供应商是否就绪；整体存在可用图片服务并不表示视频服务可用。

@@ -24,9 +24,13 @@
 
 | 记录 | 范围 |
 | --- | --- |
+| [原生SAM2与人物站位补验](LOCAL-SAM2-AND-BLOCKING-20261005.md) · [分割配置](VIDEO-SEGMENTATION-SETUP.md) | 双向真实媒体、完整PNG/RLE、持久任务、保存恢复与真实鼠标 |
+| [SAM2后台](REPLICATE-SAM2-NATIVE-20261005.md) · [前端](VIDEO-SEGMENTATION-FRONTEND-20261005.md) · [官方UI核对](VIDEO-SEGMENTATION-OFFICIAL-UI-20261005.md) | 独立供应商合同、原UUID恢复、费用说明与本地界面边界 |
+| [SAM2媒体](VIDEO-SEGMENTATION-MEDIA-20261005.md) · [PNG/RLE](VIDEO-SEGMENTATION-MASK-CODEC-20261005.md) · [公开传输来源](REPLICATE-SAM2-TRANSPORT-20261005.md) | 原始帧磁盘流式处理、首帧一致性、严格像素和下载合同 |
+| [模板来源增量审计](AGENT-TEMPLATE-SOURCE-AUDIT-20261005.md) | 当前安装包/ASAR完整摘要、22份原件与92份正文缺口 |
 | [分组/多选复制](CANVAS-GROUP-COPY-PASTE-20261005.md) · [拼装审阅](AGENT-CUTLIST-REVIEW-INTERACTIONS-20261005.md) | 嵌套坐标/边/引用、40像素粘贴与撤销；同快照交接、保存失败重试及刷新 |
 | [SPZ 原生 LOD](SPZ-LOD-20261005.md) | 官方层级、真实GPU近远预算、实际拾取、照片/两秒视频及末源释放；不等于内存上限 |
-| [Replicate SAM2 接入研究](VIDEO-SEGMENTATION-REPLICATE-READINESS-20261005.md) · [导出品牌审计](FREENOW-EXPORT-BRAND-AUDIT-20261005.md) | 二值PNG与前后时轴的待实现方案；导出路径、兼容字段与实际验收边界 |
+| [Replicate SAM2 接入研究](VIDEO-SEGMENTATION-REPLICATE-READINESS-20261005.md) · [导出品牌审计](FREENOW-EXPORT-BRAND-AUDIT-20261005.md) | 二值PNG与前后时轴研究，后续实现见上方；导出路径及实际验收边界 |
 | [普通节点副本](CANVAS-SINGLE-DUPLICATE-20261005.md) · [人物走位](AGENT-CHARACTER-BLOCKING-INTERACTIONS-20261005.md) | 官方坐标/边序/历史、旧 ID 媒体与参数、真实拖动/确认/关闭及刷新 |
 | [混合拾取](SPZ-MIXED-PICKING-20261005.md) · [视频延长生命周期](VIDEO-EXTENSION-LIFECYCLE-20261005.md) | 网格/高斯深度、四模式实际点击；取消、参数漂移、同任务保存重试 |
 | [SPZ 本地高斯渲染](SPZ-LOCAL-RENDERING-20261005.md) · [Marble 配置](MARBLE-NATIVE-SETUP.md) | Spark、真实样本、变换/保存/撤销、照片/短视频与gzip实际预算；LOD见上方最新记录 |
@@ -50,13 +54,13 @@
 | [Wan VACE 视频物体编辑](WAN-VACE-VIDEO-MASK-NATIVE-20261005.md) · [前端](VIDEO-MASK-FRONTEND-NATIVE-20261005.md) | 显式替代、完整时序蒙层、联合裁片、原任务与本地结果 |
 | [蒙层媒体处理](VIDEO-MASK-MEDIA-PREPARATION-20261005.md) · [CDN上传](FAL-CDN-UPLOAD-20261005.md) · [准备恢复](VIDEO-MASK-DURABLE-RECOVERY-20261005.md) | 全帧时序、原音样本、分阶段持久化和恢复不重提 |
 | [Agent 视频蒙层编辑](AGENT-VIDEO-MASK-CLOSURE-20261005.md) | 已保存蒙层、审批说明、高清参考、连接结果与保存重试 |
-| [目标识别原fal合同](VIDEO-SEGMENTATION-FAL-CONTRACT-20261005.md) | 该候选的RLE编码语义未确认；Replicate二值PNG新候选见上方，原生分割仍待实施 |
+| [目标识别原fal合同](VIDEO-SEGMENTATION-FAL-CONTRACT-20261005.md) | 此候选的RLE编码语义仍未确认；独立Replicate原生实现见上方 |
 | [运行品牌窄审计](FREENOW-RUNTIME-BRAND-AUDIT-20261005.md) | 平台尺寸应用固定提示本地化，保留用户内容与来源 |
 | [全景、重拍与Agent图片处理](LOCAL-PANORAMA-RESHOOT-AGENT-20261005.md) | 正式菜单/卡片、高清原图、2:1实际解码、WebGL预览、刷新与零重复派发 |
 | [Hunyuan全景原生协议](PANORAMA-NATIVE-20261005.md) · [前端](HUNYUAN-PANORAMA-FRONTEND-20261005.md) | 独立替代、PNG真实像素与参数白名单、原任务恢复 |
 | [Ark视频重拍](VIDEO-RESHOOT-EDIT-20261005.md) | 官方相机提示词、来源设置/全不变守卫与本地上传限制 |
 | [Agent图片处理](AGENT-IMAGE-PROCESSING-CLOSURE-20261005.md) | 抠图、显式多角度、高清输入、持久回执和全景交接 |
-| [视频遮罩供应商研究](VIDEO-MASK-PROVIDER-READINESS-20261005.md) | 初始合同研究；适配与上传已有后续实现，分割服务仍开放 |
+| [视频遮罩供应商研究](VIDEO-MASK-PROVIDER-READINESS-20261005.md) | 初始合同研究；编辑与分割原生实现见上方，真实供应商效果待验 |
 | [视频工具、素材容量与嵌套品牌](LOCAL-VIDEO-TOOLS-STORAGE-BRAND-20261005.md) | 正式音频/Agent调用、延长菜单、6.6MB原图刷新、离页保护与实际截图 |
 | [ThinkSound视频拟音](VIDEO-AUDIO-NATIVE-20261005.md) | 显式替代协议、完整MP4/WAV、时长与原任务恢复 |
 | [延长镜头参考生成](VIDEO-EXTEND-NATIVE-20261005.md) | 官方Toolbar合同、Ark参数和本地媒体预检；[传输限制](ARK-LOCAL-VIDEO-TRANSPORT-20261005.md) |

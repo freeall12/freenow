@@ -70,12 +70,12 @@
   // Imported DOM paths preserve the source geometry; edits translate their control points.
   const paths = new Map(edges.map(e => [e.id, e.path?.match(/-?\d*\.?\d+(?:e[-+]?\d+)?/gi)?.map(Number)]));
   function remember() { if(window.CanvasProjects&&!graphLoaded){notify('画布尚未完成读取，请稍后编辑');throw Error('画布尚未完成读取，不能修改已有项目');}flushGesture();localChanges++; history.push({nodes:clone(nodes), edges:clone(edges)}); if(history.length>60) history.shift(); future=[]; }
-  function persist() {
+  function persist({beforeCommit}={}) {
     let pending=null;
     window.CanvasProjects?.markDirty();
     if(graphLoaded){
       const revision=++saveRevision;
-      try{pending=window.CanvasStore.save(window.CanvasProjects?.snapshot({version:1,nodes,edges},view,history,future)||{version:1,nodes,edges});pending.then(()=>{
+      try{pending=window.CanvasStore.save(window.CanvasProjects?.snapshot({version:1,nodes,edges},view,history,future)||{version:1,nodes,edges},undefined,{beforeCommit});pending.then(()=>{
         if(revision===saveRevision){$('#storage-notice')?.remove();window.CanvasProjects?.markDirty(false);}
       },error=>{if(revision===saveRevision)storageError(error);});}
       catch(error){storageError(error);}
@@ -473,7 +473,7 @@
     projectIdentity:()=>window.CanvasProjects?.current()||{id:'canvas',title:$('#project-title').textContent},
     projectSnapshot:()=>window.CanvasProjects?.snapshot({version:1,nodes,edges},view,history,future)||{version:1,nodes,edges},
     resourceMigrationStatus:()=>resourceMigrationStatus?structuredClone(resourceMigrationStatus):null,
-    async saveProject(){if(!graphLoaded||graphReadFailed)throw Error('画布尚未成功读取，已停止保存以保护已有数据');flushGesture();saveView();const saving=persist();if(!saving)throw Error('当前画布未能保存，请保留此页面并重试');await saving;await window.CanvasStore.flush();},
+    async saveProject({beforeCommit}={}){if(!graphLoaded||graphReadFailed)throw Error('画布尚未成功读取，已停止保存以保护已有数据');const check=()=>{if(beforeCommit!==undefined&&typeof beforeCommit!=='function')throw TypeError('画布保存守卫必须为函数');if(beforeCommit&&beforeCommit()!==true)throw Error('画布保存资格已变化，当前修改尚未保存');};flushGesture();check();saveView();const saving=persist({beforeCommit});if(!saving)throw Error('当前画布未能保存，请保留此页面并重试');await saving;await window.CanvasStore.flush();check();},
     async prepareProjectNavigation(){cancelViewportAnimation();await this.saveProject();},
     async renameProject(name){if(!graphLoaded||graphReadFailed)throw Error('画布尚未成功读取，请稍后重试');window.CanvasProjects.setTitle(name);await this.saveProject();return window.CanvasProjects.current();},
     historyState:()=>({undoCount:history.length,redoCount:future.length}),

@@ -4,8 +4,10 @@ const {processMedia}=require('./media.cjs');
 const {isPublicStaticPath}=require('./static-public-path.cjs');
 const {processPlaylist}=require('./playlist.cjs');
 const {transcribeRequest}=require('./voice.cjs');
-const {createVideoSegmentationAdapter}=require('./video-segmentation.cjs');
-const videoSegmentation=createVideoSegmentationAdapter({baseUrl:process.env.VIDEO_SEGMENTATION_API_BASE_URL,apiKey:process.env.VIDEO_SEGMENTATION_API_KEY});
+const {createVideoSegmentationService}=require('./video-segmentation.cjs');
+const segmentationMedia=process.env.VIDEO_SEGMENTATION_PROTOCOL==='replicate-sam2-native'
+ ?require('./video-segmentation-media.cjs').createVideoSegmentationMediaTools({ffmpegPath:process.env.FFMPEG_PATH||'ffmpeg',ffprobePath:process.env.FFPROBE_PATH||'ffprobe'}):undefined;
+const videoSegmentation=createVideoSegmentationService({protocol:process.env.VIDEO_SEGMENTATION_PROTOCOL,baseUrl:process.env.VIDEO_SEGMENTATION_API_BASE_URL,apiKey:process.env.VIDEO_SEGMENTATION_API_KEY,replicateApiToken:process.env.REPLICATE_API_TOKEN,version:process.env.REPLICATE_SEGMENTATION_VERSION,directory:path.join(__dirname,'.segmentation-tasks'),mediaTools:segmentationMedia});
 const {generateArtifactHtml}=require('./agent-artifacts.cjs');
 const {createWebSearch}=require('./agent-search.cjs');
 const {createAgentSessionStore}=require('./agent-session-store.cjs');
@@ -100,7 +102,7 @@ const server=http.createServer(async(req,res)=>{try{
  ].includes(relative))headers['Access-Control-Allow-Origin']='*';
  const range=req.headers.range?.match(/^bytes=(\d+)-(\d*)$/);let start=0,end=stat.size-1,status=200;if(range){start=Number(range[1]);end=range[2]?Math.min(Number(range[2]),end):end;if(start>end||start>=stat.size){res.writeHead(416,{'Content-Range':`bytes */${stat.size}`});return res.end();}status=206;headers['Content-Range']=`bytes ${start}-${end}/${stat.size}`;}headers['Content-Length']=end-start+1;res.writeHead(status,headers);if(req.method==='HEAD')return res.end();fs.createReadStream(file,{start,end}).pipe(res);
  }catch(e){if(!res.headersSent)json(res,e.status===401?401:e.code==='configuration_required'?503:[400,404,409,429,503].includes(e.status)?e.status:400,{error:e.status===401?'模型服务认证失败，请检查服务端 KEY。':e.message||'请求失败',...(e.code?{code:e.code}:{})});else res.end();}});
-Promise.all([generation.ready,runtime.ready]).then(()=>server.listen(port,'127.0.0.1',()=>console.log(`Canvas replica: http://localhost:${port} | Agent ${configured?'configured':'requires OPENAI_API_KEY and OPENAI_MODEL'}`))).catch(async()=>{console.error('Local task stores unavailable; server was not started.');await Promise.allSettled([runtime.close(),agentSessionStore.close(),generation.close()]);process.exitCode=1;});
+Promise.all([generation.ready,runtime.ready,videoSegmentation.ready]).then(()=>server.listen(port,'127.0.0.1',()=>console.log(`Canvas replica: http://localhost:${port} | Agent ${configured?'configured':'requires OPENAI_API_KEY and OPENAI_MODEL'}`))).catch(async()=>{console.error('Local task stores unavailable; server was not started.');await Promise.allSettled([runtime.close(),agentSessionStore.close(),generation.close(),videoSegmentation.close?.()]);process.exitCode=1;});
 
 let closing=false;
-for(const event of ['SIGTERM','SIGINT'])process.once(event,async()=>{if(closing)return;closing=true;server.close();voiceCatalog.close();try{await runtime.close();await agentSessionStore.close();await generation.close();process.exit(0);}catch{console.error('Local task shutdown could not confirm persistence.');process.exit(1);}});
+for(const event of ['SIGTERM','SIGINT'])process.once(event,async()=>{if(closing)return;closing=true;server.close();voiceCatalog.close();try{await runtime.close();await agentSessionStore.close();await generation.close();await videoSegmentation.close?.();process.exit(0);}catch{console.error('Local task shutdown could not confirm persistence.');process.exit(1);}});
