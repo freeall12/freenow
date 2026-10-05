@@ -1,0 +1,44 @@
+[
+  {
+    "url": "https://platform.sonilo.com/openapi.json",
+    "sha256": "e0f85f2fb6d902b8ddd9d1b9187a91da7a3a27b4b967984feb6139f21bd0f44b",
+    "retrieved": "2026-10-05",
+    "transport": "public unauthenticated GET",
+    "bytes": 59369
+  },
+  {
+    "url": "https://platform.sonilo.com/docs/api/video-to-music",
+    "sha256": "f2789e875440468e1f7c4bf4b50fcbb6d49d67836aa3c9937e0f44dbdaab6cba",
+    "retrieved": "2026-10-05",
+    "transport": "public unauthenticated GET",
+    "bytes": 767415
+  },
+  {
+    "url": "https://platform.sonilo.com/docs/api/text-to-music",
+    "sha256": "2e9aaa2f1612e1fffa93d475b2a63e20aed75598352cc5afb0abeb25763d6fb3",
+    "retrieved": "2026-10-05",
+    "transport": "public unauthenticated GET",
+    "bytes": 759901
+  },
+  {
+    "url": "https://platform.sonilo.com/docs/api/get-task",
+    "sha256": "1b875ce2acf77fbf7a0183834851798e2410a88de057ef422bccf597fed445d3",
+    "retrieved": "2026-10-05",
+    "transport": "public unauthenticated GET",
+    "bytes": 648499
+  },
+  {
+    "url": "https://sonilo.com/openapi.json",
+    "sha256": "b3a8c6287518381bef09099bce5d0cb82c2f17d4f9e608995c930f21db84a40a",
+    "retrieved": "2026-10-05",
+    "transport": "public unauthenticated GET",
+    "bytes": 24649
+  },
+  {
+    "url": "https://fal.ai/models/sonilo/v1.1/video-to-music/llms.txt",
+    "sha256": "4294724dba3ec05b3b4d29ce4b6b1e758708979efa231b6e85e1737f293a0a8c",
+    "retrieved": "2026-10-05",
+    "transport": "public unauthenticated GET",
+    "bytes": 6078
+  }
+]

@@ -3,6 +3,11 @@
 <style>body{background:#161616;color:#eee;font:14px system-ui;margin:24px;max-width:920px}textarea{box-sizing:border-box;width:100%;min-height:120px;background:#252525;color:#eee;border:1px solid #555;padding:12px}button{padding:8px 14px;margin:8px 8px 16px 0}output{display:block;white-space:pre-wrap;margin:10px 0}#cards{margin:16px 0}label{display:block;margin:8px 0}</style>
 <h1>导演批注 · 确定性接线验收</h1><p>使用原始官方页面和生产 registry、controller、host；本页保存真实批注并记录已排队正文。未调用模型，不生成视频。</p>
 <label for="draft">用于打开批注页的实际正文</label><textarea id="draft">林岚推开木门，停在雨里。她低头看见桌上的钥匙，慢慢走近，却没有伸手。窗外闪电掠过，屋内的人影在墙上晃了一下。</textarea>
-<button id="open" disabled>打开新批注页</button><button id="rerender" disabled>普通会话重绘</button><label><input id="busy" type="checkbox" disabled>模拟会话运行中（拒绝确认交接）</label><output id="status" aria-live="polite">正在读取本页专用 IndexedDB…</output><section id="cards"></section>
+<label for="locale">官方页面语言（仅影响新打开的页面）</label><select id="locale" disabled><option value="zh-CN">简体中文</option><option value="en-US">English</option><option value="ja-JP">日本語</option><option value="ko-KR">한국어</option><option value="fr-FR">Français</option></select>
+<button id="open" disabled>打开新批注页</button><button id="rerender" disabled>普通会话重绘</button><button id="close" disabled>关闭面板并保存</button><button id="reopen" disabled>重新打开已保存面板</button><button id="reload" disabled>重载官方页面并保存</button>
+<label><input id="busy" type="checkbox" disabled>模拟会话运行中（拒绝确认交接）</label>
+<label>状态保存延迟（毫秒，0–5000）<input id="save-delay" type="number" min="0" max="5000" step="100" value="0" disabled></label><label><input id="fail-save" type="checkbox" disabled>仅下一次状态保存失败（可重试）</label>
+<output id="status" aria-live="polite">正在读取本页专用 IndexedDB…</output><output id="persistence" aria-live="polite">尚无状态保存</output><section id="cards"></section>
+<details><summary>实际已提交状态</summary><textarea id="state" readonly aria-label="实际已提交的导演批注状态"></textarea></details>
 <h2>实际已排队的批注交接</h2><p>相同已保存内容再次确认按 handoffId 去重；刷新恢复本页专用草稿和队列。</p><textarea id="reply" readonly aria-label="已排队的批注交接"></textarea>
 <script type="module" src="./director-markup.mjs"></script></html>

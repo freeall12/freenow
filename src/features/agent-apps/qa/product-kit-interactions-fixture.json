@@ -1,0 +1,118 @@
+{
+  "node_ref": "node/qa-product",
+  "version": 1,
+  "locale": "zh-CN",
+  "variant": "full",
+  "product": {
+    "name": "公开合成图形验收",
+    "category": "functional",
+    "price_band": "mid"
+  },
+  "kit_version": 1,
+  "updated_at": "2026-10-05",
+  "palette": [
+    {
+      "role": "scene",
+      "name": "暖灰",
+      "hex": "#D8D1C7",
+      "locked": false,
+      "alternatives": [
+        {
+          "name": "砂岩",
+          "hex": "#C9B8A3"
+        }
+      ]
+    },
+    {
+      "role": "product",
+      "name": "炭黑",
+      "hex": "#242424",
+      "locked": true,
+      "source": "公开合成图形实际像素",
+      "alternatives": []
+    },
+    {
+      "role": "information",
+      "name": "亚麻白",
+      "hex": "#EEE9DF",
+      "locked": false,
+      "alternatives": [
+        {
+          "name": "纸白",
+          "hex": "#F5F2EA"
+        }
+      ]
+    },
+    {
+      "role": "accent",
+      "name": "陶土橙",
+      "hex": "#B96F4A",
+      "locked": false,
+      "alternatives": [
+        {
+          "name": "赭石",
+          "hex": "#9B5D3D"
+        }
+      ]
+    }
+  ],
+  "tones": {
+    "selected": [
+      {
+        "word": "克制",
+        "physical": "大留白 · 文案极少"
+      }
+    ],
+    "options": [
+      {
+        "word": "克制",
+        "physical": "大留白 · 文案极少"
+      },
+      {
+        "word": "精密",
+        "physical": "正视角 · 结构特写"
+      },
+      {
+        "word": "温暖",
+        "physical": "暖光 · 自然材质"
+      }
+    ],
+    "max": 2
+  },
+  "look": {
+    "state": "locked",
+    "sentence": "Neutral lighting and measured negative space.",
+    "locked_at": "2026-10-05"
+  },
+  "bans": {
+    "product": [
+      {
+        "name": "保持合成图形的矩形结构",
+        "on": true
+      }
+    ]
+  },
+  "copy": {
+    "language": {
+      "value": "中文",
+      "locked": true,
+      "source": "本次公开fixture验收设置"
+    },
+    "voice": {
+      "value": "克制直给",
+      "options": [
+        "克制直给",
+        "自然描述"
+      ]
+    }
+  },
+  "hypotheses": [
+    {
+      "id": "qa1",
+      "text": "仅用于测试确认按钮的未验证规格，不是产品事实",
+      "auto_ban": true
+    }
+  ],
+  "plan_attached": true,
+  "summary": "公开合成fixture交互验收；不对应真实商品，不调用生成服务"
+}

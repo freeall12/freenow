@@ -5,6 +5,8 @@
 <label>真实本地产品图片 <input id="upload" type="file" accept="image/png,image/jpeg,image/webp" disabled></label><section id="source"></section>
 <label for="input">本次创作材料与Kit（配色/调性仅为验收创作设置，需按实际材料修改产品类别与价格带）</label><textarea id="input"></textarea>
 <button id="open" disabled>打开 Product Kit</button><button id="rerender" disabled>普通会话重绘</button><button id="verify" disabled>回读持久状态与队列</button>
+<button id="close" disabled>保存后关闭素材板</button><button id="reopen" disabled>重新打开已保存素材板</button>
+<label>模拟每次状态事务延迟（毫秒，0–10000） <input id="save-delay" type="number" min="0" max="10000" value="0" disabled></label>
 <label><input id="busy" type="checkbox" disabled>模拟会话运行中（拒绝确认）</label><label><input id="fail-save" type="checkbox" disabled>模拟保存失败（不接受未提交状态与队列）</label>
 <output id="status" aria-live="polite">正在读取本页专用 IndexedDB…</output><section id="cards"></section>
 <h2>持久保存状态</h2><textarea id="state" readonly></textarea><h2>实际交接队列</h2><textarea id="reply" readonly></textarea>

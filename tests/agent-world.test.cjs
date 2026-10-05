@@ -17,7 +17,7 @@ async function fixture({configured=true}={}){
 }
 test('world tools use official model contract; missing key dispatches nothing',async()=>{
  tools.parse('canvas_add',{type:'world',title:'World',x:100,y:200});tools.parse('world_generate',{nodeId:'world'});
- const f=await fixture({configured:false});assert.equal(f.read().models.length,3);assert.equal(f.read().outputRenderer.gaussianSplat,false);
+ const f=await fixture({configured:false});assert.equal(f.read().models.length,3);assert.equal(f.read().outputRenderer.gaussianSplat,true);
  assert.equal((await f.start({nodeId:'world'})).configurationRequired,true);assert.equal(f.calls,0);
 });
 test('world submission retains actual request, waits for persisted receipt and reuses materialized result',async()=>{
@@ -80,4 +80,13 @@ test('world canvas_add preserves requested world coordinates when view changes d
 test('world canvas_add creates no late node when cancelled during module loading',async()=>{
  const model=await import('../src/features/world-node/model.mjs'),f=canvasAddFixture(),controller=new AbortController(),pending=f.start(controller.signal);
  controller.abort();f.release(model);await assert.rejects(pending,{name:'AbortError'});assert.equal(f.nodes.length,0);
+});
+test('world Agent descriptions and readWorld match implemented GLB/SPZ native LOD budgets without claiming live Marble verification',async()=>{
+ const [{worldRendererCapabilities},{splatLimits},{splatLodPolicy},{maxBytes}]=await Promise.all([import('../src/features/world-node/render-capabilities.mjs'),import('../src/features/world-node/splat-contract.mjs'),import('../src/features/world-node/splat-lod.mjs'),import('../src/features/studio-v2/model-io.mjs')]),f=await fixture({configured:false}),world=f.read(),MiB=1024*1024;
+ assert.deepEqual(world.outputRenderer,worldRendererCapabilities());assert.equal(world.liveProviderVerified,false);
+ for(const name of ['world_read','world_generate']){
+  const description=tools.definitions.find(tool=>tool.name===name).description;
+  assert.ok(description.includes(`GLB meshes (${maxBytes/MiB} MiB)`));assert.ok(description.includes(`SPZ Gaussian splats (${splatLimits.bytes/MiB} MiB compressed, ${splatLimits.expandedBytes/MiB} MiB expanded, ${splatLimits.sceneSplats/1000000}M source/scene splats)`));assert.ok(description.includes(`native LOD targeting ${splatLodPolicy.targetSplats/1000}K splats per view for drawing/sorting, not a resident-memory cap`));assert.match(description,/Marble keys remain unverified/);assert.doesNotMatch(description,/GLB only|not native Gaussian|Output must be a real GLB/);
+ }
+ assert.ok(world.note.includes(`GLB网格（${maxBytes/MiB}MiB）`));assert.ok(world.note.includes(`${splatLimits.bytes/MiB}MiB压缩、${splatLimits.expandedBytes/MiB}MiB展开、单源与场景${splatLimits.sceneSplats/10000}万源高斯预算`));assert.ok(world.note.includes(`原生LOD，每视图${splatLodPolicy.targetSplats/10000}万绘制/排序目标，不是驻留内存上限`));assert.match(world.note,/真实Marble Key链尚未验收/);assert.doesNotMatch(world.note,/全量无LOD/);assert.equal(f.calls,0);
 });

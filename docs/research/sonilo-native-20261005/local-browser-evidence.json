@@ -1,0 +1,275 @@
+{
+  "recorded_at": "2026-10-05T13:28:12.605332+00:00",
+  "scope": "Isolated synthetic HTTP fixture and actual local browser UI; no real provider key or model inference",
+  "source": {
+    "path": "/qa/trim-scenes.mp4",
+    "bytes": 9865,
+    "duration": 8,
+    "width": 320,
+    "height": 180,
+    "sha256": "1fbe006b0ac09212fcb878df720ba6cbe9071bcce31ac42d7570a4f6830b7457"
+  },
+  "counters": {
+    "before_guard_checks": 3,
+    "after_missing_key_route_clip_and_history_apply": 3,
+    "after_text_music": 4,
+    "after_gateway_reopen_and_page_reload": 4
+  },
+  "accepted_requests": [
+    {
+      "at": "2026-10-05T12:43:20.183Z",
+      "source": "fixture-upstream",
+      "protocol": "sonilo-native",
+      "method": "POST",
+      "path": "/v1/video-to-music",
+      "taskId": "fixture-sonilo-1",
+      "inputVideo": true,
+      "inputBytes": 9865,
+      "videoFileCount": 1,
+      "originalBytesEqual": true,
+      "promptLength": 0,
+      "sourceDuration": 8,
+      "count": 2,
+      "segments": [
+        {
+          "start": 0,
+          "prompt": "吉他",
+          "label": "intro"
+        }
+      ]
+    },
+    {
+      "at": "2026-10-05T12:57:08.245Z",
+      "source": "fixture-upstream",
+      "protocol": "sonilo-native",
+      "method": "POST",
+      "path": "/v1/video-to-music",
+      "taskId": "fixture-sonilo-2",
+      "inputVideo": true,
+      "inputBytes": 9865,
+      "videoFileCount": 1,
+      "originalBytesEqual": true,
+      "promptLength": 0,
+      "sourceDuration": 8,
+      "count": 2,
+      "segments": [
+        {
+          "start": 0,
+          "prompt": "轻柔吉他",
+          "label": "intro"
+        }
+      ]
+    },
+    {
+      "at": "2026-10-05T13:04:41.885Z",
+      "source": "fixture-upstream",
+      "protocol": "sonilo-native",
+      "method": "POST",
+      "path": "/v1/video-to-music",
+      "taskId": "fixture-sonilo-3",
+      "inputVideo": true,
+      "inputBytes": 9865,
+      "videoFileCount": 1,
+      "originalBytesEqual": true,
+      "promptLength": 0,
+      "sourceDuration": 8,
+      "count": 2,
+      "segments": [
+        {
+          "start": 0,
+          "prompt": "轻柔吉他",
+          "label": "intro"
+        }
+      ]
+    },
+    {
+      "at": "2026-10-05T13:25:40.200Z",
+      "source": "fixture-upstream",
+      "protocol": "sonilo-native",
+      "method": "POST",
+      "path": "/v1/text-to-music",
+      "taskId": "fixture-sonilo-4",
+      "inputVideo": false,
+      "inputBytes": 0,
+      "videoFileCount": 0,
+      "promptLength": 4,
+      "sourceDuration": 10,
+      "count": 2,
+      "segments": [
+        {
+          "start": 0,
+          "prompt": "铺垫",
+          "label": "intro"
+        },
+        {
+          "start": 5,
+          "prompt": "主旋律",
+          "label": "verse"
+        }
+      ]
+    }
+  ],
+  "restart_receipts": [
+    {
+      "at": "2026-10-05T12:43:21.065Z",
+      "source": "fixture-restart",
+      "mode": "ready",
+      "tasksAccepted": 1
+    },
+    {
+      "at": "2026-10-05T13:27:14.921Z",
+      "source": "fixture-restart",
+      "mode": "ready",
+      "tasksAccepted": 4
+    }
+  ],
+  "public_get_after_reopen": [
+    {
+      "id": "34d82064-d49c-4d68-b7c8-6e8b7b44da29",
+      "status": "succeeded",
+      "outputs": [
+        {
+          "type": "audio",
+          "url": "/api/generation/media/b6fcc66e-ff3f-4ff8-a547-d7f5ba834f14",
+          "duration": 8
+        },
+        {
+          "type": "audio",
+          "url": "/api/generation/media/b6fcc66e-ff3f-4ff8-a547-d7f5ba834f14",
+          "duration": 8
+        }
+      ],
+      "providerStatus": "succeeded",
+      "localization": {
+        "state": "ready",
+        "revision": 0,
+        "retryable": false
+      },
+      "recovery": {
+        "pollable": true,
+        "submissionState": "accepted"
+      }
+    },
+    {
+      "id": "c3117b19-5f96-455d-a9db-4b4a7e398ed5",
+      "status": "succeeded",
+      "outputs": [
+        {
+          "type": "audio",
+          "url": "/api/generation/media/dc816dc8-e2b2-4b4c-84a7-6b94dc8b65f8",
+          "duration": 8
+        },
+        {
+          "type": "audio",
+          "url": "/api/generation/media/dc816dc8-e2b2-4b4c-84a7-6b94dc8b65f8",
+          "duration": 8
+        }
+      ],
+      "providerStatus": "succeeded",
+      "localization": {
+        "state": "ready",
+        "revision": 0,
+        "retryable": false
+      },
+      "recovery": {
+        "pollable": true,
+        "submissionState": "accepted"
+      }
+    },
+    {
+      "id": "f34a0b07-55c4-4665-abcd-e65667677a6a",
+      "status": "succeeded",
+      "outputs": [
+        {
+          "type": "audio",
+          "url": "/api/generation/media/db9f97e1-51ac-4376-8e16-a589d4a96487",
+          "duration": 8
+        },
+        {
+          "type": "audio",
+          "url": "/api/generation/media/db9f97e1-51ac-4376-8e16-a589d4a96487",
+          "duration": 8
+        }
+      ],
+      "providerStatus": "succeeded",
+      "localization": {
+        "state": "ready",
+        "revision": 0,
+        "retryable": false
+      },
+      "recovery": {
+        "pollable": true,
+        "submissionState": "accepted"
+      }
+    },
+    {
+      "id": "895a91bc-5a6b-44cb-884b-1987abf123db",
+      "status": "succeeded",
+      "outputs": [
+        {
+          "type": "audio",
+          "url": "/api/generation/media/4d2a7180-caa4-4458-a39f-843b4f055d02",
+          "duration": 10
+        },
+        {
+          "type": "audio",
+          "url": "/api/generation/media/4d2a7180-caa4-4458-a39f-843b4f055d02",
+          "duration": 10
+        }
+      ],
+      "providerStatus": "succeeded",
+      "localization": {
+        "state": "ready",
+        "revision": 0,
+        "retryable": false
+      },
+      "recovery": {
+        "pollable": true,
+        "submissionState": "accepted"
+      }
+    }
+  ],
+  "browser_observations": {
+    "video_wav": {
+      "duration": 8,
+      "ended": true,
+      "readyState": 4
+    },
+    "second_variant": {
+      "history_id": "63c54905-1e55-49c1-b6d2-7de1fa588015:1",
+      "duration": 8,
+      "ended": true,
+      "applied_as_independent_node": true
+    },
+    "text_wav": {
+      "duration": 10,
+      "ended": true,
+      "readyState": 4
+    },
+    "after_reload": {
+      "canvas_nodes": 3,
+      "audio_durations": [
+        10,
+        8
+      ],
+      "text_audio_played": true
+    },
+    "screenshot_context": {
+      "ui_flow_hostname": "127.0.0.1",
+      "ui_flow_browser_zoom": 0.33,
+      "approval_screenshots_hostname": "localhost",
+      "approval_screenshots_browser_zoom": 1,
+      "viewport": {
+        "width": 1280,
+        "height": 720
+      },
+      "approval_only_no_additional_generation": true
+    }
+  },
+  "limits": [
+    "Audio fixtures are fixed PCM16 sine waves, not generated music.",
+    "Two same-byte variants intentionally content-deduplicate to one local media URL but retain two history output IDs.",
+    "Gateway object reopened against the same store; this browser case does not prove a process crash/restart or an in-flight remote recovery.",
+    "Current QA process started before final optional-metadata and public-error code changes; those changes have separate focused regression evidence."
+  ]
+}

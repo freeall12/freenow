@@ -17,7 +17,7 @@ node --env-file=.env.local server/server.cjs
 | `GENERATION_PROVIDERS` | JSON：供应商 ID → 配置 |
 | `GENERATION_ROUTES` | JSON：准确操作 kind → 供应商 ID 或 `{default,models}` |
 
-供应商配置允许 `protocol`、`apiKeyEnv`、`baseUrl` / `baseUrlEnv`、`modelMap` / `modelMapEnv`。Key 只允许通过环境变量名称引用；JSON 中的 `apiKey` 会使路由无效。地址和模型映射的内联值与环境引用不能同时提供。`modelMapEnv` 所引用的值同样为 JSON。协议支持 `openai-native`、`ark-native`、`ark-video-extend-reference`、`ark-video-reshoot-edit`、`fal-native`、`fal-video-native`、`fal-video-audio-native`、`fal-video-mask-native`、`fal-panorama-native`、`fal-video-depth-native`、`openai-panorama-edit-native`、`minimax-native`、`minimax-music-native`、`tripo-native`、`elevenlabs-native`、`elevenlabs-sound-native`、`elevenlabs-music-native`、`mureka-native`、`seed-audio-native`、`openai-masked-edit-native`、`openai-relight-native`、`marble-native`、`magnific-native`、`skin-tasks-v1` 和 `tasks-v1`。fal 抠图和 Topaz 放大的可直接使用配置见 [fal 图片工具](FAL-NATIVE-SETUP.md)。
+供应商配置允许 `protocol`、`apiKeyEnv`、`baseUrl` / `baseUrlEnv`、`modelMap` / `modelMapEnv`。Key 只允许通过环境变量名称引用；JSON 中的 `apiKey` 会使路由无效。地址和模型映射的内联值与环境引用不能同时提供。`modelMapEnv` 所引用的值同样为 JSON。协议支持 `openai-native`、`ark-native`、`ark-video-extend-reference`、`ark-video-reshoot-edit`、`fal-native`、`fal-video-native`、`fal-video-audio-native`、`fal-video-mask-native`、`fal-panorama-native`、`fal-video-depth-native`、`openai-panorama-edit-native`、`minimax-native`、`minimax-music-native`、`tripo-native`、`elevenlabs-native`、`elevenlabs-sound-native`、`elevenlabs-music-native`、`mureka-native`、`seed-audio-native`、`sonilo-native`、`openai-masked-edit-native`、`openai-relight-native`、`marble-native`、`magnific-native`、`skin-tasks-v1` 和 `tasks-v1`。fal 抠图和 Topaz 放大的可直接使用配置见 [fal 图片工具](FAL-NATIVE-SETUP.md)。
 
 两项路由变量都未设置时，原单供应商配置保持不变。只设置一项、JSON 损坏或路由引用不存在的供应商时，整个路由禁用，不借用旧 Key。某个供应商缺 Key 或能力时只阻止选到它的功能，不影响其他已配置功能。Key 名称未设置等同该供应商未就绪。
 
@@ -72,9 +72,25 @@ Mureka 自动模式最多2000字符；自定义模式为1024字符提示词和1�
 
 本机HTTP与正式节点已验证媒体归档/播放/刷新及缺配置零提交；实际供应商账号资格、型号访问权、声线和成曲质量仍需真实Key验收。
 
-### 视频拟音与延长镜头
+### Sonilo 原生音乐
 
-视频拟音使用独立 fal Key，显式把画布 `sonilo-sfx` 别名绑定到 ThinkSound；界面说明真实执行模型，不声称取得 Sonilo 私有接口。以下条目须合并到已有路由，保留其他模型：
+使用独立 Sonilo 账号的 [API Key](https://platform.sonilo.com/dashboard/api-keys)，服务端仅引用变量名 `SONILO_API_KEY`。官方运行 origin 是 `https://api.sonilo.com`；不使用 TapNow Key、登录凭据或 fal Key。将以下 provider 和 `audio.generate.models.sonilo-music` 路由**合并到已有 JSON**，保留其他音乐、音效和语音映射；在私有环境文件中填写 `SONILO_API_KEY`，模板留空。
+
+```sh
+SONILO_API_KEY=
+GENERATION_PROVIDERS='{"sonilo":{"protocol":"sonilo-native","apiKeyEnv":"SONILO_API_KEY","baseUrl":"https://api.sonilo.com","modelMap":{"sonilo-music":{"kind":"audio.generate","model":"sonilo-music"}}}}'
+GENERATION_ROUTES='{"audio.generate":{"models":{"sonilo-music":"sonilo"}}}'
+```
+
+音乐支持本地 MP4 → Video-to-Music 和无视频 → Text-to-Music，5–360 秒、1–30 个真实分段边界、单次 1–10 个 WAV 变体。每个变体单独计费；数量和分段不会拆为多个 POST。本地视频在上传前校验、全解码，再以原字节 multipart 文件上传官方接口，不需要公网素材发布通道；需已安装的 FFmpeg / FFprobe，来源最多 50 MB。接受后持久保存原任务并查询恢复，没有公开远程取消或供应商幂等保证。
+
+音频节点当前默认应用第一项结果；额外变体从画布左侧 **历史 → 音频** 查看，每个 output 索引可独立预览、播放和应用。没有声称节点内已有变体切换器。[原生合同与来源](SONILO-NATIVE-20261005.md) · [正式节点 / Agent QA](SONILO-NATIVE-UI-QA-20261005.md)。本机 fixture 不证明真实账号权限、音乐质量或与视觉事件的精确同步。
+
+这是本批进一步读取 [Sonilo 完整公开 API](https://platform.sonilo.com/openapi.json) 后实现的 Music 能力。前批“没有找到独立 Sonilo API”仅描述当时已检查的 TapNow 使用文档 / 安装包来源。**Sonilo 原生 SFX、stems、语音保留和 ducking 仍未接入**；下面的 ThinkSound 可选配置仅为明确的 SFX 替代，不启用这些 Sonilo 原生功能。
+
+### 可选 ThinkSound 视频拟音与延长镜头
+
+可选的视频拟音使用独立 fal Key，显式把画布 `sonilo-sfx` 别名绑定到 ThinkSound；界面说明真实执行模型，不声称执行 Sonilo 原生 SFX。它与上面的 `sonilo-native` 音乐路由使用不同 Key / 协议。以下条目须合并到已有路由，保留其他模型：
 
 ```sh
 GENERATION_PROVIDERS='{"videoSound":{"protocol":"fal-video-audio-native","apiKeyEnv":"FAL_KEY","modelMapEnv":"VIDEO_AUDIO_MODEL_MAP"}}'

@@ -24,6 +24,10 @@
 
 | 记录 | 范围 |
 | --- | --- |
+| [Sonilo音乐、Agent交互与长历史](LOCAL-SONILO-AGENT-AND-HISTORY-20261005.md) | 1005p整批：真实上传/多变体/文字分段、保存关闭与连续DOM；实机和供应商边界分开记录 |
+| [Sonilo独立原生协议](SONILO-NATIVE-20261005.md) · [正式UI验收](SONILO-NATIVE-UI-QA-20261005.md) | 公开官方合同、本地MP4直传、WAV与原任务、Agent时长/数量/分段说明 |
+| [Product Kit交互](AGENT-PRODUCT-KIT-INTERACTIONS-20261005.md) · [导演批注交互](AGENT-DIRECTOR-MARKUP-INTERACTIONS-20261005.md) | 原件SHA、同快照交接、保存重试、关闭/恢复与键盘焦点 |
+| [长历史性能](GENERATION-HISTORY-LONG-LIST-20261005.md) | 600条完整记录的结构计数、真实滚动/媒体与资源释放；非FPS结论 |
 | [Agent识别、交互与实际导出](LOCAL-AGENT-SEGMENTATION-AND-EXPORTS-20261005.md) | 1005o整批：保存回执闭环、原任务取消/重启续发、本地封面、视频规格与真实下载 |
 | [Agent 首次视频识别](AGENT-VIDEO-SEGMENTATION-20261005.md) · [隔离整链复现](../src/features/agent-generation/qa/agent-segmentation-README.md) | 独立确认、完整源像素、原UUID任务与真实画布保存；当前实机范围以专项记录为准 |
 | [视频规格交互](VIDEO-SPECIFICATIONS-INTERACTION-20261005.md) · [Widget 实际下载](WIDGET-WHITEBOX-DOWNLOAD-QA-20261005.md) | 模式焦点、时长滚轮、Escape；真实PNG/MP4/WebM与逐帧运动证据 |

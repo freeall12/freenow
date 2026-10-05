@@ -1,0 +1,518 @@
+{
+  "openapi": "3.1.0",
+  "servers": [
+    {
+      "url": "https://api.sonilo.com",
+      "description": "Production API"
+    }
+  ],
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "paths": {
+    "/v1/text-to-music": {
+      "post": {
+        "summary": "Generate music from a text prompt",
+        "description": "Streams application/x-ndjson by default with title, audio_chunk, complete, and error events. Pass mode=async to return a task_id. Generated audio carries an inaudible provenance watermark.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/TextToMusicRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "NDJSON stream with title, audio_chunk, complete, and error events.",
+            "content": {
+              "application/x-ndjson": {
+                "schema": {
+                  "type": "string",
+                  "description": "One JSON event per line."
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Async task created when mode=async.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskAccepted"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "402": {
+            "$ref": "#/components/responses/PaymentRequired"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "502": {
+            "$ref": "#/components/responses/UpstreamError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          }
+        }
+      }
+    },
+    "/v1/video-to-music": {
+      "post": {
+        "summary": "Generate music for a video",
+        "description": "Accepts exactly one of video or video_url. Streams NDJSON by default or returns a task_id when mode=async. Generated audio carries an inaudible provenance watermark.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/VideoToMusicRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "NDJSON stream with generated audio chunks."
+          },
+          "202": {
+            "description": "Async task created.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskAccepted"
+                }
+              }
+            }
+          },
+          "402": {
+            "$ref": "#/components/responses/PaymentRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          }
+        }
+      }
+    },
+    "/v1/tasks/{task_id}": {
+      "get": {
+        "summary": "Retrieve async task status",
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Task status and result URLs.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskStatus"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        },
+        "description": "Poll asynchronous Sonilo tasks using the exact path GET /v1/tasks/{task_id}. Do not guess /v1/task_id, /tasks/{task_id} without /v1, or /v1/tasks/{id}/status. Stop on succeeded/completed/failed/canceled and download media only after success."
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "TextToMusicRequest": {
+        "type": "object",
+        "required": [
+          "prompt"
+        ],
+        "properties": {
+          "prompt": {
+            "type": "string",
+            "description": "Music prompt."
+          },
+          "duration": {
+            "type": "integer",
+            "minimum": 5,
+            "maximum": 360
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "stream",
+              "async"
+            ],
+            "default": "stream"
+          },
+          "output_format": {
+            "type": "string",
+            "enum": [
+              "m4a",
+              "wav",
+              "mp3"
+            ],
+            "default": "m4a",
+            "description": "`m4a` (default, AAC), `wav` (16-bit PCM) or `mp3` (320 kbps CBR). `wav` and `mp3` are transcoded server-side after generation and require mode=async — the streaming response is always m4a. The delivered MIME is echoed in `audio[].content_type`."
+          },
+          "variants_num": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 10,
+            "default": 1,
+            "description": "How many distinct music variants to generate in one request. Each variant is a separate creative direction, returned as its own entry in the async result's `audio` array. Cost scales linearly — `variants_num=3` costs three times a single-variant request. Values above 1 require mode=async; the default of 1 is valid in stream mode. Values above 1 are never covered by the free trial and are always billed."
+          },
+          "segments": {
+            "type": "string",
+            "description": "JSON string with segment prompts."
+          },
+          "stems": {
+            "type": "boolean",
+            "default": false,
+            "description": "Off by default. Set to true to also return a `stems` array — each generated track split into four separated instrument tracks (`drums`, `bass`, `vocals`, `other`), each normally following the requested `output_format`, with `content_type` reporting what was actually delivered — alongside the clean `audio`. Free of charge. Requires mode=async. Separation runs after generation and typically adds 2-6 min to the wait and gives up after 30 min; that ceiling is reached by a retry or a busy queue rather than by track length, so do not size a client timeout off the duration. It never fails the task: if separation fails, `audio` is unaffected and the response carries `stems_error` — on its own, or alongside the streams that did separate."
+          }
+        }
+      },
+      "VideoToMusicRequest": {
+        "type": "object",
+        "properties": {
+          "video": {
+            "type": "string",
+            "format": "binary",
+            "description": "Max file size: default 300MB. Max duration: 6 minutes."
+          },
+          "video_url": {
+            "type": "string",
+            "description": "Max file size: default 300MB. Max duration: 6 minutes."
+          },
+          "prompt": {
+            "type": "string"
+          },
+          "segments": {
+            "type": "string"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "stream",
+              "async"
+            ],
+            "default": "stream"
+          },
+          "output_format": {
+            "type": "string",
+            "enum": [
+              "m4a",
+              "wav",
+              "mp3"
+            ],
+            "default": "m4a",
+            "description": "`m4a` (default, AAC), `wav` (16-bit PCM) or `mp3` (320 kbps CBR). Applies to `audio`, to the `ducked` track when ducking ran, to the `mux` track when `preserve_speech` is used, and normally to every entry in `stems` (each stem's `content_type` reports what was actually delivered); the isolated `vocals` stem `preserve_speech` returns is unaffected. `wav` and `mp3` are transcoded server-side after generation and require mode=async — the streaming response is always m4a. The delivered MIME is echoed in `audio[].content_type`."
+          },
+          "preserve_speech": {
+            "type": "boolean"
+          },
+          "ducking": {
+            "type": "boolean",
+            "default": false,
+            "description": "Off by default. Set to true to also return a `ducked` audio track — the generated music dipped under the video's speech so dialogue stays intelligible — alongside the clean `audio`. Free of charge. Requires mode=async."
+          },
+          "prompt_influence": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1,
+            "default": 0.5,
+            "description": "How strongly the generated music follows the prompt: lower values let the video lead, higher values follow the prompt more literally. Omit to keep the default behavior. Free of charge."
+          },
+          "variants_num": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 10,
+            "default": 1,
+            "description": "How many distinct music variants to generate in one request. Each variant is a separate creative direction, returned as its own entry in the async result's `audio` array. Cost scales linearly — `variants_num=3` costs three times a single-variant request. Values above 1 require mode=async; the default of 1 is valid in stream mode. Values above 1 are never covered by the free trial and are always billed."
+          },
+          "stems": {
+            "type": "boolean",
+            "default": false,
+            "description": "Off by default. Set to true to also return a `stems` array — the generated music split into four separated instrument tracks (`drums`, `bass`, `vocals`, `other`), each normally following the requested `output_format`, with `content_type` reporting what was actually delivered — alongside the clean `audio`. It splits the generated music, never the video's own audio. Free of charge. Requires mode=async. Separation runs after generation and typically adds 2-6 min to the wait and gives up after 30 min; that ceiling is reached by a retry or a busy queue rather than by track length, so do not size a client timeout off the duration. It never fails the task: if separation fails, `audio` is unaffected and the response carries `stems_error` — on its own, or alongside the streams that did separate."
+          }
+        }
+      },
+      "TaskAccepted": {
+        "type": "object",
+        "required": [
+          "task_id",
+          "status"
+        ],
+        "properties": {
+          "task_id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "processing"
+            ]
+          }
+        }
+      },
+      "TaskStatus": {
+        "type": "object",
+        "required": [
+          "task_id",
+          "status"
+        ],
+        "properties": {
+          "task_id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "processing",
+              "succeeded",
+              "failed"
+            ]
+          },
+          "audio": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MediaResult"
+            }
+          },
+          "stems": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "description": "One stream's four separated stems. The `vocals` here is a separated part of the GENERATED music; it is not the same thing as the `vocals` a `preserve_speech` request returns, which is speech isolated from the source video.",
+              "properties": {
+                "stream_index": {
+                  "type": "integer"
+                },
+                "drums": {
+                  "$ref": "#/components/schemas/MediaResult"
+                },
+                "bass": {
+                  "$ref": "#/components/schemas/MediaResult"
+                },
+                "vocals": {
+                  "$ref": "#/components/schemas/MediaResult"
+                },
+                "other": {
+                  "$ref": "#/components/schemas/MediaResult"
+                }
+              },
+              "required": [
+                "stream_index",
+                "drums",
+                "bass",
+                "vocals",
+                "other"
+              ]
+            },
+            "description": "Present only when the request set `stems=true`: one entry per stream that separated successfully. Look entries up by `stream_index` rather than by position — a stream whose separation failed is absent, so this array can be shorter than `audio`."
+          },
+          "stems_error": {
+            "type": "string",
+            "description": "Present when stem separation failed, wholly or in part, or was skipped. The task still succeeded and `audio` is unaffected — this names how many streams failed to separate and which, or reports that separation was skipped entirely. It can arrive alongside a shorter `stems` array rather than instead of one."
+          },
+          "video": {
+            "$ref": "#/components/schemas/MediaResult"
+          },
+          "videos": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MediaResult"
+            },
+            "description": "video-to-video-music / video-to-video-sfx: the scored video, one entry per variant. `video` is an alias for the first entry."
+          },
+          "outputs": {
+            "description": "Two different shapes, never at once. Dubbing: an object mapping language code to dubbed video URL. video-to-sound / video-to-video-sound: an array with one entry per variant, each carrying `variant_index`, `output_url`, `output_type`, `output_bytes`, `music` and `sfx`, plus `music_processed` when a voice source was in play; the top-level `output_url`, `music` and `sfx` are aliases for the first entry.",
+            "oneOf": [
+              {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                }
+              },
+              {
+                "type": "array",
+                "items": {
+                  "type": "object"
+                }
+              }
+            ]
+          },
+          "subtitles": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Dubbing with export_srt only: an object mapping language code to a temporary download URL for that language's re-timed .srt."
+          },
+          "subtitle_preflight": {
+            "type": "object",
+            "description": "Dubbing with subtitle scripts only: per language, the validation report — status, cue_count, issues, changes_count and report_url."
+          },
+          "trial_preview": {
+            "type": "object",
+            "description": "Dubbing only, when the run was the account's free 15-second preview: preview_seconds, source_duration_seconds, trimmed, languages, full_video_cost_usd (what translating the full video costs) and message. Present in every task state.",
+            "properties": {
+              "preview_seconds": {
+                "type": "integer"
+              },
+              "source_duration_seconds": {
+                "type": "number"
+              },
+              "trimmed": {
+                "type": "boolean"
+              },
+              "languages": {
+                "type": "integer"
+              },
+              "full_video_cost_usd": {
+                "type": "number"
+              },
+              "message": {
+                "type": "string"
+              }
+            }
+          },
+          "subtitle_export": {
+            "type": "object",
+            "description": "Dubbing with export_srt only: per language, an object with status (exported, exported_review_required or blocked), issues, alignment_loss, error and report_url; a blocked export never fails the task."
+          },
+          "output_url": {
+            "type": "string",
+            "description": "video-to-sound and video-to-video-sound only: URL of the combined output."
+          },
+          "output_type": {
+            "type": "string",
+            "enum": [
+              "audio",
+              "video"
+            ],
+            "description": "video-to-sound and video-to-video-sound only."
+          },
+          "output_bytes": {
+            "type": "integer",
+            "description": "video-to-sound and video-to-video-sound only: size in bytes of the file at output_url."
+          },
+          "music": {
+            "$ref": "#/components/schemas/MediaResult"
+          },
+          "sfx": {
+            "$ref": "#/components/schemas/MediaResult"
+          },
+          "music_processed": {
+            "$ref": "#/components/schemas/MediaResult"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "both",
+              "music",
+              "sfx"
+            ],
+            "description": "video-analysis only: which brief the result carries, echoed from the request. both adds sfx_segments and sfx_prompt to segments and variations."
+          },
+          "segments": {
+            "type": "array",
+            "description": "video-analysis only.",
+            "items": {
+              "$ref": "#/components/schemas/VideoAnalysisSegment"
+            }
+          },
+          "variations": {
+            "type": "array",
+            "description": "video-analysis only.",
+            "items": {
+              "$ref": "#/components/schemas/VideoAnalysisVariation"
+            }
+          },
+          "sfx_segments": {
+            "type": "array",
+            "description": "video-analysis, mode both only: the sound-design segment plan, one shot-sized entry per segment; label is always none.",
+            "items": {
+              "$ref": "#/components/schemas/VideoAnalysisSegment"
+            }
+          },
+          "sfx_prompt": {
+            "type": "string",
+            "description": "video-analysis, mode both only: the whole-clip sound-design prompt. Authored once regardless of variants_num."
+          },
+          "error": {
+            "$ref": "#/components/schemas/Error"
+          }
+        }
+      },
+      "MediaResult": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string"
+          },
+          "content_type": {
+            "type": "string"
+          },
+          "file_size": {
+            "type": "integer"
+          },
+          "stream_index": {
+            "type": "integer"
+          }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "required": [
+          "code",
+          "message"
+        ],
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "details": {
+            "type": "object",
+            "description": "Optional structured context; for a rejected dubbing subtitle script, the validation report."
+          }
+        }
+      }
+    },
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "API key"
+      }
+    }
+  }
+}

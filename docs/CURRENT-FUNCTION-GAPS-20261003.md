@@ -8,6 +8,8 @@
 
 ## 已有实现，不重复开发
 
+2026-10-05 / 1005p补充：[Sonilo原生Music](SONILO-NATIVE-20261005.md)现已按完整官方开发者合同实现本地MP4直传、文字/视频音乐、精确分段与多变体，不再将“Sonilo音乐/分段”列为未实现。正式节点/Agent、媒体归档、历史第二项、缺配置零提交和同库重开已有[本批实机证据](LOCAL-SONILO-AGENT-AND-HISTORY-20261005.md)。Sonilo SFX/stems/语音保留/ducking及真实供应商仍开放。Product Kit、Director Markup保存/交接/关闭与长历史DOM更新亦已补齐并定向验证，不能等同全部状态或视觉验收。
+
 2026-10-05 / 1005o补充：[Agent首次识别及恢复](LOCAL-AGENT-SEGMENTATION-AND-EXPORTS-20261005.md)已实机验证独立确认、来源漂移拒绝、同素材重存与原Agent回执闭环、换clip后取消、同库重启后显式补发唯一未派发分支；本地封面解析、视频规格焦点/滚轮与Widget实际PNG/MP4/WebM下载亦已验。合成供应商证明本地流程，真实识别质量仍待Key验收；HTML独立离线重开和92份精确模板正文仍开放。
 
 2026-10-05 / 1005m补充：[分组/多选复制粘贴](CANVAS-GROUP-COPY-PASTE-20261005.md)已验父子绝对几何、入边保留/出边排除、清图库/运行归属、连续粘贴、⌘D与撤销；[拼装审阅](AGENT-CUTLIST-REVIEW-INTERACTIONS-20261005.md)已验裁切/保留、同快照确认、复原再改、关闭失败重试与刷新。普通单节点[副本](CANVAS-SINGLE-DUPLICATE-20261005.md)、[人物走位](AGENT-CHARACTER-BLOCKING-INTERACTIONS-20261005.md)、[视频延长生命周期](VIDEO-EXTENSION-LIFECYCLE-20261005.md)亦已有前批证据。其他节点组合、应用全部状态/语言和真实供应商仍需逐项核对。
@@ -16,7 +18,7 @@
 
 2026-10-05 / 1005n 视频蒙层补充：[Wan VACE编辑](WAN-VACE-VIDEO-MASK-NATIVE-20261005.md)和[Replicate SAM2首次识别](REPLICATE-SAM2-NATIVE-20261005.md)均已有独立原生适配。后者真实双向片段、PNG/RLE、持久任务、保存恢复、前端守卫与本机整链已实现；需独立Replicate Token，不能用fal Key代替。原fal候选的[RLE合同缺口](VIDEO-SEGMENTATION-FAL-CONTRACT-20261005.md)保留。真实供应商账号、线上RGB H.264兼容、PNG/跟踪质量及双向首帧一致率仍未验；[本批实机范围](LOCAL-SAM2-AND-BLOCKING-20261005.md)不等于所有模型可用。
 
-2026-10-05补充：[视频工具与存储批次](LOCAL-VIDEO-TOOLS-STORAGE-BRAND-20261005.md)已接 ThinkSound 单视频拟音、Toolbar 延长镜头参考生成、个人素材库IndexedDB容量迁移、模板离页保护及嵌套制作进度卡品牌。Ark本地视频公网传输、Sonilo音乐/分段、92份HTML原文与真实Key验收仍开放；不要将新增适配简化为“所有菜单仅填Key即可”。
+2026-10-05补充：[视频工具与存储批次](LOCAL-VIDEO-TOOLS-STORAGE-BRAND-20261005.md)已接 ThinkSound 单视频拟音、Toolbar 延长镜头参考生成、个人素材库IndexedDB容量迁移、模板离页保护及嵌套制作进度卡品牌。该批时Sonilo音乐/分段尚未接入，现已由上方1005p补齐；Ark本地视频公网传输、Sonilo其他原生能力、92份HTML原文与真实Key验收仍开放；不要将新增适配简化为“所有菜单仅填Key即可”。
 
 - 当前 `agent-apps/registry.mjs` 已登记官方 manifest 全部22个版本URI、20个功能族，包括历史 animatic v1 / character-blocking v1；Creative 已接受严格 family 参数及拒绝退役A05推荐。登记不等于全部状态/视觉验收。
 - `show_form` 的九类字段、新用户轮提交合同；Seedance 样片→正式片专用引用/投影；Agent 父子检查点与终态委派结果核对后继续，均已有生产入口。

@@ -2,7 +2,7 @@ import {resolveProviderConfiguration,providerConfigurationStatus} from '../node-
 const model=request=>request?.parameters?.providerParameters?.model??request?.parameters?.modelId??request?.parameters?.model;
 const fail=message=>Object.assign(Error(message),{code:'unsupported_generation',providerDispatched:false});
 const protocol=metadata=>metadata?.protocol;
-const musicProtocols=['elevenlabs-music-native','mureka-native'];
+const musicProtocols=['elevenlabs-music-native','mureka-native','sonilo-native'];
 const promptWithReferences=request=>{
  if(typeof request.prompt!=='string')return null;
  const prefix=(request.inputs??[]).filter(input=>input.type==='text').map(input=>input.text).join('\n');
@@ -16,7 +16,7 @@ export function audioNativeProfile(metadata,request){
 }
 export function audioNativeParameters(metadata,request,{nodeDraft=false,explicitOverrides,sourceParameters}={}){
  const parameters={...request.parameters},selected=resolveProviderConfiguration(metadata,request),profile=audioNativeProfile(metadata,request);
- if(profile&&protocol(selected)==='fal-video-audio-native')return {...sourceParameters,...parameters};
+ if(profile&&['fal-video-audio-native','sonilo-native'].includes(protocol(selected)))return {...sourceParameters,...parameters};
  if(!profile||!musicProtocols.includes(protocol(selected)))return parameters;
  // A hidden node textarea is an editable draft. Native wire inputs only carry
  // active lyrics; explicit Agent lyrics remain an instruction and must conflict.
@@ -92,6 +92,45 @@ function videoAudioState(profile,request,p,options={}){
  if(overrides?.duration!==undefined&&overrides.duration!==duration)return reject('明确指定的音频时长与源视频不一致，请修改指令；不会覆盖后提交');
  return {ready:true,reason:'',hint};
 }
+function soniloState(profile,request,p,options={}){
+ const hint='Sonilo Music 原生音乐：文字音乐 5–360 秒；视频音乐跟随完整 MP4 的真实时长（5–360 秒、50 MB 内）；1–10 个 WAV 变体；音乐分段 1–30 段，每段至少 5 秒。';
+ const reject=reason=>({ready:false,reason,hint});
+ if(model(request)!=='sonilo-music'||p.scene!=='Music'||profile.semantics!=='native')return reject('Sonilo 原生音乐型号或场景未明确配置');
+ const keys=['model','modelId','virtualModel','scene','duration','segments','providerParameters','count','times','format','response_format'];
+ for(const parameters of [p,options.sourceParameters].filter(Boolean))if(Object.keys(parameters).some(key=>!keys.includes(key)))return reject('Sonilo 原生音乐含不支持的参数；不会忽略指令后提交');
+ if(options.explicitOverrides&&Object.keys(options.explicitOverrides).some(key=>!['kind','nodeId','model','audioScene','prompt','referenceIds','duration','count','segments','position','promptInfluence','audioFormat'].includes(key)))return reject('Sonilo 原生音乐不支持所填 Agent 设置；请明确修改指令');
+ if([p.format,p.response_format].some(value=>value!==undefined&&value!=='wav'))return reject('Sonilo 本批固定返回 WAV，不会忽略格式或另行转码');
+ const counts=[request.count,p.count,p.times,options.explicitOverrides?.count].filter(value=>value!==undefined);
+ if(counts.some(value=>!Number.isInteger(value)||value<1||value>10)||new Set(counts).size>1)return reject('Sonilo 原生音乐单任务变体数量须为 1–10 且数量声明一致');
+ const wire=p.providerParameters??{};
+ if(!wire||typeof wire!=='object'||Array.isArray(wire)||Object.keys(wire).some(key=>!['model','prompt_influence'].includes(key))||wire.model!==undefined&&wire.model!=='sonilo-music'||wire.prompt_influence!==undefined&&(!Number.isFinite(wire.prompt_influence)||wire.prompt_influence<0||wire.prompt_influence>1))return reject('Sonilo 原生参数无效或不支持');
+ if(p.virtualModel!==undefined&&p.virtualModel!=='sonilo-music'||[p.model,p.modelId].some(value=>value!==undefined&&value!=='sonilo-music'))return reject('Sonilo 原生音乐只支持 sonilo-music');
+ const inputs=request.inputs??[];
+ if(request.references!==undefined&&(!Array.isArray(request.references)||request.references.length)||inputs.length>1||inputs.some(input=>input.type!=='video'))return reject('Sonilo 原生音乐仅支持一个完整 MP4 视频参考或无参考文字生成');
+ if(!inputs.length&&wire.prompt_influence!==undefined)return reject('Sonilo 提示词影响度仅适用于视频音乐');
+ if(typeof request.prompt!=='string'||Array.from(request.prompt).length>1000||!inputs.length&&!request.prompt.trim())return reject('Sonilo 音乐描述最多 1000 字符；无视频时描述须非空');
+ if(['clip','trim','sourceClip','segments'].some(key=>request[key]!==undefined))return reject('Sonilo 音乐分段须放入参数；参考选区须先物化为完整 MP4');
+ let duration=p.duration;
+ if(inputs.length){
+  const input=inputs[0],inputKeys=['id','type','url','title','duration','sizeBytes','mime','mimeType','role'];
+  if(Object.entries(input).some(([key,value])=>value!==undefined&&!inputKeys.includes(key))||input.role!==undefined&&!['source_video','reference_video'].includes(input.role))return reject('Sonilo 参考选区或分段须先物化为完整 MP4，不会使用整片代替选段');
+  if(typeof input.url!=='string'||!input.url.trim())return reject('Sonilo 参考视频尚未上传真实内容');
+  if([input.mime,input.mimeType].some(value=>value!==undefined&&value!=='video/mp4')||input.url.startsWith('data:')&&!/^data:video\/mp4;base64,[A-Za-z0-9+/]+={0,2}$/.test(input.url))return reject('Sonilo 参考视频须为完整 MP4');
+  if(input.sizeBytes!==undefined&&(!Number.isSafeInteger(input.sizeBytes)||input.sizeBytes<1||input.sizeBytes>50000000))return reject('Sonilo 参考视频大小须在 50 MB 内');
+  if(input.url.startsWith('data:')){const encoded=input.url.split(',')[1],bytes=encoded.length*3/4-(encoded.endsWith('==')?2:encoded.endsWith('=')?1:0);if(encoded.length%4||bytes<1||bytes>50000000||input.sizeBytes!==undefined&&input.sizeBytes!==bytes)return reject('Sonilo 参考视频字节数或编码无效');}
+  duration=input.duration;
+  if(duration!==undefined&&(!Number.isFinite(duration)||duration<5||duration>360))return reject('Sonilo 视频音乐须读取真实视频时长且在 5–360 秒内');
+  if(!options.deferVideoDuration&&(!Number.isFinite(duration)||p.duration!==duration))return reject('Sonilo 音乐时长须跟随真实源视频，不能指定另一时长');
+  const explicit=options.explicitOverrides?.duration;
+  if(explicit!==undefined&&(!Number.isFinite(explicit)||explicit<5||explicit>360||duration!==undefined&&explicit!==duration))return reject('明确指定的 Sonilo 音乐时长与真实源视频不一致；不会覆盖后提交');
+ }else if(!Number.isInteger(duration)||duration<5||duration>360)return reject('Sonilo 文字音乐时长须为 5–360 整数秒');
+ if(p.segments!==undefined){
+  if(!Array.isArray(p.segments)||p.segments.length<1||p.segments.length>30)return reject('Sonilo 音乐分段须为 1–30 段');
+  const labels=['intro','verse','pre-chorus','chorus','bridge','break','silence','outro','none'];
+  for(let i=0;i<p.segments.length;i++){const segment=p.segments[i];if(!segment||typeof segment!=='object'||Array.isArray(segment)||Object.keys(segment).some(key=>!['start','prompt','label'].includes(key))||!Number.isFinite(segment.start)||segment.start<0||i===0&&segment.start!==0||i>0&&segment.start-p.segments[i-1].start<5||duration!==undefined&&segment.start>duration-5||typeof segment.prompt!=='string'||!segment.prompt.trim()||Array.from(segment.prompt).length>200||segment.label!==undefined&&!labels.includes(segment.label))return reject('Sonilo 音乐分段须从 0 秒开始、相隔至少 5 秒并保留最后 5 秒；提示词 1–200 字符，标签须为官方枚举');}
+ }
+ return {ready:true,reason:'',hint:hint+(inputs.length&&duration===undefined?' 生成前读取真实视频时长。':'')};
+}
 export function audioNativeRequestState(metadata,request,options){
  const availability=providerConfigurationStatus(metadata,request);
  if(availability.configured===false)return {ready:false,reason:availability.message,hint:''};
@@ -99,6 +138,7 @@ export function audioNativeRequestState(metadata,request,options){
  let p;try{p=audioNativeParameters(metadata,request,options);}catch(error){return {ready:false,reason:error.message,hint:''};}
  const selected=resolveProviderConfiguration(metadata,request),inputs=request.inputs??[];
  if(protocol(selected)==='fal-video-audio-native')return videoAudioState(profile,request,p,options);
+ if(protocol(selected)==='sonilo-native')return soniloState(profile,request,p,options);
  if(inputs.length>30)return {ready:false,reason:'音频原生接口每个请求最多 30 个参考素材',hint:''};
  for(const count of [request.count,p.count,p.times])if(count!==undefined&&count!==profile.maxCount)return {ready:false,reason:'当前音频原生接口每个任务只生成一个结果',hint:''};
  if(p.scene!==profile.scene)return {ready:false,reason:'所选音频场景与实际供应商能力不一致',hint:''};

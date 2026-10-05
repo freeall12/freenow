@@ -1,6 +1,8 @@
 # 视频拟音的显式 ThinkSound 替代接口
 
-2026-10-05 核验结论：安装版 TapNow 的 Sonilo 音乐 / 音效支持参考视频；本次读取的官方使用文档和客户端资源没有提供可独立接入的 Sonilo 公开鉴权、请求、结果、恢复或取消合同。因此没有实现或声明 `sonilo-native`。已实现的是操作者明确配置的 **ThinkSound Video-to-Audio** 原生 fal 接口，仅覆盖 **单视频 → 单音频拟音**。
+2026-10-05 首批核验记录：安装版 TapNow 的 Sonilo 音乐 / 音效支持参考视频；当时读取的 TapNow 官方使用文档和客户端资源没有提供可独立接入的 Sonilo 公开鉴权、请求、结果、恢复或取消合同。因此首批没有实现或声明 `sonilo-native`，实现的是操作者明确配置的 **ThinkSound Video-to-Audio** 原生 fal 接口，仅覆盖 **单视频 → 单音频拟音**。以下安装包证据、哈希和 ThinkSound 验收保留该批历史范围。
+
+同日后续扩大公开来源调查，已在 [Sonilo 官方开发者平台](https://platform.sonilo.com/docs/api/video-to-music) 与 [完整 OpenAPI](https://platform.sonilo.com/openapi.json) 找到独立 API，并实现 **`sonilo-native` 原生 Music**：本地 MP4 文件上传、视频音乐、文字分段音乐、1–10 个变体与原任务恢复。详细合同见 [Sonilo 原生音乐](SONILO-NATIVE-20261005.md)。这纠正的是首批调查的来源覆盖范围，不把安装包客户端路由误当供应商合同。Sonilo 原生 SFX、stems、语音保留和 ducking 仍未接入；ThinkSound 是可选的明确 SFX 替代。
 
 ## 官方 Sonilo 证据与范围
 
@@ -23,7 +25,19 @@ index-BsHyQ2qj.js a24bbe7de925ccc68aa332dbec6ad6a96e50db11867b21f15c20b7f128ef33
 page-DVqoHdTT.js 8334adc98d6ec24265d45ed4f45458be19d137b5391e5b3abb77e064d221cd86
 ```
 
-本地 `audio-core.js` 保留上述两个型号及视频输入限制；`audio-ui.js` 在正式提交前读取视频时长，让 `parameters.duration` 跟随来源。本次替代没有伪造 Sonilo 密钥入口、使用原站服务或复制登录凭据。音乐、音乐分段、无视频音效仍需要真实支持该合同的独立服务；不会转发到 ThinkSound。
+本地 `audio-core.js` 保留上述两个型号及视频输入限制；`audio-ui.js` 在正式提交前读取视频时长，让 `parameters.duration` 跟随来源。首批 ThinkSound 替代没有伪造 Sonilo 密钥入口、使用原站服务或复制登录凭据。后续音乐 / 音乐分段已由独立 Sonilo 原生接口接入；无视频音效及 Sonilo 原生 SFX 仍未接入，不会把音乐请求转发到 ThinkSound。
+
+### 后续 Sonilo Music 独立 Key 配置
+
+在私有环境文件中填写独立 [Sonilo API Key](https://platform.sonilo.com/dashboard/api-keys)，这里只给出空变量和路由模板。将条目合并到已有配置，保留下面 `sonilo-sfx → videoSound` 的可选 ThinkSound 路由和其他音频型号：
+
+```sh
+SONILO_API_KEY=
+GENERATION_PROVIDERS='{"sonilo":{"protocol":"sonilo-native","apiKeyEnv":"SONILO_API_KEY","baseUrl":"https://api.sonilo.com","modelMap":{"sonilo-music":{"kind":"audio.generate","model":"sonilo-music"}}}}'
+GENERATION_ROUTES='{"audio.generate":{"models":{"sonilo-music":"sonilo"}}}'
+```
+
+Music 原字节 multipart 上传不依赖公网视频发布；本机需 FFmpeg / FFprobe。`SONILO_API_KEY` 只进入官方服务端 API 请求头，不能用 `FAL_KEY` 替代。SFX 替代仍单独使用 fal Key；两条配置均不代表已完成真实供应商音质 / 视觉同步验收。[多供应商配置](MULTI-PROVIDER-SETUP.md)
 
 ## 真实供应商合同
 

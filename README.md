@@ -118,6 +118,7 @@ node --env-file=.env.local server/server.cjs
 | `elevenlabs-music-native` | Music 普通/纯音乐与单节自定义歌词 | [音乐](docs/elevenlabs-music-native.md)，自定义歌词须明确3–120秒；节点目录上限300秒 |
 | `mureka-native` | Mureka 8 / O2 自动与自定义歌词歌曲 | [Mureka](docs/MUREKA-NATIVE-20261005.md)，精确型号、原任务查询与本地音频归档 |
 | `seed-audio-native` | Seed Audio 1.0 多模态音频及字幕文本 | [Seed Audio](docs/SEED-AUDIO-NATIVE-20261005.md)，独立语音 Key；Ogg Opus 仅48kHz |
+| `sonilo-native` | Sonilo Music：视频音乐、文字分段音乐和 1–10 个 WAV 变体 | [原生协议](docs/SONILO-NATIVE-20261005.md) / [前端验收](docs/SONILO-NATIVE-UI-QA-20261005.md)，本地 MP4 直传；需独立 Sonilo Key 和 FFmpeg，每个变体计费 |
 | `fal-video-audio-native` | 单个完整 MP4 → ThinkSound 拟音 | [视频拟音](docs/VIDEO-AUDIO-NATIVE-20261005.md)，显式替代 Sonilo SFX；时长跟随视频，供应商最大时长待验 |
 | `fal-video-mask-native` | 已保存时序蒙层的视频物体移除／替换 | [Wan VACE](docs/WAN-VACE-VIDEO-MASK-NATIVE-20261005.md)，显式替代；需 FFmpeg、fal Key 和完整蒙层，首次识别另需分割服务 |
 | `fal-native` / `fal-video-native` | 图片抠图/增强、视频增强 | [图片](docs/FAL-NATIVE-SETUP.md) / [视频](docs/FAL-VIDEO-NATIVE-SETUP.md) |
@@ -138,115 +139,29 @@ node --env-file=.env.local server/server.cjs
 
 ## 最新接入与核验
 
-Agent 视频识别已贯通首次确认、完整源分割、原 UUID 查询/取消/续发，以及保存失败后的同素材重存和原对话继续。实机已验证换剪辑后取消、重启后只补未派发分支、本地封面显示与刷新保留；LLM及供应商使用合成边界，真实识别质量待验。[本批证据与限制](docs/LOCAL-AGENT-SEGMENTATION-AND-EXPORTS-20261005.md)
+Sonilo Music 已按官方开发者平台接通独立原生 API：本地 MP4 直接上传，支持视频音乐、文字音乐、精确分段与 1–10 个 WAV 变体。正式节点和 Agent 确认卡共用配置预检；全部变体进入历史，可分别播放和插入画布。缺配置、时长冲突和未物化选区不会提交，取消媒体准备后也不再派发。[配置与合同](docs/SONILO-NATIVE-20261005.md) · [本批完整证据](docs/LOCAL-SONILO-AGENT-AND-HISTORY-20261005.md)
 
-![Agent原任务续发后保存完整蒙层](docs/screenshots/agent-sam2-resume-complete-20261005.jpg)
+Product Kit 与导演批注保留官方页面，补齐编辑、同快照交接、慢保存、关闭等待、失败重试及键盘焦点。生成历史保持未变化的日期网格和行；600条记录下反复选择不再整组搬运，实机滚动/焦点和缩图释放已验。性能结论限 DOM 操作数，尚无整体 FPS 保证。
 
-视频规格菜单补齐切换模式后的焦点保留、当前时长自动滚入视野和垂直滚轮横向浏览；键盘、两级 Escape 与真实滚轮已验。Widget 的正式下载入口已实际导出 PNG、H.264 MP4 和 VP9 WebM，两份视频均播放到结束并解码出40个不同帧；这是本地 Canvas 录像，不是模型生成。[菜单交互](docs/VIDEO-SPECIFICATIONS-INTERACTION-20261005.md) · [实际下载及文件证据](docs/WIDGET-WHITEBOX-DOWNLOAD-QA-20261005.md)
-
-| 视频规格：模式焦点和横向时长 | Widget：真实图片与视频下载 |
+| Agent 音乐：明确时长、数量与完整分段 | 导演批注：四类批注和锚点恢复 |
 | --- | --- |
-| ![正式视频规格菜单](docs/screenshots/video-specifications-interaction-20261005.jpg) | ![本地Widget下载与视频回读](docs/screenshots/widget-whitebox-download-20261005.jpg) |
+| ![Sonilo Agent 原生音乐确认](docs/screenshots/sonilo-agent-explicit-duration-20261005.jpg) | ![导演批注保存恢复与键盘操作](docs/screenshots/agent-director-markup-interactions-20261005.jpg) |
+| **Product Kit：配色、调性与保存恢复** | **长历史：600条记录稳定选择** |
+| ![本地 Product Kit 实际保存状态](docs/screenshots/agent-product-kit-interactions-20261005.jpg) | ![本地600条历史列表](docs/screenshots/history-long-list-stable-20261005.jpg) |
 
-离线 HTML 已通过正式按钮下载并核对内嵌资源与隔离策略；独立 `file://` 浏览器重开受安全策略限制，尚未验收。[导出与品牌边界](docs/FREENOW-EXPORT-BRAND-AUDIT-20261005.md)
+音乐实机链路使用合成音频响应，已验证8秒/10秒播放、第二变体应用、刷新和同目录重开；**不代表真实生成质量或账号权限验收**。Sonilo SFX、分轨、语音保留与 ducking 仍未接入。
 
-本批完成分组/多选复制粘贴、Agent 拼装审阅保存交接，以及 SPZ 原生 LOD。复制保留父子几何和输入连线，连续粘贴偏移40像素，支持精确撤销；审阅的保留/裁切、确认和“再改改”等待同一份状态保存，关闭失败保留编辑。三项均完成定向回归、独立交审及 Computer Use。[复制粘贴](docs/CANVAS-GROUP-COPY-PASTE-20261005.md) · [拼装审阅](docs/AGENT-CUTLIST-REVIEW-INTERACTIONS-20261005.md) · [高斯 LOD](docs/SPZ-LOD-20261005.md)。
+其他近期已接入功能及独立证据：
 
-| 分组复制：父子位置、输入连线与连续粘贴 | 拼装审阅：真实视频、裁切及保存恢复 |
+| 功能 | 实现与验收 |
 | --- | --- |
-| ![正式分组复制及40像素粘贴偏移](docs/screenshots/canvas-group-copy-20261005.jpg) | ![本地拼装审阅与真实视频跳转](docs/screenshots/agent-cutlist-review-20261005.png) |
+| 视频识别与物体编辑 | [Replicate SAM2首次识别及Agent恢复](docs/LOCAL-AGENT-SEGMENTATION-AND-EXPORTS-20261005.md) · [Wan VACE移除/替换](docs/LOCAL-VIDEO-MASK-AGENT-20261005.md)；需各自配置，真实跟踪及编辑效果待验 |
+| 3D高斯世界 | [Spark本地渲染](docs/SPZ-LOCAL-RENDERING-20261005.md) · [原生LOD](docs/SPZ-LOD-20261005.md) · [混合拾取](docs/SPZ-MIXED-PICKING-20261005.md)；单视图25万绘制预算，不是驻留内存上限 |
+| 图片与全景处理 | [Magnific放大](docs/LOCAL-MAGNIFIC-AGENT-20261005.md) · [图片打光](docs/LOCAL-RELIGHT-AGENT-20261005.md) · [图片转全景](docs/LOCAL-PANORAMA-RESHOOT-AGENT-20261005.md) · [全景局部编辑](docs/LOCAL-DEPTH-PANORAMA-LIFECYCLE-20261005.md) |
+| 画布与本地素材 | [分组复制粘贴](docs/CANVAS-GROUP-COPY-PASTE-20261005.md) · [素材库容量与恢复](docs/LIBRARY-LOCAL-CAPACITY-20261005.md) · [视频深度双结果](docs/LOCAL-DEPTH-BATCH-AND-CANVAS-20261005.md) |
+| 原创工具产物 | [Widget实际PNG/MP4/WebM下载](docs/WIDGET-WHITEBOX-DOWNLOAD-QA-20261005.md) · [工作流模板](docs/LOCAL-WORKFLOW-AND-NATIVE-AUDIO-20261005.md) · [拼装审阅](docs/AGENT-CUTLIST-REVIEW-INTERACTIONS-20261005.md) |
 
-这些截图使用隔离公开/合成素材，审阅不会自动拼装或生成。前批记录：[普通副本](docs/CANVAS-SINGLE-DUPLICATE-20261005.md)、[人物走位](docs/AGENT-CHARACTER-BLOCKING-INTERACTIONS-20261005.md)、[混合拾取](docs/SPZ-MIXED-PICKING-20261005.md)、[延长生命周期](docs/VIDEO-EXTENSION-LIFECYCLE-20261005.md)。
-
-SPZ 高斯世界使用 Spark 2.3.1，本地加载代码、WASM、Worker 和素材。新接入官方 tiny-lod：真实786,233高斯样本近景绘制249,999、远景83,321，单视图绘制/排序预算250,000；原始高斯与派生树保留，**这不是驻留内存上限或帧率保证**。实际点选、删除释放/撤销、1280×720照片、2秒运镜和刷新恢复已验。压缩/展开预算仍为64/256MiB，源高斯上限250万；真实Marble生成、跨设备压力及长视频待验。[本地渲染](docs/SPZ-LOCAL-RENDERING-20261005.md) · [LOD证据与限制](docs/SPZ-LOD-20261005.md)
-
-![本地原生LOD片场、摄影镜头与Agent](docs/screenshots/spz-lod-studio-20261005.jpg)
-
-| SPZ：真实高斯预览 | 片场产物：照片、视频和来源连线 |
-| --- | --- |
-| ![本地 Spark 真实高斯预览](docs/screenshots/spz-world-preview-20261005.jpg) | ![高斯片场拍摄结果回到画布](docs/screenshots/spz-world-canvas-20261005.jpg) |
-
-普通视频节点已补 Depth Anything Video 的官方同位模型菜单、自动规格和 1/2 数量；两个结果使用独立持久子任务，恢复仅查询原任务。实机验证多变体、铺开、保存失败后的同结果重试及刷新恢复。Agent 平台裁切修复同宽高比选项的拖动互斥；搜索高亮减少重复 DOM 操作，并补两级 Escape 与焦点返回验收。[本批记录](docs/LOCAL-DEPTH-BATCH-AND-CANVAS-20261005.md)
-
-| 视频深度：正式双结果历史 | 搜索：500 节点场景的键盘高亮 |
-| --- | --- |
-| ![视频深度的双结果历史](docs/screenshots/video-depth-node-history-20261005.jpg) | ![freenow 搜索与键盘高亮](docs/screenshots/canvas-search-hover-20261005.jpg) |
-
-本批补齐视频深度原生接口、全景局部蒙版编辑和 Agent 页面关闭前保存。全景实机验证鼠标框选、缺 Key 不提交、真实 2:1 图片归档、保存失败锁定与同结果重试、历史刷新恢复；深度通过正式 Agent 链输出可播放的本地 MP4。供应商返回使用合成夹具，不代表真实模型效果。[本批记录与未完成项](docs/LOCAL-DEPTH-PANORAMA-LIFECYCLE-20261005.md)
-
-| 全景：真实鼠标框选、编辑描述与 freenow 标识 | Agent：保存失败保留最后编辑 |
-| --- | --- |
-| ![全景局部编辑正式界面](docs/screenshots/panorama-local-selection-20261005.jpg) | ![节奏页关闭时保存失败仍保留内容](docs/screenshots/agent-close-save-20261005.jpg) |
-
-Magnific 高清放大已接独立公开原生 API，正式面板和 Agent 保留倍率、锐化、颗粒、细节四项设置；完整本机图片直接物化提交，不需要原站账号或公网素材托管。配置按示例合并路由后填写自己的 Magnific Key。已验来源原尺寸、真实归档、保存重试、原任务查询及 Agent 持久派发回执。[本批实机记录](docs/LOCAL-MAGNIFIC-AGENT-20261005.md) · [安装包与官方协议证据](docs/MAGNIFIC-PRECISION-NATIVE-CONTRACT-20261005.md)
-
-| Magnific：四项控件与增强结果 | Agent：明确参数与目标审批 |
-| --- | --- |
-| ![Magnific正式面板和合成结果](docs/screenshots/image-magnific-native-panel-20261005.jpg) | ![Agent Magnific正式审批卡](docs/screenshots/agent-magnific-native-approval-20261005.jpg) |
-
-截图来自正式页面的隔离合成数据。供应商响应与 Agent 回复使用本机夹具，**不代表真实放大质量、倍率效果或付费账号验收**。
-
-皮肤编辑器保留细节／标准／重度三档、原面板几何与警告，补全配置反馈、键盘关闭、原任务查询和保存失败重试。Agent 可处理完整原图并新建相连增强节点，或写回指定增强节点；任务 ID 先持久化，再读取素材和派发。正式页面已验原尺寸 PNG、真实本地归档、零重复生成及刷新回读。[本批实现与实机记录](docs/LOCAL-SKIN-AGENT-20261005.md)
-
-| 皮肤编辑：增强节点与正式控件 | Agent：模式、来源和接口条件 |
-| --- | --- |
-| ![本地皮肤编辑面板及合成结果](docs/screenshots/image-skin-result-panel-20261005.jpg) | ![正式Agent皮肤增强审批](docs/screenshots/agent-skin-approval-20261005.jpg) |
-
-截图使用合成 PNG 和固定 Agent 回复，不代表皮肤生成质量。专用 `skin-tasks-v1` 合同已经接通；**Enhancor 原生接入仍缺公网来源、回调和精确参数映射，不能直接填 Enhancor Key 启用。** [合同与配置](docs/SKIN-EDITOR-PROVIDER-20261005.md) · [官方证据和缺口](docs/SKIN-EDITOR-NATIVE-CONTRACT-20261005.md)
-
-图片重新打光已接通正式面板与 Agent，保留26光位、亮度、色温和独立轮廓光。五参数经现有 OpenAI SDK 发送，结果归档后连接原图；缺配置、等待期间关闭/换图、保存失败重试和 Agent 持久回执已实操。另修复本地图片刷新时的初始化竞态、配置保存快照和 Agent 过期配置缓存。[本批实现与验收](docs/LOCAL-RELIGHT-AGENT-20261005.md)
-
-| 重新打光：完整源图与 Three 预览 | Agent：五参数和独立编辑说明 |
-| --- | --- |
-| ![本地重新打光正式面板](docs/screenshots/image-relight-native-panel-20261005.jpg) | ![正式Agent打光确认卡](docs/screenshots/agent-relight-approval-20261005.jpg) |
-
-截图素材和供应商回复为本机合成夹具，不是实际打光效果。适配器须明确配置 `parameter-prompt-edit`，不保证物理光照、相同画幅或原站模型等效；真实 Key 验收仍开放。预览复用每帧临时对象，保留灯位和动画，尚未据此宣称整体FPS提升。[配置](docs/OPENAI-RELIGHT-NATIVE.md) · [性能](docs/RELIGHT-STAGE-FRAME-ALLOCATION-20261005.md)
-
-视频物体移除／替换已接入正式工具栏和 Agent：完整来源与时序蒙层共同裁片、fal CDN 上传、原任务恢复、MP4 本机归档及原音轨保留。结果保存真实首帧封面；保存失败复用原结果节点。正式替换面板、Agent 审批、实际视频播放与刷新恢复已通过隔离本机服务验收。[本批实现与浏览器证据](docs/LOCAL-VIDEO-MASK-AGENT-20261005.md)
-
-| 视频替换：目标、参考图与实际接入条件 | Agent：来源绑定与上传说明 |
-| --- | --- |
-| ![本地视频物体替换正式面板](docs/screenshots/video-mask-native-panel-20261005.jpg) | ![Agent视频移除正式审批卡](docs/screenshots/agent-video-mask-approval-20261005.jpg) |
-
-这是显式 Wan VACE 独立替代。选段须为恒定 5–30 fps、81–241 帧；不截断、补帧或改速。**仅填 fal Key 不能完成新视频从识别到编辑的全流程**；首次识别可另选下方独立 Replicate SAM2。截图使用合成蒙层和固定结果，不代表模型效果。[编辑接口配置](docs/WAN-VACE-VIDEO-MASK-NATIVE-20261005.md) · [媒体处理](docs/VIDEO-MASK-MEDIA-PREPARATION-20261005.md)
-
-新视频首次目标识别已接 `replicate-sam2-native`：按原提示帧准备前向/倒序真实视频，接收逐帧二值PNG并合并完整原轴蒙层。Agent 新增源像素选区识别及原任务查询、取消、续发和重存工具；首次识别、续发在自动模式下也需独立确认。UUID先保存，刷新只恢复原任务，保存失败重用结果。需独立 Replicate Token、FFmpeg及符合预算的源视频；最多两次推理，界面在上传前明确说明，服务端拒绝批准后改变的供应商配置。模型效果和真实账号尚未验收。[配置](docs/VIDEO-SEGMENTATION-SETUP.md) · [Agent 合同与验证](docs/AGENT-VIDEO-SEGMENTATION-20261005.md) · [视频面板实机证据](docs/LOCAL-SAM2-AND-BLOCKING-20261005.md)
-
-| 首次视频识别：真实本机链路与保存恢复 | Agent人物走位：真实拖动、吸附与朝向 |
-| --- | --- |
-| ![视频蒙层本机链路刷新后恢复](docs/screenshots/video-segmentation-native-20261005.jpg) | ![人物走位原生拖动及保存恢复](docs/screenshots/agent-character-blocking-native-drag-20261005.jpg) |
-
-视频截图使用原创移动方块、真实FFmpeg/PNG/RLE和明确的合成供应商响应，未调用外部模型。人物板使用本地合成头像，确认仅进入真实Agent队列，没有生成媒体。
-
-图片转 360° 全景已接正式节点菜单、Agent 确认卡和独立供应商协议；真实 PNG 解码、WebGL 预览、刷新恢复及错误画幅拒绝均已实操。Agent 抠图与自动多角度使用高清原图，先保存任务身份再派发；补齐中文任务标题和固定欢迎文案。[本批实现与浏览器证据](docs/LOCAL-PANORAMA-RESHOOT-AGENT-20261005.md)
-
-| 全景结果：实际 WebGL 预览 | 视频重拍：完整镜头控件与接入条件 |
-| --- | --- |
-| ![本地合成全景结果与取景入口](docs/screenshots/hunyuan-panorama-preview-20261005.jpg) | ![视频重拍正式面板及Ark媒体传输限制](docs/screenshots/video-reshoot-native-boundary-20261005.jpg) |
-
-截图使用合成夹具，不代表真实模型质量。重拍的来源设置变更、关闭后的迟到回调和全“不变”计划已阻断；Ark 本地媒体上传、真实供应商效果仍待接入与验证。
-
-短窗口中的右键菜单现在会把键盘焦点滚入可视范围。End/Home、方向键绕回、禁用项跳过、关闭与重开已实际验证；菜单滚动保持画布位置。[交互与截图证据](docs/CANVAS-CONTEXT-MENU-KEYBOARD-VISIBILITY-20261005.md)
-
-视频拟音与延长镜头已接入独立供应商协议，Agent 确认卡具备时长、配置预检和素材加载保护。正式按钮和 Agent 卡均通过本机 HTTP 服务，8 秒 WAV 实际播放到结束、刷新可读；明确时长冲突及缺配置不会派发。这里验证的是调用与媒体链路，音频是固定测试音调。[本批实现与验收](docs/LOCAL-VIDEO-TOOLS-STORAGE-BRAND-20261005.md)
-
-| Agent 视频拟音：实际供应商与跟随时长 | 延长镜头：完整参数菜单与接入条件 |
-| --- | --- |
-| ![正式Agent视频拟音确认卡](docs/screenshots/agent-video-audio-native-20261005.jpg) | ![延长镜头参数与本地视频传输条件](docs/screenshots/video-extend-reference-20261005.jpg) |
-
-个人素材库已用 6.6 MB、2048×1152 原图完成正式保存、picker 插入及刷新核对，原始 SHA、像素和来源保持；旧库键零写入。Agent 等待素材加载时可以取消排队，未保存模板有离页保护。嵌套制作进度卡完成 freenow 名称、F 图片、深浅色与中英文替换，用户正文和来源保持。[存储](docs/LIBRARY-LOCAL-CAPACITY-20261005.md) · [进度卡品牌](docs/FREENOW-PRODUCTION-PROGRESS-BRAND-20261005.md)
-
-Ark 延长镜头使用官方工具栏的参考生成语义，当前仍要求公网 HTTPS 视频，不能只靠 Ark Key 上传本地视频。ThinkSound 是操作者明确选择的 Sonilo SFX 替代，未覆盖 Sonilo 音乐及分段。所有真实账号权限和生成效果仍待 Key 验收。
-
-此前已落地 10 个公开工作流、8 类筛选、72 个原节点、112 条连线及全部引用媒体；列表约332KB缩略图，保留约95MB原封面。Mureka、Seed Audio 与 ElevenLabs Music 已接原生协议；Agent 组图质量及编辑交互也有专项证据。[工作流与音频](docs/LOCAL-WORKFLOW-AND-NATIVE-AUDIO-20261005.md) · [Music](docs/elevenlabs-music-native.md)
-
-![本地工作流模板详情、分类与应用](docs/screenshots/workflow-template-detail-20261005.jpg)
-
-生成配置列出 24 类操作的实际就绪条件；多角度已有受限 Qwen 2511 替代，不能将通用网关登记当作专用能力完成。[逐项 Key 条件](docs/OFFICIAL-CROSSCHECK-AND-KEY-READINESS-20261005.md) · [多角度](docs/FAL-MULTI-ANGLE-NATIVE-20261005.md)
-
-![freenow 配置与能力状态](docs/screenshots/generation-readiness-routed-20261005.png)
-
-堆叠索引已减少全图扫描与临时数组分配；素材写入已移出同步 localStorage，QA 也避免将数 MB data URL 展开成 DOM 文本。尚未完成全局帧率和长时间内存验收。[性能记录](docs/CANVAS-PILE-INDEX-ALLOCATION-20261005.md)
+全部历史截图和验收步骤见[截图索引](docs/screenshots/README.md)与[开发进度](docs/STATUS.md)。
 
 ## 开发
 
@@ -292,7 +207,7 @@ pnpm test    # 全库回归，需要时运行
 - 全站菜单、hover、微动效、坐标与性能的逐态对照和交叉验收。
 - 92 份精确创意模板正文；SPZ 的跨设备压力、复杂半透明场景、按页流式加载与长视频验收。
 - 原生目标分割已实现；[Replicate SAM2](docs/REPLICATE-SAM2-NATIVE-20261005.md)的真实账号、线上解码、双向跟踪一致性与输出质量仍需验证。
-- 其余专用生成能力的原生供应商适配，及真实 Key/账号下的端到端验证。
+- Sonilo 原生 SFX / 分轨等其余专用适配；Ark 本地视频仍需独立公网素材通道，皮肤三档仍需符合合同的外部网关；所有真实 Key/账号下的端到端验证。
 - 部分本地存储容量和长期运行边界的继续完善。
 - 主要运行位置已替换为 **freenow** 名称和本地标识；剩余嵌套应用、导出和旧内容的品牌清点仍需逐项验收，保留来源与用户原文。
 

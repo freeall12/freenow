@@ -1,5 +1,18 @@
 # 功能截图与复现
 
+## 2026-10-05 Sonilo 音乐、素材板、导演批注与长历史
+
+| 文件 | 实际内容与来源 |
+| --- | --- |
+| [Agent原生音乐](sonilo-agent-native-approval-20261005.jpg) · [明确时长](sonilo-agent-explicit-duration-20261005.jpg) | `scripts/qa-sonilo-native.cjs` 的 `localhost` 独立 origin；真实8秒MP4、两个变体、完整音乐分段及明确5秒冲突。仅打开/取消审批卡，无新增生成；后端为独立本机HTTP夹具。 |
+| [文字音乐完成](sonilo-text-music-local-20261005.jpg) | 同一夹具的 `127.0.0.1` origin，正式按钮生成两个10秒WAV、实际播放至结束。该origin继承33%浏览器缩放，保留作调用证据，不作像素等效依据。 |
+| [Product Kit](agent-product-kit-interactions-20261005.jpg) | `src/features/agent-apps/qa/product-kit.html?session=product-kit-1005p-root1`；公开320×240合成PNG、砂岩配色、两调性、自然描述；失败重试关闭/重开，实际队列2。 |
+| [导演批注](agent-director-markup-interactions-20261005.jpg) | `src/features/agent-apps/qa/director-markup.html?session=director-1005p-root1`；正文前缀后四批注/锚点恢复、一次DM1，工具条Escape回焦并保留选区。 |
+| [长历史稳定选择](history-long-list-stable-20261005.jpg) | `qa/generation-history-long-list.html?session=long-list-1005p-root1&project=qa-long-history-long-list-1005p-root1`；600条合成记录与实际PNG，定位后10次点击滚动/焦点保持。 |
+
+均为实际浏览器CDP视口截图，未修改页面样式、合成或修图；没有使用私人媒体。Sonilo合成固定音调证明本机调用、播放和归档，不代表音乐效果；批注与素材板确认仅进入本地Agent队列。更多原始计数、故障和未验边界见[本批记录](../LOCAL-SONILO-AGENT-AND-HISTORY-20261005.md)。
+
+
 ## 2026-10-05 视频规格、实际下载与 Agent 识别
 
 | 文件 | 实际内容与来源 |

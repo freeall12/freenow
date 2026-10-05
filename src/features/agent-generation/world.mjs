@@ -26,7 +26,7 @@ export function readWorld({nodeId}={}, {app,metadata}={}){
  return {models:models.map(({icon,...model})=>({...model,modes:model.provider==='tripo'?['TEXT_TO_WORLD','IMAGE_TO_WORLD']:['TEXT_TO_WORLD','IMAGE_TO_WORLD','MULTI_IMAGE_TO_WORLD','PANORAMA_TO_WORLD','VIDEO_TO_WORLD'],maxImages:model.provider==='tripo'?1:8,maxVideos:model.provider==='tripo'?0:1,materials:model.provider==='tripo'?['geometry','texture','pbr']:[],promptWithImage:model.provider!=='tripo',localRenderer:{supported:!worldRendererError(model),error:worldRendererError(model)},configuration:{text:worldProviderPresentation(model,metadata),image:worldProviderPresentation(model,metadata,{image:true})}})),
   source:'captured-official-catalog',liveProviderVerified:false,outputRenderer:worldRendererCapabilities(),
   ...(node?{nodeId:node.id,settings:config(node),references:refs.map(({url,text,...ref})=>({...ref,available:ref.type==='text'?!!text?.trim():!!url})),resource:node.worldResource?{format:node.worldResource.format,name:node.worldResource.name,bytes:node.worldResource.bytes,outputType:node.outputType}:null}:{}),
-  note:'配置原生 Tripo 或支持该操作的网关后可提交。MiniMax H3 是独立视频模型，不属于本 3D 目录。本地可应用GLB与SPZ真实高斯（64MiB压缩、256MiB展开、场景250万高斯预算，全量无LOD）；原生Marble生成仍需有效配置，真实供应商Key链尚未验收。'};
+  note:'配置原生 Tripo 或支持该操作的网关后可提交。MiniMax H3 是独立视频模型，不属于本 3D 目录。本地可应用GLB网格（12MiB）与SPZ真实高斯（64MiB压缩、256MiB展开、单源与场景250万源高斯预算）；SPZ使用官方原生LOD，每视图25万绘制/排序目标，不是驻留内存上限。原生Marble生成仍需有效配置，真实Marble Key链尚未验收。'};
 }
 
 export async function startWorldGeneration(args,{app,api,signal,onSubmitted,materialize}={}){

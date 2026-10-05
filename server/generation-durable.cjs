@@ -201,7 +201,12 @@ function createDurableGenerationService({directory,store=null,baseUrl='',apiKey=
  function compatible(job){const transport=selected(job);return !!transport&&(transport.configured||transport.metadata?.protocol==='routed')&&job.providerFingerprint===transport.fingerprint;}
  const protocolFor=job=>{const captured=selected(job)?.provider;return captured?.protocolFor?captured.protocolFor(job.preparedRequest||job.request):selected(job)?.metadata?.protocol;};
  function preparationFailure(job,error){
-  if(job.providerTaskId||protocolFor(job)!==PREPARATION_PROTOCOL||!['video.erase','video.replace'].includes(job.request.kind)||error?.providerDispatched!==false||!PREPARATION_FAILURE_CODES.has(error.code))return null;
+  if(job.providerTaskId||error?.providerDispatched!==false)return null;
+  const protocol=protocolFor(job);
+  // Only a trusted in-process native adapter can attest that its asynchronous
+  // video decode failed before upload. Remote gateway bodies cannot set this.
+  if(protocol==='sonilo-native'&&selected(job)?.provider&&job.request.kind==='audio.generate'&&error.code==='sonilo_preparation_failed')return {...job,status:'failed',code:error.code,error:'Sonilo 来源未通过本地预上传校验；尚未上传或提交模型生成',providerDispatched:false,recovery:{reason:error.code,retryableLookup:false}};
+  if(protocol!==PREPARATION_PROTOCOL||!['video.erase','video.replace'].includes(job.request.kind)||!PREPARATION_FAILURE_CODES.has(error.code))return null;
   // The trusted native provider attests that generation was not dispatched.
   // Upload checkpoints remain private evidence and are never erased by this flag.
   return {...job,status:'failed',code:error.code,error:'视频遮罩素材未通过准备校验，尚未提交模型生成',providerDispatched:false,recovery:{reason:error.code,retryableLookup:false}};

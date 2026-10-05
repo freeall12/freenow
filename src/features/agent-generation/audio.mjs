@@ -10,7 +10,7 @@ export const audioModels=[
 ];
 export const audioLabels={audioScene:'场景',lyricsMode:'歌词',voice:'音色',stability:'稳定性',promptInfluence:'提示词影响度',loop:'循环',subtitle:'字幕',audioFormat:'输出格式',sampleRate:'采样率',speechRate:'语速',pitchRate:'声调',loudnessRate:'音量'};
 export const sceneNames={'Text-to-Speech':'文字转语音',Music:'音乐',Sound:'音效'};
-export const audioFields=['audioScene','lyricsMode','lyrics','voice','stability','promptInfluence','loop','subtitle','audioFormat','sampleRate','speechRate','pitchRate','loudnessRate'];
+export const audioFields=['audioScene','lyricsMode','lyrics','voice','stability','promptInfluence','loop','subtitle','audioFormat','sampleRate','speechRate','pitchRate','loudnessRate','segments'];
 const rates=[-50,-25,0,25,50,100];
 const spec={
  'music-2.6':{limit:2000,lyricsLimit:3500,customWithoutPrompt:true,preserveLyrics:true,defaults:{lyricsMode:'auto',lyrics:'',audioFormat:'mp3',sampleRate:44100},options:{lyricsMode:['auto','custom','instrumental'],audioFormat:['mp3','wav'],sampleRate:[16000,24000,32000,44100]}},
@@ -30,13 +30,13 @@ export function normalizeAudio(draft){
  const wire=aliases[draft.model]||draft.model;
  const audioScene=model.scenes[draft.audioScene]?draft.audioScene:Object.entries(model.scenes).find(([,id])=>id===wire)?.[0]||Object.keys(model.scenes)[0];
  const s=spec[model.scenes[audioScene]],next={...draft,model:model.id,audioScene};
- for(const key of [...audioFields,'duration','aspect','imageSize','quality','count','resolution','generateAudio','videoMode']){
-  if(key==='audioScene')continue;
+ for(const key of [...audioFields,'duration','aspect','imageSize','quality','resolution','generateAudio','videoMode']){
+  if(key==='audioScene'||key==='segments'||['promptInfluence','audioFormat'].includes(key)&&model.scenes[audioScene]==='sonilo-music')continue;
   if(key in s.defaults)next[key]=draft[key]??s.defaults[key];else if(key!=='voice'||!s.voice)delete next[key];
  }
  // Null is an explicit automatic duration, distinct from an omitted override.
  if(s.duration&&draft.duration===null)next.duration=null;
- if(s.duration&&next.duration!==null&&(next.duration<s.duration.min||next.duration>s.duration.max)&&!(model.scenes[audioScene]==='sonilo-sfx'&&next.audioDurationExplicit))next.duration=s.defaults.duration;
+ if(s.duration&&next.duration!==null&&(next.duration<s.duration.min||next.duration>s.duration.max)&&!(['sonilo-music','sonilo-sfx'].includes(model.scenes[audioScene])&&next.audioDurationExplicit))next.duration=s.defaults.duration;
  // Native MiniMax rejects residual lyrics in auto/instrumental mode; keep user input visible.
  if(next.lyricsMode!=='custom'&&!s.preserveLyrics)next.lyrics='';
  if(!('lyricsMode'in next))delete next.lyrics;
@@ -50,7 +50,7 @@ export function createAudioDraft(args,nodes=[]){
  if(args.model)base.audioScene=args.audioScene||Object.entries(model?.scenes||{}).find(([,id])=>id===wire)?.[0]||(model?.scenes[base.audioScene]?base.audioScene:undefined);
  const same=audioWire(normalizeAudio(base))===source.model;
  if(same&&source.model==='music-2.6'&&params.lyric_mode&&params.force_instrumental)throw Error('源音频的自定义歌词与纯音乐参数冲突，请先修正歌词模式');
- if(same){for(const [key,param]of Object.entries(paramKeys))if(params[param]!==undefined)base[key]=params[param];const d=audioSpec(normalizeAudio(base))?.duration;if(d)base.duration=params[d.key]==null?null:params[d.key]/(d.scale||1);base.lyricsMode=params.force_instrumental?'instrumental':params.lyric_mode?'custom':'auto';base.lyrics=params.lyrics||'';}
+ if(same){if(params.count!==undefined||params.times!==undefined)base.count=params.count??params.times;if(params.segments!==undefined)base.segments=structuredClone(params.segments);for(const [key,param]of Object.entries(paramKeys))if(params[param]!==undefined)base[key]=params[param];const d=audioSpec(normalizeAudio(base))?.duration;if(d)base.duration=params[d.key]==null?null:params[d.key]/(d.scale||1);base.lyricsMode=params.force_instrumental?'instrumental':params.lyric_mode?'custom':'auto';base.lyrics=params.lyrics||'';}
  return normalizeAudio({...base,...structuredClone(args)});
 }
 export function audioCompatibility(draft,shape){
@@ -61,12 +61,13 @@ export function audioCompatibility(draft,shape){
 export function audioOptions(draft){return {...audioSpec(draft)?.options,audioScene:Object.keys(audioModel(draft.model)?.scenes||{})};}
 // Duration provenance belongs to the local confirmation draft, never tool args.
 export function audioSourceVideoState(metadata,draft,nodes=[]){
- if(audioWire(draft)!=='sonilo-sfx')return {candidate:false,active:false};
+ const alias=audioWire(draft);if(!['sonilo-sfx','sonilo-music'].includes(alias))return {candidate:false,active:false};
  const refs=(draft.referenceIds??[]).map(id=>nodes.find(node=>node.id===id));
  if(refs.length!==1||!refs[0]?.video)return {candidate:false,active:false};
- const request={kind:'audio.generate',parameters:{model:'sonilo-sfx'}},selected=resolveProviderConfiguration(metadata,request);
+ const request={kind:'audio.generate',parameters:{model:alias}},selected=resolveProviderConfiguration(metadata,request);
  if(!metadata)return {candidate:true,active:false,pending:true,label:'视频拟音供应商待确认'};
- const profile=selected?.capabilities?.videoAudio?.['sonilo-sfx'];
+ const profile=selected?.capabilities?.videoAudio?.[alias]??selected?.capabilities?.music?.[alias];
+ if(alias==='sonilo-music'){if(selected?.protocol!=='sonilo-native')return {candidate:true,active:false};const availability=providerConfigurationStatus(metadata,request);if(availability.configured!==true)return {candidate:true,active:false,reason:availability.message};if(profile?.semantics!=='native'||profile.durationMode!=='source-video-or-explicit')return {candidate:true,active:false,reason:'Sonilo 原生音乐身份未明确配置'};return {candidate:true,active:true,label:'跟随视频',hint:'Sonilo Music 原生音乐：完整 MP4 5–360 秒、50 MB 内；生成前读取真实时长；单任务 1–10 个 WAV 变体。'+(draft.audioDurationExplicit===true?' 明确指定 '+draft.duration+' 秒；提交前须与源视频实测时长一致。':'')};}
  if(selected?.protocol!=='fal-video-audio-native')return {candidate:true,active:false};
  const availability=providerConfigurationStatus(metadata,request);
  if(availability.configured!==true)return {candidate:true,active:false,reason:availability.message};
@@ -74,7 +75,8 @@ export function audioSourceVideoState(metadata,draft,nodes=[]){
  return {candidate:true,active:true,label:'跟随视频',hint:'实际供应商：ThinkSound Video-to-Audio（显式替代 Sonilo 音效）。生成前读取真实视频时长；未指定时长时跟随源视频。'};
 }
 export function audioConfirmationArguments(metadata,original,draft,next,nodes=[]){
- const state=audioSourceVideoState(metadata,next,nodes);
+ const state=audioSourceVideoState(metadata,next,nodes),alias=audioWire(next),selected=resolveProviderConfiguration(metadata,{kind:'audio.generate',parameters:{model:alias}});
+ if(alias==='sonilo-music'){if(Object.keys(original).some(key=>!['kind','nodeId','model','audioScene','prompt','referenceIds','duration','count','segments','position','promptInfluence','audioFormat'].includes(key)))throw Error('Sonilo 原生音乐不支持原始 Agent 设置，不会在确认时忽略指令');if(original.count!==undefined&&(!Number.isInteger(original.count)||original.count<1||original.count>10))throw Error('Sonilo 原生音乐单任务数量须为 1–10');if(state.active&&original.duration===undefined&&draft.audioDurationExplicit!==true)delete next.duration;return next;}
  if(state.active&&Object.keys(original).some(key=>!['kind','nodeId','model','audioScene','prompt','referenceIds','duration','count','position'].includes(key)))throw Error('ThinkSound 视频拟音不支持原始 Agent 设置，不会在确认时忽略指令');
  if(state.active&&original.count!==undefined&&original.count!==1)throw Error('ThinkSound 视频拟音每个任务仅生成一个音频结果');
  if(state.active&&original.duration===undefined&&draft.audioDurationExplicit!==true)delete next.duration;
@@ -94,14 +96,17 @@ export function validateAudioDraft(draft,refs=[]){
   const range=({speechRate:[-50,100],pitchRate:[-12,12],loudnessRate:[-50,100],promptInfluence:[0,1]})[key];
   if(value!==undefined&&(range?(!Number.isFinite(value)||value<range[0]||value>range[1]):!values.includes(value)))throw Error('音频参数无效：'+(audioLabels[key]||key));
  }
- if(s.duration){const v=draft.duration;if(v===null&&!s.options.duration.includes(null))throw Error('当前模型需要指定时长');if(v!==null&&(!Number.isFinite(v)||v<s.duration.min||v>s.duration.max))throw Error('音频时长超出支持范围');}
+ if(draft.count!==undefined&&(!Number.isInteger(draft.count)||draft.count<1||draft.count>(audioWire(draft)==='sonilo-music'?10:1)))throw Error('当前音频模型数量超出支持范围');
+ if(s.duration){const v=draft.duration;if(v===undefined&&audioWire(draft)==='sonilo-music'&&refs.length===1&&refs[0].video)return;if(v===null&&!s.options.duration.includes(null))throw Error('当前模型需要指定时长');if(v!==null&&(!Number.isFinite(v)||v<s.duration.min||v>s.duration.max))throw Error('音频时长超出支持范围');}
 }
 export function audioRequestConfig(core,current,overrides){
  const draft=createAudioDraft(overrides,[{id:overrides.nodeId,audioConfig:current}]);
  if(audioWire(draft)==='music-2.6'&&draft.lyricsMode!=='custom'&&draft.lyrics?.trim())throw Error('自动歌词或纯音乐模式含有自定义歌词，请清空歌词或选择自定义');
  const model=audioModel(draft.model);if(!model)throw Error('音频模型未识别，请选择支持的模型');const target=core.transition({},model.virtual,draft.audioScene);target.prompt=draft.prompt;
- for(const [key,param]of Object.entries(paramKeys))if(draft[key]!==undefined)target.params[param]=draft[key];
+ for(const [key,param]of Object.entries(paramKeys))if(draft[key]!==undefined&&!(audioWire(draft)==='sonilo-music'&&key==='promptInfluence'))target.params[param]=draft[key];
  if(draft.lyricsMode){target.params.lyric_mode=draft.lyricsMode==='custom';target.params.force_instrumental=draft.lyricsMode==='instrumental';target.params.lyrics=draft.lyricsMode==='custom'?draft.lyrics:'';}
+ for(const key of ['count','segments'])if(draft[key]!==undefined)target.params[key]=structuredClone(draft[key]);
+ if(audioWire(draft)==='sonilo-music'&&draft.promptInfluence!==undefined)target.params.providerParameters={...target.params.providerParameters,prompt_influence:draft.promptInfluence};
  const duration=audioSpec(draft).duration;if(duration){if(draft.duration===null)delete target.params[duration.key];else target.params[duration.key]=draft.duration*(duration.scale||1);}
  target.references=current.references||[];return target;
 }

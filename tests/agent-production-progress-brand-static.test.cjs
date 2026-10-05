@@ -20,7 +20,7 @@ async function fixture(t) {
 test('opaque production proxy can read exactly the local derivation modules and approved SVG bytes via public CORS', async t => {
   const endpoint = await fixture(t);
   const files = [
-    ...['production-progress-local-brand', 'performance-rhythm-local-interactions', 'story-room-local-interactions', 'picker-local-presentation'].map(name => ['src/features/agent-apps/' + name + '.mjs', 'text/javascript; charset=utf-8']),
+    ...['production-progress-local-brand', 'performance-rhythm-local-interactions', 'story-room-local-interactions', 'product-kit-local-interactions', 'director-markup-local-interactions', 'picker-local-presentation'].map(name => ['src/features/agent-apps/' + name + '.mjs', 'text/javascript; charset=utf-8']),
     ['assets/branding/freenow-mark.svg', 'image/svg+xml'],
   ];
   for (const [file, mime] of files) {

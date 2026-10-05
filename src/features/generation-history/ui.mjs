@@ -7,10 +7,11 @@ const icon=(name,cls='')=>{const node=make('span',cls);node.innerHTML=globalThis
 export function mountHistory({panel,head,app,loadHistory=install}) {
   if(!document.querySelector('link[data-generation-history]')){const link=make('link');link.rel='stylesheet';link.href=new URL('./styles.css',import.meta.url).href;link.dataset.generationHistory='';document.head.append(link);}
   panel.classList.add('generation-history-panel');
-  let alive=true,history,unsubscribe,type='image',list=false,selecting=false,query='',busy=false,signature=null;
-  const selected=new Set(),rowViews=new Map(),previewing=new Set();
+  let alive=true,history,unsubscribe,type='image',list=false,selecting=false,query='',busy=false,signature=null,renderedIds=[];
+  const selected=new Set(),rowViews=new Map(),groupViews=new Map(),previewing=new Set();
   const status=make('p','generation-history-status');status.setAttribute('role','status');status.hidden=true;
   const content=make('div','panel-scroll'),footer=make('div','history-footer');
+  content.tabIndex=-1;content.setAttribute('aria-label','生成历史列表');
   const Observer=globalThis.IntersectionObserver,observer=Observer?new Observer(entries=>{for(const entry of entries){const view=rowViews.get(entry.target.dataset.historyId);if(view?.tile===entry.target){if(entry.isIntersecting)view.loadThumbnail();else releaseImage(view);}}},{root:content,rootMargin:'200px'}):null;
   const message=text=>{if(!alive)return;status.textContent=text || '';status.hidden=!text;};
   const action=async operation=>{if(busy)return;busy=true;render();try{const result=await operation();message(typeof result==='string'?result:'');}catch(error){message(error.message);app.notify(error.message);}finally{busy=false;if(alive)render();}};
@@ -31,11 +32,18 @@ export function mountHistory({panel,head,app,loadHistory=install}) {
   const rowKey=row=>JSON.stringify([row.id,row.type,row.title,row.createdAt,row.archiveStatus,row.archiveError,row.mediaRef,row.thumbnailRef,row.thumbnailStatus,row.thumbnailError,row.worldPatch?.image,row.parameters,list]);
   function releaseImage(view){view.generation=(view.generation || 0)+1;view.lease?.release();view.lease=null;view.thumbnailRequested=false;if(view.image){view.image.onerror=null;view.image.removeAttribute('src');if(view.image.parentNode || view.image.parent)view.image.replaceWith(view.placeholder);view.image=null;}}
   function retireView(view){observer?.unobserve(view.tile);releaseImage(view);}
+  // Keep unchanged rows connected: detaching a whole grid loses focus/hover
+  // and makes the browser reconsider every visible thumbnail intersection.
+  function reconcile(parent,nodes){
+    const wanted=new Set(nodes);for(const child of [...parent.children])if(!wanted.has(child))child.remove();
+    for(let index=0;index<nodes.length;index++)if(parent.children[index]!==nodes[index])parent.insertBefore(nodes[index],parent.children[index] || null);
+    while(parent.children.length>nodes.length)parent.children[parent.children.length-1].remove();
+  }
   function viewFor(row) {
     const key=rowKey(row);let view=rowViews.get(row.id);
     if(!view || view.key!==key){
       if(view)retireView(view);
-      const wrapper=make('div','generation-history-row');view={key,row,wrapper,generation:0};
+      const wrapper=make('div','generation-history-row');wrapper.dataset.historyRowId=row.id;view={key,row,wrapper,generation:0};
       const tile=button('',()=>{if(busy)return;const current=view.row;if(selecting){selected.has(current.id)?selected.delete(current.id):selected.add(current.id);render();}else action(()=>history.apply([current]));},'history-item');view.tile=tile;
       tile.dataset.historyId=row.id;
       const placeholder=icon(row.type==='audio'?'music':row.type==='model'?'cube':row.type==='video'?'video':'image','generation-history-placeholder');view.placeholder=placeholder;tile.append(placeholder);
@@ -52,7 +60,8 @@ export function mountHistory({panel,head,app,loadHistory=install}) {
       rowViews.set(row.id,view);
       if(observer)observer.observe(tile);else view.loadThumbnail();
     }
-    view.row=row;view.tile.classList.toggle('selected',selected.has(row.id));view.tile.disabled=busy || row.archiveStatus!=='ready';view.tile.setAttribute('aria-label',(selecting?'选择':'应用到画布')+'：'+row.title);if(selecting)view.tile.setAttribute('aria-pressed',String(selected.has(row.id)));else view.tile.removeAttribute('aria-pressed');view.check.hidden=!selecting || !selected.has(row.id);view.action.disabled=busy;
+    view.row=row;const state=JSON.stringify([selecting,selected.has(row.id),busy,row.archiveStatus]);
+    if(view.state!==state){view.state=state;view.tile.classList.toggle('selected',selected.has(row.id));view.tile.disabled=busy || row.archiveStatus!=='ready';view.tile.setAttribute('aria-label',(selecting?'选择':'应用到画布')+'：'+row.title);if(selecting)view.tile.setAttribute('aria-pressed',String(selected.has(row.id)));else view.tile.removeAttribute('aria-pressed');view.check.hidden=!selecting || !selected.has(row.id);view.action.disabled=busy;}
     return view.wrapper;
   }
   function render() {
@@ -62,28 +71,33 @@ export function mountHistory({panel,head,app,loadHistory=install}) {
     // Storage revision and application metadata can change while the visible
     // history stays identical. Keep rows/images intact during those emissions.
     if(signature===next)return;signature=next;
-    const focusedId=document.activeElement?.dataset?.historyId,scroll=content.scrollTop;
+    const focused=document.activeElement,focusedId=focused?.dataset?.historyId || focused?.closest?.('.generation-history-row')?.dataset.historyRowId,focusedAction=focusedId&&rowViews.get(focusedId)?.action===focused,focusedIndex=focusedId?renderedIds.indexOf(focusedId):-1,scroll=content.scrollTop;
     select.textContent=selecting?'取消':'选择';select.setAttribute('aria-pressed',String(selecting));select.disabled=busy || !history; migrate.disabled=busy||typeof history?.migrateLocalMedia!=='function';
     toggle.setAttribute('aria-pressed',String(list));
     for(const tab of tabs.children){const active=tab.dataset.type===type;tab.classList.toggle('chosen',active);tab.setAttribute('aria-selected',String(active));tab.tabIndex=active?0:-1;}
-    content.replaceChildren();footer.replaceChildren();
-    if(!history){content.append(make('p','panel-empty','正在读取历史…'));return;}
-    if(diagnostics.migration&&(diagnostics.migration.status!=='ready'||diagnostics.migration.summary?.unresolved)){const migration=make('div','generation-history-failure');migration.append(make('span','',historyMigrationNotice(diagnostics.migration)));content.append(migration);}
-    if(diagnostics.error){const failure=make('div','generation-history-failure');failure.append(make('span','',diagnostics.error),button('重试保存',()=>action(()=>history.retrySave())));content.append(failure);}
-    if(diagnostics.canvasPending){const failure=make('div','generation-history-failure');failure.append(make('span','','素材已插入但未保存：'+(diagnostics.canvasError || '正在保存')),button('重试画布保存',()=>action(()=>history.retryCanvasSave())));content.append(failure);}
-    if(unresolved.length){const pending=make('div','generation-history-failure');pending.append(make('span','',`${unresolved.length} 个任务尚无完成结果`),button('查询原任务',()=>action(async()=>{for(const entry of unresolved)await history.retry(entry.taskId);})));content.append(pending);}
+    const children=[];footer.replaceChildren();
+    if(!history){reconcile(content,[make('p','panel-empty','正在读取历史…')]);return;}
+    if(diagnostics.migration&&(diagnostics.migration.status!=='ready'||diagnostics.migration.summary?.unresolved)){const migration=make('div','generation-history-failure');migration.append(make('span','',historyMigrationNotice(diagnostics.migration)));children.push(migration);}
+    if(diagnostics.error){const failure=make('div','generation-history-failure');failure.append(make('span','',diagnostics.error),button('重试保存',()=>action(()=>history.retrySave())));children.push(failure);}
+    if(diagnostics.canvasPending){const failure=make('div','generation-history-failure');failure.append(make('span','','素材已插入但未保存：'+(diagnostics.canvasError || '正在保存')),button('重试画布保存',()=>action(()=>history.retryCanvasSave())));children.push(failure);}
+    if(unresolved.length){const pending=make('div','generation-history-failure');pending.append(make('span','',`${unresolved.length} 个任务尚无完成结果`),button('查询原任务',()=>action(async()=>{for(const entry of unresolved)await history.retry(entry.taskId);})));children.push(pending);}
     const visible=new Set(rows.map(row=>row.id));for(const [id,view]of rowViews)if(!visible.has(id)){retireView(view);rowViews.delete(id);}
-    if(!rows.length)content.append(make('p','panel-empty',query?'没有匹配的历史':'暂无历史'));
+    if(!rows.length)children.push(make('p','panel-empty',query?'没有匹配的历史':'暂无历史'));
+    const dates=new Set();
     for(const [date,batch] of groupRows(rows)) {
-      content.append(make('div','history-date',date));const grid=make('div','history-grid'+(list?' history-list':''));
-      for(const row of batch)grid.append(viewFor(row));
-      content.append(grid);
+      dates.add(date);let group=groupViews.get(date);
+      if(!group){group={heading:make('div','history-date',date),grid:make('div'),list:null};groupViews.set(date,group);}
+      if(group.list!==list){group.list=list;group.grid.className='history-grid'+(list?' history-list':'');}
+      reconcile(group.grid,batch.map(viewFor));children.push(group.heading,group.grid);
     }
+    for(const date of groupViews.keys())if(!dates.has(date))groupViews.delete(date);
+    reconcile(content,children);
+    renderedIds=rows.map(row=>row.id);
     if(selecting){const count=make('span','',`已选 ${selected.size} 个`),cancel=button('取消',()=>{selecting=false;selected.clear();render();}),apply=button('应用到画布',()=>action(async()=>{await history.apply(chosen());selected.clear();selecting=false;})),download=button('下载',()=>action(()=>history.download(chosen())));for(const node of [cancel,apply,download]){node.setAttribute('aria-label',node.textContent);node.disabled=busy || node!==cancel&&!selected.size;}footer.append(count,cancel,apply,download);}
     content.scrollTop=scroll;
-    if(focusedId)for(const tile of content.querySelectorAll('[data-history-id]'))if(tile.dataset.historyId===focusedId&&!tile.disabled){tile.focus({preventScroll:true});break;}
+    if(focusedId&&document.activeElement!==focused){const view=rowViews.get(focusedId)||rowViews.get(renderedIds[Math.min(Math.max(0,focusedIndex),rows.length-1)]),target=focusedAction&&view?.row.id===focusedId?view.action:view?.tile;(target&&!target.disabled?target:content).focus({preventScroll:true});}
   }
   async function load(){try{history=await loadHistory();if(!alive)return;unsubscribe=history.subscribe(render);message('');render();}catch(error){if(!alive)return;message('历史读取失败：'+error.message);content.replaceChildren(button('重试读取',load));}}
   render();void load();
-  return ()=>{alive=false;observer?.disconnect();for(const view of rowViews.values())retireView(view);rowViews.clear();unsubscribe?.();};
+  return ()=>{alive=false;observer?.disconnect();for(const view of rowViews.values())retireView(view);rowViews.clear();groupViews.clear();unsubscribe?.();};
 }
