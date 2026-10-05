@@ -24,6 +24,8 @@
 
 | 记录 | 范围 |
 | --- | --- |
+| [普通节点副本](CANVAS-SINGLE-DUPLICATE-20261005.md) · [人物走位](AGENT-CHARACTER-BLOCKING-INTERACTIONS-20261005.md) | 官方坐标/边序/历史、旧 ID 媒体与参数、真实拖动/确认/关闭及刷新 |
+| [混合拾取](SPZ-MIXED-PICKING-20261005.md) · [视频延长生命周期](VIDEO-EXTENSION-LIFECYCLE-20261005.md) | 网格/高斯深度、四模式实际点击；取消、参数漂移、同任务保存重试 |
 | [SPZ 本地高斯渲染](SPZ-LOCAL-RENDERING-20261005.md) · [Marble 配置](MARBLE-NATIVE-SETUP.md) | Spark、真实样本、变换/保存/撤销、照片/短视频、gzip 实际预算与 LOD 限制 |
 | [深度双结果与画布交互](LOCAL-DEPTH-BATCH-AND-CANVAS-20261005.md) | 普通节点、持久父子任务、保存恢复、Agent 裁切互斥与搜索响应 |
 | [深度节点同位入口](VIDEO-DEPTH-NODE-ENTRY-20261005.md) · [应用守卫](VIDEO-DEPTH-CANVAS-RECOVERY-GUARDS-20261005.md) | 自动规格、1/2 数量、三种布局、来源/项目变化与失败提示 |

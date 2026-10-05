@@ -1,3 +1,4 @@
+import {pickPixel,nearestSceneHit} from './scene-hit.mjs';
 import {splatProxy,splatObjects,spatialBounds,SplatContext} from '../world-node/splat-io.mjs';
 import {validateViewport,validateLighting,cameraSettings,supportedCameraProperties,supportedLightingProperties,updateSceneSettings,updateSceneEnvironment} from './scene-settings.mjs';
 import {controlScenePlayback,playbackState} from './scene-playback.mjs';
@@ -169,7 +170,10 @@ export class SceneRuntime {
     };
     try{
       this.assertTargetNode();
-      const hit=this.splatContext?.pick(this.camera,(x-rect.left)/rect.width,(y-rect.top)/rect.height);const id=(await this.picker.pick(this.scene,content,this.camera,(x-rect.left)/rect.width,(y-rect.top)/rect.height,nodeForObject,[this.cameraPresentations.layer]))??hit?.proxy.userData.studioId??null;
+      const pixel=pickPixel((x-rect.left)/rect.width,(y-rect.top)/rect.height,width,height);if(!pixel)return false;
+      const hit=this.splatContext?.pick(this.camera,pixel.u,pixel.v,{root:content});
+      const mesh=hit?await this.picker.pickHit(this.scene,content,this.camera,pixel.u,pixel.v,nodeForObject,[this.cameraPresentations.layer]):{id:await this.picker.pick(this.scene,content,this.camera,pixel.u,pixel.v,nodeForObject,[this.cameraPresentations.layer])};
+      const id=nearestSceneHit(mesh,hit);
       if(this.closed||this.exporting||this.reloading||this.restoring||token!==this.pickRevision||content!==this.content||revision!==this.revision)return false;
       this.camera.updateMatrixWorld(true);const current=canvas.getBoundingClientRect();
       if(!pose.equals(this.camera.matrixWorld)||!projection.equals(this.camera.projectionMatrix)||width!==canvas.width||height!==canvas.height||['left','top','width','height'].some(key=>rect[key]!==current[key])||Object.keys(playback).some(key=>key!=='time'&&playback[key]!==this.playback[key])||!playback.playing&&playback.time!==this.playback.time)return false;

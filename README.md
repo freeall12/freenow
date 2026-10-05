@@ -138,6 +138,14 @@ node --env-file=.env.local server/server.cjs
 
 ## 最新接入与核验
 
+本批补齐四处实际交互：普通单节点“副本”按官方坐标及连线顺序创建，保留当前媒体并清理旧历史；人物走位支持拖动、保存后确认、失败重试和关闭恢复；混合片场按网格/高斯深度选择对象；视频延长在关闭和来源变化时阻止迟到派发，结果保存失败只重试原节点。均完成定向回归、独立交审和 Computer Use。[副本](docs/CANVAS-SINGLE-DUPLICATE-20261005.md) · [人物走位](docs/AGENT-CHARACTER-BLOCKING-INTERACTIONS-20261005.md) · [混合拾取](docs/SPZ-MIXED-PICKING-20261005.md) · [延长生命周期](docs/VIDEO-EXTENSION-LIFECYCLE-20261005.md)。
+
+| 人物走位：真实拖动、面向及刷新恢复 | 普通副本：分组外摆放和关联连线 |
+| --- | --- |
+| ![本地人物走位及已保存交接](docs/screenshots/agent-character-blocking-20261005.png) | ![正式右键创建图片副本](docs/screenshots/canvas-single-duplicate-20261005.jpg) |
+
+这些截图使用隔离公开素材。视频任务回执为合成数据；本批不代表真实模型效果、SPZ 全设备压力或全站逐态验收完成。
+
 SPZ 高斯世界已接入成熟 Spark 2.3.1，代码、WASM、Worker 和素材均在本地运行。真实 786,233 高斯样本已验导入、坐标、变换、保存刷新、撤销重做、删除清空、1280×720 照片及 2 秒运镜视频；照片、视频和来源连线刷新后保留。单文件限制为 64MiB 压缩 / 256MiB 实际展开，场景最多 250 万高斯；当前没有 LOD，真实 Marble 生成及长视频仍待验。[本地渲染与验收](docs/SPZ-LOCAL-RENDERING-20261005.md)
 
 | SPZ：真实高斯预览 | 片场产物：照片、视频和来源连线 |

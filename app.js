@@ -319,6 +319,14 @@
     if(!selected.size)return;
     const ids=window.CanvasGroups.descendants(nodes,selected),copies=nodes.filter(n=>ids.has(n.id));
     if(copies.some(n=>n.type==='studio')){notify('暂不支持复制 3D 片场。');return;}
+    if(selected.size===1&&copies.length===1&&['image','video','audio','text'].includes(copies[0].type)&&!copies[0].tool&&!window.CanvasPiles.index(nodes).owner.has(copies[0].id)){
+      const source={...copies[0]};
+      // Materialize ID-bound legacy media/settings before assigning a fresh ID.
+      if(['image','video'].includes(source.type)&&!source.generation&&!source.params&&(window.EDITOR_DATA?.nodes[source.id]||/generation|生成/i.test(source.title)||!source.image)){const config=window.NodeEditor?.getConfig(copies[0])||window.EDITOR_DATA?.nodes[source.id];if(config)source.generation=config;}
+      if(source.type==='video'&&!source.video){const video=window.EDITOR_DATA?.nodes[source.id]?.video;if(video)source.video=video;}
+      const added=window.CanvasClipboard.duplicateNode(source,edges,()=>crypto.randomUUID());
+      remember();nodes.push(added.node);edges.push(...added.edges);selected=new Set([added.node.id]);rebuildAndPersist();return;
+    }
     remember();const mapping=new Map(copies.map(n=>[n.id,crypto.randomUUID()]));
     const added=copies.map(n=>({...clone(n),id:mapping.get(n.id),parentId:mapping.get(n.parentId),memberIds:n.memberIds?.map(id=>mapping.get(id)),...(n.clips?{clips:n.clips.map(c=>({...c,id:crypto.randomUUID(),sourceId:mapping.get(c.sourceId)||c.sourceId}))}:{}),x:n.x+80,y:n.y+100}));
     for(let i=0;i<added.length;i++)if(copies[i].type==='text'&&copies[i].generation&&window.CanvasText?.remapGeneration)added[i].generation=window.CanvasText.remapGeneration(copies[i],mapping);

@@ -1,16 +1,22 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
-const source=fs.readFileSync(require.resolve('../app.js'),'utf8');
+const source=fs.readFileSync(require.resolve('../app.js'),'utf8'),clipboard=require('../canvas-clipboard.js');
 const fixture=()=>({nodes:[{id:'a',type:'image',title:'Original',image:'original.png',fullImage:'full.png',x:10.25,y:-30.75,width:446,height:250,generation:{prompt:'原提示词',count:2},imageHistory:[{id:'old',options:[{image:'previous.png'}]}]},{id:'b',type:'image',title:'Reference',image:'reference.png',x:900.5,y:40.125,width:250,height:250}],edges:[{id:'e',source:'b',target:'a',order:2,purpose:'generation-input'}]});
 function named(name){const start=source.indexOf(`  function ${name}(`),end=source.indexOf('\n  function ',start+1);assert.ok(start>=0&&end>start,`production function ${name}`);return source.slice(start,end);}
 function method(name,next){const start=source.indexOf(`    ${name}(`),end=source.indexOf(`\n    ${next}`,start+1);assert.ok(start>=0&&end>start,`production method ${name}`);return source.slice(start,end).trim().replace(/,$/,'');}
-function harness({ready=true,graph=fixture(),mirrorError}={}){
+function productionNodeEditor(editorData,drafts={}){
+ const editorSource=fs.readFileSync(require.resolve('../node-editor.js'),'utf8'),context=vm.createContext({window:{EDITOR_DATA:editorData},drafts});
+ const functions=['defaults','countConfiguration','normalizeCountConfig','getConfig'].map(name=>{const start=editorSource.indexOf(`  function ${name}(`),end=editorSource.indexOf('\n  function ',start+1);assert.ok(start>=0&&end>start);return editorSource.slice(start,end);});
+ vm.runInContext(`const node=null,imageMenus=null,videoMenus=null,cameraControls=null,depthComposer=null,resultCounts=null,resultMode='variants',depthSelected=()=>false;${functions.join('\n')}globalThis.editor={getConfig};`,context);
+ return context.editor;
+}
+function harness({ready=true,graph=fixture(),mirrorError,editorData={nodes:{legacy:{video:'legacy.mp4'}}},nodeEditor}={}){
  const saves=[],legacy=[],renders=[],errors=[],pending=[],motion=[],cleanup=[],pileCalls={plan:0,dropTarget:0};let serial=0,load;
  const pileCore=require('../canvas-piles.js'),piles={...pileCore,plan(...args){pileCalls.plan++;return pileCore.plan(...args);},dropTarget(...args){pileCalls.dropTarget++;return pileCore.dropTarget(...args);}};
  const root={children:[],get firstElementChild(){return this.children[0]||null;},insertBefore(el,before){this.children=this.children.filter(item=>item!==el);const index=before?this.children.indexOf(before):-1;if(index<0)this.children.push(el);else this.children.splice(index,0,el);}};
  let rejectLoad;
  const store={load:()=>new Promise((resolve,reject)=>{load=resolve;rejectLoad=reject;}),save:state=>{saves.push(structuredClone(state));return new Promise((resolve,reject)=>pending.push({resolve,reject}));}};
  const notices=[];
- const context=vm.createContext({fixture:graph,ready,root,renders,errors,cleanup,structuredClone,crypto:{randomUUID:()=>`new-${++serial}`},innerWidth:1200,innerHeight:800,prompt:()=> 'Renamed',localStorage:{setItem:(key,value)=>{if(mirrorError)throw mirrorError;legacy.push({key,value});}},document:{createElement:()=>({dataset:{},setAttribute(){},remove(){notices.splice(notices.indexOf(this),1);}}),body:{append:notice=>notices.push(notice)}},getNotice:()=>notices[0],window:{CanvasStore:store,CanvasGroups:require('../canvas-groups.js'),CanvasPiles:piles,CanvasText:{config:()=>({prompt:'',model:'text-model'})},CanvasClipboard:{instantiate:snapshot=>structuredClone(snapshot)},CanvasConnections:{cancel(){},clearSelection(){}},CanvasPilesUI:{clearDropTarget:()=>cleanup.push('drop')},PileMotion:{cancel(){},capture(nodes){motion.push('capture');return structuredClone(nodes);},play(){motion.push('play');}},EDITOR_DATA:{nodes:{legacy:{video:'legacy.mp4'}}}}});
+ const context=vm.createContext({fixture:graph,ready,root,renders,errors,cleanup,structuredClone,crypto:{randomUUID:()=>`new-${++serial}`},innerWidth:1200,innerHeight:800,prompt:()=> 'Renamed',localStorage:{setItem:(key,value)=>{if(mirrorError)throw mirrorError;legacy.push({key,value});}},document:{createElement:()=>({dataset:{},setAttribute(){},remove(){notices.splice(notices.indexOf(this),1);}}),body:{append:notice=>notices.push(notice)}},getNotice:()=>notices[0],window:{EDITOR_DATA:editorData,NodeEditor:nodeEditor,CanvasStore:store,CanvasGroups:require('../canvas-groups.js'),CanvasPiles:piles,CanvasText:{config:()=>({prompt:'',model:'text-model'})},CanvasClipboard:{...clipboard,instantiate:snapshot=>structuredClone(snapshot)},CanvasConnections:{cancel(){},clearSelection(){}},CanvasPilesUI:{clearDropTarget:()=>cleanup.push('drop')},PileMotion:{cancel(){},capture(nodes){motion.push('capture');return structuredClone(nodes);},play(){motion.push('play');}}},EDITOR_DATA:editorData});
  // Execute production closure functions, including rebuild, history and hydration;
  // only the DOM/media renderer and async storage boundary are test doubles.
  vm.runInContext(`
@@ -57,6 +63,57 @@ test('rename, duplicate and delete save once, with exact history and connections
  for(const operation of [f=>f.probe.rename(),f=>f.api.duplicate(),f=>f.probe.remove()]){
   const f=harness(),before=graphOf(f.state());once(f,()=>operation(f));assert.equal(f.probe.history().length,1);once(f,()=>f.api.undo());assert.deepEqual(graphOf(f.state()),before);
  }
+});
+test('production ordinary duplicate uses source width, copies incident edges and commits/undoes once',()=>{
+ const graph=fixture();graph.edges.push({id:'out',source:'a',target:'b',order:3,sourceHandle:'right',targetHandle:'left',style:{stroke:'#123'}},{id:'other-out',source:'a',target:'b',order:7});
+ const f=harness({graph}),before=graphOf(f.state());once(f,()=>f.api.duplicate());
+ const state=f.state(),copy=state.nodes.at(-1);assert.equal(copy.x,556.25);assert.equal(copy.y,-30.75);assert.equal(copy.image,'original.png');assert.equal(copy.fullImage,'full.png');assert.deepEqual(copy.imageHistory,[]);assert.deepEqual(copy.generation,graph.nodes[0].generation);assert.deepEqual(state.selected,[copy.id]);
+ const added=state.edges.slice(graph.edges.length);assert.deepEqual(added.map(edge=>[edge.source,edge.target,edge.order]),[[copy.id,'b',8],[copy.id,'b',9],['b',copy.id,2]]);assert.equal(added[0].targetHandle,'left');assert.deepEqual(added[0].style,{stroke:'#123'});assert.equal(f.probe.history().length,1);assert.equal(f.renders.length,1);
+ once(f,()=>f.api.undo());assert.deepEqual(graphOf(f.state()),before);assert.equal(f.probe.history().length,0);assert.equal(f.renders.length,2);
+ once(f,()=>f.api.undo(true));assert.deepEqual(graphOf(f.state()),graphOf(state));
+});
+test('production single grouped child detaches without adding parent coordinates or changing parent',()=>{
+ const graph=fixture();graph.nodes.unshift({id:'g',type:'group',x:8000.25,y:-2000.125,width:900,height:500});graph.nodes[1].parentId='g';graph.nodes[1].extent='parent';
+ const f=harness({graph}),before=graphOf(f.state());once(f,()=>f.api.duplicate());const copy=f.state().nodes.at(-1);
+ assert.equal(copy.x,556.25);assert.equal(copy.y,-30.75);assert.equal(copy.parentId,undefined);assert.equal(copy.extent,undefined);assert.deepEqual(f.state().nodes[0],graph.nodes[0]);assert.deepEqual(f.state().selected,[copy.id]);once(f,()=>f.api.undo());assert.deepEqual(graphOf(f.state()),before);
+});
+test('production clone task reset leaves original owner and media untouched before any undo',()=>{
+ const graph=fixture();Object.assign(graph.nodes[0],{pendingOperation:'image.generate',generationRun:{runId:'original-run',requestId:'original-request',resultIndex:0},generationRecovery:{version:1,runId:'original-run'},workflowRecoveryResult:{nodeId:'a',groupId:'owner'},loading:true,taskInfo:{status:'PROCESSING'},currentSourceFileId:'media-file',provenance:{kind:'imported',mediaSource:'full.png'}});
+ const f=harness({graph});once(f,()=>f.api.duplicate());const [source,,copy]=f.state().nodes;
+ assert.deepEqual(source,graph.nodes[0]);for(const key of ['pendingOperation','generationRun','generationRecovery','workflowRecoveryResult'])assert.equal(copy[key],undefined);assert.equal(copy.loading,false);assert.equal(copy.taskInfo,null);assert.equal(copy.currentSourceFileId,'media-file');assert.deepEqual(copy.provenance,source.provenance);
+});
+test('production duplicate materializes legacy current video and actual editor config before replacing the ID',()=>{
+ const graph=fixture();Object.assign(graph.nodes[0],{type:'video',image:'poster.png'});delete graph.nodes[0].generation;
+ const editorData={nodes:{a:{video:'assets/current-local.mp4',prompt:'旧节点提示词',model:'Seedance 2.0',duration:8,refs:['reference.png']}}},nodeEditor=productionNodeEditor(editorData),expected=structuredClone(nodeEditor.getConfig(graph.nodes[0])),f=harness({graph,editorData,nodeEditor}),before=graphOf(f.state());
+ once(f,()=>f.api.duplicate());const copy=f.state().nodes.at(-1);assert.equal(copy.video,editorData.nodes.a.video);assert.equal(copy.historyVariantCount,1);assert.deepEqual(copy.generation,expected);assert.deepEqual(structuredClone(nodeEditor.getConfig(copy)),expected);assert.deepEqual(f.state().nodes[0],graph.nodes[0]);
+ copy.generation.refs.push('new-reference');assert.deepEqual(editorData.nodes.a.refs,['reference.png']);once(f,()=>f.api.undo());assert.deepEqual(graphOf(f.state()),before);
+});
+test('production duplicate captures actual ID-bound editor drafts and retains explicit generation/params',()=>{
+ for(const type of ['image','video']){
+  const graph=fixture();graph.nodes[0].type=type;delete graph.nodes[0].generation;
+  const editorData={nodes:{a:{prompt:'旧默认',count:1}}},drafts={a:{prompt:'未写回节点的草稿',times:2,refs:['draft-reference.png']}},nodeEditor=productionNodeEditor(editorData,drafts),expected=structuredClone(nodeEditor.getConfig(graph.nodes[0])),f=harness({graph,editorData,nodeEditor});
+  once(f,()=>f.api.duplicate());assert.deepEqual(f.state().nodes.at(-1).generation,expected);assert.equal(expected.prompt,drafts.a.prompt);assert.equal(expected.count,2);assert.equal(graph.nodes[0].generation,undefined);
+  for(const key of ['generation','params']){const explicit=structuredClone(graph);explicit.nodes[0][key]={prompt:'显式参数',nested:{keep:true}};const test=harness({graph:explicit,editorData,nodeEditor});once(test,()=>test.api.duplicate());assert.deepEqual(test.state().nodes.at(-1)[key],explicit.nodes[0][key]);if(key==='params')assert.equal(test.state().nodes.at(-1).generation,undefined);}
+ }
+});
+test('production duplicate retains a blocked legacy video ref and its pending-import state',async()=>{
+ const policy=await import('../src/features/local-resource-migration/display-media.mjs'),graph=fixture();graph.nodes[0].type='video';delete graph.nodes[0].generation;
+ const editorData={nodes:{a:{video:'https://fe-assets.tapnow.media/qa-retained-media.mp4',prompt:'保留待导入引用'}}},nodeEditor=productionNodeEditor(editorData),f=harness({graph,editorData,nodeEditor});
+ once(f,()=>f.api.duplicate());const copy=f.state().nodes.at(-1);assert.equal(copy.video,editorData.nodes.a.video);assert.equal(policy.displayMediaRef(copy.video),'');assert.equal(policy.nodeHasPendingOriginalMedia(copy),true);assert.equal(copy.historyVariantCount,1);assert.equal(f.state().nodes[0].video,undefined);
+});
+test('production uploaded media duplicate does not acquire a default generation composer',()=>{
+ for(const type of ['image','video']){
+  const graph=fixture();graph.nodes[0].type=type;graph.nodes[0].title='Uploaded media';delete graph.nodes[0].generation;if(type==='video')graph.nodes[0].video='local-upload.mp4';
+  const editorData={nodes:{}},drafts={a:{prompt:'旧隐藏草稿'}},nodeEditor=productionNodeEditor(editorData,drafts),f=harness({graph,editorData,nodeEditor});once(f,()=>f.api.duplicate());const copy=f.state().nodes.at(-1);assert.equal(Object.hasOwn(copy,'generation'),false);assert.equal(Object.hasOwn(copy,'params'),false);assert.equal(copy.image,graph.nodes[0].image);assert.equal(copy.video,graph.nodes[0].video);
+ }
+});
+test('production group, multi-selection and editor owner duplication retain the previous branch',()=>{
+ const graph=fixture();graph.nodes[0].parentId='g';graph.nodes.unshift({id:'g',type:'group',x:0,y:0,width:800,height:500});
+ for(const ids of [['g'],['a','b']]){
+  const f=harness({graph});f.probe.select(ids);once(f,()=>f.api.duplicate());const originals=ids[0]==='g'?graph.nodes.filter(n=>['g','a'].includes(n.id)):graph.nodes.filter(n=>ids.includes(n.id)),added=f.state().nodes.slice(graph.nodes.length);
+  assert.equal(added.length,originals.length);for(let i=0;i<added.length;i++){assert.equal(added[i].x,originals[i].x+80);assert.equal(added[i].y,originals[i].y+100);}assert.deepEqual(added.find(n=>n.type==='image').imageHistory,graph.nodes[1].imageHistory);
+ }
+ const owner=fixture();owner.nodes[0].tool='image-editor';const f=harness({graph:owner});once(f,()=>f.api.duplicate());assert.equal(f.state().nodes.at(-1).x,90.25);assert.equal(f.state().nodes.at(-1).y,69.25);
 });
 test('paste and graph insertion persist once and undo removes the entire imported graph',()=>{
  const graph={nodes:[{id:'g',type:'group',x:1.25,y:2.75,width:900,height:500},{id:'child',type:'image',parentId:'g',x:50.5,y:90.125,width:100,height:200,image:'import.png'}],edges:[{id:'import-edge',source:'g',target:'child'}],selected:['g'],group:{id:'g'}};

@@ -233,3 +233,14 @@ test('local close failure gives a Chinese retry message and retains the exact SD
   const retry=f.host.prepareToClose();f.emit({id:f.sent.at(-1).id,result:{flushed:true}});assert.equal(await retry,true);
  }finally{f.close();}
 });
+
+test('character blocking v3 flushes its pending state before close without giving historical v1 new lifecycle authority',async()=>{
+ for(const version of ['v3','v1']){
+  const f=await fixture({resourceUri:`ui://tapnow/character-blocking@${version}`,allowResource:()=>true});try{
+   f.initialize();const closing=f.host.prepareToClose(),request=f.sent.findLast(row=>row.method==='freenow/lifecycleFlush');
+   if(version==='v1'){assert.equal(request,undefined);assert.equal(await closing,true);continue;}
+   assert.ok(request);let settled=false;void closing.then(()=>{settled=true;});await tick();assert.equal(settled,false);
+   f.emit({id:request.id,result:{flushed:true}});assert.equal(await closing,true);assert.equal(f.prompts.length,0);assert.equal(f.timers.size,0);
+  }finally{f.close();}
+ }
+});

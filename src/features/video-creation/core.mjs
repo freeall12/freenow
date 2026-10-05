@@ -9,6 +9,23 @@ export function extensionSettings(node){
   const audio=params.generateAudio??params.generate_audio??params.audio;
   return {direction:'片尾延长',duration:8,mode:'自然延续',modelId:'seedance-2.5',capabilityMode:'prompt_simulation',resolution:typeof resolution==='string'?resolution.toLowerCase():resolution,generateAudio:typeof audio==='boolean'?audio:true};
 }
+export function extensionSourceSettings(node){const {modelId,capabilityMode,resolution,generateAudio}=extensionSettings(node);return {modelId,capabilityMode,resolution,generateAudio};}
+// Result ownership outlives the panel after dispatch, while request preparation
+// also requires an active panel. Keep source identity independent of that UI.
+export function extensionSourceGuard(app,node,{references=[]}={}){
+  const projectId=app.projectIdentity().id,source=mediaSource(node),clip=JSON.stringify(node.clip||null),settings=JSON.stringify(extensionSourceSettings(node)),type=node.type;
+  const refs=references.map(({node,source,clip})=>({node,source,clip,type:node?.type}));
+  return ()=>{const nodes=app.getState().nodes;
+    if(app.projectIdentity().id!==projectId||nodes.find(n=>n.id===node.id)!==node||node.type!==type||mediaSource(node)!==source||JSON.stringify(node.clip||null)!==clip||JSON.stringify(extensionSourceSettings(node))!==settings)throw Error('来源视频、生成设置或项目已变化，请重新生成');
+    for(const ref of refs){const n=ref.node,url=n?.type==='video'?mediaSource(n):n?.fullImage||n?.image;if(!n||nodes.find(v=>v.id===n.id)!==n||n.type!==ref.type||url!==ref.source||JSON.stringify(n.clip||null)!==ref.clip)throw Error('参考素材已变化，请重新生成');}
+  };
+}
+export function extensionLifetimeGuard(sourceGuard,{signal,isAlive=()=>true}={}){return ()=>{if(signal?.aborted||!isAlive())throw new DOMException('已取消','AbortError');sourceGuard();};}
+export async function waitForExtensionLookup(operation,signal){
+  const check=()=>{if(signal?.aborted)throw new DOMException('已取消','AbortError');};check();
+  let abort;const stopped=new Promise((_,reject)=>{abort=()=>reject(new DOMException('已取消','AbortError'));signal?.addEventListener('abort',abort,{once:true});});
+  try{const result=await Promise.race([Promise.resolve().then(()=>{check();return operation();}),stopped]);check();return result;}finally{signal?.removeEventListener('abort',abort);}
+}
 export function fitCreation(node,width,height){
   const availableHeight=height-88-176,reserved=236+8;
   const scale=Math.max(.01,Math.min((width-192)/node.width,Math.max(1,availableHeight-reserved)/node.height)*.75);

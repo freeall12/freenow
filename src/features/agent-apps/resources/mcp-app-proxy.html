@@ -324,6 +324,11 @@
             return interactions.localizeStoryRoomInteractions(templateHtml, name, version);
           })
           .then(async function (templateHtml) {
+            if (name !== "character-blocking" || version !== "v3") return templateHtml;
+            var interactions = await import("../character-blocking-local-interactions.mjs");
+            return interactions.localizeCharacterBlockingInteractions(templateHtml, name, version);
+          })
+          .then(async function (templateHtml) {
             if (!["creative-picker", "website-design-picker", "motion-picker"].includes(name)) return templateHtml;
             var presentation = await import("../picker-local-presentation.mjs");
             return presentation.localizePickerPresentation(templateHtml, name, version);

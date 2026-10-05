@@ -42,7 +42,7 @@ pnpm dev
 | 绘制 | 当前全量，未启用Spark LOD / 100k→full_res切换 |
 | 运镜输出 | 现有RAF + MediaRecorder实时录制，每次镜头改变等待排序；不保证30fps或逐帧精确 |
 
-数字为保护性硬预算，不是实测性能承诺。LOD、pager、多设备GPU预算、500k/250万压力验收、连续五轮开关资源测量、断网重开、4096px节点拍摄和长视频仍需分别验证。混合mesh/Gaussian拾取目前先普通GPU picker再真实SplatMesh raycast；精确混合遮挡排序尚未完成。Gaussian颜色由其原始辐射数据决定，白模/PBR灯光不会等价修改高斯材质。
+数字为保护性硬预算，不是实测性能承诺。LOD、pager、多设备GPU预算、500k/250万压力验收、连续五轮开关资源测量、断网重开、4096px节点拍摄和长视频仍需分别验证。混合mesh/Gaussian拾取已补同物理像素的GPU深度与官方Spark raycast比较，实现及GPU验收边界见 [SPZ-MIXED-PICKING-20261005.md](./SPZ-MIXED-PICKING-20261005.md)。Gaussian颜色由其原始辐射数据决定，白模/PBR灯光不会等价修改高斯材质。
 
 ## 已跑检查
 

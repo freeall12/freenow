@@ -1,5 +1,16 @@
 # 功能截图与复现
 
+## 2026-10-05 副本、人物走位、混合拾取与视频延长
+
+| 文件 | 实际内容与来源 |
+| --- | --- |
+| [普通节点副本](canvas-single-duplicate-20261005.jpg) | `src/features/canvas-clipboard/qa/main.html?session=duplicate-1005l-root1`；正式右键副本、公开 PNG、分组外精确摆放与出入连线 |
+| [人物走位](agent-character-blocking-20261005.png) | `src/features/agent-apps/qa/character-blocking.html?session=interactions-1005l-root`；正式人物板，真实拖动/面向/确认/关闭重试后刷新，公开合成头像 |
+| [混合拾取](spz-mixed-picking-20261005.jpg) | `qa/spz-world.html?session=spzpick1005l-root1&picking`；真实 Niantic SPZ 与带透明孔网格，点击穿过孔选中高斯 |
+| [视频延长生命周期](video-extension-lifecycle-20261005.jpg) | 独立 QA host 的 `mode=normal&session=ext-afterdispatch-1005l-root`；任务派发后关闭，合成 2 秒结果落入正式画布并实际播放，不代表模型延长效果 |
+
+JPEG 来自当前页面 CDP 完整视口，PNG 为实际页面完整截图；没有视觉生成、拼接或样式覆盖。视频早期取消/漂移/保存重试案例的 `127.0.0.1` 浏览器 origin 原有 33% 缩放保持不变，最终截图使用 `localhost` 的正常显示；不将前者作为视觉还原证据。四项的验证范围分别记录在对应专项文档中。
+
 ## 2026-10-05 真实 SPZ 高斯世界
 
 | 文件 | 实际内容与来源 |

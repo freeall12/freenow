@@ -57,6 +57,41 @@
     const edges = snapshot.edges.map(e => ({ ...clone(e), id: idFactory(), source: ids.get(e.source) || e.source, target: ids.get(e.target), path: undefined })).filter(e => live.has(e.source) && live.has(e.target));
     return { nodes, edges, selected: nodes.filter((n, i) => !n.parentId && !hidden.has(snapshot.nodes[i].id)).map(n => n.id) };
   }
-  const api = { capture, instantiate, eventTarget, keyboardScope, isComposing, clipboardFiles };
+  function duplicateNode(source, existingEdges, idFactory = () => crypto.randomUUID()) {
+    if (!source || !['image','video','audio','text'].includes(source.type) || source.tool || ![source.x,source.y].every(Number.isFinite)) throw Error('仅支持普通单节点副本');
+    const node=clone(source),width=source.width||source.measured?.width||source.dimensions?.width;
+    node.id=idFactory();node.x=source.x+(Number.isFinite(width)?width:250)+100;node.y=source.y;
+    delete node.parentId;if(node.extent==='parent')delete node.extent;
+    node.loading=false;node.taskInfo=null;
+    // A copied media file retains its provenance, but never the original node's
+    // live run or persisted recovery ownership (including grouped workflows).
+    for(const key of ['pendingOperation','generationRun','generationRecovery','workflowRecoveryResult'])delete node[key];
+    if(['image','video'].includes(node.type)){
+      for(const key of ['options','versions','imageHistory','videoHistory','imageOptions','videoOptions','historyLocalQueues','historyLocalQueueMetadata','historyLocalQueueResourceMetadata'])node[key]=[];
+      node.historyVariantsHidden=false;node.historyVariantCount=(node.type==='video'?node.video:node.fullImage||node.image)?1:0;
+      for(const key of ['historySourceNodeId','historyPreviewSrc','currentImageOptionId','currentVideoOptionId'])delete node[key];
+    }
+    const edges=[],ordered=[...existingEdges],orderOf=edge=>typeof edge.order==='number'?edge.order:typeof edge.data?.order==='number'?edge.data.order:2**30;
+    function copyEdge(edge, outgoing){
+      const added=clone(edge);added.id=idFactory();delete added.selected;
+      // Local imported paths cache absolute coordinates. A fresh edge uses the
+      // host's geometry; retaining the cache would draw the old path on reload.
+      delete added.path;
+      if(outgoing)added.source=node.id;else added.target=node.id;
+      const nextOrder=()=>ordered.reduce((max,item)=>item.target===added.target?Math.max(max,orderOf(item)):max,-1)+1;
+      if(outgoing){
+        const order=nextOrder();
+        if(Object.hasOwn(added,'order')||!added.data||!Object.hasOwn(added.data,'order'))added.order=order;
+        if(added.data&&Object.hasOwn(added.data,'order'))added.data.order=order;
+      }else if(typeof added.order!=='number'&&typeof added.data?.order!=='number')added.order=nextOrder();
+      ordered.push(added);edges.push(added);
+    }
+    // Official SX copies outgoing edges first; incoming order belongs to the
+    // source's reference sequence and remains unchanged on the new target.
+    existingEdges.filter(edge=>edge.source===source.id).forEach(edge=>copyEdge(edge,true));
+    existingEdges.filter(edge=>edge.target===source.id).forEach(edge=>copyEdge(edge,false));
+    return {node,edges};
+  }
+  const api = { capture, instantiate, duplicateNode, eventTarget, keyboardScope, isComposing, clipboardFiles };
   if (typeof module !== 'undefined') module.exports = api; else root.CanvasClipboard = api;
 })(typeof window === 'undefined' ? globalThis : window);
