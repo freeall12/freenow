@@ -24,6 +24,8 @@
 
 | 记录 | 范围 |
 | --- | --- |
+| [Agent内嵌交互闭环](LOCAL-AGENT-INTERACTIONS-20261005.md) | 表演节奏键盘/保存与确认、剧本结构失败重试/恢复、模板本地能力说明及真实截图 |
+| [表演节奏交互](AGENT-RHYTHM-INTERACTIONS-20261005.md) · [剧本与人物](AGENT-STORY-BLOCKING-INTERACTIONS-20261005.md) · [嵌套品牌审计](AGENT-EMBEDDED-LOCAL-BRAND-20261005.md) | 原HTML完整SHA、有限派生、交叉审阅与尚未验收的鼠标操作 |
 | [皮肤编辑与Agent实机验收](LOCAL-SKIN-AGENT-20261005.md) | 三档/键盘/保存重试/原任务查询、派发前持久回执与刷新 |
 | [皮肤专用网关](SKIN-EDITOR-PROVIDER-20261005.md) · [前端](SKIN-EDITOR-FRONTEND-20261005.md) · [Agent](AGENT-SKIN-AND-MASK-APPROVAL-20261005.md) | 完整原图、单结果、严格PNG、来源/参数/任务身份守卫 |
 | [Enhancor原生合同核对](SKIN-EDITOR-NATIVE-CONTRACT-20261005.md) | 安装包精确三档；公网来源/回调与未证实映射，非仅Key可用 |

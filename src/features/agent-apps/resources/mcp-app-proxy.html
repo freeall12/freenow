@@ -308,6 +308,21 @@
             var resources = await import("../actor-emotion-local-resources.mjs");
             return resources.localizeActorEmotionResources(templateHtml, name, version);
           })
+          .then(async function (templateHtml) {
+            if (name !== "performance-rhythm") return templateHtml;
+            var interactions = await import("../performance-rhythm-local-interactions.mjs");
+            return interactions.localizePerformanceRhythmInteractions(templateHtml, name, version);
+          })
+          .then(async function (templateHtml) {
+            if (name !== "story-room") return templateHtml;
+            var interactions = await import("../story-room-local-interactions.mjs");
+            return interactions.localizeStoryRoomInteractions(templateHtml, name, version);
+          })
+          .then(async function (templateHtml) {
+            if (!["creative-picker", "website-design-picker", "motion-picker"].includes(name)) return templateHtml;
+            var presentation = await import("../picker-local-presentation.mjs");
+            return presentation.localizePickerPresentation(templateHtml, name, version);
+          })
           .then(function (templateHtml) {
             inner.srcdoc = buildSrcdocWithCsp(templateHtml, buildCspPolicy(params.csp));
           })

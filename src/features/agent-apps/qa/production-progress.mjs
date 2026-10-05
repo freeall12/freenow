@@ -17,7 +17,7 @@ async function loadFixtureMedia() {
     if (blob.type !== type || !blob.size || blob.size > 2000000) throw Error('公共测试素材格式或大小无效');
     return blob;
   }
-  const [image, video] = await Promise.all([fetchMedia('/assets/tap-logo.webp', 'image/webp'), fetchMedia('/qa/trim-scenes.mp4', 'video/mp4')]);
+  const [image, video] = await Promise.all([fetchMedia('/assets/studio/library/chair-office.webp', 'image/webp'), fetchMedia('/qa/trim-scenes.mp4', 'video/mp4')]);
   const bitmap = await createImageBitmap(image);
   let imageProbe;
   try {
@@ -37,7 +37,7 @@ async function loadFixtureMedia() {
     };
     element.onerror = () => {cleanup();reject(Error('公共MP4素材无法解码'));};element.src = url;
   });
-  return {image, video, imageProbe, videoProbe};
+  return {image, video, imageProbe, videoProbe, imageSource: '/assets/studio/library/chair-office.webp'};
 }
 async function dataUrl(blob) {
   return new Promise((resolve, reject) => {
@@ -76,7 +76,7 @@ function validateSnapshot(value) {
   return value;
 }
 function show(message) {
-  source.textContent = JSON.stringify({...snapshot.fixture, media: snapshot.fixture.media ? {image: {type: snapshot.fixture.media.image.type, size: snapshot.fixture.media.image.size, source: '公共assets/tap-logo.webp', ...snapshot.fixture.media.imageProbe}, video: {type: snapshot.fixture.media.video.type, size: snapshot.fixture.media.video.size, source: '公共qa/trim-scenes.mp4', ...snapshot.fixture.media.videoProbe}} : undefined}, null, 2);
+  source.textContent = JSON.stringify({...snapshot.fixture, media: snapshot.fixture.media ? {image: {type: snapshot.fixture.media.image.type, size: snapshot.fixture.media.image.size, source: snapshot.fixture.media.imageSource || '历史本地WebP测试素材', ...snapshot.fixture.media.imageProbe}, video: {type: snapshot.fixture.media.video.type, size: snapshot.fixture.media.video.size, source: '公共qa/trim-scenes.mp4', ...snapshot.fixture.media.videoProbe}} : undefined}, null, 2);
   document.getElementById('query-error').checked = snapshot.fixture.query_error;
   status.textContent = message || `已提交本地测试状态 ${snapshot.fixture.phase}；修订 ${snapshot.fixture.revision}；实际查询 ${queries} 次。未调用模型，图片仅为已存在的本地测试素材。`;
 }
@@ -99,7 +99,7 @@ const controller = createAppController({
         media = mediaUrls.get(key);
         if (!guard()) throw Error('读取媒体字节期间本地验收来源已切换');
       }
-      const result = normalizeProductionProgressResult({structuredContent: {items: ids.map((node_id, index) => ({node_id, status: current.fixture.phase, media_type: index === 0 ? 'image' : 'video', title: index === 0 ? '公共Logo图像测试（未生成）' : '公共MP4播放测试（未生成）', ...(media ? {media_url: index === 0 ? media.image : media.video} : {})}))}}, response);
+      const result = normalizeProductionProgressResult({structuredContent: {items: ids.map((node_id, index) => ({node_id, status: current.fixture.phase, media_type: index === 0 ? 'image' : 'video', title: index === 0 ? '公共WebP图像测试（未生成）' : '公共MP4播放测试（未生成）', ...(media ? {media_url: index === 0 ? media.image : media.video} : {})}))}}, response);
       receipt.textContent = JSON.stringify({revision: current.fixture.revision, ...result}, null, 2);
       show(`已从 IndexedDB 提交记录读取 ${current.fixture.phase}；修订 ${current.fixture.revision}；查询 ${queries} 次。未调用模型。`);
       return result;

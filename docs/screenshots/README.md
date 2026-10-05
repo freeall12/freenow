@@ -1,5 +1,17 @@
 # 功能截图与复现
 
+## 2026-10-05 Agent 内嵌页面交互
+
+| 文件 | 实际内容与来源 |
+| --- | --- |
+| [表演节奏](agent-rhythm-interactions-20261005.jpg) | 正式原页的SHA限定派生；键盘删除b2、6.2秒驱动力37、慢保存/失败重试后的真实状态 |
+| [剧本结构](agent-story-room-interactions-20261005.jpg) | 正式结构板新增“地下档案室”“旧钟楼”，真实IndexedDB保存/刷新恢复；未生成正文 |
+| [硬件模板](agent-hardware-picker-local-20261005.jpg) | H08键盘调整、暂停和一次选择交接后重建；底部说明本地预览/录屏边界 |
+
+来自三个 `src/features/agent-apps/qa/` 独立页面，使用生产registry/controller/card/host。节奏与剧本为 `?session=interactions-1005i` 的专用IndexedDB；Creative使用该页内存会话。未调用模型或原站API，也未读取日常画布。正常1280×720视口的完整页面截图分别为1280×1722、1280×1933、1280×2790，仅按实际DOM区域裁取（24,572–1024,1381）、（24,515–1024,1357）、（215,393–975,946）；没有生成式修图。Story QA外层标题/行高已设为整数，原应用样式保持。
+
+详细操作和未验收的拖拽范围见[本批记录](../LOCAL-AGENT-INTERACTIONS-20261005.md)。
+
 ## 2026-10-05 Magnific 四参数与 Agent
 
 | 文件 | 来源与实际范围 |

@@ -17,9 +17,13 @@ async function fixture(t) {
   t.after(() => new Promise(resolve => server.close(resolve)));
   return 'http://127.0.0.1:' + context.port;
 }
-test('opaque production proxy can read exactly the local brand module and approved SVG bytes via public CORS', async t => {
+test('opaque production proxy can read exactly the local derivation modules and approved SVG bytes via public CORS', async t => {
   const endpoint = await fixture(t);
-  for (const [file, mime] of [['src/features/agent-apps/production-progress-local-brand.mjs', 'text/javascript; charset=utf-8'], ['assets/branding/freenow-mark.svg', 'image/svg+xml']]) {
+  const files = [
+    ...['production-progress-local-brand', 'performance-rhythm-local-interactions', 'story-room-local-interactions', 'picker-local-presentation'].map(name => ['src/features/agent-apps/' + name + '.mjs', 'text/javascript; charset=utf-8']),
+    ['assets/branding/freenow-mark.svg', 'image/svg+xml'],
+  ];
+  for (const [file, mime] of files) {
     const response = await fetch(endpoint + '/' + file, {headers: {Origin: 'null'}});
     assert.equal(response.status, 200);assert.equal(response.headers.get('Access-Control-Allow-Origin'), '*');
     assert.equal(response.headers.get('Content-Type'), mime);assert.equal(response.headers.get('X-Content-Type-Options'), 'nosniff');

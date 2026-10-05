@@ -1,5 +1,7 @@
 # 官方 Story Room（v1）接线合同
 
+2026-10-05：原HTML保持不变，正式proxy新增完整SHA限定的[本地保存/确认派生](../../../docs/AGENT-STORY-BLOCKING-INTERACTIONS-20261005.md)，修复下述400ms保存窗口、失败吞错及尾空格恢复。实际新增/失败重试/刷新证据见[本批验收](../../../docs/LOCAL-AGENT-INTERACTIONS-20261005.md)；原始合同仍按下文保留。
+
 依据：未修改的 `resources/apps/story-room@v1.dae7d235.html`。官方 `v_` 建初始列，`U_` 恢复状态，`km` 净化新增场名，`$_` 编码NS1，`b_` 计算移动数，`P_` 保存，`we` 发送本地化确认摘要。此页面没有输入JSON Schema；本模块按页面实际读取字段定义严格、有界的本地输入合同。官方宿主对此页使用默认不展开策略，无外部媒体权限。具体证据为 `reference/vendor-packages-CN3JnHbF.js` 的rg/wae/Bue：Story Room不在wae特例表，返回rg={allowExpanded:false,autoExpandOnReady:false}；无maxInlineHeight（520只用于三个picker）。Aae["story-room"]={}。
 
 Purpose：编辑剧本按幕排列的实际场景讲述顺序，增加仅有名称的新场景、废弃原场景，查看剧情线/人物/故事时间/因果关系，并把确认结构交给正常Agent消息队列。此确认只整理结构或修改方案，画布写入、删除仍需正常修改确认，不自动生成正文或媒体。

@@ -61,6 +61,12 @@ FFmpeg 已安装在其他位置时，可配置 `FFMPEG_PATH`、`FFPROBE_PATH`。
 
 Agent 应用已登记 22 个版本 URI、20 个功能族，包含剧本、分镜、人物、学习、产品等工作流。**登记覆盖不等于全部页面和交互验收完成。**
 
+本地 Agent 应用本批补齐表演节奏的键盘删除、慢保存合并和确认锁，以及剧本结构板的保存后交接、失败重试与刷新恢复。已通过针对性检查、交叉审阅和实际浏览器操作；完整鼠标拖拽与全部页面验收仍开放。[交互与验收范围](docs/LOCAL-AGENT-INTERACTIONS-20261005.md)。
+
+| 表演节奏：真实曲线、节拍和已保存参数 | 剧本结构：按幕组织、新增场景和恢复 |
+| --- | --- |
+| ![本地表演节奏编辑](docs/screenshots/agent-rhythm-interactions-20261005.jpg) | ![本地剧本结构板](docs/screenshots/agent-story-room-interactions-20261005.jpg) |
+
 前批交互增量（2026-10-05）：图片图层右键菜单补复制、上移、下移和删除，以及键盘与焦点关闭；Agent流式代码即时支持复制与换行，增量更新保留焦点和横向滚动；片场聚焦小物体、大布景或镜头时保持整场导航速度。素材库保存/重新插入保留高清原图、视频裁切和来源，并修复本地视频下载。四项完成定向检查、交叉审阅及 Computer Use，见[图层菜单](docs/IMAGE-EDITOR-LAYER-MENU-20261005.md)、[流式代码](docs/AGENT-STREAMING-CODE-CONTROLS-20261005.md)、[聚焦导航](docs/STUDIO-V2-FOCUS-NAVIGATION-SPEED-20261005.md)、[素材往返](docs/LIBRARY-ASSET-ROUNDTRIP-20261005.md)。
 
 | 图片编辑：真实图层右键菜单 | Agent：流式代码复制与换行 |

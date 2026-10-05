@@ -20,6 +20,8 @@ Permissions：复用现有双iframe/source/nonce/当前用户操作要求。此�
 
 Failure modes：官方 `fp` 会吞掉状态保存错误，因此宿主必须拒绝PS1与实际保存状态不一致的确认，不能只相信应用“确认”按钮。字段、重复ID、固定端点、未知类型、错误编码、未保存、跨版本、曲线/节拍/对白检查标志不一致均拒绝；保存失败不返回成功。初始未操作时也需由官方确认流程保存状态。
 
+本地交互派生：`performance-rhythm-local-interactions.mjs` 仅接受 v3 原始 SHA256 `9ead0d0bb847a55c3598ba90626b3fba85f9d2acbc773a447b12ee57d8994ae3`，原始资源不改。修复Tab聚焦后键盘删除错目标，确认在保存前同步锁定交互并核对同一快照，保存失败不发送确认；连续编辑仍防抖，结束手势立即刷新，慢保存合并最新待存状态，相同已提交状态不会重复写入。接线由proxy在CSP包装前调用 `localizePerformanceRhythmInteractions(html,name,version)`。不增加工具、媒体或网络权限。
+
 Logging：保存show_app原args/result、验证后的appState、原PS1+已读结果、handoffId与widgetOrigin。普通选择/播放头不改变确认内容的去重ID。
 
 ## 根宿主接线
@@ -36,6 +38,7 @@ Logging：保存show_app原args/result、验证后的appState、原PS1+已读结
 
 ```sh
 node --test tests/agent-performance-rhythm.test.cjs
+node --test tests/agent-performance-rhythm-interactions.test.cjs
 node --check src/features/agent-apps/performance-rhythm.mjs
 node --check src/features/agent-apps/qa/performance-rhythm.mjs
 ```
