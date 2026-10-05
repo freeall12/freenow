@@ -15,6 +15,12 @@
 
 ## 本次交付
 
+- Magnific Precision V2 新增独立原生协议，按官方现行 API 的 raw Base64 与四参数直连；无需原站账号或公网素材托管。正式面板、Agent 新建/指定增强目标、来源守卫和原 UUID 恢复已接通。[原生配置](MAGNIFIC-NATIVE-20261005.md)。
+- Computer Use 核对官方默认值/范围，验本地缺配置禁用、滑杆、两级 Escape、关闭阻止迟到派发、保存失败只重试保存、unknown 原任务查询与 Agent 审批。专项合同/持久重启与交叉审阅见[本批记录](LOCAL-MAGNIFIC-AGENT-20261005.md)。
+- PNG/JPEG/WebP 完整解码后按真实字节/尺寸归档，JPEG/WebP 使用已有 FFmpeg；真实 Key、供应商效果与费用仍未验收。本批未修改整体帧率指标，也未把接口联调当作全站完成。
+
+## 前批皮肤编辑与Agent
+
 - 皮肤编辑三档、配置预检、重度警告、两级Escape、同节点版本和原任务查询已接入；Agent支持新建相连增强节点与既有目标。正式面板保存失败只重试保存，unknown查询不重复生成；Agent派发前持久任务ID、真实PNG归档与刷新回读已Computer Use验证。[本批记录](LOCAL-SKIN-AGENT-20261005.md)。
 - 修复审批后新增选区仍可能落图、并发查询跳过来源守卫、坏PNG首回执丢失可恢复任务ID三项问题。专用适配器21/21、Agent11/11及共享恢复5/5等定向检查通过，独立交叉审阅无剩余阻断。
 - `skin-tasks-v1`是明确声明的外部网关合同，非Enhancor原生适配；需要网关真实实现三档。仅Enhancor Key不足，公网素材/回调/参数映射和真实供应商效果仍开放。[接口](SKIN-EDITOR-PROVIDER-20261005.md) / [公开原生合同](SKIN-EDITOR-NATIVE-CONTRACT-20261005.md)。

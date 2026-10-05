@@ -1,0 +1,83 @@
+{
+  "app_version": "0.4.81",
+  "app_build": "0.4.81",
+  "read_only": true,
+  "code_executed": false,
+  "evidence": [
+    {
+      "path": "/Applications/TapNow.app/Contents/Resources/web/assets/course-api-base-url-CGXqZmAy.js",
+      "bytes": 3444954,
+      "sha256": "157e386a92b4f5fa4b3b6111c41c178e160ca3025947fe63858d044ab6e593ca",
+      "character_offsets": {
+        "Sge": 384007,
+        "UI_range_constants": 1061612
+      },
+      "magnific_wrapper": {
+        "provider": "freepik",
+        "model": "magnific-v2",
+        "images": [
+          "imageUrl"
+        ],
+        "scale_factor": "scaleFactor",
+        "sharpen": "sharpen ?? 7",
+        "smart_grain": "smartGrain ?? 7",
+        "ultra_detail": "ultraDetail ?? 30",
+        "metadata": "optional host metadata"
+      },
+      "ui": {
+        "scaleFactor": {
+          "type": "integer",
+          "minimum": 2,
+          "maximum": 8,
+          "default": 2
+        },
+        "sharpen": {
+          "minimum": 0,
+          "maximum": 100,
+          "default": 7
+        },
+        "smartGrain": {
+          "minimum": 0,
+          "maximum": 100,
+          "default": 7
+        },
+        "ultraDetail": {
+          "minimum": 0,
+          "maximum": 100,
+          "default": 30
+        }
+      }
+    },
+    {
+      "path": "/Applications/TapNow.app/Contents/Resources/web/assets/index-BsHyQ2qj.js",
+      "bytes": 12943515,
+      "sha256": "a24bbe7de925ccc68aa332dbec6ad6a96e50db11867b21f15c20b7f128ef33a4",
+      "character_offsets": {
+        "Ght": 6705230,
+        "pOl": 6706623
+      },
+      "internal_wrapper": {
+        "method": "C1.Post",
+        "path": "api/conversation/v1/generations/image",
+        "scene": "enhance",
+        "preserved_fields": [
+          "provider",
+          "model",
+          "images",
+          "scale_factor",
+          "sharpen",
+          "smart_grain",
+          "ultra_detail"
+        ],
+        "default_values": {
+          "sharpen": 7,
+          "smart_grain": 7,
+          "ultra_detail": 30
+        },
+        "metadata": "optional host metadata",
+        "shareRequest": false,
+        "export": "pOl as s4, imported as Rne"
+      }
+    }
+  ]
+}

@@ -1,7 +1,7 @@
 (() => {
   'use strict';
   const app=window.CanvasApp;
-  let generationRequests,generationMedia,recognitionMedia,videoAnalysisMedia,extensionMedia,reshootMedia,videoMaskMedia,panoramaMedia,panoramaValidation,imageToolMedia,maskedEditMedia,relightMedia,skinMedia,worldMedia,draftWorkflow,resultModules,resultWorkflow,failureBridge;
+  let generationRequests,generationMedia,recognitionMedia,videoAnalysisMedia,extensionMedia,reshootMedia,videoMaskMedia,panoramaMedia,panoramaValidation,imageToolMedia,maskedEditMedia,relightMedia,skinMedia,magnificMedia,worldMedia,draftWorkflow,resultModules,resultWorkflow,failureBridge;
   const failureSources=new Map();
   const resultSubmissions=new Map();
   const draftGuards=new Map();
@@ -40,6 +40,14 @@
       skinMedia||=import('./src/features/image-skin/media.mjs');
       const nativeConfiguration=service.jobs.get(jobId)?.transport===localProvider?taskNativeConfigurations.get(signal):null;
       return (await skinMedia).prepareSkinMedia(request,{signal,validateSources,localAssets:window.LocalAssets,baseUrl:document.baseURI,nativeConfiguration});
+    }
+    if(request.kind==='image.upscale'&&request.parameters?.provider==='magnific'){
+      const nativeConfiguration=service.jobs.get(jobId)?.transport===localProvider?taskNativeConfigurations.get(signal):null;
+      const {resolveProviderConfiguration}=await providerConfigurationReady;
+      if(resolveProviderConfiguration(nativeConfiguration,request)?.protocol==='magnific-native'){
+        magnificMedia||=import('./src/features/image-upscale/media.mjs');
+        return (await magnificMedia).prepareMagnificMedia(request,{signal,validateSources,localAssets:window.LocalAssets,baseUrl:document.baseURI,nativeConfiguration});
+      }
     }
     if(['image.upscale','image.remove-background','image.multiAngle'].includes(request.kind)){
       imageToolMedia||=import('./src/features/image-editor/task-media.mjs');

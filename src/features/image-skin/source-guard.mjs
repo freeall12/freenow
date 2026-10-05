@@ -1,6 +1,6 @@
 import {parentImage} from '../../../image-enhance-core.mjs';
 
-const regionFields=['crop','imageCrop','clip','trim','selection','imageSelection','region','sourceBox','imageRegion','selectedRegion','mask','projection'];
+const regionFields=['crop','imageCrop','clip','sourceClip','trim','selection','imageSelection','region','sourceBox','imageRegion','selectedRegion','mask','projection'];
 const scopeFields=['id','type','image','fullImage',...regionFields,'metadata','params','generation','settings','prompt','provenance'];
 const snapshot=(node,fields)=>JSON.stringify(fields.map(key=>node?.[key]??null));
 export const enhanceTargetSnapshot=node=>snapshot(node,[...scopeFields,'tool','versions','provenance']);

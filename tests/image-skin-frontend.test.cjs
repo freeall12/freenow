@@ -19,7 +19,8 @@ test('skin scope locks exact source/target objects, full media, params, edge and
 test('skin guards reject closure/cancellation and require materialized full-image scope',async()=>{
  const {createEnhanceSourceGuard,assertEnhanceSourceScope}=await guardReady,s=fixture(),controller=new AbortController();let alive=true;
  const guard=createEnhanceSourceGuard(s.app,s.node,s.parent,{signal:controller.signal,isAlive:()=>alive});alive=false;assert.throws(guard,{name:'AbortError'});alive=true;controller.abort(Error('closed'));assert.throws(guard,/closed/);
- for(const field of ['crop','imageCrop','clip','trim','selection','imageSelection','region','sourceBox','imageRegion','selectedRegion','mask','projection'])assert.throws(()=>assertEnhanceSourceScope({[field]:{}}),/完整图片/);
+ for(const field of ['crop','imageCrop','clip','sourceClip','trim','selection','imageSelection','region','sourceBox','imageRegion','selectedRegion','mask','projection'])assert.throws(()=>assertEnhanceSourceScope({[field]:{}}),/完整图片/);
+ const clipGuard=createEnhanceSourceGuard(s.app,s.node,s.parent);s.parent.sourceClip={x:0,y:0,width:1,height:1};assert.throws(clipGuard,/变化/);
 });
 test('save failure retries same output/version and resolves only after real save',async()=>{
  const {createEnhanceResultApplication}=await resultReady,{createApplicationRunner}=await import('../src/features/generation-results/application.mjs'),s=fixture(),saving=deferred();let attempts=0;

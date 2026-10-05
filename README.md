@@ -98,6 +98,7 @@ node --env-file=.env.local server/server.cjs
 | `openai-native` | 文本、文生图/参考图、语音、视觉识别与分镜描述 | [网关](docs/GENERATION-GATEWAY.md) / [参考图](docs/OPENAI-IMAGE-REFERENCES.md) |
 | `openai-masked-edit-native` | 擦除、局部重绘、扩图 | [蒙版编辑](docs/OPENAI-MASKED-EDIT-NATIVE.md) |
 | `openai-relight-native` | 完整图片重新打光；面板与 Agent 共用全部五组参数 | [打光编辑](docs/OPENAI-RELIGHT-NATIVE.md)，显式参数提示词编辑；不保证物理光照或输出与来源同尺寸 |
+| `magnific-native` | Magnific Precision V2 完整图片放大、四参数面板与 Agent | [原生配置](docs/MAGNIFIC-NATIVE-20261005.md)，本机原图直传；JPEG/WebP 结果需 FFmpeg，真实效果待 Key 验收 |
 | `skin-tasks-v1` | 皮肤编辑三档、增强节点版本与 Agent 审批 | [专用网关](docs/SKIN-EDITOR-PROVIDER-20261005.md)，需实际实现合同的外部服务器；不是 Enhancor 原生适配，仅填其 Key 不可用 |
 | `ark-native` | 火山方舟视频任务 | [Ark](docs/ARK-VIDEO.md) |
 | `ark-video-extend-reference` | 工具栏延长镜头：片头/片尾、4–30秒、连续性与参考 | [延长镜头](docs/VIDEO-EXTEND-NATIVE-20261005.md)，明确为参考生成；本地视频另需公网发布通道 |
@@ -128,6 +129,14 @@ node --env-file=.env.local server/server.cjs
 - 页面和内嵌应用使用本地资源限制；服务端拒绝向原站域名请求或转交原站媒体。未知旧资源须显式导入修复，不自动联网回源。[本地化验收边界](docs/FREENOW-LOCALIZATION-ACCEPTANCE.md)
 
 ## 最新接入与核验
+
+Magnific 高清放大已接独立公开原生 API，正式面板和 Agent 保留倍率、锐化、颗粒、细节四项设置；完整本机图片直接物化提交，不需要原站账号或公网素材托管。配置按示例合并路由后填写自己的 Magnific Key。已验来源原尺寸、真实归档、保存重试、原任务查询及 Agent 持久派发回执。[本批实机记录](docs/LOCAL-MAGNIFIC-AGENT-20261005.md) · [安装包与官方协议证据](docs/MAGNIFIC-PRECISION-NATIVE-CONTRACT-20261005.md)
+
+| Magnific：四项控件与增强结果 | Agent：明确参数与目标审批 |
+| --- | --- |
+| ![Magnific正式面板和合成结果](docs/screenshots/image-magnific-native-panel-20261005.jpg) | ![Agent Magnific正式审批卡](docs/screenshots/agent-magnific-native-approval-20261005.jpg) |
+
+截图来自正式页面的隔离合成数据。供应商响应与 Agent 回复使用本机夹具，**不代表真实放大质量、倍率效果或付费账号验收**。
 
 皮肤编辑器保留细节／标准／重度三档、原面板几何与警告，补全配置反馈、键盘关闭、原任务查询和保存失败重试。Agent 可处理完整原图并新建相连增强节点，或写回指定增强节点；任务 ID 先持久化，再读取素材和派发。正式页面已验原尺寸 PNG、真实本地归档、零重复生成及刷新回读。[本批实现与实机记录](docs/LOCAL-SKIN-AGENT-20261005.md)
 

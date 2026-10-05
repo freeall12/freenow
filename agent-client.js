@@ -324,7 +324,7 @@
   depthHosts.set(chat,host);return host;
  }
  function execute(...args){return track(async()=>{await flushConversation();const result=await executeTool(...args);await flushConversation();return result;});}
- async function executeTool(name,raw,{signal,visualBudget,draftFinalApproval,depthHost,authorizeDepth,onDepthSubmitted,approvedVideoMaskConfiguration,videoMaskApprovalGuard,approvedRelightConfiguration,relightApprovalGuard,approvedSkinConfiguration,skinApprovalGuard,cutlistAuthorized=false}={}){const {args:a}=window.AgentTools.parse(name,raw);switch(name){
+ async function executeTool(name,raw,{signal,visualBudget,draftFinalApproval,depthHost,authorizeDepth,onDepthSubmitted,approvedVideoMaskConfiguration,videoMaskApprovalGuard,approvedRelightConfiguration,relightApprovalGuard,approvedSkinConfiguration,skinApprovalGuard,approvedUpscaleConfiguration,upscaleApprovalGuard,cutlistAuthorized=false}={}){const {args:a}=window.AgentTools.parse(name,raw);switch(name){
   case 'web_search':try{return await request('search',a,signal);}catch(error){if(error.name==='AbortError')throw error;return {error:error.message,code:error.code||'search_failed',status:'failed',sources:[],citations:[]};}
   case 'image_editor_export':{
    imageEditorExporter||=import('./src/features/image-editor/agent-export.mjs').then(({createImageEditorExporter})=>createImageEditorExporter({getCurrent:()=>window.CanvasImageEditor?.current,app,localAssets:window.LocalAssets,download:(blob,filename)=>window.LocalMedia.download(blob,filename)}));
@@ -397,6 +397,7 @@
   case 'generation_submit':{
    if(a.kind==='image.relight'){const {submitAgentRelight}=await import('./src/features/agent-generation/relight.mjs');return submitAgentRelight(a,{app,api:window.GenerationAPI,signal,onSubmitted:onDepthSubmitted,approvedConfiguration:approvedRelightConfiguration,approvalGuard:relightApprovalGuard});}
    if(a.kind==='image.skin'){const {submitAgentSkin}=await import('./src/features/agent-generation/skin.mjs');return submitAgentSkin(a,{app,api:window.GenerationAPI,signal,onSubmitted:onDepthSubmitted,approvedConfiguration:approvedSkinConfiguration,approvalGuard:skinApprovalGuard});}
+   if(a.kind==='image.upscale'&&a.upscale){const {submitAgentUpscale}=await import('./src/features/agent-generation/upscale.mjs');return submitAgentUpscale(a,{app,api:window.GenerationAPI,signal,onSubmitted:onDepthSubmitted,approvedConfiguration:approvedUpscaleConfiguration,approvalGuard:upscaleApprovalGuard});}
    const {imageProcessingKinds,submitAgentImageProcessing}=await import('./src/features/agent-generation/image-processing.mjs');
    if(imageProcessingKinds.includes(a.kind))return submitAgentImageProcessing(a,{app,api:window.GenerationAPI,signal,onSubmitted:onDepthSubmitted});
    if(['video.erase','video.replace'].includes(a.kind)){const {submitAgentVideoMask}=await import('./src/features/agent-generation/video-mask.mjs');return submitAgentVideoMask(a,{app,api:window.GenerationAPI,localAssets:window.LocalAssets,signal,onSubmitted:onDepthSubmitted,approvedConfiguration:approvedVideoMaskConfiguration,approvalGuard:videoMaskApprovalGuard});}
@@ -904,7 +905,7 @@
      callIndex+=calls.length;const call=calls[0];
      if(runController.signal.aborted)throw new DOMException('Aborted','AbortError');
      const definition=window.AgentTools.parse(call.name,call.args).definition;
-     let videoMaskNotice,videoMaskConfiguration,videoMaskApprovalGuard,relightNotice,relightConfiguration,relightApprovalGuard,skinNotice,skinConfiguration,skinApprovalGuard;
+     let videoMaskNotice,videoMaskConfiguration,videoMaskApprovalGuard,relightNotice,relightConfiguration,relightApprovalGuard,skinNotice,skinConfiguration,skinApprovalGuard,upscaleNotice,upscaleConfiguration,upscaleApprovalGuard;
      if(call.name==='generation_submit'&&['video.erase','video.replace'].includes(call.args.kind)){
       const {captureAgentVideoMaskApproval}=await import('./src/features/agent-generation/video-mask.mjs');videoMaskApprovalGuard=captureAgentVideoMaskApproval(call.args,{app,signal:runController.signal});
       const {videoMaskDisclosure}=await import('./src/features/agent-execution/presentation.mjs');
@@ -929,11 +930,26 @@
       await window.GenerationAPI.availability({kind:'image.skin',signal:runController.signal});checkSkinApproval();
       const configuration=await window.GenerationAPI.configuration?.();checkSkinApproval();skinConfiguration=JSON.stringify(configuration??null);skinNotice=skinDisclosure(configuration);
      }
+     if(call.name==='generation_submit'&&call.args.kind==='image.upscale'&&call.args.upscale){
+      const {captureAgentUpscaleApproval}=await import('./src/features/agent-generation/upscale.mjs');upscaleApprovalGuard=captureAgentUpscaleApproval(call.args,{app,signal:runController.signal});
+      const {upscaleDisclosure}=await import('./src/features/agent-execution/presentation.mjs');
+      const checkUpscaleApproval=()=>{upscaleApprovalGuard(call.args);if(runController.signal.aborted||draft()!==d||d.activeRun!==run)throw new DOMException('Magnific 放大确认来源已变化','AbortError');};
+      checkUpscaleApproval();
+      await window.GenerationAPI.availability({request:{kind:'image.upscale',parameters:{provider:'magnific'}},signal:runController.signal});checkUpscaleApproval();
+      const configuration=await window.GenerationAPI.configuration?.();checkUpscaleApproval();upscaleConfiguration=JSON.stringify(configuration??null);upscaleNotice=upscaleDisclosure(configuration);
+     }
      const executionOptions={
       runId:item.id,signal:runController.signal,
       requestInput:call.name==='ask_question'?trace=>requestQuestion(trace,d,runController.signal):null,
       confirm:executionModule.needsToolConfirmation(definition,item.widgetOrigin?'ask':confirmationModule?.getMode())?trace=>new Promise(resolve=>{pendingTraceId=trace.id;pendingResolve=allowed=>{pendingResolve=null;pendingTraceId=null;resolve(allowed);};}):null,
       execute:async(name,args)=>{
+       if(upscaleNotice&&name==='generation_submit'&&args.kind==='image.upscale'&&args.upscale){
+        upscaleApprovalGuard(args);
+        if(runController.signal.aborted||draft()!==d||d.activeRun!==run)throw new DOMException('Magnific 放大确认来源已变化','AbortError');
+        if(JSON.stringify(await window.GenerationAPI.configuration?.()??null)!==upscaleConfiguration)throw Error('Magnific 放大供应商配置已变化，请重新确认');
+        upscaleApprovalGuard(args);
+        if(runController.signal.aborted||draft()!==d||d.activeRun!==run)throw new DOMException('Magnific 放大确认来源已变化','AbortError');
+       }
        if(skinNotice&&name==='generation_submit'&&args.kind==='image.skin'){
         skinApprovalGuard(args);
         if(runController.signal.aborted||draft()!==d||d.activeRun!==run)throw new DOMException('皮肤增强确认来源已变化','AbortError');
@@ -982,9 +998,9 @@
        const authorizedArgs=JSON.stringify(args);
        const authorizeDepth=(tool,input)=>{if(tool!==name||JSON.stringify(input)!==authorizedArgs||draft()!==d||d.activeRun?.submissionId!==item.id||runController.signal.aborted)throw Error('深度流程的本次执行授权已失效');};
        const onDepthSubmitted=async job=>{const trace=d.messages.findLast(entry=>entry.role==='tool'&&entry.callId===call.callId);if(!trace)throw Error('生成执行记录不存在');trace.submittedTaskId=job.id;generationJobs?.attachGenerationJob(trace,job);if(!save())throw Error('生成任务记录未能保存，尚未调用外部服务');await flushConversation();executionRenderer.updateTrace(trace);};
-       return execute(name,args,{signal:runController.signal,visualBudget,draftFinalApproval,depthHost,authorizeDepth,onDepthSubmitted,approvedVideoMaskConfiguration:videoMaskConfiguration,videoMaskApprovalGuard,approvedRelightConfiguration:relightConfiguration,relightApprovalGuard,approvedSkinConfiguration:skinConfiguration,skinApprovalGuard,cutlistAuthorized:name==='cutlist_assemble'&&draft()===d&&d.activeRun===run&&!runController.signal.aborted});
+       return execute(name,args,{signal:runController.signal,visualBudget,draftFinalApproval,depthHost,authorizeDepth,onDepthSubmitted,approvedVideoMaskConfiguration:videoMaskConfiguration,videoMaskApprovalGuard,approvedRelightConfiguration:relightConfiguration,relightApprovalGuard,approvedSkinConfiguration:skinConfiguration,skinApprovalGuard,approvedUpscaleConfiguration:upscaleConfiguration,upscaleApprovalGuard,cutlistAuthorized:name==='cutlist_assemble'&&draft()===d&&d.activeRun===run&&!runController.signal.aborted});
       },
-      changed:trace=>{if(skinNotice)trace.skinDisclosure??=skinNotice;if(relightNotice)trace.relightDisclosure??=relightNotice;if(videoMaskNotice)trace.videoMaskDisclosure??=videoMaskNotice;trace.confirmationMode??=trace.status==='pending'?'ask':confirmationModule?.getMode()||'ask';if(!d.messages.includes(trace))d.messages.push(trace);for(const job of window.GenerationAPI.getJobs())generationJobs?.attachGenerationJob(trace,job);const persisted=save();if(!persisted&&['show_html','show_widget','show_app','show_form'].includes(trace.name)){trace.status='error';trace.result={error:'互动作品执行记录未能保存，请释放本地存储空间后重试。'};render();throw Error(trace.result.error);}render();}
+      changed:trace=>{if(upscaleNotice)trace.upscaleDisclosure??=upscaleNotice;if(skinNotice)trace.skinDisclosure??=skinNotice;if(relightNotice)trace.relightDisclosure??=relightNotice;if(videoMaskNotice)trace.videoMaskDisclosure??=videoMaskNotice;trace.confirmationMode??=trace.status==='pending'?'ask':confirmationModule?.getMode()||'ask';if(!d.messages.includes(trace))d.messages.push(trace);for(const job of window.GenerationAPI.getJobs())generationJobs?.attachGenerationJob(trace,job);const persisted=save();if(!persisted&&['show_html','show_widget','show_app','show_form'].includes(trace.name)){trace.status='error';trace.result={error:'互动作品执行记录未能保存，请释放本地存储空间后重试。'};render();throw Error(trace.result.error);}render();}
      };
      const groupResults=calls.length>1?await generationBatch.executeGenerationBatch(calls,{...executionOptions,validate:(name,args)=>window.AgentTools.parse(name,args),validateConfirmed:(original,args)=>generationModel.confirmedArguments(original,args,app.getState().nodes)}):[await executionModule.executeTracedCall(call,executionOptions)];
      results.push(...groupResults);recoveryModule.recordExecutedCalls(run,groupResults);await persistRunCheckpoint(d,run);

@@ -17,7 +17,7 @@ node --env-file=.env.local server/server.cjs
 | `GENERATION_PROVIDERS` | JSON：供应商 ID → 配置 |
 | `GENERATION_ROUTES` | JSON：准确操作 kind → 供应商 ID 或 `{default,models}` |
 
-供应商配置允许 `protocol`、`apiKeyEnv`、`baseUrl` / `baseUrlEnv`、`modelMap` / `modelMapEnv`。Key 只允许通过环境变量名称引用；JSON 中的 `apiKey` 会使路由无效。地址和模型映射的内联值与环境引用不能同时提供。`modelMapEnv` 所引用的值同样为 JSON。协议支持 `openai-native`、`ark-native`、`ark-video-extend-reference`、`ark-video-reshoot-edit`、`fal-native`、`fal-video-native`、`fal-video-audio-native`、`fal-video-mask-native`、`fal-panorama-native`、`minimax-native`、`minimax-music-native`、`tripo-native`、`elevenlabs-native`、`elevenlabs-sound-native`、`elevenlabs-music-native`、`mureka-native`、`seed-audio-native`、`openai-masked-edit-native`、`openai-relight-native`、`marble-native`、`skin-tasks-v1` 和 `tasks-v1`。fal 抠图和 Topaz 放大的可直接使用配置见 [fal 图片工具](FAL-NATIVE-SETUP.md)。
+供应商配置允许 `protocol`、`apiKeyEnv`、`baseUrl` / `baseUrlEnv`、`modelMap` / `modelMapEnv`。Key 只允许通过环境变量名称引用；JSON 中的 `apiKey` 会使路由无效。地址和模型映射的内联值与环境引用不能同时提供。`modelMapEnv` 所引用的值同样为 JSON。协议支持 `openai-native`、`ark-native`、`ark-video-extend-reference`、`ark-video-reshoot-edit`、`fal-native`、`fal-video-native`、`fal-video-audio-native`、`fal-video-mask-native`、`fal-panorama-native`、`minimax-native`、`minimax-music-native`、`tripo-native`、`elevenlabs-native`、`elevenlabs-sound-native`、`elevenlabs-music-native`、`mureka-native`、`seed-audio-native`、`openai-masked-edit-native`、`openai-relight-native`、`marble-native`、`magnific-native`、`skin-tasks-v1` 和 `tasks-v1`。fal 抠图和 Topaz 放大的可直接使用配置见 [fal 图片工具](FAL-NATIVE-SETUP.md)。
 
 两项路由变量都未设置时，原单供应商配置保持不变。只设置一项、JSON 损坏或路由引用不存在的供应商时，整个路由禁用，不借用旧 Key。某个供应商缺 Key 或能力时只阻止选到它的功能，不影响其他已配置功能。Key 名称未设置等同该供应商未就绪。
 
@@ -33,6 +33,17 @@ node --env-file=.env.local server/server.cjs
 上例要求相应供应商真实存在并配置该操作。原生模型映射使用前端公开别名，值中的 `model` 才是运营者可用的真实型号。不能仅填 Key 就假定任意型号/参数均可用。MiniMax H3 视频与 Tripo 文字/单图生成 3D 已有独立原生适配；Marble 后端原生接线已完成，但本机 SPZ 渲染尚未接通，前端仍会阻止生成。全景编辑及其他未适配功能仍需要实现相应任务协议的网关。
 
 默认路由仅在没有别名专属路由时生效，已经选定的供应商失败不会自动换供应商。已显式提供的 video `modelId` / `providerParameters.model` 与准备后的型号矛盾时拒绝请求，不得静默改路由。UI 目录外的自定义任务网关别名仍可使用。
+
+### Magnific 完整图片放大
+
+将以下条目合并到已有配置，保留 Topaz 等其他别名；然后在私有环境文件填写 `MAGNIFIC_API_KEY`。原生 origin 已固定，不需要托管公网源图或搭建 TapNow 代理。
+
+```sh
+GENERATION_PROVIDERS='{"magnific":{"protocol":"magnific-native","apiKeyEnv":"MAGNIFIC_API_KEY","modelMap":{"image.upscale:magnific":{"kind":"image.upscale","model":"magnific-v2"}}}}'
+GENERATION_ROUTES='{"image.upscale":{"models":{"image.upscale:magnific":"magnific"}}}'
+```
+
+正式面板和 Agent 共用四参数、原尺寸 PNG、原 UUID 查询及真实结果归档。界面倍率2–8，输出格式/尺寸按实际解码；JPEG/WebP 需已安装 FFmpeg/FFprobe。不存在远端取消接口，取消本机等待不等于停止供应商任务。[精确合同、预算与配置](MAGNIFIC-NATIVE-20261005.md) · [本机验收](LOCAL-MAGNIFIC-AGENT-20261005.md)。真实账号权限、收费和生成质量仍待 Key 验收。
 
 ### Mureka 与 Seed Audio
 

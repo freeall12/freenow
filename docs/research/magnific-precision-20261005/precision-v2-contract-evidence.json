@@ -1,0 +1,107 @@
+{
+  "kind": "verbatim excerpts; not a complete OpenAPI document",
+  "retrieved_at_utc": "2026-10-05T02:28:16.291819+00:00",
+  "source_url": "https://storage.googleapis.com/fc-freepik-pro-rev1-eu-api-specs/magnific-api-v1-openapi.yaml",
+  "source_sha256": "62a3062430186379709c671400968c97eada5d8b2326eb4b34882ad576522738",
+  "source_bytes": 1358152,
+  "sections": [
+    {
+      "label": "API origin",
+      "source_lines": [
+        10,
+        10
+      ],
+      "verbatim_yaml": "servers:\n"
+    },
+    {
+      "label": "global auth",
+      "source_lines": [
+        13,
+        13
+      ],
+      "verbatim_yaml": "security:\n"
+    },
+    {
+      "label": "POST and list GET",
+      "source_lines": [
+        8325,
+        8368
+      ],
+      "verbatim_yaml": "  /v1/ai/image-upscaler-precision-v2:\n    get:\n      description: \"Returns a list of all precision upscaler V2 tasks. Each task includes\\\n        \\ its ID, current status, and output URL if completed.\"\n      operationId: getAiImageUpscalerPrecisionV2Tasks\n      responses:\n        \"200\":\n          $ref: \"#/components/responses/task-list-200-default-response\"\n        \"400\":\n          $ref: \"#/components/responses/400-bad-request\"\n        \"401\":\n          $ref: \"#/components/responses/401-unauthorized\"\n        \"500\":\n          $ref: \"#/components/responses/500-internal-server-error\"\n        \"503\":\n          $ref: \"#/components/responses/503-service-unavailable\"\n      summary: Upscaler Precision V2 - List tasks\n      tags:\n      - upscaler-precision\n    post:\n      description: |\n        Upscales an image while adding new visual elements or details (V2).\n        This endpoint may modify the original image content based on the prompt and inferred context.\n      operationId: postAiImageUpscalerPrecisionV2\n      requestBody:\n        content:\n          application/json:\n            schema:\n              $ref: \"#/components/schemas/request-content_3\"\n        required: true\n      responses:\n        \"200\":\n          $ref: \"#/components/responses/task-detail-200-default-response\"\n        \"400\":\n          $ref: \"#/components/responses/400-bad-request\"\n        \"401\":\n          $ref: \"#/components/responses/401-unauthorized\"\n        \"500\":\n          $ref: \"#/components/responses/500-internal-server-error\"\n        \"503\":\n          $ref: \"#/components/responses/503-service-unavailable\"\n      summary: Upscaler Precision V2 - Upscale image\n      tags:\n      - upscaler-precision\n"
+    },
+    {
+      "label": "task GET",
+      "source_lines": [
+        8369,
+        8396
+      ],
+      "verbatim_yaml": "  /v1/ai/image-upscaler-precision-v2/{task-id}:\n    get:\n      description: Returns the current status and output URL of a specific precision\n        upscaler V2 task. The output URL is included only if the task has completed\n        successfully.\n      operationId: getAiImageUpscalerPrecisionV2Task\n      parameters:\n      - description: ID of the task\n        in: path\n        name: task-id\n        required: true\n        schema:\n          format: uuid\n          type: string\n      responses:\n        \"200\":\n          $ref: \"#/components/responses/task-detail-200-default-response\"\n        \"400\":\n          $ref: \"#/components/responses/400-bad-request\"\n        \"401\":\n          $ref: \"#/components/responses/401-unauthorized\"\n        \"500\":\n          $ref: \"#/components/responses/500-internal-server-error\"\n        \"503\":\n          $ref: \"#/components/responses/503-service-unavailable\"\n      summary: Upscaler Precision V2 - Get task status\n      tags:\n      - upscaler-precision\n"
+    },
+    {
+      "label": "input schema",
+      "source_lines": [
+        25339,
+        25391
+      ],
+      "verbatim_yaml": "    request-content_3:\n      properties:\n        image:\n          description: |\n            Source image to upscale. Accepts either:\n            - A publicly accessible HTTPS URL pointing to the image\n            - A base64-encoded image string\n\n            This image will be enhanced with AI-powered upscaling technology that intelligently adds details and improves image quality while increasing resolution.\n          type: string\n        webhook_url:\n          description: |\n            Optional callback URL that will receive asynchronous notifications when the upscaling task completes.\n            The webhook will be called with the task status and the upscaled image URL.\n          format: uri\n          type: string\n        sharpen:\n          default: 7\n          description: |\n            Image sharpness intensity control. Higher values increase edge definition and clarity in the upscaled image.\n            Valid values range from 0 (no sharpening) to 100 (maximum sharpness). Default is 7.\n          maximum: 100\n          minimum: 0\n          type: integer\n        smart_grain:\n          default: 7\n          description: |\n            Intelligent grain/texture enhancement for the upscaled image. Helps preserve natural film grain and texture detail.\n            Higher values add more fine-grained texture to prevent the upscaled image from looking too smooth or artificial.\n            Valid values range from 0 (no grain) to 100 (maximum grain). Default is 7.\n          maximum: 100\n          minimum: 0\n          type: integer\n        ultra_detail:\n          default: 30\n          description: |\n            Ultra detail enhancement level for the image upscaling process. This parameter controls how much fine detail\n            the AI adds to the upscaled image, such as textures, patterns, and micro-details.\n            Higher values create more intricate details. Valid values range from 0 to 100. Default is 30.\n          maximum: 100\n          minimum: 0\n          type: integer\n        flavor:\n          $ref: \"#/components/schemas/flavor\"\n        scale_factor:\n          $ref: \"#/components/schemas/request_content_3_scale_factor\"\n        filter_nsfw:\n          default: false\n          description: Enable NSFW content filtering on the output image\n          type: boolean\n      required:\n      - image\n      type: object\n"
+    },
+    {
+      "label": "optional flavor",
+      "source_lines": [
+        25392,
+        25402
+      ],
+      "verbatim_yaml": "    flavor:\n      description: |\n        Image processing flavor that determines the upscaling style and optimization for different image types:\n        - `sublime`: Optimized for artistic and illustrated images with smooth gradients and vibrant colors\n        - `photo`: Optimized for photographic images, preserving natural colors and realistic details\n        - `photo_denoiser`: Specialized for photos with noise reduction, ideal for low-light or grainy photographs\n      enum:\n      - sublime\n      - photo\n      - photo_denoiser\n      type: string\n"
+    },
+    {
+      "label": "scale range",
+      "source_lines": [
+        36618,
+        36628
+      ],
+      "verbatim_yaml": "    request_content_3_scale_factor:\n      description: |\n        Image scaling factor for upscaling. Determines how much larger the output image will be compared to the input.\n        For example, a scale ratio of 2 will double the dimensions (2x width and 2x height, resulting in 4x total pixels).\n        Valid values range from 2 to 16. Can be provided as an integer or string.\n      oneOf:\n      - maximum: 16\n        minimum: 2\n        type: integer\n      - pattern: \"^(2|3|4|5|6|7|8|9|1[0-6])$\"\n        type: string\n"
+    },
+    {
+      "label": "task identity and status",
+      "source_lines": [
+        19679,
+        19699
+      ],
+      "verbatim_yaml": "    task:\n      example:\n        task_id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91\n        status: CREATED\n      properties:\n        task_id:\n          description: Task identifier\n          format: uuid\n          type: string\n        status:\n          description: Task status\n          enum:\n          - CREATED\n          - IN_PROGRESS\n          - COMPLETED\n          - FAILED\n          type: string\n      required:\n      - status\n      - task_id\n      type: object\n"
+    },
+    {
+      "label": "generated URL array",
+      "source_lines": [
+        21110,
+        21128
+      ],
+      "verbatim_yaml": "    task-detail_1:\n      allOf:\n      - $ref: \"#/components/schemas/task\"\n      - properties:\n          generated:\n            items:\n              description: URL of the generated image\n              format: uri\n              type: string\n            type: array\n        required:\n        - generated\n        type: object\n      example:\n        generated:\n        - https://openapi-generator.tech\n        - https://openapi-generator.tech\n        task_id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91\n        status: CREATED\n"
+    },
+    {
+      "label": "data wrapper",
+      "source_lines": [
+        37564,
+        37577
+      ],
+      "verbatim_yaml": "    inline_object_4:\n      example:\n        data:\n          generated:\n          - https://openapi-generator.tech\n          - https://openapi-generator.tech\n          task_id: 046b6c7f-0b8a-43b9-b35d-6489e6daee91\n          status: CREATED\n      properties:\n        data:\n          $ref: \"#/components/schemas/task-detail_1\"\n      required:\n      - data\n      type: object\n"
+    },
+    {
+      "label": "authentication header",
+      "source_lines": [
+        37764,
+        37769
+      ],
+      "verbatim_yaml": "    magnificApiKey:\n      description: |\n        Your Magnific API key. Required for authentication. [Learn how to obtain an API key](https://docs.magnific.com/quickstart)\n      in: header\n      name: x-magnific-api-key\n      type: apiKey\n"
+    }
+  ],
+  "authentication_note": {
+    "source_url": "https://docs.magnific.com/authentication.md",
+    "source_sha256": "362683a37fa94994a7f1c37c062b7fff3ba65aad31ffb2fe120fa52d794669ee",
+    "excerpt": "Currently, private API keys are the only way to authenticate with the Magnific API. This means that only server-to-server calls can be made to the API"
+  },
+  "unpublished_boundaries": [
+    "Precision V2 paths have only GET and POST; no documented cancel operation",
+    "Input schema has no output_format, MIME enum, byte or pixel maximum, data URI example, idempotency key, or prompt field",
+    "Output schema provides generated URL strings; no MIME, width, height, file size or progress percentage"
+  ]
+}

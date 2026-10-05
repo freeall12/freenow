@@ -29,6 +29,7 @@
 | [Enhancor原生合同核对](SKIN-EDITOR-NATIVE-CONTRACT-20261005.md) | 安装包精确三档；公网来源/回调与未证实映射，非仅Key可用 |
 | [图片打光与Agent本机验收](LOCAL-RELIGHT-AGENT-20261005.md) | 正式控件/审批、真实SDK、原任务保存重试、刷新及初始化竞态修复 |
 | [独立图片打光协议](OPENAI-RELIGHT-NATIVE.md) · [Agent](AGENT-RELIGHT-PARAMETER-EDIT-20261005.md) | 全部五组光照参数、OpenAI SDK 编辑、原尺寸输入与真实结果归档 |
+| [Magnific面板与Agent实机验收](LOCAL-MAGNIFIC-AGENT-20261005.md) · [独立原生配置](MAGNIFIC-NATIVE-20261005.md) · [精确公开证据](MAGNIFIC-PRECISION-NATIVE-CONTRACT-20261005.md) | 四参数、原尺寸本机来源、UUID恢复、真实图片归档与Agent审批 |
 | [打光原参数与独立编辑契约](RELIGHT-PARAMETER-EDIT-CONTRACT-20261005.md) · [预览分配优化](RELIGHT-STAGE-FRAME-ALLOCATION-20261005.md) | 安装包光位/轮廓资格/关闭逻辑；保持逐帧状态并减少临时对象 |
 | [视频物体编辑与Agent实机验收](LOCAL-VIDEO-MASK-AGENT-20261005.md) | 正式工具栏/审批、真实媒体链路、播放、封面与刷新；分割及真实Key边界 |
 | [Wan VACE 视频物体编辑](WAN-VACE-VIDEO-MASK-NATIVE-20261005.md) · [前端](VIDEO-MASK-FRONTEND-NATIVE-20261005.md) | 显式替代、完整时序蒙层、联合裁片、原任务与本地结果 |

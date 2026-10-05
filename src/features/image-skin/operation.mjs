@@ -33,7 +33,7 @@ export function createEnhanceOperation({app,api,node,parent,request,isAlive=()=>
   if(operation.started)return operation;
   operation.started=true;
   try{
-   guard();if(request.kind==='image.skin'){assertEnhanceSourceScope(parent);assertEnhanceSourceScope(node);}
+   guard();if(request.kind==='image.skin'||request.kind==='image.upscale'&&request.parameters?.provider==='magnific'){assertEnhanceSourceScope(parent);assertEnhanceSourceScope(node);}
    const readiness=await enhanceReadiness(api,request,{signal:controller.signal,guard,requestState});guard();operation.readiness=readiness;
    if(!readiness.ready)throw Error(readiness.reason||'增强服务尚未配置');
    const configurationGuard=createEnhanceConfigurationGuard(api,readiness.metadata);

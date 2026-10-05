@@ -7,6 +7,18 @@ import {relightRequestState,relightDisclosure as parameterEditDisclosure} from '
 import {anglePresets,rimPresets} from '../../../image-relight-core.mjs';
 import {modes as skinModes} from '../../../image-enhance-core.mjs';
 import {skinRequestState} from '../image-skin/native-profile.mjs';
+import {magnificRequestState,magnificDisclosure as nativeMagnificDisclosure} from '../image-upscale/native-profile.mjs';
+import {resolveProviderConfiguration} from '../node-composer/provider-configuration.mjs';
+export function upscaleDisclosure(configuration){
+ const request={kind:'image.upscale',parameters:{provider:'magnific'}};
+ if(resolveProviderConfiguration(configuration,request)?.protocol!=='magnific-native')return '此 Agent Magnific 放大需要已配置的 magnific-native Precision V2 原生接口；普通任务网关不用于本次原生操作，未配置时不会派发。';
+ const state=magnificRequestState(configuration,request);
+ return (state.hint||nativeMagnificDisclosure)+(state.ready?'':' '+state.reason);
+}
+export function upscaleParameterDetails(args){
+ const p=args.upscale||{};
+ return `Magnific Precision V2 · 放大 ${p.scaleFactor??'未指定'} 倍 · 锐化 ${p.sharpen??'未指定'} · 智能颗粒 ${p.smartGrain??'未指定'} · 超细节 ${p.ultraDetail??'未指定'}\n完整原尺寸来源 ${args.nodeId||'未指定'} → ${args.targetNodeId?`既有增强节点 ${args.targetNodeId}`:'新建连接的增强节点'}；结果保存为该增强节点的新版本`;
+}
 export function skinDisclosure(configuration){
  const state=skinRequestState(configuration,{kind:'image.skin'});
  return (state.hint||'皮肤增强需要声明完整三档模式的服务；未配置时不会派发。')+(state.ready?'':' '+state.reason);
@@ -47,9 +59,10 @@ export function toolPresentation(trace){
  const args=trace.args||{},action=(trace.name==='generation_submit'?imageProcessingActions[args.kind]:null)||actions[trace.name]||trace.name||'工具操作';
  let detail=trace.name==='skills_rename'?`${args.name} → ${args.new_name}`:trace.name==='skills_uninstall'?`${args.name}（移除个人技能包，无法从归档恢复）`:isDepthTool(trace)?depthToolDetails(trace).join(' · '):args.query||args.title||args.artifact_path||args.name||args.nodeId||args.id||args.groupId||'';
  if(trace.name==='generation_submit'&&args.kind==='image.relight')detail+=(detail?'\n':'')+relightParameterDetails(args.relight)+'\n'+(trace.relightDisclosure||parameterEditDisclosure);
+ if(trace.name==='generation_submit'&&args.kind==='image.upscale'&&args.upscale)detail+=(detail?'\n':'')+upscaleParameterDetails(args)+'\n'+(trace.upscaleDisclosure||upscaleDisclosure(null));
  if(trace.name==='generation_submit'&&args.kind==='image.skin')detail+=(detail?'\n':'')+skinParameterDetails(args)+'\n'+(trace.skinDisclosure||skinDisclosure(null));
  if(trace.name==='generation_submit'&&['video.erase','video.replace'].includes(args.kind)&&trace.videoMaskDisclosure)detail+=(detail?'\n':'')+trace.videoMaskDisclosure;
- const lineDetail=trace.name==='generation_submit'&&['image.skin','image.relight','video.erase','video.replace'].includes(args.kind)?detail.split('\n')[0]:detail;
+ const lineDetail=trace.name==='generation_submit'&&(['image.skin','image.relight','video.erase','video.replace'].includes(args.kind)||args.kind==='image.upscale'&&args.upscale)?detail.split('\n')[0]:detail;
  let text=action+(lineDetail?' · '+lineDetail:'');
  if(trace.name==='skills_read')text='读取 '+(args.name||'技能');
  if(trace.name==='artifacts_read'||trace.name==='artifacts_write')text=(trace.name==='artifacts_read'?'读取 ':'编辑 ')+(args.artifact_path||'文件');

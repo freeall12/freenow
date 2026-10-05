@@ -1,0 +1,101 @@
+[
+  {
+    "requested_url": "https://docs.freepik.com/llms.txt",
+    "effective_url": "https://docs.magnific.com/llms.txt",
+    "http_status": 200,
+    "retrieved_at_utc": "2026-10-05T02:28:03.804848+00:00",
+    "bytes": 7948,
+    "sha256": "0deebc83a2c29e769971fb0bb2c0c63fd4ea307358e9246f3c3e174673e75ae3",
+    "source_name": "llms-freepik.txt",
+    "raw_body_storage": "temporary outside repository; not a distributable link",
+    "temporary_raw_path": "/tmp/freenow-magnific-reference-20261005/llms-freepik.txt"
+  },
+  {
+    "requested_url": "https://docs.magnific.com/api-reference/image-upscaler-precision-v2/post-image-upscaler-precision-v2.md",
+    "effective_url": "https://docs.magnific.com/api-reference/image-upscaler-precision-v2/post-image-upscaler-precision-v2.md",
+    "http_status": 200,
+    "retrieved_at_utc": "2026-10-05T02:28:05.187005+00:00",
+    "bytes": 12940,
+    "sha256": "389d3f4e5573341192035195a0560aa289f3535c06e1f6ec58845f7c73484d2f",
+    "source_name": "precision-v2-post.md",
+    "raw_body_storage": "temporary outside repository; not a distributable link",
+    "temporary_raw_path": "/tmp/freenow-magnific-reference-20261005/precision-v2-post.md"
+  },
+  {
+    "requested_url": "https://docs.magnific.com/api-reference/image-upscaler-precision-v2/overview.md",
+    "effective_url": "https://docs.magnific.com/api-reference/image-upscaler-precision-v2/overview.md",
+    "http_status": 200,
+    "retrieved_at_utc": "2026-10-05T02:28:06.385876+00:00",
+    "bytes": 8981,
+    "sha256": "94353c4852bfc5971abd95a826adc8d462521cd65986843e83a7c4814cbbf312",
+    "source_name": "precision-v2-overview.md",
+    "raw_body_storage": "temporary outside repository; not a distributable link",
+    "temporary_raw_path": "/tmp/freenow-magnific-reference-20261005/precision-v2-overview.md"
+  },
+  {
+    "requested_url": "https://docs.magnific.com/api-reference/image-upscaler-precision-v2/get-{task-id}-by-id.md",
+    "effective_url": "https://docs.magnific.com/api-reference/image-upscaler-precision-v2/get-{task-id}-by-id.md",
+    "http_status": 200,
+    "retrieved_at_utc": "2026-10-05T02:28:08.418025+00:00",
+    "bytes": 9315,
+    "sha256": "f2c5e78bc2293ced14fc3d9da59b173fee1b651ec303f38159a38f9ef3896ca3",
+    "source_name": "precision-v2-get-task.md",
+    "raw_body_storage": "temporary outside repository; not a distributable link",
+    "temporary_raw_path": "/tmp/freenow-magnific-reference-20261005/precision-v2-get-task.md"
+  },
+  {
+    "requested_url": "https://docs.magnific.com/api-reference/image-upscaler-precision-v2/get-image-upscaler-precision-v2.md",
+    "effective_url": "https://docs.magnific.com/api-reference/image-upscaler-precision-v2/get-image-upscaler-precision-v2.md",
+    "http_status": 200,
+    "retrieved_at_utc": "2026-10-05T02:28:09.985801+00:00",
+    "bytes": 7259,
+    "sha256": "d8d5387efcb2433bf3f692fbb0f4fddfcc1f61ec917f2e117a2cf71d82380a85",
+    "source_name": "precision-v2-list.md",
+    "raw_body_storage": "temporary outside repository; not a distributable link",
+    "temporary_raw_path": "/tmp/freenow-magnific-reference-20261005/precision-v2-list.md"
+  },
+  {
+    "requested_url": "https://docs.magnific.com/authentication.md",
+    "effective_url": "https://docs.magnific.com/authentication.md",
+    "http_status": 200,
+    "retrieved_at_utc": "2026-10-05T02:28:11.220699+00:00",
+    "bytes": 2317,
+    "sha256": "362683a37fa94994a7f1c37c062b7fff3ba65aad31ffb2fe120fa52d794669ee",
+    "source_name": "authentication.md",
+    "raw_body_storage": "temporary outside repository; not a distributable link",
+    "temporary_raw_path": "/tmp/freenow-magnific-reference-20261005/authentication.md"
+  },
+  {
+    "requested_url": "https://docs.magnific.com/ratelimits.md",
+    "effective_url": "https://docs.magnific.com/ratelimits.md",
+    "http_status": 200,
+    "retrieved_at_utc": "2026-10-05T02:28:12.221387+00:00",
+    "bytes": 2938,
+    "sha256": "32b2e363d87b6d936ce2812b9fd1da6401a0158275a4400fe6dbd396779ba6a9",
+    "source_name": "ratelimits.md",
+    "raw_body_storage": "temporary outside repository; not a distributable link",
+    "temporary_raw_path": "/tmp/freenow-magnific-reference-20261005/ratelimits.md"
+  },
+  {
+    "requested_url": "https://docs.magnific.com/webhooks.md",
+    "effective_url": "https://docs.magnific.com/webhooks.md",
+    "http_status": 200,
+    "retrieved_at_utc": "2026-10-05T02:28:13.604022+00:00",
+    "bytes": 9562,
+    "sha256": "150c014ff3de209ada70d9c776ccc3596515f1d7f94d2e5ac5655b4ddd589062",
+    "source_name": "webhooks.md",
+    "raw_body_storage": "temporary outside repository; not a distributable link",
+    "temporary_raw_path": "/tmp/freenow-magnific-reference-20261005/webhooks.md"
+  },
+  {
+    "requested_url": "https://storage.googleapis.com/fc-freepik-pro-rev1-eu-api-specs/magnific-api-v1-openapi.yaml",
+    "effective_url": "https://storage.googleapis.com/fc-freepik-pro-rev1-eu-api-specs/magnific-api-v1-openapi.yaml",
+    "http_status": 200,
+    "retrieved_at_utc": "2026-10-05T02:28:16.291819+00:00",
+    "bytes": 1358152,
+    "sha256": "62a3062430186379709c671400968c97eada5d8b2326eb4b34882ad576522738",
+    "source_name": "magnific-api-v1-openapi.yaml",
+    "raw_body_storage": "temporary outside repository; not a distributable link",
+    "temporary_raw_path": "/tmp/freenow-magnific-reference-20261005/magnific-api-v1-openapi.yaml"
+  }
+]
