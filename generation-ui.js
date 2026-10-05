@@ -1,7 +1,7 @@
 (() => {
   'use strict';
   const app=window.CanvasApp;
-  let generationRequests,generationMedia,recognitionMedia,videoAnalysisMedia,extensionMedia,reshootMedia,videoMaskMedia,panoramaMedia,panoramaValidation,imageToolMedia,maskedEditMedia,worldMedia,draftWorkflow,resultModules,resultWorkflow,failureBridge;
+  let generationRequests,generationMedia,recognitionMedia,videoAnalysisMedia,extensionMedia,reshootMedia,videoMaskMedia,panoramaMedia,panoramaValidation,imageToolMedia,maskedEditMedia,relightMedia,worldMedia,draftWorkflow,resultModules,resultWorkflow,failureBridge;
   const failureSources=new Map();
   const resultSubmissions=new Map();
   const draftGuards=new Map();
@@ -45,6 +45,11 @@
       maskedEditMedia||=import('./src/features/image-editor/masked-edit-media.mjs');
       const nativeConfiguration=service.jobs.get(jobId)?.transport===localProvider?taskNativeConfigurations.get(signal):null;
       return (await maskedEditMedia).prepareMaskedEditMedia(request,{signal,validateSources,localAssets:window.LocalAssets,baseUrl:document.baseURI,nativeConfiguration});
+    }
+    if(request.kind==='image.relight'){
+      relightMedia||=import('./src/features/image-relight/media.mjs');
+      const nativeConfiguration=service.jobs.get(jobId)?.transport===localProvider?taskNativeConfigurations.get(signal):null;
+      return (await relightMedia).prepareRelightMedia(request,{signal,validateSources,localAssets:window.LocalAssets,baseUrl:document.baseURI,nativeConfiguration});
     }
     if(request.kind==='video.extend'){
       extensionMedia||=import('./src/features/video-creation/media.mjs');
@@ -416,7 +421,7 @@
         const [client,metadata]=await Promise.all([configurationClientReady,serverConfiguration=refreshServerConfiguration()]);
         if(!metadata)throw Error('无法读取本机配置，请检查本地服务是否正在运行');
         const result=await client.saveLocalGenerationConfiguration(input,{token:metadata.csrfToken,signal:AbortSignal.timeout(10000)});
-        serverConfigurationRevision++;serverConfigured=result.configured;serverConfiguration=Promise.resolve(result);service.setProvider(localProvider);key.value='';
+        serverConfigurationRevision++;serverConfigured=result.configured;serverConfigurationSnapshot=structuredClone(result);serverConfiguration=Promise.resolve(result);service.setProvider(localProvider);key.value='';
         await showConfiguration(result,revision);
         if(!result.configured){error.textContent='已切换为本机环境配置，但仍缺少相应协议、模型或 Key；请配置后刷新。';return;}
         d.close();

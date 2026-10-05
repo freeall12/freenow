@@ -9,8 +9,9 @@ const ark={configured:true,protocol:'ark-native',missing:[],capabilities:{kinds:
 const metadata=()=>({protocol:'routed',configured:true,providers:{open:structuredClone(open),ark:structuredClone(ark),missing:{configured:false,protocol:'ark-native',missing:['ARK_API_KEY'],capabilities:{kinds:['video.generate']}}},routes:{'image.generate':{default:'open',models:{'image-alias':'missing'}},'image.recognize':{default:'open',models:{}},'video.analyze':{default:'open',models:{}},'video.generate':{default:'ark',models:{blocked:'missing'}},'text.generate':{models:{available:'open'}}}});
 async function harness(config){
  const routing=await routingReady,localProvider={generate:async()=>output},service=new TaskService(),taskNativeConfigurations=new WeakMap();service.setProvider(localProvider);
- const context={localProvider,service,taskNativeConfigurations,taskConfigurationIds:new WeakMap(),serverConfiguration:Promise.resolve(config),providerConfigurationReady:Promise.resolve(routing),structuredClone};
- context.refreshServerConfiguration=()=>context.serverConfiguration;
+ const context={localProvider,service,taskNativeConfigurations,taskConfigurationIds:new WeakMap(),serverConfiguration:Promise.resolve(config),serverConfigurationRevision:0,serverConfigurationSnapshot:structuredClone(config),serverConfigured:config?.configured===true,providerConfigurationReady:Promise.resolve(routing),structuredClone,AbortSignal};
+ context.fetch=()=>{const response=context.serverConfiguration;return Promise.resolve({ok:true,json:async()=>response});};
+ vm.runInNewContext(ui.slice(ui.indexOf('  function refreshServerConfiguration(){'),ui.indexOf('  let serverConfiguration=refreshServerConfiguration();')),context);
  vm.runInNewContext(ui.slice(ui.indexOf('  localProvider.isConfigured='),ui.indexOf('  function submitJob(')),context);
  return {...context,context,availability:context.availability};
 }
@@ -155,7 +156,7 @@ test('readiness inventory rejects broken routes and invalid metadata without lea
 });
 
 test('late configuration refresh cannot overwrite a newer response or a saved connection state',async()=>{
- const pending=[],context={fetch:()=>new Promise(resolve=>pending.push(resolve)),AbortSignal,service:{setProvider(){}},localProvider:{}};
+ const pending=[],context={fetch:()=>new Promise(resolve=>pending.push(resolve)),AbortSignal,structuredClone,service:{setProvider(){}},localProvider:{}};
  const start=ui.indexOf('  let serverConfigured=false'),end=ui.indexOf('  let serverConfiguration=refreshServerConfiguration()');
  vm.runInNewContext(ui.slice(start,end)+'\nthis.state=()=>serverConfigured;this.acceptSaved=()=>{serverConfigurationRevision++;serverConfigured=true;};',context);
  const old=context.refreshServerConfiguration(),recent=context.refreshServerConfiguration();

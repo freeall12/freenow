@@ -3,6 +3,17 @@ import {depthActions,depthToolDetails,depthTaskState,isDepthTool} from './depth-
 import {isVideoTrimTool,videoTrimPresentation} from './video-trim-presentation.mjs';
 import {isSubjectsTool,subjectsPresentation} from './subjects-presentation.mjs';
 import {maskedVideoRequestState} from '../video-mask/native-profile.mjs';
+import {relightRequestState,relightDisclosure as parameterEditDisclosure} from '../image-relight/native-profile.mjs';
+import {anglePresets,rimPresets} from '../../../image-relight-core.mjs';
+export function relightDisclosure(configuration){
+ const state=relightRequestState(configuration,{kind:'image.relight'});
+ return (state.hint||parameterEditDisclosure)+(state.ready?'':' '+state.reason);
+}
+export function relightParameterDetails(value){
+ if(!value)return '光照参数未完整提供';
+ const a=anglePresets.find(p=>p.key===value.angle?.preset),rim=rimPresets[value.rimPreset];
+ return `主光 ${value.angle?.preset??'未指定'}${a?`（方位${a.azimuthDeg}° / 仰角${a.elevationDeg}°）`:''} · 亮度 ${value.brightnessPercent??'未指定'}% · 色温 ${value.temperatureK??'未指定'} K · 轮廓光 ${value.rimEnabled===true?'开启':value.rimEnabled===false?'关闭':'未指定'} · 轮廓光位 ${value.rimPreset??'未指定'}${rim?`（方位${rim.azimuthDeg}° / 仰角${rim.elevationDeg}°）`:''}`;
+}
 export function videoMaskDisclosure(configuration,kind){
  const state=maskedVideoRequestState(configuration,{kind});
  return state.hint||state.reason;
@@ -25,8 +36,9 @@ export function toolPresentation(trace){
  if(isVideoTrimTool(trace))return videoTrimPresentation(trace);
  const args=trace.args||{},action=(trace.name==='generation_submit'?imageProcessingActions[args.kind]:null)||actions[trace.name]||trace.name||'工具操作';
  let detail=trace.name==='skills_rename'?`${args.name} → ${args.new_name}`:trace.name==='skills_uninstall'?`${args.name}（移除个人技能包，无法从归档恢复）`:isDepthTool(trace)?depthToolDetails(trace).join(' · '):args.query||args.title||args.artifact_path||args.name||args.nodeId||args.id||args.groupId||'';
+ if(trace.name==='generation_submit'&&args.kind==='image.relight')detail+=(detail?'\n':'')+relightParameterDetails(args.relight)+'\n'+(trace.relightDisclosure||parameterEditDisclosure);
  if(trace.name==='generation_submit'&&['video.erase','video.replace'].includes(args.kind)&&trace.videoMaskDisclosure)detail+=(detail?'\n':'')+trace.videoMaskDisclosure;
- const lineDetail=trace.name==='generation_submit'&&['video.erase','video.replace'].includes(args.kind)?detail.split('\n')[0]:detail;
+ const lineDetail=trace.name==='generation_submit'&&['image.relight','video.erase','video.replace'].includes(args.kind)?detail.split('\n')[0]:detail;
  let text=action+(lineDetail?' · '+lineDetail:'');
  if(trace.name==='skills_read')text='读取 '+(args.name||'技能');
  if(trace.name==='artifacts_read'||trace.name==='artifacts_write')text=(trace.name==='artifacts_read'?'读取 ':'编辑 ')+(args.artifact_path||'文件');

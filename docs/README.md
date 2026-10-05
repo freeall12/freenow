@@ -24,6 +24,9 @@
 
 | 记录 | 范围 |
 | --- | --- |
+| [图片打光与Agent本机验收](LOCAL-RELIGHT-AGENT-20261005.md) | 正式控件/审批、真实SDK、原任务保存重试、刷新及初始化竞态修复 |
+| [独立图片打光协议](OPENAI-RELIGHT-NATIVE.md) · [Agent](AGENT-RELIGHT-PARAMETER-EDIT-20261005.md) | 全部五组光照参数、OpenAI SDK 编辑、原尺寸输入与真实结果归档 |
+| [打光原参数与独立编辑契约](RELIGHT-PARAMETER-EDIT-CONTRACT-20261005.md) · [预览分配优化](RELIGHT-STAGE-FRAME-ALLOCATION-20261005.md) | 安装包光位/轮廓资格/关闭逻辑；保持逐帧状态并减少临时对象 |
 | [视频物体编辑与Agent实机验收](LOCAL-VIDEO-MASK-AGENT-20261005.md) | 正式工具栏/审批、真实媒体链路、播放、封面与刷新；分割及真实Key边界 |
 | [Wan VACE 视频物体编辑](WAN-VACE-VIDEO-MASK-NATIVE-20261005.md) · [前端](VIDEO-MASK-FRONTEND-NATIVE-20261005.md) | 显式替代、完整时序蒙层、联合裁片、原任务与本地结果 |
 | [蒙层媒体处理](VIDEO-MASK-MEDIA-PREPARATION-20261005.md) · [CDN上传](FAL-CDN-UPLOAD-20261005.md) · [准备恢复](VIDEO-MASK-DURABLE-RECOVERY-20261005.md) | 全帧时序、原音样本、分阶段持久化和恢复不重提 |
@@ -40,7 +43,7 @@
 | [延长镜头参考生成](VIDEO-EXTEND-NATIVE-20261005.md) | 官方Toolbar合同、Ark参数和本地媒体预检；[传输限制](ARK-LOCAL-VIDEO-TRANSPORT-20261005.md) |
 | [个人素材库容量与冲突](LIBRARY-LOCAL-CAPACITY-20261005.md) | IndexedDB单事务、只读迁移、加载队列取消与草稿导出 |
 | [制作进度卡本地品牌](FREENOW-PRODUCTION-PROGRESS-BRAND-20261005.md) | 原文校验后派生、中英文/深浅色、准确CORS资源范围 |
-| [图片打光接口核查](IMAGE-RELIGHT-NATIVE-20261005.md) | 四个公开模型与26光位/色温/轮廓光的差异；显式替代模式仍待实现 |
+| [图片打光接口核查](IMAGE-RELIGHT-NATIVE-20261005.md) | 四个公开专用模型与完整参数的差异；后续已实现独立参数提示词编辑 |
 | [短视口右键菜单](CANVAS-CONTEXT-MENU-KEYBOARD-VISIBILITY-20261005.md) | 键盘焦点自动滚入视野、禁用项跳过、画布位置保持和实际浏览器验收 |
 | [工作流模板、原生音频与Agent组图](LOCAL-WORKFLOW-AND-NATIVE-AUDIO-20261005.md) | 10个真实图、8类筛选、媒体离线化、缩略图优化与浏览器验收 |
 | [Mureka 8/O2原生接口](MUREKA-NATIVE-20261005.md) | 自动/自定义歌词、原任务恢复、真实音频归档与凭据保护 |

@@ -97,6 +97,7 @@ node --env-file=.env.local server/server.cjs
 | --- | --- | --- |
 | `openai-native` | 文本、文生图/参考图、语音、视觉识别与分镜描述 | [网关](docs/GENERATION-GATEWAY.md) / [参考图](docs/OPENAI-IMAGE-REFERENCES.md) |
 | `openai-masked-edit-native` | 擦除、局部重绘、扩图 | [蒙版编辑](docs/OPENAI-MASKED-EDIT-NATIVE.md) |
+| `openai-relight-native` | 完整图片重新打光；面板与 Agent 共用全部五组参数 | [打光编辑](docs/OPENAI-RELIGHT-NATIVE.md)，显式参数提示词编辑；不保证物理光照或输出与来源同尺寸 |
 | `ark-native` | 火山方舟视频任务 | [Ark](docs/ARK-VIDEO.md) |
 | `ark-video-extend-reference` | 工具栏延长镜头：片头/片尾、4–30秒、连续性与参考 | [延长镜头](docs/VIDEO-EXTEND-NATIVE-20261005.md)，明确为参考生成；本地视频另需公网发布通道 |
 | `ark-video-reshoot-edit` | 视频重拍：分镜、四种镜头模式与提示词编译 | [重拍](docs/VIDEO-RESHOOT-EDIT-20261005.md)，实验性提示词模拟；Ark Key 外还需要独立 HTTPS 视频 |
@@ -126,6 +127,14 @@ node --env-file=.env.local server/server.cjs
 - 页面和内嵌应用使用本地资源限制；服务端拒绝向原站域名请求或转交原站媒体。未知旧资源须显式导入修复，不自动联网回源。[本地化验收边界](docs/FREENOW-LOCALIZATION-ACCEPTANCE.md)
 
 ## 最新接入与核验
+
+图片重新打光已接通正式面板与 Agent，保留26光位、亮度、色温和独立轮廓光。五参数经现有 OpenAI SDK 发送，结果归档后连接原图；缺配置、等待期间关闭/换图、保存失败重试和 Agent 持久回执已实操。另修复本地图片刷新时的初始化竞态、配置保存快照和 Agent 过期配置缓存。[本批实现与验收](docs/LOCAL-RELIGHT-AGENT-20261005.md)
+
+| 重新打光：完整源图与 Three 预览 | Agent：五参数和独立编辑说明 |
+| --- | --- |
+| ![本地重新打光正式面板](docs/screenshots/image-relight-native-panel-20261005.jpg) | ![正式Agent打光确认卡](docs/screenshots/agent-relight-approval-20261005.jpg) |
+
+截图素材和供应商回复为本机合成夹具，不是实际打光效果。适配器须明确配置 `parameter-prompt-edit`，不保证物理光照、相同画幅或原站模型等效；真实 Key 验收仍开放。预览复用每帧临时对象，保留灯位和动画，尚未据此宣称整体FPS提升。[配置](docs/OPENAI-RELIGHT-NATIVE.md) · [性能](docs/RELIGHT-STAGE-FRAME-ALLOCATION-20261005.md)
 
 视频物体移除／替换已接入正式工具栏和 Agent：完整来源与时序蒙层共同裁片、fal CDN 上传、原任务恢复、MP4 本机归档及原音轨保留。结果保存真实首帧封面；保存失败复用原结果节点。正式替换面板、Agent 审批、实际视频播放与刷新恢复已通过隔离本机服务验收。[本批实现与浏览器证据](docs/LOCAL-VIDEO-MASK-AGENT-20261005.md)
 

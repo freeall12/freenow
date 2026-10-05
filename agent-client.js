@@ -324,7 +324,7 @@
   depthHosts.set(chat,host);return host;
  }
  function execute(...args){return track(async()=>{await flushConversation();const result=await executeTool(...args);await flushConversation();return result;});}
- async function executeTool(name,raw,{signal,visualBudget,draftFinalApproval,depthHost,authorizeDepth,onDepthSubmitted,approvedVideoMaskConfiguration,videoMaskApprovalGuard,cutlistAuthorized=false}={}){const {args:a}=window.AgentTools.parse(name,raw);switch(name){
+ async function executeTool(name,raw,{signal,visualBudget,draftFinalApproval,depthHost,authorizeDepth,onDepthSubmitted,approvedVideoMaskConfiguration,videoMaskApprovalGuard,approvedRelightConfiguration,relightApprovalGuard,cutlistAuthorized=false}={}){const {args:a}=window.AgentTools.parse(name,raw);switch(name){
   case 'web_search':try{return await request('search',a,signal);}catch(error){if(error.name==='AbortError')throw error;return {error:error.message,code:error.code||'search_failed',status:'failed',sources:[],citations:[]};}
   case 'image_editor_export':{
    imageEditorExporter||=import('./src/features/image-editor/agent-export.mjs').then(({createImageEditorExporter})=>createImageEditorExporter({getCurrent:()=>window.CanvasImageEditor?.current,app,localAssets:window.LocalAssets,download:(blob,filename)=>window.LocalMedia.download(blob,filename)}));
@@ -395,6 +395,7 @@
    try{return await track(()=>previsRuntime.generateSheets({reply_id:a.reply_id,shot_codes:a.shot_codes},trace,chat,{userAction:true,isCurrent,sourceContext:context,signal}));}finally{context.dispose();}
   }
   case 'generation_submit':{
+   if(a.kind==='image.relight'){const {submitAgentRelight}=await import('./src/features/agent-generation/relight.mjs');return submitAgentRelight(a,{app,api:window.GenerationAPI,signal,onSubmitted:onDepthSubmitted,approvedConfiguration:approvedRelightConfiguration,approvalGuard:relightApprovalGuard});}
    const {imageProcessingKinds,submitAgentImageProcessing}=await import('./src/features/agent-generation/image-processing.mjs');
    if(imageProcessingKinds.includes(a.kind))return submitAgentImageProcessing(a,{app,api:window.GenerationAPI,signal,onSubmitted:onDepthSubmitted});
    if(['video.erase','video.replace'].includes(a.kind)){const {submitAgentVideoMask}=await import('./src/features/agent-generation/video-mask.mjs');return submitAgentVideoMask(a,{app,api:window.GenerationAPI,localAssets:window.LocalAssets,signal,onSubmitted:onDepthSubmitted,approvedConfiguration:approvedVideoMaskConfiguration,approvalGuard:videoMaskApprovalGuard});}
@@ -902,13 +903,21 @@
      callIndex+=calls.length;const call=calls[0];
      if(runController.signal.aborted)throw new DOMException('Aborted','AbortError');
      const definition=window.AgentTools.parse(call.name,call.args).definition;
-     let videoMaskNotice,videoMaskConfiguration,videoMaskApprovalGuard;
+     let videoMaskNotice,videoMaskConfiguration,videoMaskApprovalGuard,relightNotice,relightConfiguration,relightApprovalGuard;
      if(call.name==='generation_submit'&&['video.erase','video.replace'].includes(call.args.kind)){
       const {captureAgentVideoMaskApproval}=await import('./src/features/agent-generation/video-mask.mjs');videoMaskApprovalGuard=captureAgentVideoMaskApproval(call.args,{app,signal:runController.signal});
       const {videoMaskDisclosure}=await import('./src/features/agent-execution/presentation.mjs');
       const configuration=await window.GenerationAPI.configuration?.();videoMaskConfiguration=JSON.stringify(configuration);videoMaskNotice=videoMaskDisclosure(configuration,call.args.kind);
       videoMaskApprovalGuard();
       if(runController.signal.aborted||draft()!==d||d.activeRun!==run)throw new DOMException('视频蒙层确认来源已变化','AbortError');
+     }
+     if(call.name==='generation_submit'&&call.args.kind==='image.relight'){
+      const {captureAgentRelightApproval}=await import('./src/features/agent-generation/relight.mjs');relightApprovalGuard=captureAgentRelightApproval(call.args,{app,signal:runController.signal});
+      const {relightDisclosure}=await import('./src/features/agent-execution/presentation.mjs');
+      const checkRelightApproval=()=>{relightApprovalGuard();if(runController.signal.aborted||draft()!==d||d.activeRun!==run)throw new DOMException('图片打光确认来源已变化','AbortError');};
+      checkRelightApproval();
+      await window.GenerationAPI.availability({kind:'image.relight',signal:runController.signal});checkRelightApproval();
+      const configuration=await window.GenerationAPI.configuration?.();checkRelightApproval();relightConfiguration=JSON.stringify(configuration??null);relightNotice=relightDisclosure(configuration);
      }
      const executionOptions={
       runId:item.id,signal:runController.signal,
@@ -920,6 +929,12 @@
         if(JSON.stringify(await window.GenerationAPI.configuration?.())!==videoMaskConfiguration)throw Error('视频蒙层编辑供应商配置已变化，请重新确认');
         videoMaskApprovalGuard();
         if(runController.signal.aborted||draft()!==d||d.activeRun!==run)throw new DOMException('视频蒙层确认来源已变化','AbortError');
+       }
+       if(relightNotice&&name==='generation_submit'&&args.kind==='image.relight'){
+        relightApprovalGuard(args);
+        if(JSON.stringify(await window.GenerationAPI.configuration?.()??null)!==relightConfiguration)throw Error('图片打光供应商配置已变化，请重新确认');
+        relightApprovalGuard(args);
+        if(runController.signal.aborted||draft()!==d||d.activeRun!==run)throw new DOMException('图片打光确认来源已变化','AbortError');
        }
        if(name.startsWith('scene_')&&!['scene_read','scene_library'].includes(name)&&d.studioNodeId&&window.StudioAPI.getState()?.nodeId!==d.studioNodeId)throw Error('当前片场已切换，未执行此对话的场景修改。');
        if(name==='agent_delegate'){
@@ -949,9 +964,9 @@
        const authorizedArgs=JSON.stringify(args);
        const authorizeDepth=(tool,input)=>{if(tool!==name||JSON.stringify(input)!==authorizedArgs||draft()!==d||d.activeRun?.submissionId!==item.id||runController.signal.aborted)throw Error('深度流程的本次执行授权已失效');};
        const onDepthSubmitted=async job=>{const trace=d.messages.findLast(entry=>entry.role==='tool'&&entry.callId===call.callId);if(!trace)throw Error('生成执行记录不存在');trace.submittedTaskId=job.id;generationJobs?.attachGenerationJob(trace,job);if(!save())throw Error('生成任务记录未能保存，尚未调用外部服务');await flushConversation();executionRenderer.updateTrace(trace);};
-       return execute(name,args,{signal:runController.signal,visualBudget,draftFinalApproval,depthHost,authorizeDepth,onDepthSubmitted,approvedVideoMaskConfiguration:videoMaskConfiguration,videoMaskApprovalGuard,cutlistAuthorized:name==='cutlist_assemble'&&draft()===d&&d.activeRun===run&&!runController.signal.aborted});
+       return execute(name,args,{signal:runController.signal,visualBudget,draftFinalApproval,depthHost,authorizeDepth,onDepthSubmitted,approvedVideoMaskConfiguration:videoMaskConfiguration,videoMaskApprovalGuard,approvedRelightConfiguration:relightConfiguration,relightApprovalGuard,cutlistAuthorized:name==='cutlist_assemble'&&draft()===d&&d.activeRun===run&&!runController.signal.aborted});
       },
-      changed:trace=>{if(videoMaskNotice)trace.videoMaskDisclosure??=videoMaskNotice;trace.confirmationMode??=trace.status==='pending'?'ask':confirmationModule?.getMode()||'ask';if(!d.messages.includes(trace))d.messages.push(trace);for(const job of window.GenerationAPI.getJobs())generationJobs?.attachGenerationJob(trace,job);const persisted=save();if(!persisted&&['show_html','show_widget','show_app','show_form'].includes(trace.name)){trace.status='error';trace.result={error:'互动作品执行记录未能保存，请释放本地存储空间后重试。'};render();throw Error(trace.result.error);}render();}
+      changed:trace=>{if(relightNotice)trace.relightDisclosure??=relightNotice;if(videoMaskNotice)trace.videoMaskDisclosure??=videoMaskNotice;trace.confirmationMode??=trace.status==='pending'?'ask':confirmationModule?.getMode()||'ask';if(!d.messages.includes(trace))d.messages.push(trace);for(const job of window.GenerationAPI.getJobs())generationJobs?.attachGenerationJob(trace,job);const persisted=save();if(!persisted&&['show_html','show_widget','show_app','show_form'].includes(trace.name)){trace.status='error';trace.result={error:'互动作品执行记录未能保存，请释放本地存储空间后重试。'};render();throw Error(trace.result.error);}render();}
      };
      const groupResults=calls.length>1?await generationBatch.executeGenerationBatch(calls,{...executionOptions,validate:(name,args)=>window.AgentTools.parse(name,args),validateConfirmed:(original,args)=>generationModel.confirmedArguments(original,args,app.getState().nodes)}):[await executionModule.executeTracedCall(call,executionOptions)];
      results.push(...groupResults);recoveryModule.recordExecutedCalls(run,groupResults);await persistRunCheckpoint(d,run);

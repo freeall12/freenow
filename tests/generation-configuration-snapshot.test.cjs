@@ -128,3 +128,23 @@ test('matching configuration IDs do not authorize stale capability metadata',asy
   assert.equal(h.taskConfigurationId(signal),undefined);assert.equal(h.nativeConfiguration(signal),undefined);
   assert.equal(h.snapshot().capabilities.protocol,'current');assert.equal(h.pending.length,3);
 });
+
+test('saving a local connection immediately updates the approval snapshot and captured transport',async()=>{
+  const source=fs.readFileSync(path.join(__dirname,'../generation-ui.js'),'utf8');
+  const commit=source.slice(source.indexOf('    const commit=async input=>{'),source.indexOf("    const environment=button('使用本机服务'"));
+  const previous={configured:true,configurationId:'old-environment',source:'environment',csrfToken:'synthetic-csrf-token'};
+  const saved={configured:true,configurationId:'new-session',source:'session',capabilities:{kinds:['image.relight']}};
+  const controls=Array.from({length:6},()=>({disabled:false,value:'synthetic-input'}));let closed=false,selected,displayed;
+  const context={structuredClone,AbortSignal,saving:false,viewRevision:0,serverConfigurationRevision:4,serverConfigured:true,
+    serverConfigurationSnapshot:structuredClone(previous),serverConfiguration:Promise.resolve(previous),
+    close:controls[0],environment:controls[1],save:controls[2],url:controls[3],key:controls[4],error:{textContent:''},
+    refreshServerConfiguration:async()=>previous,configurationClientReady:Promise.resolve({saveLocalGenerationConfiguration:async(input,options)=>{
+      assert.deepEqual(input,{mode:'environment'});assert.equal(options.token,previous.csrfToken);return saved;
+    }}),localProvider:{id:'same-origin'},service:{setProvider:provider=>{selected=provider;}},showConfiguration:async value=>{displayed=value;},d:{isConnected:true,close:()=>{closed=true;}}};
+  vm.runInNewContext(commit+'\nthis.commit=commit;',context);
+  await context.commit({mode:'environment'});
+  assert.equal(context.serverConfigurationRevision,5);assert.deepEqual(context.serverConfigurationSnapshot,saved);
+  assert.equal(await context.serverConfiguration,saved);assert.equal(selected,context.localProvider);assert.equal(displayed,saved);assert.equal(closed,true);
+  assert.equal(context.key.value,'');assert(controls.every(control=>control.disabled===false));
+  saved.capabilities.kinds.push('changed-after-save');assert.deepEqual(context.serverConfigurationSnapshot.capabilities.kinds,['image.relight']);
+});

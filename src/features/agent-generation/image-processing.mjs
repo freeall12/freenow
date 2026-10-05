@@ -1,11 +1,12 @@
-export const imageProcessingKinds=['image.upscale','image.relight','image.multiAngle','image.remove-background'];
-const imageProcessingLabels={'image.upscale':'图片超分','image.relight':'重新打光','image.multiAngle':'多角度调整','image.remove-background':'抠图'};
+export const imageProcessingKinds=['image.upscale','image.multiAngle','image.remove-background'];
+const imageProcessingLabels={'image.upscale':'图片超分','image.multiAngle':'多角度调整','image.remove-background':'抠图'};
 const signature=node=>[node.type,node.image,node.fullImage,JSON.stringify([node.crop,node.imageCrop,node.clip,node.trim,node.params,node.generation,node.settings]),node.prompt];
 
 // The task service resolves asset/blob bytes once using its captured provider.
 // Retain the full-resolution source here rather than decoding its thumbnail.
 export async function submitAgentImageProcessing(args,{app,api,signal,onSubmitted}={}){
- const allowed=['kind','nodeId','prompt','model','referenceIds','count',...(args.kind==='image.multiAngle'?['rotate_right_left','move_forward','vertical_angle','wide_angle_lens']:args.kind==='image.relight'?['aspect','quality','resolution']:[])];
+ if(!imageProcessingKinds.includes(args.kind))throw Error('此图片处理类型需要独立审批与参数合同');
+ const allowed=['kind','nodeId','prompt','model','referenceIds','count',...(args.kind==='image.multiAngle'?['rotate_right_left','move_forward','vertical_angle','wide_angle_lens']:[])];
  if(Object.keys(args).some(key=>!allowed.includes(key)))throw Error('图片处理包含未支持的参数，未忽略后提交');
  const project=app.projectIdentity().id,current=id=>app.getState().nodes.find(node=>node.id===id);
  const source=current(args.nodeId);
@@ -21,7 +22,7 @@ export async function submitAgentImageProcessing(args,{app,api,signal,onSubmitte
  };
  const request={kind:args.kind,nodeId:source.id,sourceNodeId:source.id,label:imageProcessingLabels[args.kind],prompt:args.prompt,
   inputs:refs.map(node=>({id:node.id,nodeId:node.id,type:'image',url:node.fullImage||node.image})),
-  parameters:Object.fromEntries(Object.entries({model:args.model,count:args.count,...(args.kind==='image.relight'?{aspect:args.aspect,quality:args.quality,resolution:args.resolution}:{}),...(args.kind==='image.multiAngle'?{rotate_right_left:args.rotate_right_left,move_forward:args.move_forward,vertical_angle:args.vertical_angle,wide_angle_lens:args.wide_angle_lens}:{})}).filter(([,value])=>value!==undefined))};
+  parameters:Object.fromEntries(Object.entries({model:args.model,count:args.count,...(args.kind==='image.multiAngle'?{rotate_right_left:args.rotate_right_left,move_forward:args.move_forward,vertical_angle:args.vertical_angle,wide_angle_lens:args.wide_angle_lens}:{})}).filter(([,value])=>value!==undefined))};
  guard();const availability=await api.availability({request,signal});guard();
  if(availability?.configured!==true)return {nodeId:source.id,status:'configuration_required',error:availability?.reason||'无法确认所选图片处理服务已配置，请连接对应接口后重试'};
  let ready,failed;const acknowledged=new Promise((resolve,reject)=>{ready=resolve;failed=reject;});acknowledged.catch(()=>{});
