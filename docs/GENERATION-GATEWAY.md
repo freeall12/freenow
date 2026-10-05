@@ -4,11 +4,13 @@
 
 ## 配置与替换
 
-### 协议选择（2026-10-03）
+### 协议选择（2026-10-05）
 
 `GENERATION_API_PROTOCOL` 默认 `tasks-v1`，仍要求外部网关实现以下任务协议。`openai-native` 通过现有 OpenAI SDK 接入 `text.generate` 的 Responses API，以及 `image.generate` 的 Images generations / edits API，以及限定文字转语音的 audio/speech API 和焦点点选识别的 Responses 视觉输入。带图片参考的生成仅在模型映射显式开启后走 edits。两种协议共用现有本地任务记录与结果回填。`configured:true` 表示配置完整，不代表已联网验证账号权限、模型存在或服务可用。
 
 另可选 `ark-native`，直接适配火山方舟的 `/contents/generations/tasks`，无需自行实现 `/tasks` 网关。显式配置所选型号的生成方式、画幅、时长、分辨率和引用范围；原远端任务 ID 持久化，刷新/服务重启后仅 GET 查询，不重发未知 POST。单任务视频、首尾帧、参考与样片正式片的配置见 [Ark 视频适配](ARK-VIDEO.md)。可选 `GENERATION_PROVIDERS` / `GENERATION_ROUTES` 同时配置多个供应商，按功能和模型别名精确分流；不自动故障转移。见 [多供应商设置](MULTI-PROVIDER-SETUP.md)。Agent 的独立 OpenAI 配置不受影响。
+
+新增专用协议 `fal-video-depth-native`（仅 `video.depth`）与 `openai-panorama-edit-native`（仅 `panorama.edit`）。两者可单供应商设置，也可按 kind 合并到多供应商路由；精简环境配置见[深度与全景局部配置](MULTI-PROVIDER-SETUP.md#视频深度与全景局部编辑)。深度按实际MP4全帧校验、灰度无声音输出及持久原ID恢复，只开放Agent深度流程，节点同位入口尚未接；全景局部编辑使用显式透视蒙版回投，只支持2048×1024来源与有效可见框选，同步OpenAI结果无远端恢复ID。各自媒体预算、不支持参数和真实Key待验边界见[深度合同](VIDEO-DEPTH-NATIVE-20261005.md)与[全景局部合同](OPENAI-PANORAMA-EDIT-NATIVE-20261005.md)。
 
 原生协议的 `GENERATION_API_KEY` 独立于 Agent Key；可选 `GENERATION_API_BASE_URL` 是 SDK 基础地址，留空使用 SDK 官方默认地址。自定义兼容服务必须实际实现 Responses 或 Images，Chat Completions 地址不能自动替代。必须配置 `GENERATION_MODEL_MAP` JSON，对每个展示别名指定 `kind`、真实 `model`，可选 `maxCount`（默认1，最大10）、`reasoningMap`、`sizeMap`、`qualityMap`。例如：
 
@@ -32,7 +34,7 @@
 }
 ```
 
-这些是本地菜单别名，不是同名厂商模型承诺。尺寸映射以 `画幅|分辨率` 为键，未映射的选择在请求发出前阻止；配置者应只映射目标模型真实支持的规格。示例只覆盖1:1/1K；GPT 自适应尺寸须显式配置 `"auto|":"auto"`。此时历史空字符串 quality 仅表示没有分辨率选择，不覆盖实际 outputQuality。历史顶层 `quality` 等于 `imageSize` 时表示分辨率，实际生成质量使用 `providerParameters.quality` 或 `outputQuality`，互相矛盾的配置拒绝提交。文字参考会并入提示词；视频生成、音乐/音效/克隆音色、3D、全景、审核、其他识别、擦除、局部重绘、扩图和其它图片操作均需对应的任务网关。未知生成参数拒绝；前端既有精确、无效的默认元数据仅用于兼容，不能作为原生供应商能力。
+这些是本地菜单别名，不是同名厂商模型承诺。尺寸映射以 `画幅|分辨率` 为键，未映射的选择在请求发出前阻止；配置者应只映射目标模型真实支持的规格。示例只覆盖1:1/1K；GPT 自适应尺寸须显式配置 `"auto|":"auto"`。此时历史空字符串 quality 仅表示没有分辨率选择，不覆盖实际 outputQuality。历史顶层 `quality` 等于 `imageSize` 时表示分辨率，实际生成质量使用 `providerParameters.quality` 或 `outputQuality`，互相矛盾的配置拒绝提交。文字参考会并入提示词；普通 `openai-native` 映射不会自动获得视频、音乐/音效/克隆音色、3D、全景、审核、其他识别、擦除、局部重绘、扩图或其它专用操作。应分别选择已接入的专用原生协议，或实际实现相应合同的任务网关。未知生成参数拒绝；前端既有精确、无效的默认元数据仅用于兼容，不能作为原生供应商能力。
 
 图片参考启用方法与实际素材读取边界见 [OpenAI 图片参考适配](OPENAI-IMAGE-REFERENCES.md)。未配置 `supportsImageReferences:true` 的旧映射保持只支持无图片参考生成；开启时必须同时配置 `maxImages`（1–16，并符合所选实际型号限制）。能力报告仅公开展示别名、引用数、支持的 MIME 与内联传输方式，不公开真实型号。带图片时 `image_to_image`、无图片时 `text_to_image`；模式矛盾在提交前拒绝。
 

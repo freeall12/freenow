@@ -6,7 +6,7 @@
 <style>body{line-height:20px}h1{line-height:36px;margin:20px 0}h2{line-height:28px;margin:18px 0}button{font:inherit;line-height:20px}</style>
 <h1>剧本结构板 · 官方页面确定性验收</h1><p>官方 Story Room 与生产 controller/card/host，原 HTML 保持 SHA，本地展示派生修正保存时序和失败提示。JSON 为本地确定性场景示例，可替换为实际来源。这里只保存真实结构编辑和排队回执，未调用模型或媒体生成接口。</p>
 <label for="input">实际输入（JSON，最多12幕、80个来源场景）</label><textarea id="input"></textarea>
-<button id="open" disabled>打开剧本结构板</button><button id="rerender" disabled>普通会话重绘</button><label><input id="busy" type="checkbox" disabled>模拟会话运行中（拒绝提交）</label><label><input id="fail-save" type="checkbox" disabled>模拟状态保存失败（确认不得排队）</label><output id="status" aria-live="polite">正在读取专用 IndexedDB…</output><section id="cards"></section>
+<button id="open" disabled>打开剧本结构板</button><button id="close" disabled>关闭面板并保存</button><button id="reopen" disabled>重新打开已保存面板</button><button id="rerender" disabled>普通会话重绘</button><label><input id="busy" type="checkbox" disabled>模拟会话运行中（拒绝提交）</label><label><input id="fail-save" type="checkbox" disabled>模拟状态保存失败（确认不得排队）</label><label>状态保存延迟（毫秒，0–5000）<input id="save-delay" type="number" min="0" max="5000" step="100" value="0" disabled></label><output id="status" aria-live="polite">正在读取专用 IndexedDB…</output><section id="cards"></section>
 <h2>实际已保存状态</h2><textarea id="state" readonly aria-label="已保存的剧本结构状态"></textarea>
 <h2>实际已排队结果</h2><p>本地展示页确认前会立即保存当前结构，真实事务成功后才交接；保存失败应在原页显示错误，关闭模拟失败后可直接重试。初始结构随卡片保存。新增场景只有名称；画布写入和删除仍需正常修改确认。</p><textarea id="reply" readonly aria-label="已排队的剧本结构结果"></textarea>
 <script type="module" src="./story-room.mjs"></script></html>

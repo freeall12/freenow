@@ -1,0 +1,2 @@
+// Count the production TaskService preparation path without replacing it.
+(()=>{const Original=window.GenerationCore.TaskService;window.GenerationCore.TaskService=class extends Original{constructor(options={}){const prepare=options.prepareInputs;super({...options,prepareInputs:async(request,context)=>{if(!window.VideoDepthFixture.ready)throw Error('QA isolation failed');if(request.kind==='video.depth')window.VideoDepthFixture.mediaPrepares++;return prepare?prepare(request,context):request;}});}};})();

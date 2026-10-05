@@ -88,6 +88,7 @@ export function createMcpAppHost(options) {
   const canResizePlatform = options.resourceUri === 'ui://tapnow/platform-resize@v1' && typeof callbacks.onPlatformResizeApply === 'function';
   const canMessage = !['ui://tapnow/production-progress@v1','ui://tapnow/platform-resize@v1'].includes(options.resourceUri) && typeof callbacks.onSendPrompt === 'function';
   const canState = !['ui://tapnow/production-progress@v1','ui://tapnow/platform-resize@v1'].includes(options.resourceUri) && typeof callbacks.onSetWidgetState === 'function';
+  const canFlushClose = canState && ['ui://tapnow/performance-rhythm@v3','ui://tapnow/story-room@v1'].includes(options.resourceUri);
   const resourceDataLimit = ['ui://tapnow/layer-composer@v1','ui://tapnow/animatic@v1','ui://tapnow/animatic@v2','ui://tapnow/previs@v3'].includes(options.resourceUri) ? 4 * 1024 * 1024 : ['ui://tapnow/cutlist-review@v1','ui://tapnow/ad-review@v1'].includes(options.resourceUri) ? 16 * 1024 * 1024 : options.resourceUri === 'ui://tapnow/color-adjust@v2' ? 2 * 1024 * 1024 : 1000000;
   const generationTools = {'ui://tapnow/animatic@v2':['animatic_variants_submit','animatic_variants_lookup'],'ui://tapnow/previs@v3':['previs_variants_submit','previs_variants_lookup'],'ui://tapnow/ecommerce-photoset@v2':['ecommerce_photoset_generate']}[options.resourceUri];
   const canGenerationTools = !!generationTools && typeof callbacks.onGenerationAppTool === 'function';
@@ -107,13 +108,14 @@ export function createMcpAppHost(options) {
   let hostContext = {theme: options.theme || 'dark', locale: options.locale || 'zh-CN', displayMode: 'inline', availableDisplayModes: ['inline', 'fullscreen'], platform: 'web', ...dataCopy(options.hostContext || {})};
   let colorContextPermit = null, layerContextPermit = null, generationContextPermit = null, appReplyPermit = null;
   let expanded = false, presentationTracked = false, conversationActive, appReplyStatus=null;
+  let closeAttempt = null, closeReady = false;
   const requests = new Map(), csp = cspPolicy(options.csp);
   if (widgetState !== null && !object(widgetState)) throw fault(-32602, 'widget state must be an object');
   function live() {try {return !disposed && !failed && iframe.isConnected !== false && isCurrent() !== false;} catch {return false;}}
   function post(message) {if (!disposed && !failed) iframe.contentWindow?.postMessage({...message, nonce}, '*');}
   function notify(method, params) {post({jsonrpc: '2.0', method, params});}
   function stopTimers() {if (initTimer !== null) window.clearTimeout(initTimer);if (retryTimer !== null) window.clearInterval(retryTimer);initTimer = retryTimer = null;}
-  function fail(message) {if (disposed || failed) return;failed = true;ready = false;generation++;stopTimers();callbacks.onError?.(message);}
+  function fail(message) {if (disposed || failed) return;cancelClose('应用加载失败，关闭前保存未完成');failed = true;ready = false;generation++;stopTimers();callbacks.onError?.(message);}
   function sendResource() {
     if (!disposed && !failed && !ready && resource) notify('ui/notifications/sandbox-resource-ready', {nonce, resource: {name: resource[1], version: resource[2]}, csp});
   }
@@ -271,6 +273,19 @@ export function createMcpAppHost(options) {
     if (data.method === 'ui/notifications/sandbox-proxy-ready') {sendResource();return;}
     const receivedNonce = data.nonce ?? (data.method === 'ui/notifications/sandbox-resource-error' ? data.params?.nonce : undefined);
     if (receivedNonce !== nonce) return;
+    if(data.method==='freenow/lifecycleReady'&&canFlushClose&&object(data.params)&&Object.keys(data.params).length===1&&data.params.version===1){closeReady=true;return;}
+    if (closeAttempt && !Object.hasOwn(data, 'method') && data.id === closeAttempt.id) {
+      const attempt = closeAttempt;
+      if (!validGeneration(attempt.version, attempt.token)) {cancelClose('应用所属会话已切换');return;}
+      if (attempt.settled) return;
+      if (!object(data.result) || Object.keys(data.result).length !== 1 || data.result.flushed !== true || Object.hasOwn(data,'error')) {
+        const diagnostic=typeof data.error?.message==='string'?fault(Number.isFinite(data.error.code)?data.error.code:-32000,data.error.message.slice(0,240)):undefined;
+        // Local close failures need a retry action; keep SDK details in the cause.
+        const message=diagnostic?.message==='应用正在保存或提交，请稍后重试'?diagnostic.message:'最后编辑未能保存，请重试';
+        cancelClose(message,diagnostic);return;
+      }
+      attempt.settled = true;window.clearTimeout(attempt.timer);attempt.resolve(true);return;
+    }
     if (data.method === 'ui/notifications/sandbox-resource-error') {fail(typeof data.params?.message === 'string' ? data.params.message.slice(0,1000) : 'resource_error');return;}
     if (typeof data.method !== 'string') return;
     if (Object.hasOwn(data, 'id')) {
@@ -291,7 +306,7 @@ export function createMcpAppHost(options) {
   }
   function loaded() {
     if (disposed || failed) return;
-    if (loadSeen) {generation++;nonce = window.crypto.randomUUID();ready = initialized = false;sending = false;lastMessageAt = -Infinity;requests.clear();timers();}
+    if (loadSeen) {cancelClose('应用已重载，关闭前保存未完成');closeReady=false;generation++;nonce = window.crypto.randomUUID();ready = initialized = false;sending = false;lastMessageAt = -Infinity;requests.clear();timers();}
     colorContextPermit = layerContextPermit = generationContextPermit = appReplyPermit = null;loadSeen = true;sendResource();
   }
   function start() {
@@ -321,6 +336,20 @@ export function createMcpAppHost(options) {
   function updatePresentationState(value) {if (disposed || failed) return;const changed = !presentationTracked || expanded !== !!value;presentationTracked = true;expanded = !!value;if (changed) sendPresentation();}
   function updateConversationRunActive(value) {if (disposed || failed) return;const next = !!value;if (conversationActive === next) return;conversationActive = next;if (ready) notify('tapnow/updateData', {conversation_run_active: conversationActive});}
   function sendPresentationShortcut(key) {if (!disposed && !failed && ready && expanded && typeof key === 'string' && key.length < 40) notify('tapnow/presentationShortcut', {key});}
-  function dispose() {if (disposed) return;disposed = true;colorContextPermit = layerContextPermit = generationContextPermit = appReplyPermit = null;generation++;stopTimers();requests.clear();window.removeEventListener('message', receive);iframe.removeEventListener('load', loaded);}
-  return {start, updateData, updateAppReplyStatus, updateHostContext, updatePresentationState, updateConversationRunActive, sendPresentationShortcut, dispose};
+  function cancelClose(message = '关闭已取消', cause) {
+    const attempt = closeAttempt;if (!attempt) return;closeAttempt = null;window.clearTimeout(attempt.timer);
+    notify('freenow/lifecycleResume', {id: attempt.id});if (!attempt.settled) attempt.reject(Object.assign(fault(-32000,message),cause?{cause}:{}));
+  }
+  function prepareToClose() {
+    if (!canFlushClose || !ready && !initialized) return Promise.resolve(true);
+    if (!ready || !live()) return Promise.reject(fault(-32000,'应用尚未就绪或所属会话已切换'));
+    if (!closeReady) return Promise.reject(fault(-32000,'关闭前保存协议尚未就绪，请重载面板后重试'));
+    if (closeAttempt) return closeAttempt.promise;
+    const attempt = {id:'local-close-'+window.crypto.randomUUID(),version:generation,token:nonce,settled:false};
+    attempt.promise = new Promise((resolve,reject)=>{attempt.resolve=resolve;attempt.reject=reject;});closeAttempt=attempt;
+    attempt.timer=window.setTimeout(()=>cancelClose('关闭前保存超时，页面已保留，请重试'),options.closeTimeoutMs??10000);
+    post({jsonrpc:'2.0',id:attempt.id,method:'freenow/lifecycleFlush',params:{}});return attempt.promise;
+  }
+  function dispose() {if (disposed) return;cancelClose('应用已销毁，关闭前保存未完成');disposed = true;colorContextPermit = layerContextPermit = generationContextPermit = appReplyPermit = null;generation++;stopTimers();requests.clear();window.removeEventListener('message', receive);iframe.removeEventListener('load', loaded);}
+  return {start, updateData, updateAppReplyStatus, updateHostContext, updatePresentationState, updateConversationRunActive, sendPresentationShortcut, prepareToClose, cancelClose, dispose};
 }

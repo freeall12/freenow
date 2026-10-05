@@ -8,6 +8,7 @@ async function fixture(){
  const host=createDepthAgentHost({getNodes:()=>nodes,getMessages:()=>messages,validateFormSubmission:tools.validateFormSubmission,localAssets:{url:value=>value},baseUrl:'http://localhost/',
   inspect:(ids,options)=>inspectCanvasMedia(ids,{...options,prepare:async uploads=>{inspections.push(uploads);return uploads.map(upload=>({name:upload.name,imageUrl:'data:image/jpeg;base64,/9j/4AAQ',...(upload.type==='video'?{time:0}:{})}));}}),
   resolveMedia:async node=>({id:node.id,type:node.type,url:node.clip?'https://media.test/exported-clip.mp4':node.video||node.fullImage||node.image,width:1280,height:720,...(node.type==='video'?{duration:node.clip?node.clip.end-node.clip.start:5}:{})}),
+  getConfiguration:async()=>({configured:true,protocol:'tasks-v1'}),
   runInPlace:async(request,handlers,options)=>{requests.push(request);const job={id:'job-'+requests.length,status:'running'};options.onSubmitted?.(job);handlers.guard();const added=await handlers.apply({type:'video',url:'https://media.test/result-'+requests.length+'.mp4',width:1,height:1,duration:999});return {...job,status:'succeeded',resultIds:added.map(n=>n.id)};},
   createConnected:(source,outputs)=>{const added=outputs.map(output=>({...output,id:'output-'+(++sequence)}));nodes.push(...added);return added;},persist:async()=>{saves++;}});
  host.beginTurn('turn-one');return {host,nodes,messages,requests,inspections,saves:()=>saves};

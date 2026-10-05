@@ -109,6 +109,8 @@ node --env-file=.env.local server/server.cjs
 | `ark-native` | 火山方舟视频任务 | [Ark](docs/ARK-VIDEO.md) |
 | `ark-video-extend-reference` | 工具栏延长镜头：片头/片尾、4–30秒、连续性与参考 | [延长镜头](docs/VIDEO-EXTEND-NATIVE-20261005.md)，明确为参考生成；本地视频另需公网发布通道 |
 | `ark-video-reshoot-edit` | 视频重拍：分镜、四种镜头模式与提示词编译 | [重拍](docs/VIDEO-RESHOOT-EDIT-20261005.md)，实验性提示词模拟；Ark Key 外还需要独立 HTTPS 视频 |
+| `fal-video-depth-native` | Agent 视频深度转换 | [深度](docs/VIDEO-DEPTH-NATIVE-20261005.md)，完整 MP4、原尺寸/时长、单灰度结果；需 FFmpeg，普通节点同位入口尚未补齐 |
+| `openai-panorama-edit-native` | 旧版 3D 片场全景局部编辑 | [局部编辑](docs/OPENAI-PANORAMA-EDIT-NATIVE-20261005.md)，2048×1024 全景、可见凸四角选区；透视蒙版编辑后本地回投，硬边接缝与效果待验 |
 | `fal-panorama-native` | 单张图片 → Hunyuan World Panorama | [全景](docs/PANORAMA-NATIVE-20261005.md)，固定 2:1、单结果、原生尺寸；当前后端仅接受实际 PNG 像素，非区域编辑 |
 | `minimax-native` | MiniMax H3 视频 | [H3](docs/MINIMAX-H3-SETUP.md) |
 | `minimax-music-native` | MiniMax Music 2.6 | [音乐](docs/MINIMAX-MUSIC-NATIVE.md)，存在账号资格限制 |
@@ -135,6 +137,12 @@ node --env-file=.env.local server/server.cjs
 - 页面和内嵌应用使用本地资源限制；服务端拒绝向原站域名请求或转交原站媒体。未知旧资源须显式导入修复，不自动联网回源。[本地化验收边界](docs/FREENOW-LOCALIZATION-ACCEPTANCE.md)
 
 ## 最新接入与核验
+
+本批补齐视频深度原生接口、全景局部蒙版编辑和 Agent 页面关闭前保存。全景实机验证鼠标框选、缺 Key 不提交、真实 2:1 图片归档、保存失败锁定与同结果重试、历史刷新恢复；深度通过正式 Agent 链输出可播放的本地 MP4。供应商返回使用合成夹具，不代表真实模型效果。[本批记录与未完成项](docs/LOCAL-DEPTH-PANORAMA-LIFECYCLE-20261005.md)
+
+| 全景：真实鼠标框选、编辑描述与 freenow 标识 | Agent：保存失败保留最后编辑 |
+| --- | --- |
+| ![全景局部编辑正式界面](docs/screenshots/panorama-local-selection-20261005.jpg) | ![节奏页关闭时保存失败仍保留内容](docs/screenshots/agent-close-save-20261005.jpg) |
 
 Magnific 高清放大已接独立公开原生 API，正式面板和 Agent 保留倍率、锐化、颗粒、细节四项设置；完整本机图片直接物化提交，不需要原站账号或公网素材托管。配置按示例合并路由后填写自己的 Magnific Key。已验来源原尺寸、真实归档、保存重试、原任务查询及 Agent 持久派发回执。[本批实机记录](docs/LOCAL-MAGNIFIC-AGENT-20261005.md) · [安装包与官方协议证据](docs/MAGNIFIC-PRECISION-NATIVE-CONTRACT-20261005.md)
 

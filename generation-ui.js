@@ -1,7 +1,7 @@
 (() => {
   'use strict';
   const app=window.CanvasApp;
-  let generationRequests,generationMedia,recognitionMedia,videoAnalysisMedia,extensionMedia,reshootMedia,videoMaskMedia,panoramaMedia,panoramaValidation,imageToolMedia,maskedEditMedia,relightMedia,skinMedia,magnificMedia,worldMedia,draftWorkflow,resultModules,resultWorkflow,failureBridge;
+  let generationRequests,generationMedia,recognitionMedia,videoAnalysisMedia,extensionMedia,reshootMedia,videoMaskMedia,videoDepthMedia,panoramaEditMedia,panoramaMedia,panoramaValidation,imageToolMedia,maskedEditMedia,relightMedia,skinMedia,magnificMedia,worldMedia,draftWorkflow,resultModules,resultWorkflow,failureBridge;
   const failureSources=new Map();
   const resultSubmissions=new Map();
   const draftGuards=new Map();
@@ -79,6 +79,16 @@
       const nativeConfiguration=service.jobs.get(jobId)?.transport===localProvider?taskNativeConfigurations.get(signal):null;
       return (await videoMaskMedia).prepareMaskedVideoMedia(request,{signal,validateSources,localAssets:window.LocalAssets,localMedia:window.LocalMedia,baseUrl:document.baseURI,nativeConfiguration});
     }
+    if(request.kind==='video.depth'){
+      videoDepthMedia||=import('./src/features/video-depth/media.mjs');
+      const nativeConfiguration=service.jobs.get(jobId)?.transport===localProvider?taskNativeConfigurations.get(signal):null;
+      return (await videoDepthMedia).prepareDepthMedia(request,{signal,validateSources,localAssets:window.LocalAssets,baseUrl:document.baseURI,nativeConfiguration});
+    }
+    if(request.kind==='panorama.edit'){
+      panoramaEditMedia||=import('./src/features/panorama-edit/media.mjs');
+      const nativeConfiguration=service.jobs.get(jobId)?.transport===localProvider?taskNativeConfigurations.get(signal):null;
+      return (await panoramaEditMedia).preparePanoramaEditMedia(request,{signal,validateSources,localAssets:window.LocalAssets,baseUrl:document.baseURI,nativeConfiguration});
+    }
     if(request.kind==='video.analyze'){
       videoAnalysisMedia||=import('./src/features/node-composer/video-analysis-media.mjs');
       const nativeConfiguration=service.jobs.get(jobId)?.transport===localProvider?taskNativeConfigurations.get(signal):null;
@@ -119,7 +129,13 @@
     return transport.generate(request,options);
   };
   let serverConfigured=false,serverConfigurationRevision=0,serverConfigurationSnapshot=null;
-  service.setProvider(localProvider);
+  let providerRevision=0;
+  function setProvider(provider){
+    const previous=service.provider,result=service.setProvider(provider);
+    if(service.provider!==previous)providerRevision++;
+    return result;
+  }
+  setProvider(localProvider);
   function refreshServerConfiguration(){const revision=++serverConfigurationRevision;return fetch('/api/generation/config',{signal:AbortSignal.timeout(5000)}).then(response=>response.ok?response.json():null).then(value=>{const valid=typeof value?.configured==='boolean';if(revision===serverConfigurationRevision){serverConfigured=valid&&value.configured;serverConfigurationSnapshot=valid?structuredClone(value):null;}return valid?value:null;}).catch(()=>{if(revision===serverConfigurationRevision){serverConfigured=false;serverConfigurationSnapshot=null;}return null;});}
   let serverConfiguration=refreshServerConfiguration();
   localProvider.isConfigured=async({request,signal,operationOnly=false}={})=>{
@@ -453,7 +469,7 @@
         const [client,metadata]=await Promise.all([configurationClientReady,serverConfiguration=refreshServerConfiguration()]);
         if(!metadata)throw Error('无法读取本机配置，请检查本地服务是否正在运行');
         const result=await client.saveLocalGenerationConfiguration(input,{token:metadata.csrfToken,signal:AbortSignal.timeout(10000)});
-        serverConfigurationRevision++;serverConfigured=result.configured;serverConfigurationSnapshot=structuredClone(result);serverConfiguration=Promise.resolve(result);service.setProvider(localProvider);key.value='';
+        serverConfigurationRevision++;serverConfigured=result.configured;serverConfigurationSnapshot=structuredClone(result);serverConfiguration=Promise.resolve(result);setProvider(localProvider);key.value='';
         await showConfiguration(result,revision);
         if(!result.configured){error.textContent='已切换为本机环境配置，但仍缺少相应协议、模型或 Key；请配置后刷新。';return;}
         d.close();
@@ -545,7 +561,7 @@
   }
   function retry(id){if(inPlace.has(id))throw Error('请通过整组执行重新启动工作流');const old=service.jobs.get(id);if(!old)return null;if(old.request.parameters?.workflowRecovery)throw Error('持久工作流只能查询原任务，不能重发');if(['unknown','queued','running'].includes(old.status))throw Error('请查询已有任务，不能重复生成');if(old.status==='succeeded'&&!old.applied)throw Error('生成已完成，请使用重试应用结果，避免重复调用生成服务');const target=derivedTargets.get(id);if(target){try{return submitDerived(old.request,target);}catch(error){app.notify(error.message);return null;}}return submit(old.request,{beforeDispatch:old.beforeDispatch,beforeDispatchReady:old.beforeDispatchReady});}
   function submitDerived(request,target){target.guard();const job=submitJob(request,{beforeDispatch:target.guard,beforeDispatchReady:target.beforeDispatchReady});derivedTargets.set(job.id,target);return job;}
-  window.GenerationAPI={submitDerived,runInPlace,recoverInPlace,validateWorkflowProposal,availability,configuration,configurationSnapshot,isConfigured:()=>service.provider===localProvider?serverConfigured:!!service.provider,submit,setProvider:p=>service.setProvider(p),configure,cancel,retry,retryApplication,recover,applyRecovered,subscribe:fn=>{const unsubscribe=service.subscribe(fn);applicationListeners.add(fn);return()=>{unsubscribe();applicationListeners.delete(fn);};},getJobs:()=>[...service.jobs.values()].map(({controller,...job})=>job)};
+  window.GenerationAPI={submitDerived,runInPlace,recoverInPlace,validateWorkflowProposal,availability,configuration,configurationSnapshot,providerRevision:()=>providerRevision,isConfigured:()=>service.provider===localProvider?serverConfigured:!!service.provider,submit,setProvider,configure,cancel,retry,retryApplication,recover,applyRecovered,subscribe:fn=>{const unsubscribe=service.subscribe(fn);applicationListeners.add(fn);return()=>{unsubscribe();applicationListeners.delete(fn);};},getJobs:()=>[...service.jobs.values()].map(({controller,...job})=>job)};
   const generationHistoryReady=import('./src/features/generation-history/entry.mjs').then(module=>module.install());
   const historyDispatchReady=import('./src/features/generation-history/dispatch.mjs').then(({createHistoryDispatchGate})=>createHistoryDispatchGate({
     ready:()=>generationHistoryReady,getJob:id=>service.jobs.get(id),captureOptions:job=>({recoverable:job.transport===localProvider})

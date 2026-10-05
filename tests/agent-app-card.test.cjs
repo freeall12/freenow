@@ -95,3 +95,27 @@ test('dismiss callbacks ignore inline, replaced, suspended and destroyed cards a
   f.card.suspend();assert.equal(current.options.callbacks.onDismiss(),false);f.card.destroy();assert.equal(current.options.callbacks.onDismiss(),false);
  }finally{second?.destroy();f.close();}
 });
+
+test('backdrop and inner Escape wait for close persistence, retain failures and permit retry',async()=>{
+ const f=await fixture();try{
+  const host=f.hosts[0],dialog=f.card.element.querySelector('[role=dialog]'),iframe=f.card.element.querySelector('iframe');host.options.callbacks.onReady();f.card.setExpanded(true);let release,reject,cancelled=0;
+  host.prepareToClose=()=>new Promise((resolve,no)=>{release=resolve;reject=no;});host.cancelClose=()=>{cancelled++;};
+  f.card.element.querySelector('[data-testid="mcp-app-backdrop"]').click();assert.equal(dialog.dataset.expanded,'true');assert.match(f.card.element.querySelector('.agent-mcp-close-status').textContent,/保存/);
+  reject(Error('disk unavailable'));await new Promise(setImmediate);assert.equal(dialog.dataset.expanded,'true');assert.equal(iframe.isConnected,true);assert.match(f.card.element.querySelector('.agent-mcp-close-status').textContent,/页面已保留/);
+  host.options.callbacks.onDismiss();assert.equal(dialog.dataset.expanded,'true');release(true);await new Promise(setImmediate);assert.equal(dialog.dataset.expanded,'false');assert.equal(iframe.isConnected,true);assert.equal(cancelled,2);assert.equal(f.card.element.querySelector('.agent-mcp-close-status').hidden,true);
+ }finally{f.close();}
+});
+test('presentation collapse cannot release the lock held by an outer drawer close',async()=>{
+ const f=await fixture();try{
+  const host=f.hosts[0];host.options.callbacks.onReady();f.card.setExpanded(true);let release,cancelled=0;const pending=new Promise(resolve=>{release=resolve;});host.prepareToClose=()=>pending;host.cancelClose=()=>{cancelled++;};
+  f.card.element.querySelector('[data-testid="mcp-app-backdrop"]').click();const outerClose=f.card.prepareToClose();release(true);await outerClose;await new Promise(setImmediate);
+  assert.equal(f.card.element.querySelector('[role=dialog]').dataset.expanded,'false');assert.equal(cancelled,0,'outer context transition still owns the lock');f.card.cancelClose();assert.equal(cancelled,1);
+ }finally{f.close();}
+});
+test('late old close failure cannot release a replacement card close lock',async()=>{
+ const f=await fixture();try{
+  const old=f.hosts[0];old.options.callbacks.onReady();let rejectOld;old.prepareToClose=()=>new Promise((_,reject)=>{rejectOld=reject;});old.cancelClose=()=>{};const stale=f.card.prepareToClose(),rejected=assert.rejects(stale,/old disk failed/);
+  f.card.update({...f.value,id:'replacement'});const next=f.hosts[1];next.options.callbacks.onReady();f.card.setExpanded(true);let release,cancelled=0;const saved=new Promise(resolve=>{release=resolve;});next.prepareToClose=()=>saved;next.cancelClose=()=>{cancelled++;};const closing=f.card.prepareToClose();rejectOld(Error('old disk failed'));await rejected;
+  next.options.callbacks.onDismiss();release(true);await closing;await new Promise(setImmediate);assert.equal(cancelled,0);f.card.cancelClose();assert.equal(cancelled,1);
+ }finally{f.close();}
+});

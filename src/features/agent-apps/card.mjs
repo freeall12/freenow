@@ -22,9 +22,11 @@ export function createMcpAppCard({trace,policy={},createHost,hostOptions={},auto
  const loading=node(document,'div','agent-mcp-loading'),loadingText=node(document,'output','','正在加载面板…');loading.append(node(document,'div','agent-mcp-spinner'),loadingText);
  const error=node(document,'div','agent-mcp-error'),errorTitle=node(document,'p','agent-mcp-error-title','面板暂时未能加载'),summary=node(document,'p','agent-mcp-error-summary'),reason=node(document,'p','agent-mcp-error-reason'),actions=node(document,'div','agent-mcp-error-actions'),reloadButton=node(document,'button','agent-mcp-reload','重新加载面板'),retryNote=node(document,'span','agent-mcp-retry-note');
  error.setAttribute('aria-live','polite');reloadButton.type='button';actions.append(reloadButton,retryNote);error.append(errorTitle,summary,reason,actions);dialog.append(header,loading,error);element.append(backdrop,dialog);
+ const closeStatus=node(document,'output','agent-mcp-close-status');closeStatus.setAttribute('role','status');closeStatus.style.cssText='padding:0 12px;color:#f0bd7a;white-space:pre-wrap';closeStatus.hidden=true;dialog.append(closeStatus);
  let currentTrace=trace,currentPolicy=policy,options=hostOptions,wantsAutoExpand=autoExpand,uri='',key='',frame=null,host=null,destroyed=false,suspended=false;
  let state='loading',failure=null,attempt=0,automaticRetries=0,wasReady=false,expanded=false,inlineHeight=200,ignoreResize=false,restoreFocus=null,autoExpanded=false;
  let generation=0,retryTimer=null,retryAt=0,retryRemaining=null,resizeFrames=[],lastData=null;
+ let closeForDisposal=false;
  const raf=callback=>window.requestAnimationFrame?window.requestAnimationFrame(callback):window.setTimeout(callback,16);
  const cancelRaf=id=>window.cancelAnimationFrame?window.cancelAnimationFrame(id):window.clearTimeout(id);
  const actionCurrent=()=>!destroyed&&!suspended&&element.isConnected&&allowed(isCurrent);
@@ -40,6 +42,14 @@ export function createMcpAppCard({trace,policy={},createHost,hostOptions={},auto
   if(frame){frame.title=typeof request.title==='string'?request.title:'App';frame.style.height=expanded?'calc(88vh - 36px)':inlineHeight+'px';frame.style.display=state==='ready'?'block':'none';}
  }
  function notifyPresentation(){host?.updatePresentationState?.(expanded);host?.updateHostContext?.({displayMode:expanded?'fullscreen':'inline'});}
+ async function prepareClose(keepLocked){
+  if(destroyed||!host?.prepareToClose)return true;closeForDisposal=closeForDisposal||keepLocked;const instance=host,version=generation;closeStatus.hidden=false;closeStatus.textContent='正在保存最后编辑…';
+  try{await instance.prepareToClose();if(destroyed||generation!==version||host!==instance||!actionCurrent())throw Error('应用所属会话已切换');closeStatus.hidden=true;closeStatus.textContent='';return true;}
+  catch(error){instance.cancelClose?.();if(!destroyed&&version===generation&&host===instance){closeForDisposal=false;closeStatus.hidden=false;closeStatus.textContent=errorText(error)+'；页面已保留，请再次关闭以重试。';}throw error;}
+ }
+ function prepareToClose(){return prepareClose(true);}
+ function cancelClose(){closeForDisposal=false;host?.cancelClose?.();if(closeStatus.textContent==='正在保存最后编辑…'){closeStatus.hidden=true;closeStatus.textContent='';}}
+ function requestCollapse(){if(!host?.prepareToClose)return setExpanded(false);void prepareClose(false).then(()=>{setExpanded(false);if(!closeForDisposal)cancelClose();},()=>{});return true;}
  function setExpanded(value,{restore=true}={}){
   value=!!value&&!!currentPolicy.allowExpanded&&!destroyed&&!suspended;if(value===expanded)return false;
   stopResizeReset();if(value){restoreFocus=document.activeElement;ignoreResize=true;window.dispatchEvent(new window.CustomEvent(expandedEvent,{detail:{cardId}}));}
@@ -60,12 +70,12 @@ export function createMcpAppCard({trace,policy={},createHost,hostOptions={},auto
    onReady(){if(!live())return;state='ready';failure=null;wasReady=true;stopRetry();retryRemaining=null;sync();host?.updateConversationRunActive?.(!!options.runActive);if(wantsAutoExpand&&currentPolicy.autoExpandOnReady&&!autoExpanded&&!suspended){autoExpanded=true;setExpanded(true);}else if(expanded&&dialog.isConnected)dialog.focus({preventScroll:true});callbacks.onReady?.();},
    onError(value){if(!live())return;fail(value,version);callbacks.onError?.(value);},
    onSizeChanged(height){if(!live()||ignoreResize||typeof height!=='number'||!Number.isFinite(height))return;const max=currentPolicy.maxInlineHeight;inlineHeight=Math.max(height,100);if(Number.isFinite(max))inlineHeight=Math.min(inlineHeight,Math.max(max,100));sync();callbacks.onSizeChanged?.(height);},
-   onDismiss(){if(!live()||!actionCurrent()||!expanded)return false;return setExpanded(false);},
+   onDismiss(){if(!live()||!actionCurrent()||!expanded)return false;return requestCollapse();},
    async onSendPrompt(text,meta,isSourceCurrent=()=>true){if(!live()||!actionCurrent()||!isSourceCurrent()||!callbacks.onSendPrompt)return false;const current=()=>live()&&actionCurrent()&&isSourceCurrent();const accepted=await callbacks.onSendPrompt(text,meta,current);if(!current())return false;if(accepted!==false&&currentPolicy.collapseOnSendMessage)setExpanded(false);return accepted;}
   };
  }
  function start(){
-  stopRetry();retryRemaining=null;host?.dispose?.();host=null;generation++;const version=generation;frame?.remove();frame=node(document,'iframe','agent-mcp-frame');frame.setAttribute('sandbox','allow-scripts');dialog.append(frame);state='loading';failure=null;sync();
+  stopRetry();retryRemaining=null;host?.dispose?.();host=null;closeForDisposal=false;closeStatus.hidden=true;closeStatus.textContent='';generation++;const version=generation;frame?.remove();frame=node(document,'iframe','agent-mcp-frame');frame.setAttribute('sandbox','allow-scripts');dialog.append(frame);state='loading';failure=null;sync();
   if(!uri||!currentPolicy.proxyUrl||typeof createHost!=='function'){fail(!uri?'invalid_resource_uri':'resource_error',version);return;}
   try{
    const instance=createHost({...options,iframe:frame,resourceUri:uri,toolInput:input(currentTrace),toolResult:result(currentTrace),initialWidgetState:content(currentTrace).appState??content(currentTrace).widget_state??options.initialWidgetState,isCurrent:()=>version===generation&&actionCurrent()&&allowed(options.isCurrent??(()=>true)),callbacks:hostCallbacks(version)});
@@ -81,12 +91,12 @@ export function createMcpAppCard({trace,policy={},createHost,hostOptions={},auto
   return element;
  }
  function keydown(event){
-  if(!expanded||!actionCurrent())return;if(event.key==='Escape'){if(event.isTrusted!==true||event.defaultPrevented||event.isComposing||event.keyCode===229||!dialog.contains(event.target))return;event.preventDefault();event.stopPropagation();setExpanded(false);return;}
+  if(!expanded||!actionCurrent())return;if(event.key==='Escape'){if(event.isTrusted!==true||event.defaultPrevented||event.isComposing||event.keyCode===229||!dialog.contains(event.target))return;event.preventDefault();event.stopPropagation();requestCollapse();return;}
   const keys=currentPolicy.presentationShortcuts;if(!(keys===true?['ArrowLeft','ArrowRight','Enter']:keys??[]).includes(event.key)||event.defaultPrevented||event.isComposing||event.keyCode===229||event.ctrlKey||event.metaKey||event.altKey||event.key==='Enter'&&event.repeat)return;
   if(!dialog.contains(event.target)||event.target.closest?.('button,a,input,textarea,select,[contenteditable]:not([contenteditable="false"]),[role="button"],[role="radio"],[role="radiogroup"],[role="slider"]'))return;
   if(host?.sendPresentationShortcut){event.preventDefault();host.sendPresentationShortcut(event.key);}
  }
  function otherExpanded(event){if(event.detail?.cardId!==cardId)setExpanded(false,{restore:false});}
- expand.onclick=()=>setExpanded(!expanded);backdrop.onclick=()=>setExpanded(false);reloadButton.onclick=reload;window.addEventListener('keydown',keydown);window.addEventListener(expandedEvent,otherExpanded);update(trace);
- return {element,update,reload,setExpanded,updateAppReplyStatus:(replyId,status)=>host?.updateAppReplyStatus?.(replyId,status),suspend(){if(destroyed||suspended)return;setExpanded(false,{restore:false});suspended=true;if(retryTimer!==null)retryRemaining=Math.max(0,retryAt-Date.now());stopRetry();},destroy(){if(destroyed)return;setExpanded(false,{restore:false});destroyed=true;generation++;stopRetry();stopResizeReset();host?.dispose?.();host=null;window.removeEventListener('keydown',keydown);window.removeEventListener(expandedEvent,otherExpanded);expand.onclick=null;backdrop.onclick=null;reloadButton.onclick=null;element.remove();}};
+ expand.onclick=()=>expanded?requestCollapse():setExpanded(true);backdrop.onclick=()=>requestCollapse();reloadButton.onclick=reload;window.addEventListener('keydown',keydown);window.addEventListener(expandedEvent,otherExpanded);update(trace);
+ return {element,update,reload,setExpanded,prepareToClose,cancelClose,updateAppReplyStatus:(replyId,status)=>host?.updateAppReplyStatus?.(replyId,status),suspend(){if(destroyed||suspended)return;cancelClose();setExpanded(false,{restore:false});suspended=true;if(retryTimer!==null)retryRemaining=Math.max(0,retryAt-Date.now());stopRetry();},destroy(){if(destroyed)return;setExpanded(false,{restore:false});destroyed=true;generation++;stopRetry();stopResizeReset();host?.dispose?.();host=null;window.removeEventListener('keydown',keydown);window.removeEventListener(expandedEvent,otherExpanded);expand.onclick=null;backdrop.onclick=null;reloadButton.onclick=null;element.remove();}};
 }

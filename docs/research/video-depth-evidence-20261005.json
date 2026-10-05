@@ -1,0 +1,26 @@
+{
+  "captured": "2026-10-05",
+  "schemaUrl": "https://fal.ai/api/openapi/queue/openapi.json?endpoint_id=fal-ai/depth-anything-video",
+  "schemaSha256": "61d9b0d7392d2dfd16416f2ef9894df1515847becee4f8a4fd02a97166c78684",
+  "apiPageUrl": "https://fal.ai/models/fal-ai/depth-anything-video/api",
+  "schemaInput": "DepthAnythingVideoInput",
+  "schemaOutput": "DepthAnythingVideoOutput",
+  "staticSources": [
+    {
+      "path": "/Applications/TapNow.app/Contents/Resources/web/assets/index-BsHyQ2qj.js",
+      "sha256": "a24bbe7de925ccc68aa332dbec6ad6a96e50db11867b21f15c20b7f128ef33a4",
+      "excerpt": "function C3s(t){const{model:e,videos:n}=t,a=n&&n.length>0?n[0]:void 0,r={provider:Er.FAL,model:e};return a?n&&n.length>1?En({...r,video_url:a},\"depth-anything-video accepts only 1 source video\"):En({...r,video_url:a}):En(r,\"depth-anything-video requires video_url\")}function P2t(t){const{model:e,images:n,videos:a,prompt:r,aspectRatio:o,duration:s}=t,l=!!(n&&n.length>0),c=!!(a&&a.length>0),d=l&&c?\"reference_to_video\":c?\"edit\":l?(n?.length??0)>=2?\"reference_to_video\":\"image_to_v"
+    },
+    {
+      "path": "reference/vendor-packages-CN3JnHbF.js",
+      "sha256": "9bd1aa342e9b1f69a32d620ade47773c3fe2eca2d3f2abdce88643b0995c409f",
+      "excerpt": "function ZX(e){const{model:t,videos:n}=e,s=n&&n.length>0?n[0]:void 0,r={provider:be.FAL,model:t};return s?n&&n.length>1?te({...r,video_url:s},\"depth-anything-video accepts only 1 source video\"):te({...r,video_url:s}):te(r,\"depth-anything-video requires video_url\")}function d3(e){const{model:t,images:n,videos:s,prompt:r,aspectRatio:o,duration:i}=e,l=!!(n&&n.length>0),d=!!(s&&s.length>0),u=l&&d?\"reference_to_video\":d?\"edit\":l?(n?.length??0)>=2?\"reference_to_video\":\"image_to_vid"
+    },
+    {
+      "path": "reference/vendor-pkg-canvas-CwfaULgq.js",
+      "sha256": "cf4df1be70ee5b4379f539d93fc3b1b9b566bf307817aa215b1272cb37725946",
+      "excerpt": "wireName:\"depth-anything-video\",modelId:xt.DEPTH_ANYTHING_VIDEO,videoContract:{maxImages:0,maxVideos:1,maxAudios:0}},{wireName:\"happyhorse-1.1\",modelId:xt.HAPPYHORSE_1_1},{wireName:\"gemini-omni-flash\",modelId:xt.GEMINI_OMNI_FLASH,selectable:!1},{wireName:\"gemini-omni-1.1-flash\",modelId:xt.GEMINI_OMNI_1_1_FLASH},{wireName:\"seedance-2.5\",modelId:xt.SEEDANCE_2_5,selectable:!1},{wireName:\"seedance-2.5-draft\",modelId:xt.SEEDANCE_2_5_DRAFT,selectable:!1},{wireName:\"wan-2.6\",modelId"
+    }
+  ],
+  "inlineDataContract": "Some attributes in the API accept file URLs as input. Whenever that's the case you can pass your own URL or a Base64 data URI.    Data URI (base64)  #    You can pass a Base64 data URI as a file input. The API will handle the file decoding for you. Keep in mind that for large files, this alternative although convenient can impact the request performance.    Hosted files (URL)  #    You can also pass your own URLs as long as they are publicly accessible. Be aware that some hosts might block cross-site requests, rate-limit, or consider the request as a bot.  <h"
+}

@@ -1,3 +1,4 @@
+import {localLifecycleScript} from './local-lifecycle.mjs';
 // Preserve captured evidence. Only this pinned official renderer receives the
 // local save/confirmation repair; appState and NS1 remain the official contract.
 export const storyRoomReferenceSha256 = 'dae7d235df8887af866f8b1984b75075c651f1b4d8f79775a0470a4b89f569a0';
@@ -28,6 +29,9 @@ export async function localizeStoryRoomInteractions(html, name, version) {
     // km trims before truncation. Restoring a saved 24-character name must not
     // silently remove a legitimate trailing truncation space from the NS1 token.
     ['const y=km($.name);if(!y||!r.includes($.act))return null;t[m]={name:y,act:$.act}', 'const cleaned=km($.name),y=$.name.length===24&&$.name.endsWith(" ")&&cleaned===$.name.slice(0,-1)?$.name:cleaned;if(!y||!r.includes($.act))return null;t[m]={name:y,act:$.act}'],
+    // Window message delivery may preserve registration order at its target.
+    // Install before connect() starts the SDK transport, as Rhythm already does.
+    ['R_();</script>',localLifecycleScript({root:'j_',flush:'(An!==null&&(clearTimeout(An),An=null),P_())',busy:'ui'})+'R_();</script>'],
   ];
   for (const [original, local] of changes) {
     if (html.split(original).length !== 2) throw Error('story-room local interaction contract integrity mismatch');

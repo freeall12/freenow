@@ -4,7 +4,7 @@ const status = document.getElementById('status'), cards = document.getElementByI
 // Deterministic local fixture using the fields rendered by the packaged board.
 const sample={locale:'zh-CN',acts:[{id:'A1',label:'第一幕 · 事故以后'},{id:'A2',label:'第二幕 · 真相'}],plotlines:[{id:'P1',label:'林岚',color:'teal'},{id:'P2',label:'事故调查',color:'amber'}],scenes:[{key:'S1',act:'A1',name:'医院走廊',cast:['林岚'],plotline:'P1',story_order:3,story_time:'事故后',loc:'医院',synopsis:'林岚在口袋里发现旧票根。',beat:'发现',has_body:true},{key:'S2',act:'A1',name:'车站告别',cast:['林岚','调查员'],plotline:'P2',story_order:1,story_time:'事故前',loc:'车站',synopsis:'调查员的回答与票根时间不符。',has_body:false},{key:'S3',act:'A2',name:'天台',cast:['林岚'],plotline:'P1',story_order:4,story_time:'事故后',loc:'天台',synopsis:'林岚决定核对事故当天的记录。',has_body:true}],causal_links:[{from:'S2',to:'S1'}]};
 document.getElementById('input').value = JSON.stringify(sample, null, 2);
-let savingState=false,queueSaving=false;
+let savingState=false,queueSaving=false,panelOpen=true;
 let database, chat = {messages: [], replies: []};
 function databaseName() {
   const session=new URLSearchParams(location.search).get('session');
@@ -37,10 +37,11 @@ function save() {
 }
 function showReplies() {document.getElementById('state').value=chat.messages.map(trace=>JSON.stringify({traceId:trace.id,state:trace.appState},null,2)).join('\n');reply.value=chat.replies.map(item=>item.text).join('\n\n');status.textContent=`已保存${chat.messages.length}个官方剧本结构页；实际排队${chat.replies.length}次。未调用模型。`;}
 const controller=createAppController({
-  getContext:()=>({chat,panelActive:true,pageLeaving:false,streaming:busy.checked}),
+  getContext:()=>({chat,panelActive:panelOpen,pageLeaving:false,streaming:busy.checked}),
   onSaveState:async(current,trace,state)=>{
     if(savingState||queueSaving)throw Error('剧本结构正在保存，请稍后重试');
     if(failSave.checked)throw Error('模拟：剧本结构事务保存失败');
+    const delay=Math.max(0,Math.min(5000,Number(document.getElementById('save-delay').value)||0));if(delay)await new Promise(resolve=>setTimeout(resolve,delay));
     const previous=trace.appState;trace.appState=state;savingState=true;
     try {await save();showReplies();} catch(error) {trace.appState=previous;status.textContent=error.message;throw error;} finally {savingState=false;}
   },
@@ -61,6 +62,7 @@ const controller=createAppController({
 });
 function render() {
   controller.prune(chat.messages);
+  if(!panelOpen){cards.replaceChildren();showReplies();return;}
   for (const trace of chat.messages) {
     const element=controller.render(trace);if(element&&element.parentElement!==cards)cards.append(element);
   }
@@ -73,14 +75,16 @@ document.getElementById('open').onclick=async()=>{
     const trace={id:crypto.randomUUID(),name:'show_app',args,status:'done',result:prepareApp(args)},previous=chat.messages;
     // Persist the official initial state in the trace's creation transaction.
     trace.appState=initialStoryRoomState(trace.result.response);
-    chat.messages=[...previous,trace];try {await save();} catch(error) {chat.messages=previous;throw error;}render();
+    chat.messages=[...previous,trace];try {await save();} catch(error) {chat.messages=previous;throw error;}panelOpen=true;render();
   } catch(error) {status.textContent=error.message;} finally {button.disabled=false;}
 };
 document.getElementById('rerender').onclick=render;busy.onchange=render;
+document.getElementById('close').onclick=async()=>{try{await controller.prepareToClose();panelOpen=false;render();}catch(error){status.textContent=error.message+'；页面已保留，可再次关闭重试';}finally{controller.cancelClose();}};
+document.getElementById('reopen').onclick=()=>{panelOpen=true;render();};
 window.storyRoomQA={snapshot:()=>structuredClone(chat)};
 window.addEventListener('pagehide',()=>{controller.reset();database?.close();});
 try {
   await openDatabase();const saved=await read();
   if (saved!==undefined) {if(!saved||!Array.isArray(saved.messages)||!Array.isArray(saved.replies))throw Error('验收数据无效');chat=saved;}
-  render();for(const id of ['open','rerender','busy','fail-save'])document.getElementById(id).disabled=false;
+  render();for(const id of ['open','rerender','busy','fail-save','close','reopen','save-delay'])document.getElementById(id).disabled=false;
 } catch(error) {status.textContent=`验收页未就绪：${error.message}`;}

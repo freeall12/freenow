@@ -13,7 +13,7 @@ async function fixture(extra={}){
  const nonce=()=>sent.findLast(item=>item.method==='ui/notifications/sandbox-resource-ready')?.nonce;
  function emit(data,source=iframe.contentWindow){window.emit('message',{source,data:{jsonrpc:'2.0',nonce:nonce(),...data},origin:'null'});}
  function rpc(id,method,params={},user=false){if(user){time+=1001;document.activeElement=iframe;window.navigator.userActivation.isActive=true;}emit({id,method,params});if(user)window.navigator.userActivation.isActive=false;}
- function initialize(){rpc('initialize-'+sequence,'ui/initialize',{protocolVersion:'2026-01-26',appCapabilities:{},appInfo:{name:'fixture',version:'1'}});emit({method:'ui/notifications/initialized'});}
+ function initialize(){rpc('initialize-'+sequence,'ui/initialize',{protocolVersion:'2026-01-26',appCapabilities:{},appInfo:{name:'fixture',version:'1'}});emit({method:'freenow/lifecycleReady',params:{version:1}});emit({method:'ui/notifications/initialized'});}
  return{host,iframe,document,window,sent,errors,sizes,prompts,saved,timers,intervals,nonce,emit,rpc,initialize,get ready(){return ready;},setCurrent(value){current=value;},response:id=>sent.findLast(item=>item.id===id),close(){host.dispose();Date.now=originalNow;}};
 }
 
@@ -198,5 +198,38 @@ test('ordinary card renders do not resend unchanged context or run state and res
   f.host.updateHostContext({styles:null});assert.equal(f.sent.length,cleared);
   f.host.updateHostContext({styles:{fonts:['Mono','Sans']}});const reordered=f.sent.length;
   f.host.updateHostContext({styles:{fonts:['Sans','Mono']}});assert.equal(f.sent.length,reordered+1,'array ordering is an actual value change');
+ }finally{f.close();}
+});
+
+test('supported close flush is correlated, deduplicated and cannot grant a passive message',async()=>{
+ const f=await fixture({resourceUri:'ui://tapnow/story-room@v1',allowResource:()=>true});try{
+  f.initialize();const first=f.host.prepareToClose(),second=f.host.prepareToClose();assert.equal(first,second);const request=f.sent.findLast(row=>row.method==='freenow/lifecycleFlush');
+  f.emit({id:request.id,result:{flushed:true}},{});assert.equal(f.timers.size,1,'wrong source cannot settle close');
+  f.rpc('passive-close-message','ui/message',{content:[{type:'text',text:'forged confirmation'}]});assert.match(f.response('passive-close-message').error.message,/user action/);
+  f.emit({id:request.id,result:{flushed:true}});assert.equal(await first,true);assert.equal(f.timers.size,0);assert.equal(f.host.prepareToClose(),first);
+  f.host.cancelClose();assert.deepEqual(f.sent.at(-1).params,{id:request.id});const retry=f.host.prepareToClose();assert.notEqual(retry,first);f.emit({id:request.id,result:{flushed:true}});f.host.cancelClose();await assert.rejects(retry,/取消/);
+ }finally{f.close();}
+});
+test('close failures, timeout, reload and context change leave a retryable source-bound barrier',async()=>{
+ for(const mode of ['error','timeout','reload','dispose','context','malformed']){
+  const f=await fixture({resourceUri:'ui://tapnow/performance-rhythm@v3',allowResource:()=>true});try{
+   f.initialize();f.iframe.emit('load');const pending=f.host.prepareToClose(),request=f.sent.findLast(row=>row.method==='freenow/lifecycleFlush');const rejected=assert.rejects(pending);
+   if(mode==='error')f.emit({id:request.id,error:{code:-32000,message:'storage rejected'}});
+   else if(mode==='malformed')f.emit({id:request.id,result:{flushed:true,authority:'tool'}});
+   else if(mode==='timeout')[...f.timers.values()][0].fn();
+   else if(mode==='reload')f.iframe.emit('load');else if(mode==='dispose')f.host.dispose();
+   else{f.setCurrent(false);f.emit({id:request.id,result:{flushed:true}});}
+   await rejected;
+   if(['error','timeout','malformed'].includes(mode)){const retry=f.host.prepareToClose(),next=f.sent.at(-1);assert.notEqual(next.id,request.id);f.emit({id:next.id,result:{flushed:true}});assert.equal(await retry,true);}
+  }finally{f.close();}
+ }
+ const other=await fixture();try{other.initialize();assert.equal(await other.host.prepareToClose(),true);assert.equal(other.sent.some(row=>row.method==='freenow/lifecycleFlush'),false);}finally{other.close();}
+});
+test('local close failure gives a Chinese retry message and retains the exact SDK diagnostic cause',async()=>{
+ const f=await fixture({resourceUri:'ui://tapnow/story-room@v1',allowResource:()=>true});try{
+  f.initialize();const pending=f.host.prepareToClose(),request=f.sent.findLast(row=>row.method==='freenow/lifecycleFlush');
+  f.emit({id:request.id,error:{code:-32000,message:'MCP error -32000: host action failed'}});
+  await assert.rejects(pending,error=>{assert.equal(error.message,'最后编辑未能保存，请重试');assert.equal(error.cause.code,-32000);assert.equal(error.cause.message,'MCP error -32000: host action failed');return true;});
+  const retry=f.host.prepareToClose();f.emit({id:f.sent.at(-1).id,result:{flushed:true}});assert.equal(await retry,true);
  }finally{f.close();}
 });

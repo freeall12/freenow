@@ -1,5 +1,8 @@
 import * as THREE from 'three';
 import {panoramaIcons} from './studio-panorama-icons.mjs';
+import {assertPanoramaEditConfiguration,panoramaEditRequestState} from './src/features/panorama-edit/native-profile.mjs';
+import {resolveProviderConfiguration} from './src/features/node-composer/provider-configuration.mjs';
+import {createPanoramaSourceGuard,createPanoramaConfigurationGuard,createPanoramaProviderGuard} from './src/features/panorama-edit/source-guard.mjs';
 import {PanoramaHistory,rectangleDirections,projectRegion,regionColors,makePanoramaRequest,matchesPanoramaRequest} from './studio-panorama-math.mjs';
 
 const copy=value=>structuredClone(value),clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
@@ -30,7 +33,7 @@ export function installPanorama(Studio,{el,button}){
   const tick=Studio.prototype.tick,close=Studio.prototype.close,keyDown=Studio.prototype.keyDown,switchSetup=Studio.prototype.switchSetup;
   const control=(name,label,fn,text)=>{const b=button(name,label,fn,text);if(panoramaIcons[label]){b.querySelector('svg')?.remove();b.insertAdjacentHTML('afterbegin',panoramaIcons[label]);}return b;};
   Object.assign(Studio.prototype,{
-    async switchSetup(...args){this.closePanoramaEditor();return switchSetup.apply(this,args);},
+    async switchSetup(...args){this.assertPanoramaSaved?.();this.closePanoramaEditor();return switchSetup.apply(this,args);},
     capturePanorama(options){return capturePanorama(this,options);},
     async exportPanorama(){const e=this.panoramaEditor;let image=e?.live?this.capturePanorama({position:e.camera.position}):e?.history.state.image||this.capturePanorama();if(image.startsWith('asset:')){const blob=await fetch(await window.LocalAssets.url(image)).then(r=>r.blob());image=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=()=>reject(reader.error);reader.readAsDataURL(blob);});}const nodes=window.CanvasApp.createConnected(this.nodeId,[{type:'image',title:'片场全景图',image,width:2048,height:1024}]);this.notify('360° 全景图已添加到画布');return {nodeId:nodes[0].id};},
     async openPanoramaEditor(){
@@ -41,7 +44,7 @@ export function installPanorama(Studio,{el,button}){
         this.cancelPlacement();this.closePlacementMenus?.();this.root.querySelectorAll('.studio-popup,.studio-env-shell').forEach(e=>e.remove());
         if(this.cameraEdit)this.finishCamera(true);if(this.viewfinder)this.toggleViewfinder();if(this.topView)this.setTopView(false);
         this.setPlayback(false);this.keys.clear();this.controls.enabled=false;
-        const editor={id:crypto.randomUUID(),setupId:this.data.activeSetup,camera:this.camera.clone(),abort:new AbortController(),mode:'select',history:new PanoramaHistory(),previewScene:new THREE.Scene(),textureSequence:0,applied:new Set(),busy:false};
+        const editor={id:crypto.randomUUID(),setupId:this.data.activeSetup,camera:this.camera.clone(),abort:new AbortController(),mode:'select',history:new PanoramaHistory(),previewScene:new THREE.Scene(),textureSequence:0,applied:new Set(),generationGuards:new Map(),pendingSaves:new Map(),busy:false};
         editor.camera.aspect=this.viewport.clientWidth/this.viewport.clientHeight;editor.camera.updateProjectionMatrix();
         editor.base=this.capturePanorama();editor.history.state.image=editor.base;
         this.panoramaEditor=editor;this.root.classList.add('studio-panorama-active');
@@ -61,20 +64,20 @@ export function installPanorama(Studio,{el,button}){
         const hint=el('div','studio-panorama-hint','左键拖动可以选择编辑区域，中键拖动可以环视');hint.append(control(null,'关闭全景操作提示',()=>hint.remove(),'知道了'));layer.append(hint);
         const signal=editor.abort.signal;
         surface.addEventListener('pointerdown',event=>{
-          if(event.target.closest('button')||editor.compositing)return;if(editor.selectedPatchId){this.selectPanoramaPatch(null);return;}if(editor.mode==='select'&&event.button===0)this.freezePanoramaView?.();event.preventDefault();surface.focus();surface.setPointerCapture(event.pointerId);
+          if(event.target.closest('button')||editor.compositing||editor.pendingSaves.size)return;if(editor.selectedPatchId){this.selectPanoramaPatch(null);return;}if(editor.mode==='select'&&event.button===0)this.freezePanoramaView?.();event.preventDefault();surface.focus();surface.setPointerCapture(event.pointerId);
           editor.drag={start:{x:event.clientX,y:event.clientY},last:{x:event.clientX,y:event.clientY},rotate:event.button===1||event.button===2||editor.mode==='rotate'};
         },{signal});
         surface.addEventListener('pointermove',event=>{
-          const drag=editor.drag;if(!drag)return;
+          if(editor.pendingSaves.size||editor.compositing){editor.drag=null;editor.draft=null;return;}const drag=editor.drag;if(!drag)return;
           if(drag.rotate){const rotation=new THREE.Euler().setFromQuaternion(editor.camera.quaternion,'YXZ');rotation.y-=(event.clientX-drag.last.x)*.003;rotation.x=clamp(rotation.x-(event.clientY-drag.last.y)*.003,-Math.PI*.49,Math.PI*.49);editor.camera.quaternion.setFromEuler(rotation);}
           else editor.draft=rectangleDirections(drag.start,{x:event.clientX,y:event.clientY},surface.getBoundingClientRect(),editor.camera);
           drag.last={x:event.clientX,y:event.clientY};this.renderPanoramaRegions();
         },{signal});
-        surface.addEventListener('pointerup',()=>{if(editor.draft){const regions=[...editor.history.state.regions,{id:crypto.randomUUID(),color:regionColors[editor.history.state.regions.length%regionColors.length],directions:editor.draft}];this.panoramaChange({regions});}editor.draft=null;editor.drag=null;this.renderPanoramaRegions();},{signal});
+        surface.addEventListener('pointerup',()=>{if(editor.pendingSaves.size||editor.compositing){editor.draft=null;editor.drag=null;this.renderPanoramaRegions();return;}if(editor.draft){const regions=[...editor.history.state.regions,{id:crypto.randomUUID(),color:regionColors[editor.history.state.regions.length%regionColors.length],directions:editor.draft}];this.panoramaChange({regions});}editor.draft=null;editor.drag=null;this.renderPanoramaRegions();},{signal});
         surface.addEventListener('pointercancel',()=>{editor.draft=null;editor.drag=null;this.renderPanoramaRegions();},{signal});
         surface.addEventListener('contextmenu',event=>event.preventDefault(),{signal});
-        surface.addEventListener('wheel',event=>{event.preventDefault();editor.camera.fov=clamp(editor.camera.fov*Math.exp(event.deltaY*.001),15,110);editor.camera.updateProjectionMatrix();this.renderPanoramaRegions();},{passive:false,signal});
-        this.refreshPanoramaUI();await this.loadPanoramaPreview(editor);surface.focus();
+        surface.addEventListener('wheel',event=>{event.preventDefault();if(editor.pendingSaves.size)return;editor.camera.fov=clamp(editor.camera.fov*Math.exp(event.deltaY*.001),15,110);editor.camera.updateProjectionMatrix();this.renderPanoramaRegions();},{passive:false,signal});
+        this.refreshPanoramaUI();void this.refreshPanoramaReadiness(editor);await this.loadPanoramaPreview(editor);surface.focus();
       }catch(error){this.notify('全景编辑器打开失败：'+error.message);this.closePanoramaEditor();}finally{this.panoramaOpening=false;}
     },
     async loadPanoramaPreview(editor,imageOverride){
@@ -84,9 +87,9 @@ export function installPanorama(Studio,{el,button}){
       if(editor.sphere){editor.previewScene.remove(editor.sphere);editor.sphere.geometry.dispose();editor.sphere.material.dispose();editor.texture.dispose();}
       editor.texture=texture;editor.sphere=previewSphere(texture);editor.previewScene.add(editor.sphere);
     },
-    panoramaChange(patch){const editor=this.panoramaEditor;if(!editor)return;editor.history.change({...editor.history.state,...patch});this.refreshPanoramaUI();this.renderPanoramaRegions();},
+    panoramaChange(patch){this.assertPanoramaSaved?.();const editor=this.panoramaEditor;if(!editor)return;editor.history.change({...editor.history.state,...patch});this.refreshPanoramaUI();this.renderPanoramaRegions();},
     async panoramaUndo(redo=false){const editor=this.panoramaEditor;if(!editor)return;const image=editor.history.state.image;if(editor.history.undo(redo)){this.refreshPanoramaUI();this.renderPanoramaRegions();if(image!==editor.history.state.image)try{await this.loadPanoramaPreview(editor);}catch(error){this.notify(error.message);}}},
-    refreshPanoramaUI(){const editor=this.panoramaEditor;if(!editor)return;for(const [mode,b]of Object.entries(editor.tools))b.setAttribute('aria-pressed',String(mode===editor.mode));editor.surface.dataset.mode=editor.mode;editor.undo.disabled=!editor.history.past.length;editor.redo.disabled=!editor.history.future.length;editor.clear.disabled=!editor.history.state.regions.length;editor.generate.disabled=editor.busy||(!editor.prompt.textContent.trim()&&!editor.history.state.regions.length);editor.generate.title=editor.busy?'正在生成':'Generate';editor.note.textContent=editor.busy?'正在生成全景图…':editor.history.state.regions.length?'按当前视角修改标注区域':'将修改整张全景图';editor.error.replaceChildren();if(editor.jobError){editor.error.append(el('span','',editor.jobError));if(editor.jobStatus==='configuration_required')editor.error.append(control(null,'连接全景生成 API',()=>window.GenerationAPI.configure(),'连接 API'));}editor.tokens.replaceChildren();editor.history.state.regions.forEach((region,i)=>{const token=el('button','studio-panorama-token');token.textContent=(i+1)+' 标注区域';token.style.setProperty('--region-color',region.color);token.title='删除此区域';token.onclick=()=>this.panoramaChange({regions:editor.history.state.regions.filter(r=>r.id!==region.id)});editor.tokens.append(token);});},
+    refreshPanoramaUI(){const editor=this.panoramaEditor;if(!editor)return;for(const [mode,b]of Object.entries(editor.tools))b.setAttribute('aria-pressed',String(mode===editor.mode));editor.surface.dataset.mode=editor.mode;editor.undo.disabled=!editor.history.past.length;editor.redo.disabled=!editor.history.future.length;editor.clear.disabled=!editor.history.state.regions.length;editor.generate.disabled=editor.busy||(!editor.prompt.textContent.trim()&&!editor.history.state.regions.length);editor.generate.title=editor.busy?'正在生成':'Generate';editor.note.textContent=editor.busy?'正在生成全景图…':editor.readiness?.label||(editor.history.state.regions.length?'按当前视角修改标注区域':'将修改整张全景图');editor.note.title=editor.readiness?.hint||'';editor.note.setAttribute('aria-label',editor.readiness?.hint||editor.note.textContent);editor.generate.title=editor.jobError||editor.readiness?.reason||editor.readiness?.hint||editor.generate.title;editor.generate.disabled=editor.generate.disabled||!!editor.pendingSaves?.size;editor.error.replaceChildren();if(editor.jobError){editor.error.append(el('span','',editor.jobError));if(editor.jobStatus==='configuration_required')editor.error.append(control(null,'连接全景生成 API',()=>window.GenerationAPI.configure(),'连接 API'));if(editor.pendingSaves?.size)editor.error.append(control(null,'重试保存全景结果',()=>window.GenerationAPI.retryApplication(editor.pendingSaves.keys().next().value).catch(error=>this.notify(error.message)),'重试保存'));}editor.tokens.replaceChildren();editor.history.state.regions.forEach((region,i)=>{const token=el('button','studio-panorama-token');token.textContent=(i+1)+' 标注区域';token.style.setProperty('--region-color',region.color);token.title='删除此区域';token.disabled=!!editor.pendingSaves?.size;token.onclick=()=>this.panoramaChange({regions:editor.history.state.regions.filter(r=>r.id!==region.id)});editor.tokens.append(token);});},
     renderPanoramaRegions(){
       const editor=this.panoramaEditor;if(!editor)return;editor.overlay.hidden=editor.badges.hidden=!!editor.selectedPatchId;const rect=editor.surface.getBoundingClientRect();const renderKey=JSON.stringify([rect.width,rect.height,editor.camera.quaternion.toArray(),editor.camera.fov,editor.history.revision,editor.draft]);if(editor.renderKey===renderKey)return;editor.renderKey=renderKey;const viewport={left:0,top:0,width:rect.width,height:rect.height};editor.overlay.setAttribute('viewBox',`0 0 ${rect.width} ${rect.height}`);editor.overlay.replaceChildren();editor.badges.replaceChildren();
       const regions=[...editor.history.state.regions,...(editor.draft?[{directions:editor.draft,color:regionColors[editor.history.state.regions.length%regionColors.length],draft:true}]:[])];
@@ -95,7 +98,8 @@ export function installPanorama(Studio,{el,button}){
     async panoramaAction(args){
       if(args.action==='open'){await this.openPanoramaEditor();if(!this.panoramaEditor)throw Error('无法打开全景编辑器');}
       const editor=this.panoramaEditor;if(!editor)throw Error('请先打开全景编辑器');
-      if(args.action==='close'){this.closePanoramaEditor();return {open:false};}
+      if(['region','clear','undo','redo','generate'].includes(args.action))this.assertPanoramaSaved?.();
+      if(args.action==='close'){this.assertPanoramaSaved?.();this.closePanoramaEditor();return {open:false};}
       if(args.action==='region'){
         this.freezePanoramaView?.();
         const r=args.rect;if(!r||r.x+r.width>1||r.y+r.height>1)throw Error('选区必须位于 0–1 视口范围内');
@@ -112,33 +116,48 @@ export function installPanorama(Studio,{el,button}){
       const editor=this.panoramaEditor;if(!editor)return;this.freezePanoramaView?.();
       try{const response=await fetch(await window.LocalAssets.url(editor.history.state.image));if(!response.ok)throw Error('无法读取全景图片');const blob=await response.blob(),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='片场全景图.png';document.body.append(a);a.click();setTimeout(()=>{a.remove();URL.revokeObjectURL(url);},10000);}catch(error){this.notify('下载失败：'+error.message);}
     },
+    async refreshPanoramaReadiness(editor=this.panoramaEditor){
+      if(!editor)return;const token=editor.id;
+      try{const available=await window.GenerationAPI.availability({kind:'panorama.edit',signal:editor.abort.signal}),metadata=await window.GenerationAPI.configuration();if(this.panoramaEditor!==editor||editor.id!==token)return;editor.readiness=metadata?panoramaEditRequestState(metadata,{kind:'panorama.edit'}):{ready:available.configured===true,label:available.configured?'全景编辑已配置':'全景编辑待配置',reason:available.reason||'',hint:'全景编辑使用已配置的独立任务服务。'};this.refreshPanoramaUI();}catch(error){if(this.panoramaEditor===editor&&editor.id===token&&!editor.abort.signal.aborted){editor.readiness={ready:false,label:'全景编辑待配置',reason:error.message};this.refreshPanoramaUI();}}
+    },
     async submitPanorama(){
-      const editor=this.panoramaEditor;if(!editor||editor.busy||editor.compositing||editor.selectedPatchId)throw Error('请等待当前任务完成并退出历史编辑选择后再生成');
+      const editor=this.panoramaEditor;if(!editor||editor.busy||editor.compositing||editor.selectedPatchId||editor.pendingSaves?.size)throw Error('请等待当前任务完成并保存结果、退出历史编辑选择后再生成');
       this.freezePanoramaView?.();
-      const request=makePanoramaRequest({nodeId:this.nodeId,setupId:editor.setupId,sessionId:editor.id,history:editor.history,camera:editor.camera,prompt:editor.prompt.textContent,image:editor.history.state.image});
+      const api=window.GenerationAPI,sourceGuard=createPanoramaSourceGuard(this,editor),providerGuard=createPanoramaProviderGuard(api),request=makePanoramaRequest({nodeId:this.nodeId,setupId:editor.setupId,sessionId:editor.id,history:editor.history,camera:editor.camera,prompt:editor.prompt.textContent,image:editor.history.state.image});
       editor.busy=true;editor.jobError=null;this.refreshPanoramaUI();
       try{
-        const blob=await fetch(await window.LocalAssets.url(request.inputs[0].image)).then(r=>{if(!r.ok)throw Error('无法读取当前全景图');return r.blob();});
-        request.inputs[0].image=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=()=>reject(reader.error);reader.readAsDataURL(blob);});
-        if(this.panoramaEditor!==editor||editor.history.revision!==request.parameters.binding.revision)throw Error('提交期间编辑会话已变化，请重新提交');
-        const job=window.GenerationAPI.submit(request);editor.jobId=job.id;editor.unsubscribe?.();
-        editor.unsubscribe=window.GenerationAPI.subscribe(value=>{if(value.id!==job.id)return;if(['configuration_required','failed','cancelled','succeeded'].includes(value.status)){editor.busy=false;editor.jobStatus=value.status;editor.jobError=value.error||null;if(this.panoramaEditor===editor)this.refreshPanoramaUI();editor.unsubscribe?.();editor.unsubscribe=null;}});
+        const available=await api.availability({request,signal:editor.abort.signal});sourceGuard();providerGuard();
+        const metadata=await api.configuration();sourceGuard();providerGuard();
+        editor.readiness=metadata?panoramaEditRequestState(metadata,request):{ready:available.configured===true,label:'全景编辑已配置',reason:available.reason||'',hint:'全景编辑使用已配置的独立任务服务。'};
+        if(available.configured!==true)throw Object.assign(Error(available.reason||editor.readiness.reason||'全景编辑服务尚未配置'),{code:'configuration_required'});
+        if(metadata)assertPanoramaEditConfiguration(metadata,request);
+        const configurationGuard=createPanoramaConfigurationGuard(api,metadata,{providerGuard}),guard=()=>{sourceGuard();configurationGuard();};guard();
+        // The native TaskService branch prepares verified PNG bytes after its
+        // fresh configuration gate; generic tasks keep the established image body.
+        if(resolveProviderConfiguration(metadata,request)?.protocol!=='openai-panorama-edit-native'){
+          const blob=await fetch(await window.LocalAssets.url(request.inputs[0].image),{signal:editor.abort.signal}).then(r=>{if(!r.ok)throw Error('无法读取当前全景图');return r.blob();});guard();
+          request.inputs[0].image=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=()=>reject(reader.error);reader.readAsDataURL(blob);});guard();
+        }
+        const job=api.submit(request,{beforeDispatch:guard});editor.jobId=job.id;editor.generationGuards.set(job.id,guard);editor.unsubscribe?.();
+        editor.unsubscribe=api.subscribe(value=>{if(value.id!==job.id)return;if(['configuration_required','failed','cancelled','succeeded'].includes(value.status)){editor.busy=false;editor.jobStatus=value.status;editor.jobError=value.error||null;if(this.panoramaEditor===editor)this.refreshPanoramaUI();editor.unsubscribe?.();editor.unsubscribe=null;}});
         return {taskId:job.id,status:job.status};
-      }catch(error){editor.busy=false;editor.jobError=error.message;if(this.panoramaEditor===editor)this.refreshPanoramaUI();throw error;}
+      }catch(error){editor.busy=false;editor.jobStatus=error.code==='configuration_required'?'configuration_required':'failed';editor.jobError=error.message;if(this.panoramaEditor===editor)this.refreshPanoramaUI();throw error;}
     },
     async acceptPanoramaGeneration(job){
       const editor=this.panoramaEditor,binding=job.request.parameters?.binding;
       const context=()=>this.panoramaEditor===editor&&editor?{nodeId:this.nodeId,setupId:this.data.activeSetup,sessionId:editor.id,revision:editor.history.revision}:null;
       if(editor?.applied.has(job.id))return {applied:true,duplicate:true};
+      if(editor?.pendingSaves.has(job.id))return this.commitPanoramaOutput(job);
+      const guard=editor?.generationGuards.get(job.id);guard?.();
       if(!matchesPanoramaRequest(binding,context()))return {applied:false,reason:'编辑会话或选区已改变，结果保留在画布'};
       const output=job.outputs.find(o=>o.type==='image');if(!output)throw Error('全景编辑接口必须返回图片');
       const response=await fetch(output.image||output.url);if(!response.ok)throw Error('全景结果下载失败');const blob=await response.blob(),bitmap=await createImageBitmap(blob);const ratio=bitmap.width/bitmap.height;bitmap.close();if(Math.abs(ratio-2)>.01)throw Error('全景结果必须是已合成的 2:1 等距柱状投影图片');
-      const image=await window.LocalAssets.put(blob);if(!matchesPanoramaRequest(binding,context()))return {applied:false,reason:'加载期间编辑会话已改变，结果保留在画布'};
+      guard?.();const image=await window.LocalAssets.put(blob);guard?.();if(!matchesPanoramaRequest(binding,context()))return {applied:false,reason:'加载期间编辑会话已改变，结果保留在画布'};
       return this.commitPanoramaOutput(job,image);
     },
-    closePanoramaEditor(){const editor=this.panoramaEditor;if(!editor){this.controls.enabled=true;return;}clearTimeout(editor.confirmTimer);editor.abort.abort();editor.unsubscribe?.();editor.textureSequence++;editor.texture?.dispose();editor.sphere?.geometry.dispose();editor.sphere?.material.dispose();editor.layer.remove();this.panoramaEditor=null;this.root.classList.remove('studio-panorama-active');this.controls.enabled=true;this.keys.clear();this.resize();this.clock.getDelta();},
-    keyDown(event){if(this.closing)return;if(event.defaultPrevented||event.isComposing||document.querySelector('dialog[open]')||!this.root.contains(event.target))return;if(!this.panoramaEditor)return keyDown.call(this,event);if(event.target.closest('input,textarea,[contenteditable]'))return;event.stopImmediatePropagation();if(this.panoramaEditor.live&&['KeyW','KeyA','KeyS','KeyD','KeyQ','KeyE','ShiftLeft'].includes(event.code)){event.preventDefault();this.keys.add(event.code);}if(event.code==='Escape'){event.preventDefault();this.closePanoramaEditor();}if((event.metaKey||event.ctrlKey)&&event.code==='KeyZ'){event.preventDefault();void this.panoramaUndo(event.shiftKey);}},
+    closePanoramaEditor(){const editor=this.panoramaEditor;if(editor?.pendingSaves.size){this.notify('全景结果尚未保存，请先重试保存后再退出');return false;}if(!editor){this.controls.enabled=true;return;}clearTimeout(editor.confirmTimer);editor.abort.abort();editor.unsubscribe?.();editor.textureSequence++;editor.texture?.dispose();editor.sphere?.geometry.dispose();editor.sphere?.material.dispose();editor.layer.remove();this.panoramaEditor=null;this.root.classList.remove('studio-panorama-active');this.controls.enabled=true;this.keys.clear();this.resize();this.clock.getDelta();},
+    keyDown(event){if(this.closing)return;if(event.defaultPrevented||event.isComposing||document.querySelector('dialog[open]')||!this.root.contains(event.target))return;if(!this.panoramaEditor)return keyDown.call(this,event);if(event.target.closest('input,textarea,[contenteditable]'))return;event.stopImmediatePropagation();if(this.panoramaEditor.live&&['KeyW','KeyA','KeyS','KeyD','KeyQ','KeyE','ShiftLeft'].includes(event.code)){event.preventDefault();this.keys.add(event.code);}if(event.code==='Escape'){event.preventDefault();this.closePanoramaEditor();}if((event.metaKey||event.ctrlKey)&&event.code==='KeyZ'){event.preventDefault();void this.panoramaUndo(event.shiftKey).catch(error=>this.notify(error.message));}},
     tick(){const editor=this.panoramaEditor;if(!editor)return tick.call(this);if(this.closed)return;const delta=Math.min(this.clock.getDelta(),.05);const width=this.viewport.clientWidth,height=this.viewport.clientHeight;if(editor.camera.aspect!==width/height){editor.camera.aspect=width/height;editor.camera.updateProjectionMatrix();}if(editor.live){this.renderer.setViewport(0,0,width,height);this.renderLivePanorama(delta);}else if(editor.sphere){const camera=editor.camera.clone();camera.position.set(0,0,0);this.renderer.setViewport(0,0,width,height);this.renderer.render(editor.previewScene,camera);}this.renderPanoramaRegions();},
-    async close(){await close.call(this);this.closePanoramaEditor();}
+    async close(){this.assertPanoramaSaved?.();await close.call(this);this.closePanoramaEditor();}
   });
 }

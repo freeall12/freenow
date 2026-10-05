@@ -78,9 +78,9 @@ document.getElementById('open').onclick=async()=>{
   } catch(error) {status.textContent=error.message;} finally {button.disabled=false;}
 };
 document.getElementById('rerender').onclick=render;busy.onchange=render;
-document.getElementById('close').onclick=()=>{panelOpen=false;render();};
+document.getElementById('close').onclick=async()=>{try{await controller.prepareToClose();panelOpen=false;render();}catch(error){status.textContent=error.message+'；页面已保留，可再次关闭重试';}finally{controller.cancelClose();}};
 document.getElementById('reopen').onclick=()=>{panelOpen=true;render();};
-document.getElementById('reload').onclick=()=>{controller.reset();cards.replaceChildren();render();};
+document.getElementById('reload').onclick=async()=>{try{await controller.prepareToClose();controller.reset();cards.replaceChildren();render();}catch(error){status.textContent=error.message+'；页面已保留';}finally{controller.cancelClose();}};
 try {
   await openDatabase();const saved=await read();
   if (saved!==undefined) {if(!saved||!Array.isArray(saved.messages)||!Array.isArray(saved.replies))throw Error('验收数据无效');chat=saved;for(const trace of chat.messages)if(trace.appState)committedStates.set(trace.id,structuredClone(trace.appState));}

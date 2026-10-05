@@ -4,10 +4,10 @@ const failure=(code,message,details={})=>Object.assign(Error(message),{code,...d
 const aborted=signal=>{if(signal?.aborted)throw signal.reason??failure('cancelled','工作流已取消');};
 // Host-owned confirmation/inspection receipts are deliberately not trusted tool arguments.
 // Provider metadata is untrusted. resolveMedia decodes output before any completed node is created.
-export function createDepthVideoWorkflow({getNode,getNodes,getIdentity=getNode,resolveMedia,runInPlace,createConnected,persist,assertConfirmed,assertInspected}){
+export function createDepthVideoWorkflow({getNode,getNodes,getIdentity=getNode,resolveMedia,runInPlace,createConnected,persist,assertConfirmed,assertInspected,assertConversionConfigured=()=>{},assertSession=()=>{}}){
   for(const [name,fn]of Object.entries({getNode,getNodes,resolveMedia,runInPlace,createConnected,persist,assertConfirmed,assertInspected}))if(typeof fn!=='function')throw TypeError(name+' adapter is required');
   function node(id,type){const value=getNode(id);if(!value||value.type!==type)throw failure('node_unavailable','画布参考节点不存在或类型不符：'+id);return value;}
-  function guardFor(nodes,signal){const snapshots=nodes.map(value=>[value.id,mediaSignature(value),getIdentity(value.id)]);return ()=>{aborted(signal);for(const [id,signature,identity]of snapshots)if(getIdentity(id)!==identity||mediaSignature(getNode(id))!==signature)throw failure('source_changed','参考素材已变化，未回填生成结果');};}
+  function guardFor(nodes,signal){const snapshots=nodes.map(value=>[value.id,mediaSignature(value),getIdentity(value.id)]);return ()=>{aborted(signal);assertSession();for(const [id,signature,identity]of snapshots)if(getIdentity(id)!==identity||mediaSignature(getNode(id))!==signature)throw failure('source_changed','参考素材已变化，未回填生成结果');};}
   async function input(value,signal){return {...await resolveMedia(value,{signal}),id:value.id,type:value.type};}
   async function submit(request,nodes,{signal,apply}){
     const guard=guardFor(nodes,signal);let created;
@@ -31,10 +31,12 @@ export function createDepthVideoWorkflow({getNode,getNodes,getIdentity=getNode,r
   return {
     async convert({sourceId,modelId},{signal}={}){
       const source=node(sourceId,'video'),signature=mediaSignature(source),guard=guardFor([source],signal);guard();
+      await assertConversionConfigured({kind:'video.depth',...modelId?{parameters:{model:modelId}}:{}},{signal});guard();
       await assertInspected({stage:'source',nodes:[source]});guard();
       const existing=getNodes().find(value=>value.type==='video'&&value.video&&value.provenance?.depthWorkflow?.stage==='depth'&&value.video===value.provenance.depthWorkflow.outputMedia&&value.provenance.depthWorkflow.sourceId===sourceId&&value.provenance.depthWorkflow.sourceSignature===signature);
       if(existing){const reuseGuard=guardFor([source,existing],signal);await input(existing,signal);reuseGuard();return {reused:true,nodeIds:[existing.id],nodes:[existing]};}
       const sourceInput=await input(source,signal);guard();const request=buildDepthRequest({source:sourceInput,modelId});
+      await assertConversionConfigured(request,{signal});guard();
       return submit(request,[source],{signal,apply:output=>{
         if(Math.abs(output.duration-sourceInput.duration)>.1||output.width!==sourceInput.width||output.height!==sourceInput.height)throw failure('depth_contract_mismatch','深度结果未保留源视频时长或分辨率，不能作为已完成深度转换');
         return createConnected(sourceId,[{type:'video',title:'深度视频',video:output.video||output.url,...output.poster?{image:output.poster}:{},width:output.width,height:output.height,duration:output.duration,videoMetadata:{width:output.width,height:output.height,duration:output.duration},provenance:{kind:'depth-video',depthWorkflow:{stage:'depth',sourceId,sourceSignature:signature,outputMedia:output.video||output.url,protocol:'local-depth-v1'}}}]);

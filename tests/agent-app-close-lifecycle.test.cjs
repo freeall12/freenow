@@ -1,0 +1,55 @@
+const test=require('node:test'),assert=require('node:assert/strict'),vm=require('node:vm'),fs=require('node:fs');
+const deferred=()=>{let resolve,reject;const promise=new Promise((a,b)=>{resolve=a;reject=b;});return{promise,resolve,reject};};
+const tick=()=>new Promise(setImmediate);
+test('derived close bridge blurs pending field, commits, holds lock, and resumes with no message or tool',async()=>{
+ const {localLifecycleScript}=await import('../src/features/agent-apps/local-lifecycle.mjs');let listener,commits=0,blurred=0,focused=0;const save=deferred(),sent=[],parent={postMessage:data=>sent.push(data)},root={inert:false};
+ const context={window:{parent,addEventListener:(_,fn)=>{listener=fn;}},root,busy:false,document:{activeElement:{isConnected:true,blur(){blurred++;},focus(){focused++;}}},flush:async()=>{commits++;await save.promise;return true;}};
+ vm.runInNewContext(localLifecycleScript({root:'root',flush:'flush()',busy:'busy'}),context);assert.equal(sent.pop().method,'freenow/lifecycleReady');
+ const emit=data=>listener({source:parent,data:{jsonrpc:'2.0',...data}});const request=emit({id:'local-close-test-1',method:'freenow/lifecycleFlush'});assert.equal(root.inert,true);assert.equal(blurred,1);assert.equal(commits,1);assert.equal(sent.length,0);
+ await listener({source:{},data:{jsonrpc:'2.0',id:'local-close-forged',method:'freenow/lifecycleFlush'}});assert.equal(commits,1);
+ save.resolve();await request;assert.deepEqual(JSON.parse(JSON.stringify(sent)),[{jsonrpc:'2.0',id:'local-close-test-1',result:{flushed:true}}]);assert.equal(root.inert,true);
+ await emit({method:'freenow/lifecycleResume',params:{id:'wrong'}});assert.equal(root.inert,true);await emit({method:'freenow/lifecycleResume',params:{id:'local-close-test-1'}});assert.equal(root.inert,false);assert.equal(focused,1);
+});
+test('bridge failure is retryable and a cancelled slow save cannot later relock or acknowledge',async()=>{
+ const {localLifecycleScript}=await import('../src/features/agent-apps/local-lifecycle.mjs');let listener,fail=true;const late=deferred(),sent=[],parent={postMessage:data=>sent.push(data)},root={inert:false};
+ vm.runInNewContext(localLifecycleScript({root:'root',flush:'flush()',busy:'busy'}),{window:{parent,addEventListener:(_,fn)=>{listener=fn;}},root,busy:false,document:{activeElement:null},flush:async()=>{if(fail)throw Error('storage failed');await late.promise;return true;}});assert.equal(sent.pop().method,'freenow/lifecycleReady');
+ const emit=data=>listener({source:parent,data:{jsonrpc:'2.0',...data}});
+ await emit({id:'local-close-first',method:'freenow/lifecycleFlush'});assert.equal(root.inert,false);assert.match(sent[0].error.message,/storage failed/);
+ fail=false;const saving=emit({id:'local-close-retry',method:'freenow/lifecycleFlush'});await emit({method:'freenow/lifecycleResume',params:{id:'local-close-retry'}});assert.equal(root.inert,false);late.resolve();await saving;assert.equal(sent.length,1);assert.equal(root.inert,false);
+});
+test('client context transition awaits barrier, suppresses duplicate actions and unlocks after a later refusal',async()=>{
+ const source=fs.readFileSync(require.resolve('../agent-client.js'),'utf8'),start=source.indexOf(' let appTransition=null;'),end=source.indexOf(' function close(){',start),barrier=deferred(),events=[];let prepareCount=0;
+ const context={panel:{id:'panel'},chat:{id:'original'},pageLeaving:false,appCards:{prepareToClose(){prepareCount++;return barrier.promise;},cancelClose(){events.push('unlock');}},draft:()=>context.chat,notice:message=>events.push(message)};vm.createContext(context);vm.runInContext(source.slice(start,end)+';globalThis.run=transitionAppContext;',context);
+ const first=context.run(()=>{events.push('commit');return true;}),duplicate=context.run(()=>events.push('duplicate'));assert.equal(first,duplicate);await tick();assert.equal(prepareCount,1);assert.deepEqual(events,[]);barrier.resolve();assert.equal(await first,true);assert.deepEqual(events,['commit','unlock']);
+ await context.run(()=>{throw Error('later storage refused');});assert.deepEqual(events.slice(-2),['later storage refused','unlock']);
+ const other=deferred();context.appCards.prepareToClose=()=>other.promise;const switching=context.run(()=>events.push('stale commit'));await tick();context.chat={id:'changed'};other.resolve();assert.equal(await switching,false);assert.equal(events.includes('stale commit'),false);
+});
+test('real controller holds original identity through outstanding storage and rolls back peer locks on failure',async()=>{
+ const {createRequire}=require('node:module'),fabricRequire=createRequire(require.resolve('fabric')),domRequire=createRequire(fabricRequire.resolve('jsdom')),canvasPath=domRequire.resolve('canvas'),previousCanvas=require.cache[canvasPath];require.cache[canvasPath]={id:canvasPath,loaded:true,exports:{createCanvas:undefined}};
+ let JSDOM;try{({JSDOM}=fabricRequire('jsdom'));}finally{if(previousCanvas)require.cache[canvasPath]=previousCanvas;else delete require.cache[canvasPath];}
+ const {createAppController,prepareApp}=await import('../src/features/agent-apps/integration.mjs'),{storyRoomUri,initialStoryRoomState}=await import('../src/features/agent-apps/story-room.mjs'),dom=new JSDOM('<body></body>',{url:'http://localhost:4173/'}),prior=globalThis.document;globalThis.document=dom.window.document;dom.window.crypto.randomUUID=require('node:crypto').randomUUID;
+ const args={resource_uri:storyRoomUri,data:{locale:'zh-CN',acts:[{id:'A1',label:'第一幕'},{id:'A2',label:'第二幕'}],plotlines:[{id:'P1',label:'主角',color:'teal'}],scenes:[{key:'S1',act:'A1',name:'走廊',cast:['主角'],plotline:'P1',story_order:1,has_body:true}],causal_links:[]}},traces=[1,2].map(id=>{const trace={id:'close-story-'+id,name:'show_app',status:'done',args,result:prepareApp(args)};trace.appState=initialStoryRoomState(trace.result.response);return trace;}),chat={id:'close-chat',messages:traces},save=deferred();let activeChat=chat,commits=0;const errors=[],channels=[];
+ const controller=createAppController({getContext:()=>({chat:activeChat,panelActive:true,pageLeaving:false}),onSaveState:async(owner,trace,state)=>{assert.equal(owner,chat);await save.promise;trace.appState=state;commits++;},onError:text=>errors.push(text)});
+ try{
+  for(const trace of traces){const card=controller.render(trace);dom.window.document.body.append(card);const frame=card.querySelector('iframe'),sent=[];frame.contentWindow.postMessage=data=>sent.push(data);const emit=data=>dom.window.dispatchEvent(new dom.window.MessageEvent('message',{source:frame.contentWindow,data:{jsonrpc:'2.0',nonce:sent.findLast(row=>row.method==='ui/notifications/sandbox-resource-ready')?.nonce,...data}}));emit({method:'ui/notifications/sandbox-proxy-ready'});emit({id:'init',method:'ui/initialize',params:{}});emit({method:'freenow/lifecycleReady',params:{version:1}});emit({method:'ui/notifications/initialized'});channels.push({frame,sent,emit});}
+  const a=channels[0],b=channels[1];a.emit({id:'save-draft',method:'tapnow/setWidgetState',params:{state:traces[0].appState}});await tick();const closing=controller.prepareToClose();assert.equal(closing,controller.prepareToClose());await tick();a.emit({id:a.sent.findLast(row=>row.method==='freenow/lifecycleFlush').id,result:{flushed:true}});await tick();assert.equal(b.sent.some(row=>row.method==='freenow/lifecycleFlush'),false,'storage receipt is still pending');save.resolve();await tick();await tick();assert.equal(commits,1);const second=b.sent.findLast(row=>row.method==='freenow/lifecycleFlush');assert.ok(second);b.emit({id:second.id,error:{code:-32000,message:'second disk failed'}});await assert.rejects(closing,error=>{assert.equal(error.message,'最后编辑未能保存，请重试');assert.equal(error.cause.message,'second disk failed');return true;});assert.equal(a.sent.at(-1).method,'freenow/lifecycleResume');assert.equal(a.frame.isConnected,true);assert.equal(b.frame.isConnected,true);
+  const retry=controller.prepareToClose();await tick();a.emit({id:a.sent.findLast(row=>row.method==='freenow/lifecycleFlush').id,result:{flushed:true}});await tick();b.emit({id:b.sent.findLast(row=>row.method==='freenow/lifecycleFlush').id,result:{flushed:true}});assert.equal(await retry,true);controller.cancelClose();assert.equal(b.sent.at(-1).method,'freenow/lifecycleResume');
+  const stale=controller.prepareToClose();await tick();activeChat={id:'other',messages:[]};a.emit({id:a.sent.findLast(row=>row.method==='freenow/lifecycleFlush').id,result:{flushed:true}});await assert.rejects(stale,/会话已切换/);
+ }finally{save.resolve();controller.reset();dom.window.close();if(prior===undefined)delete globalThis.document;else globalThis.document=prior;}
+});
+test('capture lifecycle bridge intercepts reserved requests before the already registered SDK transport',async()=>{
+ const {createRequire}=require('node:module'),fabricRequire=createRequire(require.resolve('fabric')),domRequire=createRequire(fabricRequire.resolve('jsdom')),canvasPath=domRequire.resolve('canvas'),previousCanvas=require.cache[canvasPath];require.cache[canvasPath]={id:canvasPath,loaded:true,exports:{createCanvas:undefined}};let JSDOM;try{({JSDOM}=fabricRequire('jsdom'));}finally{if(previousCanvas)require.cache[canvasPath]=previousCanvas;else delete require.cache[canvasPath];}
+ const {localLifecycleScript}=await import('../src/features/agent-apps/local-lifecycle.mjs'),dom=new JSDOM('<body></body>'),window=dom.window,sent=[],sdk=[],save=deferred(),root={inert:false};window.postMessage=data=>sent.push(data);
+ // Match the actual bundled SDK registration order: its bubble listener is
+ // already installed when the appended local derivative adds capture handling.
+ window.addEventListener('message',event=>{sdk.push(event.data);if(event.data.method==='freenow/lifecycleFlush')window.postMessage({jsonrpc:'2.0',id:event.data.id,error:{code:-32601,message:'Method not found'}});});
+ vm.runInNewContext(localLifecycleScript({root:'root',flush:'flush()',busy:'busy'}),{window,document:window.document,root,busy:false,flush:()=>save.promise});assert.equal(sent.pop().method,'freenow/lifecycleReady');
+ const emit=(data,source=window.parent)=>window.dispatchEvent(new window.MessageEvent('message',{source,data:{jsonrpc:'2.0',...data}}));
+ try{
+  emit({id:'local-close-capture',method:'freenow/lifecycleFlush'});assert.equal(root.inert,true);assert.equal(sent.length,0);assert.equal(sdk.length,0,'SDK must not emit Method not found during the asynchronous save');
+  emit({id:23,result:{}});assert.equal(sdk.length,1,'ordinary SDK state receipts still flow');emit({method:'tapnow/updateData',params:{}});assert.equal(sdk.length,2);
+  emit({id:'local-close-spoofed',method:'freenow/lifecycleFlush'},{});assert.equal(sdk.length,3,'unknown sources receive no lifecycle authority');
+  save.resolve(true);await tick();assert.equal(sent.filter(row=>row.id==='local-close-capture').length,1);assert.equal(sent.find(row=>row.id==='local-close-capture').result.flushed,true);
+  emit({method:'freenow/lifecycleResume',params:{id:'local-close-capture'}});assert.equal(root.inert,false);assert.equal(sdk.length,3);
+ }finally{dom.window.close();}
+});

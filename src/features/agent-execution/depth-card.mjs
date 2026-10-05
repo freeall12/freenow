@@ -16,6 +16,8 @@ export function depthToolDetails(trace){
  if(args.formCallId&&(!args.character||!args.setting))values.push('人物与环境参考：读取该表单的用户确认提交，执行时校验');
  if(Number.isFinite(args.duration))values.push('时长：'+args.duration+' 秒');
  if(!args.formCallId&&trace.result?.formCallId)values.push('参考表单：'+trace.result.formCallId);
+ if(typeof trace.result?.disclosure==='string'&&trace.result.disclosure)values.push(trace.result.disclosure);
+ if(trace.result?.capability?.model)values.push('已配置深度模型：'+trace.result.capability.model);
  return values;
 }
 export function depthTaskState(trace){

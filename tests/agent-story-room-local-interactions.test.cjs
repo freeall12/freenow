@@ -37,7 +37,9 @@ test('failed persistence never dispatches; the same page can retry and ignore a 
   await context.local.send('confirmed');assert.equal(sends, 0);assert.match(status.textContent, /失败.*事务未提交/);
   assert.equal(context.j_.inert, false);assert.equal(context.document.activeElement.disabled, false);
   failing = false;const retry = context.local.send('confirmed');
-  for (let i = 0; i < 8; i++) await Promise.resolve();
+  // Await a full event-loop turn so VM Promise assimilation can finish after
+  // the previous rejection; a fixed microtask count depends on Node internals.
+  await new Promise(setImmediate);
   assert.equal(sends, 1);await context.local.send('confirmed');assert.equal(sends, 1);dispatch.resolve();await retry;
   assert.match(status.textContent, /交给 Agent/);assert.equal(status.hidden, false);
 });
@@ -71,4 +73,9 @@ test('restoration preserves an official truncated trailing space so a refresh do
   vm.createContext(context);vm.runInContext(html.slice(html.indexOf('function km(e)'), html.indexOf('function $_(e,n,r)')) + html.slice(html.indexOf('function U_(e,n)'), html.indexOf('let localStorySaveWork=')) + ';globalThis.restore=U_;', context);
   const name = '甲'.repeat(23) + ' ', state = {cols: [{act: 'A1', keys: ['N1']}], news: {N1: {name, act: 'A1'}}, nseq: 1, dels: [], filter: null, collapsed: {}, stripOpen: true};
   assert.equal(context.restore(state, {acts: [{id: 'A1'}], scenes: [], plotlines: []}).news.N1.name, name);
+});
+test('lifecycle bridge registers before Story SDK connect and keeps the exact original startup marker',async()=>{
+ const {localizeStoryRoomInteractions}=await modulePromise,html=await localizeStoryRoomInteractions(source,'story-room','v1'),listener=html.indexOf('window.addEventListener("message",async function(event)'),startup=html.indexOf('R_();</script>');
+ assert.ok(listener>0);assert.ok(startup>listener,'the lifecycle listener must precede SDK start for registration-ordered Window delivery');assert.equal(html.split('R_();</script>').length,2);assert.match(html.slice(listener,startup),/freenow\/lifecycleReady/);
+ const script=html.match(/<script\b[^>]*>([\s\S]*?)<\/script>/)[1];require('esbuild').transformSync(script,{loader:'js',format:'esm'});
 });

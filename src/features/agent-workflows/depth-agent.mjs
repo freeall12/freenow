@@ -5,6 +5,7 @@ import {inspectCanvasMedia,inspectionMedia} from '../agent-vision/inspect.mjs';
 import {videoModels} from '../agent-generation/video-catalog.mjs';
 import {supports} from '../video-generation/settings.mjs';
 import {prepareWorkflowInputs} from './media-transport.mjs';
+import {assertDepthConfiguration} from '../video-depth/native-profile.mjs';
 
 const formEvidence=new WeakMap();
 export function withDepthFormEvidence(entry){const submission=formEvidence.get(entry.result);return submission?{...entry,formSubmission:submission}:entry;}
@@ -40,11 +41,12 @@ export function rolesFromForm(args,host){
 
 // One host belongs to one conversation; inspection evidence is reset for every
 // new model session and never accepted from child workers or persisted prose.
-export function createDepthAgentHost({getNodes,getMessages,validateFormSubmission,localAssets,baseUrl,getIdentity=id=>getNodes().find(node=>node.id===id),runInPlace,createConnected,persist,resolveClip,onBeginTurn,inspect=inspectCanvasMedia,resolveMedia=createWorkflowMediaResolver({localAssets,baseUrl,resolveClip,timeoutMs:resolveClip?120000:20000})}){
+export function createDepthAgentHost({getNodes,getMessages,validateFormSubmission,localAssets,baseUrl,getConfiguration,getIdentity=id=>getNodes().find(node=>node.id===id),runInPlace,createConnected,persist,resolveClip,onBeginTurn,inspect=inspectCanvasMedia,resolveMedia=createWorkflowMediaResolver({localAssets,baseUrl,resolveClip,timeoutMs:resolveClip?120000:20000})}){
   const delivered=new Map();let pending=new WeakMap(),turn;
   const current=id=>getNodes().find(node=>node.id===id);
   const signature=id=>{const node=current(id);if(!node)fail('参考节点已不存在：'+id);return mediaSignature(node);};
   function checkTurn(token){if(turn!==token)fail('对话执行轮次已改变，请重新准备深度流程');}
+  async function conversionConfiguration(request,token,signal){if(signal?.aborted)throw signal.reason;const metadata=typeof getConfiguration==='function'?await getConfiguration({signal}):null;checkTurn(token);if(signal?.aborted)throw signal.reason;return assertDepthConfiguration(metadata,request);}
   function assertInspected({nodes}){for(const node of nodes)if(delivered.get(node.id)?.signature!==signature(node.id)||delivered.get(node.id)?.identity!==getIdentity(node.id))fail('请先用 depth_video_prepare 或 canvas_inspect_media 查看当前素材，再继续生成：'+node.id);}
   async function inspectNodes(ids,options={}){
     const token=turn,before=new Map(ids.map(id=>[id,{signature:signature(id),identity:getIdentity(id)}]));
@@ -69,9 +71,11 @@ export function createDepthAgentHost({getNodes,getMessages,validateFormSubmissio
   function roles(args){return rolesFromForm(args,{getMessages,validateFormSubmission});}
   function source(id){const node=current(id);if(node?.type!=='video')fail('请选择当前画布中的真实视频');return node;}
   async function prepare(args,options={}){
-    const token=turn,node=source(args.sourceId),values=args.stage==='recast'?roles(args):{},ids=[node.id];
+    const token=turn,node=source(args.sourceId),before=signature(node.id),identity=getIdentity(node.id),values=args.stage==='recast'?roles(args):{},ids=[node.id];
+    const capability=args.stage==='convert'?await conversionConfiguration({kind:'video.depth'},token,options.signal):null;
+    checkTurn(token);if(signature(node.id)!==before||getIdentity(node.id)!==identity)fail('准备期间来源视频已变化');
     for(const role of [values.character,values.setting])if(role?.nodeId&&!ids.includes(role.nodeId))ids.push(role.nodeId);
-    const before=signature(node.id),identity=getIdentity(node.id),metadata=await resolveMedia(node,{signal:options.signal});checkTurn(token);if(signature(node.id)!==before||getIdentity(node.id)!==identity)fail('读取期间来源视频已变化');
+    const metadata=await resolveMedia(node,{signal:options.signal});checkTurn(token);if(signature(node.id)!==before||getIdentity(node.id)!==identity)fail('读取期间来源视频已变化');
     const result=await inspectNodes(ids,{...options,resolvedMedia:new Map([[node.id,metadata]])});
     if(args.stage==='recast'&&args.formCallId){
       const submission=submittedForm(args,{getMessages,validateFormSubmission});
@@ -80,6 +84,7 @@ export function createDepthAgentHost({getNodes,getMessages,validateFormSubmissio
     }
     return Object.assign(result,{workflow:'depth-video-studio',stage:args.stage,source:{id:node.id,width:metadata.width,height:metadata.height,duration:metadata.duration},
       protocol:depthProtocol,
+      ...(capability?{capability:{model:capability.model,hint:capability.hint,...capability.profile?{profile:capability.profile}:{}},disclosure:capability.hint}:{}),
       ...(args.stage==='recast'?{roles:values,form:buildRecastForm(getNodes(),values),models:videoModels.map(model=>({id:model.id,name:model.name,variants:model.variants.filter(variant=>['REFERENCE_TO_VIDEO','REFERENCE_VIDEO_TO_VIDEO'].includes(variant.modelType)&&supports(variant,{video:1,image:ids.length-1,audio:0})).map(variant=>({mode:variant.modelType,options:variant.options,referenceImageRange:variant.referenceImageRange,referenceVideoRange:variant.referenceVideoRange,referenceAudioRange:variant.referenceAudioRange,referenceVideoDurationRange:variant.referenceVideoDurationRange}))})).filter(model=>model.variants.length)}:{}),
       next:args.stage==='convert'?'在下一模型响应中调用 depth_video_convert；配置缺失不是深度转换成功。':'缺少人物或环境时原样调用 show_form，等待实际提交。选择后重新准备素材，再调用 depth_video_recast；不要默默缩短视频。'});
   }
@@ -88,9 +93,12 @@ export function createDepthAgentHost({getNodes,getMessages,validateFormSubmissio
     const token=turn;await authorize(name,args);checkTurn(token);
     const values=name==='depth_video_recast'?roles(args):{},input={...args,...values};
     const workflow=createDepthVideoWorkflow({getNode:current,getNodes,getIdentity,resolveMedia,
+      assertSession:()=>checkTurn(token),assertConversionConfigured:(request,{signal})=>conversionConfiguration(request,token,signal),
       runInPlace:async(request,handlers,options)=>{
         handlers.guard();
-        const prepared=await prepareWorkflowInputs(request,{signal:options.signal,baseUrl});
+        // Native depth media preparation belongs to GenerationAPI's configured
+        // route hook. Keep public references intact until that hook validates it.
+        const prepared=request.kind==='video.depth'?request:await prepareWorkflowInputs(request,{signal:options.signal,baseUrl,validateSources:handlers.guard});
         checkTurn(token);handlers.guard();await authorize(name,args);
         return runInPlace(prepared,handlers,{...options,onSubmitted});
       },createConnected,persist,

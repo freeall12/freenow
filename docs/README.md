@@ -24,6 +24,10 @@
 
 | 记录 | 范围 |
 | --- | --- |
+| [深度、全景局部编辑与关闭保存](LOCAL-DEPTH-PANORAMA-LIFECYCLE-20261005.md) | 真实 SDK/媒体归档、配置与来源保护、Computer Use 和截图 |
+| [视频深度原生接口](VIDEO-DEPTH-NATIVE-20261005.md) · [前端与 Agent](VIDEO-DEPTH-FRONTEND-QA-20261005.md) | 完整 MP4、原尺寸时长、无声灰度与原任务恢复；节点入口未接 |
+| [全景局部编辑原生接口](OPENAI-PANORAMA-EDIT-NATIVE-20261005.md) · [前端隔离验收](../src/features/panorama-edit/qa/README.md) | 透视裁片/蒙版、2048×1024 本地回投、失败保留同一补丁 |
+| [Agent 关闭生命周期](AGENT-CLOSE-LIFECYCLE-20261005.md) | Rhythm/Story 关闭保存握手、慢保存和失败重试；强制离页边界 |
 | [Agent内嵌交互闭环](LOCAL-AGENT-INTERACTIONS-20261005.md) | 表演节奏键盘/保存与确认、剧本结构失败重试/恢复、模板本地能力说明及真实截图 |
 | [表演节奏交互](AGENT-RHYTHM-INTERACTIONS-20261005.md) · [剧本与人物](AGENT-STORY-BLOCKING-INTERACTIONS-20261005.md) · [嵌套品牌审计](AGENT-EMBEDDED-LOCAL-BRAND-20261005.md) | 原HTML完整SHA、有限派生、交叉审阅与尚未验收的鼠标操作 |
 | [皮肤编辑与Agent实机验收](LOCAL-SKIN-AGENT-20261005.md) | 三档/键盘/保存重试/原任务查询、派发前持久回执与刷新 |

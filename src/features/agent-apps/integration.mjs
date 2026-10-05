@@ -88,6 +88,7 @@ export function createCutlistAssemblyRoute({getContext,getSourceContext,executor
 
 export function createAppController({getContext,onQueuePrompt,onSaveState,getActorSourceContext,onSaveExpressionGuide,getProductionSourceContext,onProductionProgressQuery,getLibrarySourceContext,onLibraryAddToCanvas,getColorAdjustSourceContext,onApplyColorAdjust,onColorAdjustContext,getPlatformResizeSourceContext,onPlatformResizeApply,getCutlistSourceContext,getAnimaticV1SourceContext,getCharacterBlockingSourceContext,getProductKitSourceContext,getAdReviewSourceContext,getLayerComposerSourceContext,onApplyLayerComposer,onLayerComposerContext,getGenerationAppSourceContext,onGenerationAppTool,onGenerationAppContext,onValidateAppReply,onAppReply,onAppReplyRunStatus,templateSourceRuntime,onOpenTemplateArtifact,onDiscussTemplateArtifact,onError=()=>{}}){
  const records=new Map();
+ let closeWork=null,closeToken=null;
  async function validateGenerationSource(record){const source=record.generationContext;if(!source)throw Error('生成应用缺少真实来源绑定');await source.guard();await source.validateSourcesCurrent?.();}
  async function validateWorkflowSource(record){const source=record.workflowContext;if(!source)throw Error('应用缺少真实来源绑定');if(record.resourceUri===productKitUri){await source.guard();await source.validateSourceCurrent();}else await source.guard(record.resourceUri===adReviewUri?{verifyBytes:true}:undefined);}
  const validTrace=trace=>trace?.name==='show_app'&&trace.status==='done'&&!trace.error&&!trace.result?.error&&trace.result?.kind==='mcp_app'&&trace.args?.resource_uri===trace.result.resource_uri&&!!getApp(trace.result.resource_uri);
@@ -273,6 +274,17 @@ export function createAppController({getContext,onQueuePrompt,onSaveState,getAct
   record.card.update(trace,{policy,runActive:!!context.streaming,locale:'zh-CN'});syncPrevisReplyStatus(record);return record.card.element;
  }
  function prune(traces){const context=getContext(),live=new Set(traces);for(const record of [...records.values()])if(record.chat!==context.chat||!context.panelActive||context.pageLeaving||!live.has(record.trace)||!validTrace(record.trace))dispose(record);}
- function reset(){for(const record of [...records.values()])dispose(record);}
- return {render,prune,reset};
+ function cancelClose(){closeToken=null;closeWork=null;for(const record of records.values())record.card?.cancelClose?.();}
+ function prepareToClose(){
+  if(closeWork)return closeWork;const token={},snapshot=[...records.values()];closeToken=token;
+  // Keep the original chat/panel identity live until every supported iframe has
+  // acknowledged the storage transaction. Any failed card unlocks all peers.
+  const work=Promise.resolve().then(async()=>{
+   for(const record of snapshot){if(closeToken!==token||!current(record))throw Error('关闭前应用所属会话已切换');await record.card.prepareToClose();await waitForState(record);}
+   if(closeToken!==token||records.size!==snapshot.length||snapshot.some(record=>!current(record)))throw Error('关闭前应用来源已变化');return true;
+  }).catch(error=>{if(closeToken===token)cancelClose();onError(error.message);throw error;});closeWork=work;return work;
+ }
+ function reset(){cancelClose();for(const record of [...records.values()])dispose(record);}
+ const hasPendingCloseApps=()=>[...records.values()].some(record=>['ui://tapnow/performance-rhythm@v3','ui://tapnow/story-room@v1'].includes(record.resourceUri)&&!record.disposed);
+ return {render,prune,reset,prepareToClose,cancelClose,hasPendingCloseApps};
 }

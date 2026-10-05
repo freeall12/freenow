@@ -1,3 +1,4 @@
+import {localLifecycleScript} from './local-lifecycle.mjs';
 // Keep the packaged page as evidence. Only this exact v3 source can receive the
 // local persistence/confirmation race fix; visual and score rules stay official.
 export const performanceRhythmSourceSha256 = '9ead0d0bb847a55c3598ba90626b3fba85f9d2acbc773a447b12ee57d8994ae3';
@@ -34,5 +35,5 @@ export async function localizePerformanceRhythmInteractions(html, name, version)
     if (html.split(original).length !== 2) throw Error('performance-rhythm local interaction contract integrity mismatch');
     html = html.replace(original, local);
   }
-  return html;
+  return html.replace('Ab();</script>', localLifecycleScript({root:'Ls',flush:'rhythmFlush()',busy:'dt'})+'Ab();</script>');
 }

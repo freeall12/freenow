@@ -17,7 +17,7 @@ node --env-file=.env.local server/server.cjs
 | `GENERATION_PROVIDERS` | JSON：供应商 ID → 配置 |
 | `GENERATION_ROUTES` | JSON：准确操作 kind → 供应商 ID 或 `{default,models}` |
 
-供应商配置允许 `protocol`、`apiKeyEnv`、`baseUrl` / `baseUrlEnv`、`modelMap` / `modelMapEnv`。Key 只允许通过环境变量名称引用；JSON 中的 `apiKey` 会使路由无效。地址和模型映射的内联值与环境引用不能同时提供。`modelMapEnv` 所引用的值同样为 JSON。协议支持 `openai-native`、`ark-native`、`ark-video-extend-reference`、`ark-video-reshoot-edit`、`fal-native`、`fal-video-native`、`fal-video-audio-native`、`fal-video-mask-native`、`fal-panorama-native`、`minimax-native`、`minimax-music-native`、`tripo-native`、`elevenlabs-native`、`elevenlabs-sound-native`、`elevenlabs-music-native`、`mureka-native`、`seed-audio-native`、`openai-masked-edit-native`、`openai-relight-native`、`marble-native`、`magnific-native`、`skin-tasks-v1` 和 `tasks-v1`。fal 抠图和 Topaz 放大的可直接使用配置见 [fal 图片工具](FAL-NATIVE-SETUP.md)。
+供应商配置允许 `protocol`、`apiKeyEnv`、`baseUrl` / `baseUrlEnv`、`modelMap` / `modelMapEnv`。Key 只允许通过环境变量名称引用；JSON 中的 `apiKey` 会使路由无效。地址和模型映射的内联值与环境引用不能同时提供。`modelMapEnv` 所引用的值同样为 JSON。协议支持 `openai-native`、`ark-native`、`ark-video-extend-reference`、`ark-video-reshoot-edit`、`fal-native`、`fal-video-native`、`fal-video-audio-native`、`fal-video-mask-native`、`fal-panorama-native`、`fal-video-depth-native`、`openai-panorama-edit-native`、`minimax-native`、`minimax-music-native`、`tripo-native`、`elevenlabs-native`、`elevenlabs-sound-native`、`elevenlabs-music-native`、`mureka-native`、`seed-audio-native`、`openai-masked-edit-native`、`openai-relight-native`、`marble-native`、`magnific-native`、`skin-tasks-v1` 和 `tasks-v1`。fal 抠图和 Topaz 放大的可直接使用配置见 [fal 图片工具](FAL-NATIVE-SETUP.md)。
 
 两项路由变量都未设置时，原单供应商配置保持不变。只设置一项、JSON 损坏或路由引用不存在的供应商时，整个路由禁用，不借用旧 Key。某个供应商缺 Key 或能力时只阻止选到它的功能，不影响其他已配置功能。Key 名称未设置等同该供应商未就绪。
 
@@ -30,9 +30,23 @@ node --env-file=.env.local server/server.cjs
 }
 ```
 
-上例要求相应供应商真实存在并配置该操作。原生模型映射使用前端公开别名，值中的 `model` 才是运营者可用的真实型号。不能仅填 Key 就假定任意型号/参数均可用。MiniMax H3 视频与 Tripo 文字/单图生成 3D 已有独立原生适配；Marble 后端原生接线已完成，但本机 SPZ 渲染尚未接通，前端仍会阻止生成。全景编辑及其他未适配功能仍需要实现相应任务协议的网关。
+上例要求相应供应商真实存在并配置该操作。原生模型映射使用前端公开别名，值中的 `model` 才是运营者可用的真实型号。不能仅填 Key 就假定任意型号/参数均可用。MiniMax H3 视频与 Tripo 文字/单图生成 3D 已有独立原生适配；Marble 后端原生接线已完成，但本机 SPZ 渲染尚未接通，前端仍会阻止生成。全景局部编辑与视频深度已有下述专用原生协议；皮肤仍需实际实现 `skin-tasks-v1` 的独立网关，其他未适配操作也不能由普通生图或视频 Key 自动启用。
 
 默认路由仅在没有别名专属路由时生效，已经选定的供应商失败不会自动换供应商。已显式提供的 video `modelId` / `providerParameters.model` 与准备后的型号矛盾时拒绝请求，不得静默改路由。UI 目录外的自定义任务网关别名仍可使用。
+
+### 视频深度与全景局部编辑
+
+这两项分别使用独立 fal 与 OpenAI 配置。以下是精简配置示例；将两个供应商条目与操作路由**合并到已有 JSON**，保留其他 providers、routes 及模型专属路由，不要把整个变量覆盖为只含这两项的配置。私有环境文件中填写 `FAL_KEY` 与 `PANORAMA_OPENAI_API_KEY`；这些名称仅引用服务端 Key，不向浏览器返回。
+
+```sh
+GENERATION_PROVIDERS='{"depth":{"protocol":"fal-video-depth-native","apiKeyEnv":"FAL_KEY","modelMap":{"depth-anything-video":{"kind":"video.depth","model":"fal-ai/depth-anything-video"}}},"panoramaEdit":{"protocol":"openai-panorama-edit-native","apiKeyEnv":"PANORAMA_OPENAI_API_KEY","modelMap":{"panorama.edit":{"kind":"panorama.edit","model":"gpt-image-2","semantics":"perspective-mask-reproject","quality":"high","cropSize":"1024x1024"}}}}'
+GENERATION_ROUTES='{"video.depth":"depth","panorama.edit":"panoramaEdit"}'
+```
+
+- **视频深度**的主入口是 Agent 深度工作流：`depth_video_prepare` 准备实际视频参考，确认查看后 `depth_video_convert` 转换。节点模型选择器/工具栏的同位深度入口尚未接入；QA按钮不是产品入口。单完整 MP4、32 MiB、偶数宽高且宽<=1920/高<=1080、恒定5–30 FPS、最多2400帧；本机须有FFmpeg/FFprobe。实际输出为无声音灰度视频，逐帧时间、尺寸、时长和帧数须保持；选段先物化，未支持的改尺寸、彩色、原始NPZ或额外设置提前拒绝。原任务身份保存后恢复仅GET，不重复提交。[后端合同](VIDEO-DEPTH-NATIVE-20261005.md) · [前端与入口边界](VIDEO-DEPTH-FRONTEND-QA-20261005.md)。深度后的重演另需配置普通视频生成供应商。
+- **全景局部编辑**从片场全景框选进入，使用显式独立 `perspective-mask-reproject` 实现。来源为完整不透明2048×1024 PNG（<=32 MiB），仅1–32个当前可见凸四角选区；无选区整图编辑拒绝。透视crop与蒙版以1024×1024编辑后回投，球面选区外RGBA像素精确保留；硬边可能有接缝，不承诺原站三图模型效果。同步OpenAI编辑没有远端任务ID或远端取消，unknown不重发；已有成功结果保存失败可只重试应用。[全景局部合同](OPENAI-PANORAMA-EDIT-NATIVE-20261005.md)。
+
+两项运行不请求原站。公开合同、固定本机媒体和任务持久化验证不代表真实账号访问权、额度或模型效果；填Key后仍需相应供应商账号和所配型号资格，并独立验收深度准确性或全景蒙版遵循/接缝。
 
 ### Magnific 完整图片放大
 
@@ -109,7 +123,7 @@ Enhancor 公开协议仍要求公网 `img_url` 与 `webhookUrl`，原三档的�
 - 浏览器只收到功能、公开别名和配置状态；不返回 Key、端点或真实模型 ID。任务在读取媒体前按操作和别名检查配置。
 - 配置弹窗显示每个操作/供应商是否就绪；整体存在可用图片服务并不表示视频服务可用。
 - 异步任务持久保存原供应商身份；修改路由表不改变旧任务的目的地。修改原供应商地址/模型映射后阻止查询及取消，恢复原配置才能继续核对。
-- Key 轮换不会改变任务身份。unknown 提交不重发；没有远端任务 ID 的同步 OpenAI（含蒙版编辑和打光）、ElevenLabs TTS/Sound/Music、MiniMax Music 和 Seed Audio 任务只能查询本地证据。Mureka 保存原任务ID并仅查询该任务，远端取消未实现。
+- Key 轮换不会改变任务身份。unknown 提交不重发；没有远端任务 ID 的同步 OpenAI（含蒙版编辑、打光和全景局部编辑）、ElevenLabs TTS/Sound/Music、MiniMax Music 和 Seed Audio 任务只能查询本地证据。Mureka 保存原任务ID并仅查询该任务，远端取消未实现。
 - Ark 原始 `sourceFileId` 保留，样片续生成仍使用原供应商任务 ID。远端取消仍依据具体协议，不能宣称 Ark 已停算。
 
 型号与配置：[MiniMax H3 视频](MINIMAX-H3-SETUP.md)、[Tripo 3D](TRIPO-NATIVE-SETUP.md)。两个 H3 名称属于不同供应商和媒体类型，不能共用模型映射。

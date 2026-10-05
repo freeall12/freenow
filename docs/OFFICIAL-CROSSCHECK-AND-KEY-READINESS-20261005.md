@@ -48,7 +48,11 @@
 | 显式参数编辑已接入，实际模型效果待验 | 图片重新打光 | OpenAI Key、GPT Image 2访问权、明确parameter-prompt-edit映射；全部原控件参数编译，不保证物理精确照明或固定输出画幅 |
 | 显式原生替代已接入 | 单图360全景、已保存时序蒙层的视频移除/替换 | fal Key与各自映射；全景要求实际PNG，视频编辑要求完整蒙层/FFmpeg；首次目标识别仍需独立分割服务 |
 | 参考编辑已接入，本地媒体传输有限制 | 视频重拍 | Ark Key、实验性prompt_simulation映射与独立公网HTTPS视频；本地上传和真实相机效果待验 |
-| 前端与任务合同已有，专用供应商仍待补 | 全景区域编辑、皮肤/Magnific；视频深度；Sonilo音乐及部分音频场景 | 必须补供应商适配或提供已经实现这些操作的 tasks-v1 网关；单独填写品牌 Key 不够 |
+| 已有原生适配，本机合同已验证，真实 Key 待验 | Magnific Precision完整图片放大 | Magnific独立Key、明确 `image.upscale:magnific` 映射、四参数与原尺寸媒体；原UUID查询/结果归档已接，账号与效果待验。[合同](MAGNIFIC-NATIVE-20261005.md) |
+| 独立原生局部编辑已接入，实际模型效果待验 | 片场全景区域编辑 | OpenAI Key、GPT Image 2资格、明确 `perspective-mask-reproject` 映射；2048×1024不透明PNG、1–32个当前可见凸四角选区；硬边回投不等于原站三图或整图编辑。[限制](OPENAI-PANORAMA-EDIT-NATIVE-20261005.md) |
+| 原生供应商与Agent深度流程已接入，节点入口未接 | 视频深度 | fal Key、明确 `depth-anything-video` 映射、FFmpeg/FFprobe；32 MiB完整MP4、宽<=1920/高<=1080、恒定5–30 FPS、最多2400帧，无声音灰度且保持源尺寸时长。真实深度效果待验。[后端](VIDEO-DEPTH-NATIVE-20261005.md) / [入口边界](VIDEO-DEPTH-FRONTEND-QA-20261005.md) |
+| 专用任务网关已接，品牌原生供应商仍待补 | 皮肤编辑 | 实际实现三档合同的 `skin-tasks-v1` 网关及其Key；单填Enhancor Key不能直接启用，公网来源/webhook与三档换算仍需独立实现验收。[网关合同](SKIN-EDITOR-PROVIDER-20261005.md) |
+| 前端与任务合同已有，专用供应商仍待补 | Sonilo音乐及部分音频场景 | 必须补专用供应商适配或提供已经实现这些操作的任务网关；单独填写品牌 Key 不够 |
 | 仍开放 | 92 份精确创意模板、全部页面细节/资源/交互及最终性能验收 | 需要继续官方逐项证据和真实运行验证，不能由模型 Key 解锁 |
 
 `video.generate` 中供应商的 edit/extend 子模式，和 Toolbar 的 `video.extend`、`video.replace`、`video.erase`、`video.reshoot` 是不同任务合同。工具栏延长、重拍与蒙层移除/替换现各有独立接线，具体参数与媒体限制仍以对应合同为准，不能由供应商支持普通视频生成自动推定覆盖。
