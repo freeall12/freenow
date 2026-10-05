@@ -228,6 +228,25 @@
       }
       // PREVIS_LOCAL_BILLING:END
 
+      // PLATFORM_RESIZE_LOCAL_BRAND:BEGIN
+      // Only fixed UI text changes; source bytes and host-provided titles remain intact.
+      async function localizePlatformResizeBrand(html, name, version) {
+        if (name !== "platform-resize") return html;
+        if (version !== "v1") throw new Error("unsupported local platform-resize version");
+        var digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(html));
+        var hash = Array.from(new Uint8Array(digest), function (byte) {return byte.toString(16).padStart(2, "0");}).join("");
+        if (hash !== "897f46887563e4ed59db6b0f33cb0896631715c0c39a7e8793470978c7383365") throw new Error("platform-resize reference integrity mismatch");
+        var changes = [
+          ['free:"No Tapies used"', 'free:"Local image cropping"'],
+          ['free:"不消耗 Tapies"', 'free:"本机图片裁切"'],
+          ['done:e=>`Added ${e} image${e>1?"s":""} to the project, open the TapNow canvas to view them.`', 'done:e=>`Added ${e} image${e>1?"s":""} to the project, open the freenow canvas to view them.`'],
+          ['done:e=>`已添加 ${e} 张到项目，请在 TapNow 画布中查看。`', 'done:e=>`已添加 ${e} 张到项目，请在 freenow 画布中查看。`']
+        ];
+        changes.forEach(function (change) {if (html.split(change[0]).length !== 2) throw new Error("platform-resize brand target integrity mismatch");html = html.replace(change[0], change[1]);});
+        return html;
+      }
+      // PLATFORM_RESIZE_LOCAL_BRAND:END
+
       function notifyParent(method, params) {
         window.parent.postMessage(
           { jsonrpc: "2.0", method: method, params: params || {}, nonce: (params && params.nonce) || currentNonce },
@@ -274,6 +293,9 @@
           })
           .then(function (templateHtml) {
             return localizePrevisBilling(templateHtml, name, version);
+          })
+          .then(function (templateHtml) {
+            return localizePlatformResizeBrand(templateHtml, name, version);
           })
           .then(async function (templateHtml) {
             // Only v2 has variant submission errors; historical v1 is read-only.

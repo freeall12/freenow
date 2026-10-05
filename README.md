@@ -108,6 +108,7 @@ node --env-file=.env.local server/server.cjs
 | `mureka-native` | Mureka 8 / O2 自动与自定义歌词歌曲 | [Mureka](docs/MUREKA-NATIVE-20261005.md)，精确型号、原任务查询与本地音频归档 |
 | `seed-audio-native` | Seed Audio 1.0 多模态音频及字幕文本 | [Seed Audio](docs/SEED-AUDIO-NATIVE-20261005.md)，独立语音 Key；Ogg Opus 仅48kHz |
 | `fal-video-audio-native` | 单个完整 MP4 → ThinkSound 拟音 | [视频拟音](docs/VIDEO-AUDIO-NATIVE-20261005.md)，显式替代 Sonilo SFX；时长跟随视频，供应商最大时长待验 |
+| `fal-video-mask-native` | 已保存时序蒙层的视频物体移除／替换 | [Wan VACE](docs/WAN-VACE-VIDEO-MASK-NATIVE-20261005.md)，显式替代；需 FFmpeg、fal Key 和完整蒙层，首次识别另需分割服务 |
 | `fal-native` / `fal-video-native` | 图片抠图/增强、视频增强 | [图片](docs/FAL-NATIVE-SETUP.md) / [视频](docs/FAL-VIDEO-NATIVE-SETUP.md) |
 | `tripo-native` | 3D 模型生成 | [Tripo](docs/TRIPO-NATIVE-SETUP.md) |
 | `marble-native` | World Labs 世界生成后端 | [Marble](docs/MARBLE-NATIVE-SETUP.md)，SPZ 渲染尚未完成，前端阻止派发 |
@@ -126,13 +127,21 @@ node --env-file=.env.local server/server.cjs
 
 ## 最新接入与核验
 
+视频物体移除／替换已接入正式工具栏和 Agent：完整来源与时序蒙层共同裁片、fal CDN 上传、原任务恢复、MP4 本机归档及原音轨保留。结果保存真实首帧封面；保存失败复用原结果节点。正式替换面板、Agent 审批、实际视频播放与刷新恢复已通过隔离本机服务验收。[本批实现与浏览器证据](docs/LOCAL-VIDEO-MASK-AGENT-20261005.md)
+
+| 视频替换：目标、参考图与实际接入条件 | Agent：来源绑定与上传说明 |
+| --- | --- |
+| ![本地视频物体替换正式面板](docs/screenshots/video-mask-native-panel-20261005.jpg) | ![Agent视频移除正式审批卡](docs/screenshots/agent-video-mask-approval-20261005.jpg) |
+
+这是显式 Wan VACE 独立替代。选段须为恒定 5–30 fps、81–241 帧；不截断、补帧或改速。首次目标识别仍需独立分割服务，**仅填 fal Key 不能完成新视频从识别到编辑的全流程**。截图使用合成蒙层和固定结果，不代表模型效果。[接口配置](docs/WAN-VACE-VIDEO-MASK-NATIVE-20261005.md) · [媒体处理](docs/VIDEO-MASK-MEDIA-PREPARATION-20261005.md) · [分割合同缺口](docs/VIDEO-SEGMENTATION-FAL-CONTRACT-20261005.md)
+
 图片转 360° 全景已接正式节点菜单、Agent 确认卡和独立供应商协议；真实 PNG 解码、WebGL 预览、刷新恢复及错误画幅拒绝均已实操。Agent 抠图与自动多角度使用高清原图，先保存任务身份再派发；补齐中文任务标题和固定欢迎文案。[本批实现与浏览器证据](docs/LOCAL-PANORAMA-RESHOOT-AGENT-20261005.md)
 
 | 全景结果：实际 WebGL 预览 | 视频重拍：完整镜头控件与接入条件 |
 | --- | --- |
 | ![本地合成全景结果与取景入口](docs/screenshots/hunyuan-panorama-preview-20261005.jpg) | ![视频重拍正式面板及Ark媒体传输限制](docs/screenshots/video-reshoot-native-boundary-20261005.jpg) |
 
-截图使用合成夹具，不代表真实模型质量。重拍的来源设置变更、关闭后的迟到回调和全“不变”计划已阻断；Ark 本地媒体上传、真实供应商效果仍待接入与验证。视频物体移除/替换完成了 [Wan VACE 合同核对](docs/VIDEO-MASK-PROVIDER-READINESS-20261005.md)，其适配、时序遮罩与分割服务仍未完成。
+截图使用合成夹具，不代表真实模型质量。重拍的来源设置变更、关闭后的迟到回调和全“不变”计划已阻断；Ark 本地媒体上传、真实供应商效果仍待接入与验证。
 
 短窗口中的右键菜单现在会把键盘焦点滚入可视范围。End/Home、方向键绕回、禁用项跳过、关闭与重开已实际验证；菜单滚动保持画布位置。[交互与截图证据](docs/CANVAS-CONTEXT-MENU-KEYBOARD-VISIBILITY-20261005.md)
 

@@ -17,7 +17,7 @@ node --env-file=.env.local server/server.cjs
 | `GENERATION_PROVIDERS` | JSON：供应商 ID → 配置 |
 | `GENERATION_ROUTES` | JSON：准确操作 kind → 供应商 ID 或 `{default,models}` |
 
-供应商配置允许 `protocol`、`apiKeyEnv`、`baseUrl` / `baseUrlEnv`、`modelMap` / `modelMapEnv`。Key 只允许通过环境变量名称引用；JSON 中的 `apiKey` 会使路由无效。地址和模型映射的内联值与环境引用不能同时提供。`modelMapEnv` 所引用的值同样为 JSON。协议支持 `openai-native`、`ark-native`、`ark-video-extend-reference`、`fal-native`、`fal-video-native`、`fal-video-audio-native`、`minimax-native`、`minimax-music-native`、`tripo-native`、`elevenlabs-native`、`elevenlabs-sound-native`、`elevenlabs-music-native`、`mureka-native`、`seed-audio-native`、`openai-masked-edit-native`、`marble-native` 和 `tasks-v1`。fal 抠图和 Topaz 放大的可直接使用配置见 [fal 图片工具](FAL-NATIVE-SETUP.md)。
+供应商配置允许 `protocol`、`apiKeyEnv`、`baseUrl` / `baseUrlEnv`、`modelMap` / `modelMapEnv`。Key 只允许通过环境变量名称引用；JSON 中的 `apiKey` 会使路由无效。地址和模型映射的内联值与环境引用不能同时提供。`modelMapEnv` 所引用的值同样为 JSON。协议支持 `openai-native`、`ark-native`、`ark-video-extend-reference`、`ark-video-reshoot-edit`、`fal-native`、`fal-video-native`、`fal-video-audio-native`、`fal-video-mask-native`、`fal-panorama-native`、`minimax-native`、`minimax-music-native`、`tripo-native`、`elevenlabs-native`、`elevenlabs-sound-native`、`elevenlabs-music-native`、`mureka-native`、`seed-audio-native`、`openai-masked-edit-native`、`marble-native` 和 `tasks-v1`。fal 抠图和 Topaz 放大的可直接使用配置见 [fal 图片工具](FAL-NATIVE-SETUP.md)。
 
 两项路由变量都未设置时，原单供应商配置保持不变。只设置一项、JSON 损坏或路由引用不存在的供应商时，整个路由禁用，不借用旧 Key。某个供应商缺 Key 或能力时只阻止选到它的功能，不影响其他已配置功能。Key 名称未设置等同该供应商未就绪。
 
@@ -66,6 +66,8 @@ VIDEO_AUDIO_MODEL_MAP='{"sonilo-sfx":{"kind":"audio.generate","model":"fal-ai/th
 两组示例已由生产配置读取器及路由执行零网络dry-run；本机HTTP媒体验收见[本批记录](LOCAL-VIDEO-TOOLS-STORAGE-BRAND-20261005.md)。不代表真实供应商Key、账号资格或模型质量已验。
 
 ## 恢复、凭据和界面
+
+视频物体移除／替换使用独立 `fal-video-mask-native` 协议，将 `video.erase` 和 `video.replace` 各自唯一映射到 `fal-ai/wan-vace-14b/inpainting` 并声明 `semantics:"explicit-native-alternative"`。这两个专用操作没有模型菜单，按 kind 路由；不借用来源节点的普通视频模型标签。配置示例及媒体预算见 [Wan VACE 接入](WAN-VACE-VIDEO-MASK-NATIVE-20261005.md)。已有完整时序蒙层时，来源片段、黑白蒙层视频及替换参考会真实上传到 fal CDN；首次识别目标另需 `VIDEO_SEGMENTATION_API_BASE_URL` 服务。Fal Key 不等于分割能力已经可用。
 
 - 浏览器只收到功能、公开别名和配置状态；不返回 Key、端点或真实模型 ID。任务在读取媒体前按操作和别名检查配置。
 - 配置弹窗显示每个操作/供应商是否就绪；整体存在可用图片服务并不表示视频服务可用。

@@ -8,6 +8,8 @@
 
 ## 已有实现，不重复开发
 
+2026-10-05 视频蒙层补充：[Wan VACE 原生适配](WAN-VACE-VIDEO-MASK-NATIVE-20261005.md)、完整来源/蒙层共同裁片、fal CDN 上传、分阶段持久恢复、原音轨与本地归档已实现。Toolbar 和 Agent 已保存蒙层入口已接线。不要再次把这些列为尚无接口；新视频首次目标识别仍需独立分割服务，SAM2 公开 RLE 编码语义尚不完整，见[合同缺口](VIDEO-SEGMENTATION-FAL-CONTRACT-20261005.md)。真实 Key 的上传权限、模型效果、长视频预算及全站逐态验收仍开放。
+
 2026-10-05补充：[视频工具与存储批次](LOCAL-VIDEO-TOOLS-STORAGE-BRAND-20261005.md)已接 ThinkSound 单视频拟音、Toolbar 延长镜头参考生成、个人素材库IndexedDB容量迁移、模板离页保护及嵌套制作进度卡品牌。Ark本地视频公网传输、Sonilo音乐/分段、92份HTML原文、SPZ渲染与真实Key验收仍开放；不要将新增适配简化为“所有菜单仅填Key即可”。
 
 - 当前 `agent-apps/registry.mjs` 已登记官方 manifest 全部22个版本URI、20个功能族，包括历史 animatic v1 / character-blocking v1；Creative 已接受严格 family 参数及拒绝退役A05推荐。登记不等于全部状态/视觉验收。

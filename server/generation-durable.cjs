@@ -10,6 +10,30 @@ const failure=(message,code,status=400)=>Object.assign(Error(message),{code,stat
 function rejectCredentials(value){if(!value||typeof value!=='object')return;for(const [key,entry]of Object.entries(value)){if(secretKey.test(key))throw failure('生成请求不能包含凭据字段','credentials_forbidden');rejectCredentials(entry);}}
 function canonical(value){if(value===null||['string','boolean'].includes(typeof value))return JSON.stringify(value);if(typeof value==='number'&&Number.isFinite(value))return JSON.stringify(value);if(Array.isArray(value))return '['+value.map(canonical).join(',')+']';if(value&&typeof value==='object')return '{'+Object.keys(value).sort().map(key=>JSON.stringify(key)+':'+canonical(value[key])).join(',')+'}';throw failure('生成请求必须为 JSON 数据','invalid_request');}
 const digest=value=>createHash('sha256').update(typeof value==='string'?value:canonical(value)).digest('hex');
+const PREPARATION_PROTOCOL='fal-video-mask-native';
+const PREPARATION_FAILURE_CODES=new Set(['unsupported_generation','invalid_video_mask_media']);
+const PREPARATION_STAGES={'media-preparing':'preparing','media-ready':'ready','upload-initiating':'dispatching','upload-initiated':'confirmed',uploading:'dispatching',uploaded:'confirmed','generation-dispatching':'dispatching','generation-accepted':'confirmed',unknown:'unknown'};
+const UUID=/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i;
+function preparationObject(value,required,optional=[]){
+ if(!value||typeof value!=='object'||Array.isArray(value))throw failure('生成素材准备记录无效','invalid_preparation_state');
+ const descriptors=Object.getOwnPropertyDescriptors(value),keys=Reflect.ownKeys(value);
+ if(keys.some(key=>typeof key!=='string'||![...required,...optional].includes(key)||!Object.hasOwn(descriptors[key],'value')||!descriptors[key].enumerable)||required.some(key=>!Object.hasOwn(descriptors,key)))throw failure('生成素材准备记录无效','invalid_preparation_state');
+ return Object.fromEntries(keys.map(key=>[key,descriptors[key].value]));
+}
+function checkedPreparationState(value,request){
+ const state=preparationObject(value,['version','protocol','preparationId','kind','stage','status','requestHash'],['routing']);
+ if(state.version!==1||state.protocol!==PREPARATION_PROTOCOL||typeof state.preparationId!=='string'||!UUID.test(state.preparationId)||!['video.erase','video.replace'].includes(state.kind)||state.kind!==request.kind||typeof state.stage!=='string'||!Object.hasOwn(PREPARATION_STAGES,state.stage)||PREPARATION_STAGES[state.stage]!==state.status||typeof state.requestHash!=='string'||!/^[a-f0-9]{64}$/.test(state.requestHash)||state.requestHash!==digest(request))throw failure('生成素材准备记录身份无效','invalid_preparation_state');
+ if(state.routing!==undefined){
+  const routing=preparationObject(state.routing,['providerId','providerFingerprint']);
+  if(typeof routing.providerId!=='string'||!/^[A-Za-z][A-Za-z0-9_-]{0,63}$/.test(routing.providerId)||typeof routing.providerFingerprint!=='string'||!/^[a-f0-9]{64}$/.test(routing.providerFingerprint))throw failure('生成素材准备供应商身份无效','invalid_preparation_state');
+  state.routing=routing;
+ }
+ return state;
+}
+function checkedTaskIdentity(value){
+ if(typeof value!=='string'||!value||Buffer.byteLength(value)>2048||/[\s\x00-\x1f\x7f?#]/.test(value)||value.includes('://'))throw failure('生成服务任务身份无效','provider_identity_mismatch');
+ return value;
+}
 function requestKey(key){if(typeof key!=='string'||!/^[A-Za-z0-9._:-]{8,180}$/.test(key))throw failure('提交需要有效的 Idempotency-Key','invalid_idempotency_key');return key;}
 const outputObject=value=>value&&typeof value==='object'&&!Array.isArray(value);
 const outputFailure=()=>failure('生成结果资源元数据无效','invalid_outputs');
@@ -117,6 +141,7 @@ function createDurableGenerationService({directory,store=null,baseUrl='',apiKey=
  const ready=(async()=>{
   for(const saved of await store.readAll()){
    rejectCredentials(saved.request);if(saved.preparedRequest)rejectCredentials(saved.preparedRequest);
+   if(saved.providerPreparation!==undefined){try{checkedPreparationState(saved.providerPreparation,saved.preparedRequest||saved.request);}catch{throw failure('生成素材准备记录损坏，已阻止创建新任务','storage_corrupt',503);}}
    if(saved.providerBinding!==undefined&&!providerRegistry?.validBinding(saved.providerBinding))throw failure('生成任务供应商身份损坏','storage_corrupt',503);
    if(saved.version!==1||typeof saved.id!=='string'||!saved.request||typeof saved.requestHash!=='string'||digest(saved.request)!==saved.requestHash||keys.has(requestKey(saved.idempotencyKey))||jobs.has(saved.id))throw failure('生成任务记录损坏，已阻止创建新任务','storage_corrupt',503);
    let job=saved;
@@ -143,11 +168,44 @@ function createDurableGenerationService({directory,store=null,baseUrl='',apiKey=
  async function remote(method,id,body,signal,job){
   const transport=selected(job);if(!transport)throw failure('原任务供应商尚未配置','configuration_required');
   const captured=transport.provider;
-  if(captured){if(method==='POST')return captured.submit(body,{signal});if(typeof captured.poll!=='function')throw failure('此生成协议不支持远端任务恢复','remote_recovery_unavailable');return captured.poll(id,{signal});}
+  if(captured){
+   const context={signal,localTaskId:job.id,request:structuredClone(job.preparedRequest||job.request),preparationState:job.providerPreparation?structuredClone(job.providerPreparation):undefined,
+    onPreparationState:async value=>{
+     if(closing||signal.aborted)throw signal.reason||failure('生成素材准备已中止','cancelled');
+     const state=checkedPreparationState(value,job.preparedRequest||job.request);
+     if(protocolFor(job)!==state.protocol)throw failure('生成素材准备供应商协议不一致','invalid_preparation_state');
+     const saved=await update(job.id,current=>{
+      if(current.status==='cancelled')return null;
+      const previous=current.providerPreparation;
+      if(previous&&(previous.preparationId!==state.preparationId||canonical(previous.routing??null)!==canonical(state.routing??null)))throw failure('生成素材准备身份发生变化','invalid_preparation_state');
+      return {...current,providerPreparation:state};
+     });
+     if(closing||signal.aborted||saved?.status==='cancelled')throw signal.reason||failure('生成素材准备已中止','cancelled');
+    },
+    onTaskIdentity:async value=>{
+     const identity=checkedTaskIdentity(value);
+     const saved=await update(job.id,current=>{
+      if(current.providerTaskId&&current.providerTaskId!==identity)throw failure('生成服务返回了其他任务','provider_identity_mismatch');
+      return current.providerTaskId?null:{...current,providerTaskId:identity,submissionState:'accepted'};
+     });
+     if(saved?.providerTaskId!==identity||closing)throw failure('生成任务身份尚未安全保存','storage_error',503);
+     if(saved.status==='cancelled'){await deleteRemote(job.id);throw signal.reason||failure('生成任务已取消','cancelled');}
+     if(signal.aborted)throw signal.reason;
+    }};
+   if(method==='POST')return captured.submit(body,context);
+   if(method==='RESUME'){if(typeof captured.resumePreparation!=='function')throw failure('此生成协议不支持准备记录核对','remote_recovery_unavailable');return captured.resumePreparation(context.preparationState,context);}
+   if(typeof captured.poll!=='function')throw failure('此生成协议不支持远端任务恢复','remote_recovery_unavailable');return captured.poll(id,context);
+  }
   const result=await fetchImpl(endpoint+'/tasks'+(id?'/'+encodeURIComponent(id):''),{method,redirect:'error',headers,signal:AbortSignal.any([signal,AbortSignal.timeout(requestTimeout)]),...(body?{body:JSON.stringify(body)}:{})});if(!result.ok)throw failure('生成服务请求未确认','provider_http_error',502);return result.json();
  }
  function compatible(job){const transport=selected(job);return !!transport&&(transport.configured||transport.metadata?.protocol==='routed')&&job.providerFingerprint===transport.fingerprint;}
  const protocolFor=job=>{const captured=selected(job)?.provider;return captured?.protocolFor?captured.protocolFor(job.preparedRequest||job.request):selected(job)?.metadata?.protocol;};
+ function preparationFailure(job,error){
+  if(job.providerTaskId||protocolFor(job)!==PREPARATION_PROTOCOL||!['video.erase','video.replace'].includes(job.request.kind)||error?.providerDispatched!==false||!PREPARATION_FAILURE_CODES.has(error.code))return null;
+  // The trusted native provider attests that generation was not dispatched.
+  // Upload checkpoints remain private evidence and are never erased by this flag.
+  return {...job,status:'failed',code:error.code,error:'视频遮罩素材未通过准备校验，尚未提交模型生成',providerDispatched:false,recovery:{reason:error.code,retryableLookup:false}};
+ }
  async function applyRemote(id,value){
   const existing=jobs.get(id);if(!existing||closing||controllers.get(id)?.signal.aborted&&existing.status!=='cancelled')return;
   const remoteId=value&&typeof value.id==='string'&&value.id.trim()?value.id:null;
@@ -166,13 +224,14 @@ function createDurableGenerationService({directory,store=null,baseUrl='',apiKey=
   // A remote tasks-v1 response cannot claim a trusted local preparation failure.
   const localError=protocolFor(existing)==='openai-native'&&existing.request.kind==='video.analyze'&&value?.status==='failed'&&value.providerDispatched===false?localVideoErrorMessage(value.code):null;
   if(localError){await update(id,job=>job.status==='cancelled'?null:{...job,status:'failed',code:value.code,error:localError,providerDispatched:false,recovery:{reason:value.code,retryableLookup:false}});return;}
+  if(value?.status==='failed'&&preparationFailure(existing,value)){await update(id,job=>job.status==='cancelled'?null:preparationFailure(job,value));return;}
   if(['failed','cancelled','configuration_required'].includes(value?.status)){await update(id,job=>job.status==='cancelled'?null:{...job,status:value.status,code:'provider_'+value.status,error:value.status==='cancelled'?'生成服务已取消任务':'生成服务未完成任务',recovery:{reason:'provider_'+value.status,retryableLookup:false}});return;}
   if(value?.status==='succeeded')throw failure('生成服务声称完成但缺少实际结果','missing_outputs');
   if(value?.status!==undefined&&!['queued','running'].includes(value.status))throw failure('生成服务返回未确认状态','provider_status_unconfirmed');
   if(!jobs.get(id).providerTaskId)throw failure('生成服务未返回任务 ID','submission_unconfirmed');
   await update(id,job=>job.status==='cancelled'?null:{...job,status:'running',progress:Math.max(job.progress||0,Math.min(99,Math.max(0,Number(value?.progress)||0))),error:undefined,code:undefined,recovery:undefined});
  }
- async function failedOperation(id,error){if(closing)return;const current=jobs.get(id);if(!current||terminal.has(current.status))return;if(error.code==='storage_error'){storageFailure(id);return;}try{await update(id,job=>terminal.has(job.status)?null:job.providerStatus==='succeeded'?localizationFailure(job):recover(job,error.code||'provider_connection_unconfirmed',!!job.providerTaskId));}catch{storageFailure(id);}}
+ async function failedOperation(id,error){if(closing)return;const current=jobs.get(id);if(!current||terminal.has(current.status)||current.code==='storage_error')return;if(error.code==='storage_error'){storageFailure(id);return;}try{await update(id,job=>terminal.has(job.status)?null:job.providerStatus==='succeeded'?localizationFailure(job):preparationFailure(job,error)||recover(job,error.code||'provider_connection_unconfirmed',!!job.providerTaskId));}catch{storageFailure(id);}}
  function launch(id,action){if(active.has(id))return active.get(id);const pending=Promise.resolve().then(action).catch(error=>failedOperation(id,error)).finally(()=>{active.delete(id);controllers.delete(id);});active.set(id,pending);return pending;}
  async function dispatch(id){
   const controller=new AbortController();controllers.set(id,controller);let job=jobs.get(id);if(closing||job.status!=='queued')return;
@@ -182,7 +241,7 @@ function createDurableGenerationService({directory,store=null,baseUrl='',apiKey=
    const prepared=await prepareRequest(structuredClone(job.request),{provider:captured,protocol:transport?.metadata?.protocol});assertIndependentMediaInputs(prepared);rejectCredentials(prepared);canonical(prepared);if(!prepared||prepared.kind!==job.request.kind)throw failure('生成请求准备失败','invalid_prepared_request');
    if(captured?.configured)await captured.prepare?.(prepared);
    job=await update(id,current=>current.status==='cancelled'?null:{...current,preparedRequest:prepared});
-  }catch(error){if(error.code==='storage_error')throw error;const localError=protocolFor(job)==='openai-native'&&job.request.kind==='video.analyze'?localVideoErrorMessage(error.code):null;await update(id,current=>current.status==='cancelled'?null:{...current,status:error.code==='configuration_required'?'configuration_required':'failed',code:localError?error.code:error.code==='configuration_required'?'configuration_required':'request_preparation_failed',error:localError||'生成参数或模型映射未兼容，尚未提交远端',...(localError?{providerDispatched:false}:{})});return;}
+  }catch(error){if(error.code==='storage_error')throw error;const localError=protocolFor(job)==='openai-native'&&job.request.kind==='video.analyze'?localVideoErrorMessage(error.code):null;await update(id,current=>current.status==='cancelled'?null:preparationFailure(current,error)||{...current,status:error.code==='configuration_required'?'configuration_required':'failed',code:localError?error.code:error.code==='configuration_required'?'configuration_required':'request_preparation_failed',error:localError||'生成参数或模型映射未兼容，尚未提交远端',...(localError?{providerDispatched:false}:{})});return;}
   if(closing||job.status==='cancelled')return;
   if(!configuredFor(job)){await update(id,current=>current.status==='cancelled'?null:{...current,status:'configuration_required',code:'configuration_required',error:'尚未配置生成服务，未提交远端'});return;}
   // This durable intent precedes POST. A crash anywhere after this point without
@@ -234,7 +293,25 @@ function createDurableGenerationService({directory,store=null,baseUrl='',apiKey=
    }
    await launch(id,()=>job.localization?.sourceRefreshRequired||job.localization?.errorCode==='media_download_expired'?refreshAndLocalize(id):localize(id));return exposed(jobs.get(id));
   }
-  if(terminal.has(job.status)||!job.providerTaskId)return exposed(job);
+  if(terminal.has(job.status))return exposed(job);
+  if(!job.providerTaskId&&job.providerPreparation){
+   const captured=selected(job)?.provider;
+   if(typeof captured?.resumePreparation!=='function')return exposed(job);
+   if(!compatible(job)){await update(id,current=>recover(current,configuredFor(job)?'provider_configuration_changed':'configuration_required',false));return exposed(jobs.get(id));}
+   await launch(id,async()=>{
+    const controller=new AbortController();controllers.set(id,controller);
+    // Read private preparation evidence only. An accepted ID must commit before
+    // any original-task GET or provider media/audio post-processing can run.
+    const value=await remote('RESUME',null,null,controller.signal,job);
+    if(closing||controller.signal.aborted||jobs.get(id)?.status==='cancelled')return;
+    if(value?.outputs!==undefined||(!value?.id?value?.status!=='unknown':!['queued','running'].includes(value.status)))throw failure('准备记录核对不能返回未验证结果','invalid_preparation_state');
+    if(!value.id){await update(id,current=>recover(current,'preparation_unconfirmed',false));return;}
+    await applyRemote(id,{id:checkedTaskIdentity(value.id),status:value.status});
+    const accepted=jobs.get(id);if(closing||controller.signal.aborted||accepted.status==='cancelled')return;
+    await applyRemote(id,await remote('GET',accepted.providerTaskId,null,controller.signal,accepted));
+   });return exposed(jobs.get(id));
+  }
+  if(!job.providerTaskId)return exposed(job);
   if(!compatible(job)){await update(id,current=>recover(current,configuredFor(job)?'provider_configuration_changed':'configuration_required',false));return exposed(jobs.get(id));}
   await launch(id,async()=>{const controller=new AbortController();controllers.set(id,controller);await applyRemote(id,await remote('GET',job.providerTaskId,null,controller.signal,job));});return exposed(jobs.get(id));
  }

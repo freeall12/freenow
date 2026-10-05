@@ -1,7 +1,7 @@
 (() => {
   'use strict';
   const app=window.CanvasApp;
-  let generationRequests,generationMedia,recognitionMedia,videoAnalysisMedia,extensionMedia,reshootMedia,panoramaMedia,panoramaValidation,imageToolMedia,maskedEditMedia,worldMedia,draftWorkflow,resultModules,resultWorkflow,failureBridge;
+  let generationRequests,generationMedia,recognitionMedia,videoAnalysisMedia,extensionMedia,reshootMedia,videoMaskMedia,panoramaMedia,panoramaValidation,imageToolMedia,maskedEditMedia,worldMedia,draftWorkflow,resultModules,resultWorkflow,failureBridge;
   const failureSources=new Map();
   const resultSubmissions=new Map();
   const draftGuards=new Map();
@@ -56,6 +56,11 @@
       const nativeConfiguration=service.jobs.get(jobId)?.transport===localProvider?taskNativeConfigurations.get(signal):null;
       return (await reshootMedia).prepareReshootMedia(request,{signal,validateSources,localAssets:window.LocalAssets,localMedia:window.LocalMedia,baseUrl:document.baseURI,nativeConfiguration});
     }
+    if(['video.erase','video.replace'].includes(request.kind)){
+      videoMaskMedia||=import('./src/features/video-mask/media.mjs');
+      const nativeConfiguration=service.jobs.get(jobId)?.transport===localProvider?taskNativeConfigurations.get(signal):null;
+      return (await videoMaskMedia).prepareMaskedVideoMedia(request,{signal,validateSources,localAssets:window.LocalAssets,localMedia:window.LocalMedia,baseUrl:document.baseURI,nativeConfiguration});
+    }
     if(request.kind==='video.analyze'){
       videoAnalysisMedia||=import('./src/features/node-composer/video-analysis-media.mjs');
       const nativeConfiguration=service.jobs.get(jobId)?.transport===localProvider?taskNativeConfigurations.get(signal):null;
@@ -95,14 +100,17 @@
     const transport=configurationBoundProvider(GenerationCore.httpProvider,{baseUrl:new URL('/api/generation',location.href).href,getConfigurationId:signal=>taskConfigurationIds.get(signal)});
     return transport.generate(request,options);
   };
-  let serverConfigured=false,serverConfigurationRevision=0;
+  let serverConfigured=false,serverConfigurationRevision=0,serverConfigurationSnapshot=null;
   service.setProvider(localProvider);
-  function refreshServerConfiguration(){const revision=++serverConfigurationRevision;return fetch('/api/generation/config',{signal:AbortSignal.timeout(5000)}).then(response=>response.ok?response.json():null).then(value=>{if(typeof value?.configured!=='boolean')return null;if(revision===serverConfigurationRevision)serverConfigured=value.configured;return value;}).catch(()=>null);}
+  function refreshServerConfiguration(){const revision=++serverConfigurationRevision;return fetch('/api/generation/config',{signal:AbortSignal.timeout(5000)}).then(response=>response.ok?response.json():null).then(value=>{const valid=typeof value?.configured==='boolean';if(revision===serverConfigurationRevision){serverConfigured=valid&&value.configured;serverConfigurationSnapshot=valid?structuredClone(value):null;}return valid?value:null;}).catch(()=>{if(revision===serverConfigurationRevision){serverConfigured=false;serverConfigurationSnapshot=null;}return null;});}
   let serverConfiguration=refreshServerConfiguration();
   localProvider.isConfigured=async({request,signal,operationOnly=false}={})=>{
-    const configuration=serverConfiguration=refreshServerConfiguration();
+    const configuration=serverConfiguration=refreshServerConfiguration(),revision=serverConfigurationRevision;
     const [metadata,routing]=await Promise.all([configuration,providerConfigurationReady]);
     if(signal?.aborted)throw signal.reason;
+    // Parallel tasks can resolve the same public configuration out of order.
+    // Only a stale value that differs from the current snapshot loses authority.
+    if(revision!==serverConfigurationRevision&&(!serverConfigurationSnapshot||JSON.stringify(metadata)!==JSON.stringify(serverConfigurationSnapshot)))throw Object.assign(new Error('生成配置查询期间已变化，请重新确认提交'),{code:'configuration_required',providerDispatched:false});
     const selected=routing.resolveProviderConfiguration(metadata,request);
     if(signal&&request?.kind){taskNativeConfigurations.set(signal,selected);if(typeof metadata?.configurationId==='string')taskConfigurationIds.set(signal,metadata.configurationId);}
     const status=routing.providerConfigurationStatus(metadata,request,{operationOnly});
@@ -131,6 +139,9 @@
       if(provider===service.provider&&configuration===serverConfiguration)return value?structuredClone(value):null;
     }
   }
+  // Synchronous dispatch guards must retain the configuration actually approved
+  // before any asynchronous readiness refresh or media preparation.
+  function configurationSnapshot(){return service.provider===localProvider&&serverConfigurationSnapshot?structuredClone(serverConfigurationSnapshot):null;}
   function submitJob(request,options){
     if(request.kind==='image.generate'){
       const node=app.getState().nodes.find(node=>node.id===request.nodeId);
@@ -192,7 +203,14 @@
     const isPanorama=panorama?.isNativePanoramaRequest(job.request);
     if(isPanorama&&(!Array.isArray(job.outputs)||job.outputs.length!==1))throw Error('全景任务必须返回一个真实图片结果');
     async function validateJobMedia(output){
-      if(!isPanorama)return validateOutputMedia(output);
+      if(!isPanorama){
+        await validateOutputMedia(output);
+        if(['video.erase','video.replace'].includes(job.request.kind)){
+          videoMaskMedia||=import('./src/features/video-mask/media.mjs');
+          await (await videoMaskMedia).captureMaskedVideoPoster(output,{signal:stored.controller?.signal});
+        }
+        return;
+      }
       const measured=await panorama.validateNativePanoramaOutputs([output],{decode:async()=>{
         const probe={...output};await validateOutputMedia(probe);return probe;
       }});
@@ -489,7 +507,7 @@
   }
   function retry(id){if(inPlace.has(id))throw Error('请通过整组执行重新启动工作流');const old=service.jobs.get(id);if(!old)return null;if(old.request.parameters?.workflowRecovery)throw Error('持久工作流只能查询原任务，不能重发');if(['unknown','queued','running'].includes(old.status))throw Error('请查询已有任务，不能重复生成');if(old.status==='succeeded'&&!old.applied)throw Error('生成已完成，请使用重试应用结果，避免重复调用生成服务');const target=derivedTargets.get(id);if(target){try{return submitDerived(old.request,target);}catch(error){app.notify(error.message);return null;}}return submit(old.request,{beforeDispatch:old.beforeDispatch,beforeDispatchReady:old.beforeDispatchReady});}
   function submitDerived(request,target){target.guard();const job=submitJob(request,{beforeDispatch:target.guard,beforeDispatchReady:target.beforeDispatchReady});derivedTargets.set(job.id,target);return job;}
-  window.GenerationAPI={submitDerived,runInPlace,recoverInPlace,validateWorkflowProposal,availability,configuration,isConfigured:()=>service.provider===localProvider?serverConfigured:!!service.provider,submit,setProvider:p=>service.setProvider(p),configure,cancel,retry,retryApplication,recover,applyRecovered,subscribe:fn=>{const unsubscribe=service.subscribe(fn);applicationListeners.add(fn);return()=>{unsubscribe();applicationListeners.delete(fn);};},getJobs:()=>[...service.jobs.values()].map(({controller,...job})=>job)};
+  window.GenerationAPI={submitDerived,runInPlace,recoverInPlace,validateWorkflowProposal,availability,configuration,configurationSnapshot,isConfigured:()=>service.provider===localProvider?serverConfigured:!!service.provider,submit,setProvider:p=>service.setProvider(p),configure,cancel,retry,retryApplication,recover,applyRecovered,subscribe:fn=>{const unsubscribe=service.subscribe(fn);applicationListeners.add(fn);return()=>{unsubscribe();applicationListeners.delete(fn);};},getJobs:()=>[...service.jobs.values()].map(({controller,...job})=>job)};
   const generationHistoryReady=import('./src/features/generation-history/entry.mjs').then(module=>module.install());
   const historyDispatchReady=import('./src/features/generation-history/dispatch.mjs').then(({createHistoryDispatchGate})=>createHistoryDispatchGate({
     ready:()=>generationHistoryReady,getJob:id=>service.jobs.get(id),captureOptions:job=>({recoverable:job.transport===localProvider})

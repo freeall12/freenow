@@ -115,6 +115,11 @@ reference/*
 !qa/agent-image-processing-result.png
 !qa/agent-image-processing-panorama-result.png
 
+# Public Agent temporal-mask fixtures; generated HTML stays ignored.
+!qa/agent-video-mask-fixture.js
+!qa/agent-video-mask-controls.mjs
+!qa/agent-video-mask-result.mp4
+
 !qa/provider-routing-fixture.js
 !qa/provider-routing-controls.mjs
 
@@ -159,3 +164,8 @@ reference/*
 
 __pycache__/
 *.pyc
+
+# Public isolated masked-video browser fixture; generated HTML stays local.
+!qa/video-mask-native-fixture.js
+!qa/video-mask-native-audit.js
+!qa/video-mask-native-controls.mjs

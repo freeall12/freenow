@@ -1,0 +1,2 @@
+// Instrument the genuine preparation entry; never replace its behavior.
+(()=>{const Original=window.GenerationCore.TaskService;window.GenerationCore.TaskService=class extends Original{constructor(options={}){const prepare=options.prepareInputs;super({...options,prepareInputs:async(request,context)=>{if(!window.VideoMaskFixture.ready)throw Error('QA storage isolation failed');if(['video.erase','video.replace'].includes(request.kind))window.VideoMaskFixture.mediaPrepares++;return prepare?prepare(request,context):request;}});}};})();

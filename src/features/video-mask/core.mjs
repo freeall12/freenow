@@ -9,3 +9,16 @@ export function decodeMask(rle,width,height,color=[59,130,246,128]){const rgba=n
 export const frameAt=(mask,time)=>clamp(Math.round(time*mask.fps),0,mask.frames.length-1);
 export function maskBounds(rgba,width,height){let left=width,top=height,right=-1,bottom=-1;for(let i=0;i<width*height;i++)if(rgba[i*4+3]){const x=i%width,y=Math.floor(i/width);left=Math.min(left,x);right=Math.max(right,x);top=Math.min(top,y);bottom=Math.max(bottom,y);}return right<0?null:{x:Math.max(0,left-4),y:Math.max(0,top-4),width:Math.min(width-1,right+4)-Math.max(0,left-4)+1,height:Math.min(height-1,bottom+4)-Math.max(0,top-4)+1};}
 export function editRequest(node,mode,source,mask,reference){if(!['replace','remove'].includes(mode))throw Error('编辑模式无效');if(!source||!mask)throw Error('请先识别视频蒙层');if(mode==='replace'&&!reference?.url)throw Error('请选择替换图片');return {kind:mode==='replace'?'video.replace':'video.erase',label:mode==='replace'?'视频替换':'视频移除',nodeId:node.id,prompt:'',inputs:[{type:'video',url:source,role:'source_video',nodeId:node.id},...(mode==='replace'?[{type:'image',url:reference.url,nodeId:reference.nodeId,role:'replacement_image'}]:[])],parameters:{action:mode,sourceClip:node.clip||null,mask,aspectRatio:'adaptive',resolution:'720p',candidateCount:1}};}
+
+// URLs and node ids alone cannot authorize a delayed operation after a project
+// switch or replacement with a same-id object. Local asset references are immutable.
+export function sourceGuard(app,node,{signal,isAlive=()=>true,sourceOf=n=>n?.video,maskAsset,reference,referenceNode,getReference}={}){
+ const projectId=app.projectIdentity().id,source=sourceOf(node),clip=JSON.stringify(node.clip||null);
+ return ()=>{
+  if(signal?.aborted)throw signal.reason??new DOMException('已取消','AbortError');if(!isAlive())throw new DOMException('已取消','AbortError');
+  if(app.projectIdentity().id!==projectId||!app.getState().nodes.includes(node)||sourceOf(node)!==source||JSON.stringify(node.clip||null)!==clip)throw Error('来源视频或项目已变化，请重新打开');
+  if(maskAsset!==undefined&&(node.videoMask?.asset??null)!==maskAsset)throw Error('来源蒙层已变化，请重新识别');
+  if(getReference&&JSON.stringify([getReference()?.url??null,getReference()?.nodeId??null])!==JSON.stringify([reference?.url??null,reference?.nodeId??null]))throw Error('替换图片选择已变化，请重新生成');
+  if(reference?.nodeId&&(!referenceNode||!app.getState().nodes.includes(referenceNode)||(referenceNode.fullImage||referenceNode.image)!==reference.url))throw Error('替换图片已变化，请重新选择');
+ };
+}

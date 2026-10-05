@@ -1,0 +1,11 @@
+'use strict';
+const fs=require('node:fs'),path=require('node:path'),root=path.resolve(__dirname,'..');
+for(const name of ['trim-scenes.mp4','agent-video-mask-result.mp4','agent-image-processing-source.png','agent-image-processing-thumbnail.png'])if(!fs.existsSync(path.join(root,'qa',name)))throw Error('Missing public synthetic QA media: '+name);
+// No broad same-origin connection permission: bootstrap failures cannot reach real APIs.
+const csp="default-src 'self' blob: data:; script-src 'self' 'unsafe-inline' 'unsafe-eval' blob:; style-src 'self' 'unsafe-inline'; connect-src http://localhost:*/qa/ http://127.0.0.1:*/qa/ http://localhost:*/runtime-reference/skills-catalog.json http://127.0.0.1:*/runtime-reference/skills-catalog.json blob: data:; img-src 'self' blob: data:; media-src 'self' blob: data:; font-src 'self' data:; frame-src 'none'; worker-src 'none'; object-src 'none'; form-action 'none'; base-uri 'self'";
+let html=fs.readFileSync(path.join(root,'index.html'),'utf8').replace('<head>','<head><meta http-equiv="Content-Security-Policy" content="'+csp+'"><base href="/"><script src="qa/agent-video-mask-fixture.js"></script>');
+for(const name of ['canvas-data','editor-data','sidebar-data','versions-data'])html=html.replace(new RegExp('src="'+name+'\\.js[^\"]*"'),'src="defaults/'+name+'.js"');
+html=html.replace('<script src="defaults/canvas-data.js"></script>','<script src="defaults/canvas-data.js"></script><script>window.CANVAS_DATA.nodes=[{id:"video-mask-source",type:"video",title:"八秒合成来源 · 原选段1–5秒",video:"/qa/trim-scenes.mp4",clip:{start:1,end:5},x:100,y:240,width:320,height:180},{id:"video-mask-reference",type:"image",title:"替换原图512×320 · 缩略图32×20",image:"/qa/agent-image-processing-thumbnail.png",fullImage:"/qa/agent-image-processing-source.png",x:100,y:520,width:320,height:200}];window.CANVAS_DATA.edges=[];</script>');
+html=html.replace('</body>','<script type="module" src="qa/agent-video-mask-controls.mjs"></script></body>');
+fs.writeFileSync(path.join(root,'qa/agent-video-mask-app.html'),html);
+console.log('Open /qa/agent-video-mask-app.html?session=unique ; &kind=replace&auto ; &missing-mask ; &configured=false. Fixed result is a synthetic 4s clip, not an AI edit.');

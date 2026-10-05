@@ -1,0 +1,878 @@
+{
+  "checkedAt": "2026-10-05",
+  "method": "Public unauthenticated GET; static JSON and Next flight parsing only; no fetched JavaScript execution, browser, credentials, upload or inference",
+  "sources": [
+    {
+      "url": "https://fal.ai/sitemap.xml",
+      "bytes": 499463,
+      "sha256": "55745d8946c66a48429fc05df71e7111de4f1b19ad40fd6a4cc1a913e1d603a7"
+    },
+    {
+      "url": "https://fal.ai/models/fal-ai/sam2/video/llms.txt",
+      "bytes": 4948,
+      "sha256": "d97311498a6970f6e52d9b3e55022a366d69e4dedbc70d2e8855eeba1215760e"
+    },
+    {
+      "url": "https://fal.ai/api/openapi/queue/openapi.json?endpoint_id=fal-ai/sam2/video",
+      "bytes": 6495,
+      "sha256": "3112fafed8d281cf636241aa8ac3219047100a228be65040bc8026850fd5ef3f"
+    },
+    {
+      "url": "https://fal.ai/models/fal-ai/sam-3/video-rle/llms.txt",
+      "bytes": 5449,
+      "sha256": "5b4dc7144ef8bca8843298541e001e40f61361928e411c301408e2c874cd8e52"
+    },
+    {
+      "url": "https://fal.ai/api/openapi/queue/openapi.json?endpoint_id=fal-ai/sam-3/video-rle",
+      "bytes": 7814,
+      "sha256": "8cc1668b017d30ce3d7d08e9049779836e1505af2fd97d34ee225e71dc233005"
+    },
+    {
+      "url": "https://fal.ai/models/fal-ai/sam-3-1/video-rle/llms.txt",
+      "bytes": 5849,
+      "sha256": "b123b8231301ee5290f5758d2136d5baae9d651a67cf1610d1a039a15ea8c30b"
+    },
+    {
+      "url": "https://fal.ai/api/openapi/queue/openapi.json?endpoint_id=fal-ai/sam-3-1/video-rle",
+      "bytes": 8290,
+      "sha256": "513cb6061d00db9c0d1a12c02e48db8d4d3a342081647080a2613aad5066d814"
+    },
+    {
+      "url": "https://fal.ai/models/fal-ai/sam-3/video/llms.txt",
+      "bytes": 4836,
+      "sha256": "caecfa54438c0b31150b42c80314730edb936a7bfe76d401dc91c1866957fc09"
+    },
+    {
+      "url": "https://fal.ai/api/openapi/queue/openapi.json?endpoint_id=fal-ai/sam-3/video",
+      "bytes": 7234,
+      "sha256": "8c44916445c007709e55e5b642e183f3016fe0adf34c4791fe903d59ed9e60f2"
+    },
+    {
+      "url": "https://fal.ai/models/fal-ai/sam2/video",
+      "bytes": 415778,
+      "sha256": "d0753973bc812a49affbb105601ce2a5a7aea6f4d00742c2e2a3831b2c50253c"
+    },
+    {
+      "url": "https://fal.ai/models/fal-ai/sam-3-1/video-rle/api",
+      "bytes": 409385,
+      "sha256": "88be26a8d705fe1d14d62331d579694c10905d9ba7af428eb7389562e3e006d7"
+    }
+  ],
+  "nativeSchemaExtraction": {
+    "fal-ai/sam2/video": {
+      "paths": {
+        "/video": {
+          "post": {
+            "responses": {
+              "200": {
+                "description": "Successful Response",
+                "content": {
+                  "application/json": {
+                    "schema": {
+                      "anyOf": [
+                        {
+                          "$ref": "#/components/schemas/SAM2VideoOutput"
+                        },
+                        {
+                          "$ref": "#/components/schemas/SAM2RLEOutput"
+                        },
+                        {
+                          "$ref": "#/components/schemas/SAM2RLEFileOutput"
+                        }
+                      ],
+                      "title": "Response Segment Video Video Post"
+                    }
+                  }
+                }
+              },
+              "422": {
+                "description": "Validation Error",
+                "content": {
+                  "application/json": {
+                    "schema": {
+                      "$ref": "#/components/schemas/HTTPValidationError"
+                    }
+                  }
+                }
+              }
+            },
+            "operationId": "segment_video_video_post",
+            "requestBody": {
+              "required": true,
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/SAM2VideoRLEInput"
+                  }
+                }
+              }
+            },
+            "summary": "Segment Video"
+          }
+        }
+      },
+      "schemas": {
+        "SAM2VideoRLEInput": {
+          "x-fal-order-properties": [
+            "video_url",
+            "mask_url",
+            "prompts",
+            "box_prompts",
+            "apply_mask",
+            "boundingbox_zip"
+          ],
+          "properties": {
+            "boundingbox_zip": {
+              "description": "Return per-frame bounding box overlays as a zip archive.",
+              "type": "boolean",
+              "default": false,
+              "title": "Boundingbox Zip"
+            },
+            "mask_url": {
+              "description": "The URL of the mask to be applied initially.",
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Mask Url"
+            },
+            "prompts": {
+              "description": "List of prompts to segment the video",
+              "items": {
+                "$ref": "#/components/schemas/PointPrompt"
+              },
+              "type": "array",
+              "default": [],
+              "examples": [
+                [
+                  {
+                    "label": 1,
+                    "x": 210,
+                    "frame_index": 0,
+                    "y": 350
+                  },
+                  {
+                    "label": 1,
+                    "x": 250,
+                    "frame_index": 0,
+                    "y": 220
+                  }
+                ]
+              ],
+              "title": "Prompts"
+            },
+            "video_url": {
+              "description": "The URL of the video to be segmented.",
+              "type": "string",
+              "examples": [
+                "https://drive.google.com/uc?id=1iOFYbNITYwrebBBp9kaEGhBndFSRLz8k"
+              ],
+              "title": "Video Url"
+            },
+            "apply_mask": {
+              "description": "Apply the mask on the video.",
+              "type": "boolean",
+              "default": false,
+              "title": "Apply Mask"
+            },
+            "box_prompts": {
+              "description": "Coordinates for boxes",
+              "items": {
+                "$ref": "#/components/schemas/BoxPrompt"
+              },
+              "type": "array",
+              "default": [],
+              "examples": [
+                [
+                  {
+                    "frame_index": 0,
+                    "y_min": 0,
+                    "y_max": 400,
+                    "x_min": 300,
+                    "x_max": 500
+                  }
+                ]
+              ],
+              "title": "Box Prompts"
+            }
+          },
+          "type": "object",
+          "required": [
+            "video_url"
+          ],
+          "title": "SAM2VideoRLEInput"
+        },
+        "SAM2VideoOutput": {
+          "x-fal-order-properties": [
+            "video",
+            "boundingbox_frames_zip"
+          ],
+          "properties": {
+            "boundingbox_frames_zip": {
+              "description": "Zip file containing per-frame bounding box overlays.",
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/File"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "video": {
+              "$ref": "#/components/schemas/File",
+              "description": "The segmented video."
+            }
+          },
+          "type": "object",
+          "required": [
+            "video"
+          ],
+          "title": "SAM2VideoOutput"
+        },
+        "SAM2RLEOutput": {
+          "x-fal-order-properties": [
+            "rle",
+            "boundingbox_frames_zip"
+          ],
+          "properties": {
+            "boundingbox_frames_zip": {
+              "description": "Zip file containing per-frame bounding box overlays.",
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/File"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "rle": {
+              "description": "Run Length Encoding of the mask.",
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                }
+              ],
+              "title": "Rle"
+            }
+          },
+          "type": "object",
+          "required": [
+            "rle"
+          ],
+          "title": "SAM2RLEOutput"
+        },
+        "SAM2RLEFileOutput": {
+          "x-fal-order-properties": [
+            "rle",
+            "boundingbox_frames_zip"
+          ],
+          "properties": {
+            "boundingbox_frames_zip": {
+              "description": "Zip file containing per-frame bounding box overlays.",
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/File"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "rle": {
+              "$ref": "#/components/schemas/File",
+              "description": "Run Length Encoding of the mask."
+            }
+          },
+          "type": "object",
+          "required": [
+            "rle"
+          ],
+          "title": "SAM2RLEFileOutput"
+        },
+        "PointPrompt": {
+          "x-fal-order-properties": [
+            "x",
+            "y",
+            "label",
+            "frame_index"
+          ],
+          "type": "object",
+          "properties": {
+            "label": {
+              "description": "Label of the prompt. 1 for foreground, 0 for background",
+              "enum": [
+                0,
+                1
+              ],
+              "type": "integer",
+              "default": 1,
+              "title": "Label"
+            },
+            "x": {
+              "description": "X Coordinate of the prompt",
+              "type": "integer",
+              "default": 305,
+              "title": "X"
+            },
+            "frame_index": {
+              "description": "The frame index to interact with.",
+              "type": "integer",
+              "default": 0,
+              "title": "Frame Index"
+            },
+            "y": {
+              "description": "Y Coordinate of the prompt",
+              "type": "integer",
+              "default": 350,
+              "title": "Y"
+            }
+          },
+          "title": "PointPrompt"
+        }
+      }
+    },
+    "fal-ai/sam-3-1/video-rle": {
+      "paths": {
+        "/video-rle": {
+          "post": {
+            "operationId": "segment_video_rle_video_rle_post",
+            "requestBody": {
+              "required": true,
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/SAM31VideoRLEInput"
+                  }
+                }
+              }
+            },
+            "responses": {
+              "200": {
+                "description": "Successful Response",
+                "content": {
+                  "application/json": {
+                    "schema": {
+                      "anyOf": [
+                        {
+                          "$ref": "#/components/schemas/SAM31VideoOutput"
+                        },
+                        {
+                          "$ref": "#/components/schemas/SAM31VideoRLEOutput"
+                        },
+                        {
+                          "$ref": "#/components/schemas/SAM31VideoRLEFileOutput"
+                        }
+                      ],
+                      "title": "Response Segment Video Rle Video Rle Post"
+                    }
+                  }
+                }
+              },
+              "422": {
+                "description": "Validation Error",
+                "content": {
+                  "application/json": {
+                    "schema": {
+                      "$ref": "#/components/schemas/HTTPValidationError"
+                    }
+                  }
+                }
+              }
+            },
+            "summary": "Segment Video Rle"
+          }
+        }
+      },
+      "schemas": {
+        "SAM31VideoRLEInput": {
+          "properties": {
+            "point_prompts": {
+              "type": "array",
+              "title": "Point Prompts",
+              "description": "List of point prompts with frame indices.",
+              "items": {
+                "$ref": "#/components/schemas/PointPrompt"
+              },
+              "default": []
+            },
+            "video_url": {
+              "title": "Video Url",
+              "description": "The URL of the video to be segmented.",
+              "examples": [
+                "https://v3b.fal.media/files/b/elephant/NQdDxB0Ddfo82SPLbhYDp_bedroom.mp4"
+              ],
+              "type": "string"
+            },
+            "max_num_objects": {
+              "default": 16,
+              "title": "Max Num Objects",
+              "maximum": 128,
+              "description": "Maximum number of objects to track in the video.",
+              "minimum": 1,
+              "type": "integer"
+            },
+            "boundingbox_zip": {
+              "type": "boolean",
+              "title": "Boundingbox Zip",
+              "description": "Return per-frame bounding box overlays as a zip archive.",
+              "default": false
+            },
+            "prompt": {
+              "type": "string",
+              "ui": {
+                "important": true
+              },
+              "title": "Prompt",
+              "description": "Text prompt for segmentation. Use commas to track multiple objects (e.g., 'person, cloth').",
+              "examples": [
+                "person",
+                "person, cloth"
+              ],
+              "default": ""
+            },
+            "mask_url": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Mask Url",
+              "description": "The URL of the mask to be applied initially."
+            },
+            "apply_mask": {
+              "type": "boolean",
+              "title": "Apply Mask",
+              "description": "Apply the mask on the video.",
+              "default": false
+            },
+            "return_object_rles": {
+              "type": "boolean",
+              "title": "Return Object Rles",
+              "description": "Also return every tracked object's own mask in each frame, with an id the object keeps for the whole video. The merged rle is returned as before.",
+              "default": false
+            },
+            "detection_threshold": {
+              "default": 0.5,
+              "title": "Detection Threshold",
+              "maximum": 1,
+              "description": "Detection confidence threshold (0.0-1.0). Lower = more detections but less precise. Defaults: 0.5 for existing, 0.7 for new objects. Try 0.2-0.3 if text prompts fail.",
+              "minimum": 0.01,
+              "type": "number"
+            },
+            "box_prompts": {
+              "type": "array",
+              "title": "Box Prompts",
+              "description": "List of box prompts with optional frame_index.",
+              "items": {
+                "$ref": "#/components/schemas/BoxPrompt"
+              },
+              "default": []
+            },
+            "frame_index": {
+              "type": "integer",
+              "title": "Frame Index",
+              "description": "Frame index used for initial interaction when mask_url is provided.",
+              "default": 0
+            }
+          },
+          "required": [
+            "video_url"
+          ],
+          "title": "SAM31VideoRLEInput",
+          "type": "object",
+          "x-fal-order-properties": [
+            "video_url",
+            "mask_url",
+            "prompt",
+            "point_prompts",
+            "box_prompts",
+            "apply_mask",
+            "boundingbox_zip",
+            "detection_threshold",
+            "frame_index",
+            "max_num_objects",
+            "return_object_rles"
+          ]
+        },
+        "SAM31VideoRLEOutput": {
+          "properties": {
+            "metadata": {
+              "anyOf": [
+                {
+                  "items": {
+                    "$ref": "#/components/schemas/MaskMetadata"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Metadata",
+              "description": "Per-mask metadata when multiple RLEs are returned."
+            },
+            "scores": {
+              "anyOf": [
+                {
+                  "items": {
+                    "anyOf": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Scores",
+              "description": "Per-mask confidence scores when requested."
+            },
+            "boxes": {
+              "anyOf": [
+                {
+                  "items": {
+                    "anyOf": [
+                      {
+                        "items": {
+                          "type": "number"
+                        },
+                        "type": "array"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Boxes",
+              "description": "Per-mask normalized bounding boxes [cx, cy, w, h] when requested."
+            },
+            "boundingbox_frames_zip": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/File"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Zip file containing per-frame bounding box overlays."
+            },
+            "rle": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                }
+              ],
+              "title": "Rle",
+              "description": "Run Length Encoding of the mask."
+            },
+            "objects": {
+              "anyOf": [
+                {
+                  "items": {
+                    "items": {
+                      "$ref": "#/components/schemas/ObjectRLE"
+                    },
+                    "type": "array"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Objects",
+              "description": "With return_object_rles, each frame's tracked objects, each with its own mask and id."
+            }
+          },
+          "required": [
+            "rle"
+          ],
+          "title": "SAM31VideoRLEOutput",
+          "type": "object",
+          "x-fal-order-properties": [
+            "rle",
+            "boundingbox_frames_zip",
+            "metadata",
+            "scores",
+            "boxes",
+            "objects"
+          ]
+        },
+        "SAM31VideoRLEFileOutput": {
+          "properties": {
+            "metadata": {
+              "anyOf": [
+                {
+                  "items": {
+                    "$ref": "#/components/schemas/MaskMetadata"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Metadata",
+              "description": "Per-mask metadata when multiple RLEs are returned."
+            },
+            "scores": {
+              "anyOf": [
+                {
+                  "items": {
+                    "anyOf": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Scores",
+              "description": "Per-mask confidence scores when requested."
+            },
+            "boxes": {
+              "anyOf": [
+                {
+                  "items": {
+                    "anyOf": [
+                      {
+                        "items": {
+                          "type": "number"
+                        },
+                        "type": "array"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Boxes",
+              "description": "Per-mask normalized bounding boxes [cx, cy, w, h] when requested."
+            },
+            "boundingbox_frames_zip": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/File"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Zip file containing per-frame bounding box overlays."
+            },
+            "rle": {
+              "$ref": "#/components/schemas/File",
+              "description": "Run Length Encoding of the mask."
+            },
+            "objects": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/File"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "With return_object_rles, a JSON file of each frame's tracked objects, each with its own mask and id."
+            }
+          },
+          "required": [
+            "rle"
+          ],
+          "title": "SAM31VideoRLEFileOutput",
+          "type": "object",
+          "x-fal-order-properties": [
+            "rle",
+            "boundingbox_frames_zip",
+            "metadata",
+            "scores",
+            "boxes",
+            "objects"
+          ]
+        },
+        "ObjectRLE": {
+          "properties": {
+            "object_id": {
+              "title": "Object Id",
+              "description": "The object's id, the same in every frame the object appears in.",
+              "type": "integer"
+            },
+            "box": {
+              "anyOf": [
+                {
+                  "items": {
+                    "type": "number"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Box",
+              "description": "Bounding box of this object's mask in normalized cxcywh coordinates."
+            },
+            "rle": {
+              "title": "Rle",
+              "description": "Run Length Encoding of this object's mask.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "object_id",
+            "rle"
+          ],
+          "title": "ObjectRLE",
+          "type": "object",
+          "x-fal-order-properties": [
+            "object_id",
+            "rle",
+            "box"
+          ]
+        },
+        "PointPrompt": {
+          "properties": {
+            "object_id": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Object Id",
+              "description": "Optional object identifier. Prompts sharing an object id refine the same object. When a text prompt is also given, the id selects which detected object the points refine."
+            },
+            "y": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Y",
+              "description": "Y Coordinate of the prompt"
+            },
+            "label": {
+              "anyOf": [
+                {
+                  "enum": [
+                    0,
+                    1
+                  ],
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Label",
+              "description": "1 for foreground, 0 for background"
+            },
+            "x": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X",
+              "description": "X Coordinate of the prompt"
+            },
+            "frame_index": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Frame Index",
+              "description": "The frame index to interact with."
+            }
+          },
+          "type": "object",
+          "title": "PointPrompt",
+          "x-fal-order-properties": [
+            "x",
+            "y",
+            "label",
+            "object_id",
+            "frame_index"
+          ]
+        }
+      }
+    }
+  },
+  "decision": {
+    "preferredCandidate": "fal-ai/sam2/video",
+    "adapterImplemented": false,
+    "missingContract": [
+      "target mask video pixel encoding and polarity",
+      "native RLE index base and row/column ordering",
+      "native RLE start-length versus alternating background/foreground counts",
+      "complete temporal frame ordering and propagation direction"
+    ],
+    "queueSchemaOutputUnionIncomplete": true
+  },
+  "staticScriptAudit": {
+    "actualScriptSrcCount": 143,
+    "bytes": 9407868,
+    "fetchErrors": 0,
+    "foundMaskDecoderOrFrameMapping": false,
+    "note": "HTML script srcs only; not all dynamically imported chunks; no inference samples or correctness evidence"
+  }
+}

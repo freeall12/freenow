@@ -2,7 +2,12 @@ import {isImageEditorTool,imageEditorPresentation} from './image-editor-presenta
 import {depthActions,depthToolDetails,depthTaskState,isDepthTool} from './depth-card.mjs';
 import {isVideoTrimTool,videoTrimPresentation} from './video-trim-presentation.mjs';
 import {isSubjectsTool,subjectsPresentation} from './subjects-presentation.mjs';
-const imageProcessingActions={'image.upscale':'图片超分','image.relight':'图片打光','image.multiAngle':'多角度调整','image.remove-background':'图片抠图'};
+import {maskedVideoRequestState} from '../video-mask/native-profile.mjs';
+export function videoMaskDisclosure(configuration,kind){
+ const state=maskedVideoRequestState(configuration,{kind});
+ return state.hint||state.reason;
+}
+const imageProcessingActions={'image.upscale':'图片超分','image.relight':'图片打光','image.multiAngle':'多角度调整','image.remove-background':'图片抠图','video.erase':'视频移除','video.replace':'视频替换'};
 const actions={...depthActions,generation_video_models:'读取视频模型能力',
  web_search:'检索公开网络',agent_delegate:'编排子任务',ask_question:'询问创作需求',
  show_app:'展示应用',show_form:'收集创作表单',show_html:'展示互动作品',show_widget:'展示互动组件',prepare_widget:'准备互动组件',
@@ -19,8 +24,10 @@ export function toolPresentation(trace){
  if(isSubjectsTool(trace))return subjectsPresentation(trace);
  if(isVideoTrimTool(trace))return videoTrimPresentation(trace);
  const args=trace.args||{},action=(trace.name==='generation_submit'?imageProcessingActions[args.kind]:null)||actions[trace.name]||trace.name||'工具操作';
- const detail=trace.name==='skills_rename'?`${args.name} → ${args.new_name}`:trace.name==='skills_uninstall'?`${args.name}（移除个人技能包，无法从归档恢复）`:isDepthTool(trace)?depthToolDetails(trace).join(' · '):args.query||args.title||args.artifact_path||args.name||args.nodeId||args.id||args.groupId||'';
- let text=action+(detail?' · '+detail:'');
+ let detail=trace.name==='skills_rename'?`${args.name} → ${args.new_name}`:trace.name==='skills_uninstall'?`${args.name}（移除个人技能包，无法从归档恢复）`:isDepthTool(trace)?depthToolDetails(trace).join(' · '):args.query||args.title||args.artifact_path||args.name||args.nodeId||args.id||args.groupId||'';
+ if(trace.name==='generation_submit'&&['video.erase','video.replace'].includes(args.kind)&&trace.videoMaskDisclosure)detail+=(detail?'\n':'')+trace.videoMaskDisclosure;
+ const lineDetail=trace.name==='generation_submit'&&['video.erase','video.replace'].includes(args.kind)?detail.split('\n')[0]:detail;
+ let text=action+(lineDetail?' · '+lineDetail:'');
  if(trace.name==='skills_read')text='读取 '+(args.name||'技能');
  if(trace.name==='artifacts_read'||trace.name==='artifacts_write')text=(trace.name==='artifacts_read'?'读取 ':'编辑 ')+(args.artifact_path||'文件');
  const prefix={pending:'等待确认：',running:'正在',done:'已',error:'失败：',denied:'已拒绝：',cancelled:'已停止：',interrupted:'结果未恢复：'};

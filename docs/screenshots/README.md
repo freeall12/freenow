@@ -1,6 +1,6 @@
 # 功能截图与复现
 
-2026-10-03，通过 Computer Use 在本机 4173 服务中操作正式界面并截图。图片不来自官方网站，也没有生成式修图；这些截图只展示本地实现。发布版本使用后台浏览器默认的 1280×720 视口，不代表全部响应式布局验收。
+首批于2026-10-03通过 Computer Use 在本机4173服务操作正式界面并截图，后续批次如下。图片不来自官方网站，也没有生成式修图；这些截图只展示本地实现。首批使用后台浏览器默认1280×720视口，各后续批次尺寸另记，不代表全部响应式布局验收。
 
 | 文件 | 实际内容 | 数据来源 |
 | --- | --- | --- |
@@ -115,3 +115,16 @@ ElevenLabs Music 的正式参数、生成、播放和刷新已完成浏览器交
 | [Agent 全景确认卡](agent-panorama-confirmation-20261005.jpg) | `qa/agent-image-processing-app.html?kind=panorama`，生产确认卡，固定 LLM 回复和合成图。截图是窄卡局部，包含单参考/单结果/2:1/原生尺寸说明与确认/取消；不代表模型生成质量 |
 
 全景与 Agent 夹具使用独立数据库和内存偏好；无真实模型调用、用户素材或账号抓包。后台标签零尺寸影响点击，曾临时设置桌面视口恢复操作；没有改变页面 CSS。截图保持原始截图字节，不做生成式修图。重拍所在 origin 的浏览器缩放会使整页截图异常放大，组件截图按实际缩放换算捕获。[本批完整证据](../LOCAL-PANORAMA-RESHOOT-AGENT-20261005.md)。
+
+## 2026-10-05 视频物体编辑与 Agent
+
+| 文件 | 来源与实际范围 |
+| --- | --- |
+| [视频物体替换面板](video-mask-native-panel-20261005.jpg) | `src/features/video-mask/qa/native-server.cjs` 的隔离pipeline页，正式工具栏、真实10.1秒合成来源及已保存时序蒙层、实际picker选择；没有真实模型调用 |
+| [视频物体编辑结果](video-mask-native-result-20261005.jpg) | 同页实际后端归档1280×720 / 81帧 / 8.1秒MP4、刷新及播放。CDN和模型传输使用合成响应，FFmpeg/adapter/持久服务/媒体HTTP真实运行 |
+| [Agent审批](agent-video-mask-approval-20261005.jpg) | `qa/agent-video-mask-app.html?session=agent-mask-cua1`，实际ask确认卡显示替代模型、上传说明与原音策略，批准前素材读取及生成POST为0；固定LLM回复与合成mask |
+| [来源变化保护](agent-video-mask-source-guard-20261005.jpg) | 同QA的`agent-mask-drift-cua3`，正式待审批时来源clip改2..6、原蒙层仍绑定1..5；确认后拒绝、素材读取及生成POST为0 |
+
+四张均通过当前标签的CDP原生JPEG截图取得完整页面像素，没有viewport覆盖、缩放修改或生成式修图。各origin保留当时实际浏览器缩放，未将异常放大的常规截图冒充正常画幅。QA控制数据及图像均为公开合成素材；没有私人会话或Key。
+
+复现先运行`node scripts/build-agent-video-mask-fixture.cjs`或`node src/features/video-mask/qa/native-server.cjs`，使用不同session的隔离数据库；具体交互和供应商边界见[本批验收](../LOCAL-VIDEO-MASK-AGENT-20261005.md)。

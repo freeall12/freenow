@@ -38,7 +38,7 @@ export async function segment(request,{signal,onProgress=()=>{}}={}){
 }
 export function configure({returnFocus=document.activeElement}={}){
  const d=document.createElement('dialog'),controller=new AbortController();d.className='api-dialog';const title=document.createElement('h2');title.textContent='本机视频分割服务';
- const guide=document.createElement('p');guide.textContent='在本地服务环境设置 VIDEO_SEGMENTATION_API_BASE_URL；需要认证时再设置 VIDEO_SEGMENTATION_API_KEY，然后重启服务。地址和 Key 保留在服务端。';
+ const guide=document.createElement('p');guide.textContent='在本地服务环境设置 VIDEO_SEGMENTATION_API_BASE_URL；需要认证时再设置 VIDEO_SEGMENTATION_API_KEY，然后重启服务。地址和 Key 保留在服务端。目标识别是独立阶段，视频编辑的 fal Key 不会自动配置这个分割服务。';
  const status=document.createElement('p');status.setAttribute('role','status');const refresh=document.createElement('button'),cancel=document.createElement('button');refresh.textContent='刷新连接状态';cancel.textContent='关闭';
  refresh.onclick=async()=>{refresh.disabled=true;status.textContent='正在读取本机配置…';try{const value=await refreshConfiguration({signal:AbortSignal.any([controller.signal,AbortSignal.timeout(10000)])});if(!d.isConnected||controller.signal.aborted)return;if(value.configured){setProvider(localProvider);status.textContent='本机服务已配置；实际识别需点击编辑器的确认按钮，模型能力尚未验证。';}else status.textContent=value.configurationError?'本机配置无效，请检查分割地址与 Key 后重启服务':'尚未配置分割服务地址，请设置环境变量后重启服务';}catch(e){if(d.isConnected)status.textContent=e.message;}finally{refresh.disabled=false;}};
  cancel.onclick=()=>d.close();d.append(title,guide,status,cancel,refresh);document.body.append(d);d.onclose=()=>{controller.abort();d.remove();if(returnFocus?.isConnected)returnFocus.focus({preventScroll:true});};d.showModal();refresh.click();return d;

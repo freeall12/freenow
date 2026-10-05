@@ -1,5 +1,6 @@
 'use strict';
 const {createHash}=require('node:crypto');
+const path=require('node:path');
 const {createOpenAINativeProvider}=require('./generation-openai.cjs');
 const {createArkProvider}=require('./generation-ark.cjs');
 const {createFalProvider}=require('./generation-fal.cjs');
@@ -17,6 +18,7 @@ const {createVideoAudioProvider}=require('./generation-video-audio.cjs');
 const {createVideoExtendProvider}=require('./generation-video-extend.cjs');
 const {createVideoReshootProvider}=require('./generation-video-reshoot.cjs');
 const {createPanoramaProvider}=require('./generation-panorama.cjs');
+const {createVideoMaskProvider}=require('./generation-video-mask.cjs');
 const {createOpenAIMaskedEditProvider}=require('./generation-openai-masked-edit.cjs');
 const {endpoint:tasksEndpoint,protectGenerationFetch}=require('./generation-endpoint-policy.cjs');
 const {rejectCredentials}=require('./generation-durable.cjs');
@@ -102,16 +104,16 @@ function createTasksProvider({baseUrl='',apiKey='',modelMap,fetchImpl=fetch,allo
  return {configured,fingerprint,metadata,prepare,submit,poll,cancel,generate};
 }
 
-function createGenerationRouter({providers={},routes={},fetchImpl=fetch,localPort}={}){
+function createGenerationRouter({providers={},routes={},fetchImpl=fetch,localPort,preparationDirectory}={}){
  fetchImpl=protectGenerationFetch(fetchImpl);
  let instances={},normalized={},configurationError=null;
  try{
   if(typeof providers==='string')providers=JSON.parse(providers);if(typeof routes==='string')routes=JSON.parse(routes);
   if(!object(providers)||!object(routes)||Object.keys(providers).length>100||Object.keys(routes).length>100)throw Error();
   for(const [id,config]of Object.entries(providers)){
-   if(!providerPattern.test(id)||!object(config)||!['tasks-v1','openai-native','ark-native','fal-native','tripo-native','minimax-native','elevenlabs-native','marble-native','minimax-music-native','fal-video-native','elevenlabs-sound-native','elevenlabs-music-native','mureka-native','seed-audio-native','fal-video-audio-native','ark-video-extend-reference','ark-video-reshoot-edit','fal-panorama-native','openai-masked-edit-native'].includes(config.protocol)||Object.keys(config).some(key=>!['protocol','baseUrl','apiKey','modelMap','client'].includes(key))||['baseUrl','apiKey'].some(key=>config[key]!==undefined&&typeof config[key]!=='string'))throw Error();
+   if(!providerPattern.test(id)||!object(config)||!['tasks-v1','openai-native','ark-native','fal-native','tripo-native','minimax-native','elevenlabs-native','marble-native','minimax-music-native','fal-video-native','elevenlabs-sound-native','elevenlabs-music-native','mureka-native','seed-audio-native','fal-video-audio-native','ark-video-extend-reference','ark-video-reshoot-edit','fal-panorama-native','fal-video-mask-native','openai-masked-edit-native'].includes(config.protocol)||Object.keys(config).some(key=>!['protocol','baseUrl','apiKey','modelMap','client'].includes(key))||['baseUrl','apiKey'].some(key=>config[key]!==undefined&&typeof config[key]!=='string'))throw Error();
    if(config.baseUrl)tasksEndpoint(config.baseUrl,{localPort});if(config.client?.baseURL)tasksEndpoint(config.client.baseURL,{localPort});
-   const provider=(config.protocol==='openai-native'?createOpenAINativeProvider:config.protocol==='ark-native'?createArkProvider:config.protocol==='fal-native'?createFalProvider:config.protocol==='tripo-native'?createTripoProvider:config.protocol==='minimax-native'?createMiniMaxProvider:config.protocol==='elevenlabs-native'?createElevenLabsProvider:config.protocol==='marble-native'?createMarbleProvider:config.protocol==='minimax-music-native'?createMiniMaxMusicProvider:config.protocol==='fal-video-native'?createFalVideoProvider:config.protocol==='elevenlabs-sound-native'?createElevenLabsSoundProvider:config.protocol==='elevenlabs-music-native'?createElevenLabsMusicProvider:config.protocol==='mureka-native'?createMurekaProvider:config.protocol==='seed-audio-native'?createSeedAudioProvider:config.protocol==='fal-video-audio-native'?createVideoAudioProvider:config.protocol==='ark-video-extend-reference'?createVideoExtendProvider:config.protocol==='ark-video-reshoot-edit'?createVideoReshootProvider:config.protocol==='fal-panorama-native'?createPanoramaProvider:config.protocol==='openai-masked-edit-native'?createOpenAIMaskedEditProvider:createTasksProvider)({...config,fetchImpl,localPort});
+   const provider=(config.protocol==='openai-native'?createOpenAINativeProvider:config.protocol==='ark-native'?createArkProvider:config.protocol==='fal-native'?createFalProvider:config.protocol==='tripo-native'?createTripoProvider:config.protocol==='minimax-native'?createMiniMaxProvider:config.protocol==='elevenlabs-native'?createElevenLabsProvider:config.protocol==='marble-native'?createMarbleProvider:config.protocol==='minimax-music-native'?createMiniMaxMusicProvider:config.protocol==='fal-video-native'?createFalVideoProvider:config.protocol==='elevenlabs-sound-native'?createElevenLabsSoundProvider:config.protocol==='elevenlabs-music-native'?createElevenLabsMusicProvider:config.protocol==='mureka-native'?createMurekaProvider:config.protocol==='seed-audio-native'?createSeedAudioProvider:config.protocol==='fal-video-audio-native'?createVideoAudioProvider:config.protocol==='ark-video-extend-reference'?createVideoExtendProvider:config.protocol==='ark-video-reshoot-edit'?createVideoReshootProvider:config.protocol==='fal-panorama-native'?createPanoramaProvider:config.protocol==='fal-video-mask-native'?createVideoMaskProvider:config.protocol==='openai-masked-edit-native'?createOpenAIMaskedEditProvider:createTasksProvider)({...config,fetchImpl,localPort,...(config.protocol==='fal-video-mask-native'&&preparationDirectory?{directory:path.join(preparationDirectory,id)}:{})});
    if(!['tasks-v1','elevenlabs-native','minimax-music-native','elevenlabs-sound-native','elevenlabs-music-native','mureka-native','seed-audio-native'].includes(config.protocol)){
     const map=provider.metadata.configurationError?{}:typeof config.modelMap==='string'?JSON.parse(config.modelMap):config.modelMap||{};
     provider.metadata={...provider.metadata,capabilities:{...provider.metadata.capabilities,models:Object.fromEntries(Object.entries(map).map(([alias,entry])=>{
@@ -147,7 +149,8 @@ function createGenerationRouter({providers={},routes={},fetchImpl=fetch,localPor
   const id=route&&(alias!==undefined&&own(route.models,alias)?route.models[alias]:route.default);
   const provider=id&&own(instances,id)?instances[id]:null;
   const nativeAlias=alias;
-  if(!usable(provider,request.kind,nativeAlias)||provider?.metadata.protocol!=='tasks-v1'&&nativeAlias===undefined)throw failure('此操作或模型尚未配置供应商路由','configuration_required');
+  const uniqueMaskedOperation=provider?.metadata.protocol==='fal-video-mask-native'&&Object.values(provider.metadata.capabilities.models||{}).filter(entry=>entry.kind===request.kind).length===1;
+  if(!usable(provider,request.kind,nativeAlias)||provider?.metadata.protocol!=='tasks-v1'&&nativeAlias===undefined&&!uniqueMaskedOperation)throw failure('此操作或模型尚未配置供应商路由','configuration_required');
   return {id,provider};
  }
  const envelope=(id,provider,raw)=>'rg1.'+Buffer.from(JSON.stringify([id,provider.fingerprint,raw])).toString('base64url');
@@ -164,12 +167,28 @@ function createGenerationRouter({providers={},routes={},fetchImpl=fetch,localPor
   return {...value,id:envelope(id,provider,value.id)};
  }
  function prepare(request){rejectCredentials(request);const {provider}=select(request);provider.prepare(request);return request;}
- async function submit(request,options){prepare(request);const {id,provider}=select(request);return wrap(await provider.submit(request,options),id,provider);}
- async function generate(request,options={}){prepare(request);const {id,provider}=select(request);const value=await provider.generate(request,{...options,onTaskIdentity:raw=>{if(!validId(raw))throw failure('远端任务标识无效','provider_identity_mismatch');options.onTaskIdentity?.(envelope(id,provider,raw));}});return wrap(value,id,provider);}
- async function poll(id,options){const {providerId,provider,raw}=identity(id);if(!provider.poll)throw failure('此生成协议不支持远端任务恢复','remote_recovery_unavailable');return wrap(await provider.poll(raw,options),providerId,provider,raw);}
+ function providerOptions(options={},id,provider){
+  const {routing,...preparationState}=options.preparationState||{};
+  if(routing&&(routing.providerId!==id||routing.providerFingerprint!==provider.fingerprint))throw failure('原媒体准备供应商配置已变更','provider_configuration_changed');
+  return {...options,...(options.preparationState?{preparationState}:{}),
+   onTaskIdentity:raw=>{if(!validId(raw))throw failure('远端任务标识无效','provider_identity_mismatch');return options.onTaskIdentity?.(envelope(id,provider,raw));},
+   onPreparationState:state=>options.onPreparationState?.({...state,routing:{providerId:id,providerFingerprint:provider.fingerprint}})};
+ }
+ async function submit(request,options={}){prepare(request);const {id,provider}=select(request);return wrap(await provider.submit(request,providerOptions(options,id,provider)),id,provider);}
+ async function resumePreparation(state,options={}){
+  const route=state?.routing;
+  if(!object(route)||Object.keys(route).sort().join(',')!=='providerFingerprint,providerId'||typeof route.providerId!=='string'||!providerPattern.test(route.providerId)||typeof route.providerFingerprint!=='string'||! /^[a-f0-9]{64}$/.test(route.providerFingerprint))throw failure('媒体准备路由身份无效','provider_identity_mismatch');
+  const provider=own(instances,route.providerId)?instances[route.providerId]:null;
+  if(!provider?.configured||provider.fingerprint!==route.providerFingerprint)throw failure('原媒体准备供应商配置已变更','provider_configuration_changed');
+  if(typeof provider.resumePreparation!=='function')throw failure('原媒体准备不支持读取恢复','remote_recovery_unavailable');
+  const {routing,...rawState}=state;
+  return wrap(await provider.resumePreparation(rawState,providerOptions({...options,preparationState:state},route.providerId,provider)),route.providerId,provider);
+ }
+ async function generate(request,options={}){prepare(request);const {id,provider}=select(request);const value=await provider.generate(request,providerOptions(options,id,provider));return wrap(value,id,provider);}
+ async function poll(id,options){const {providerId,provider,raw}=identity(id);if(!provider.poll)throw failure('此生成协议不支持远端任务恢复','remote_recovery_unavailable');return wrap(await provider.poll(raw,providerOptions(options,providerId,provider)),providerId,provider,raw);}
  async function cancel(id,options){const {providerId,provider,raw}=identity(id);if(!provider.cancel)throw failure('此生成协议不支持远端任务取消','remote_cancellation_unavailable');return wrap(await provider.cancel(raw,options),providerId,provider,raw);}
  function protocolFor(request){try{return select(request).provider.metadata.protocol;}catch{return null;}}
  function isPollable(request){try{return typeof select(request).provider.poll==='function';}catch{return false;}}
- return {configured,fingerprint,metadata,prepare,submit,generate,poll,cancel,protocolFor,isPollable,isConfigured:()=>configured};
+ return {configured,fingerprint,metadata,prepare,submit,generate,poll,cancel,resumePreparation,protocolFor,isPollable,isConfigured:()=>configured};
 }
 module.exports={createGenerationRouter,createTasksProvider};

@@ -1,5 +1,7 @@
 # 视频移除 / 替换供应商就绪核对 · 2026-10-05
 
+后续实现状态：本文保留开发前的研究结论。现已实现 [Wan VACE 适配、路由和配置](WAN-VACE-VIDEO-MASK-NATIVE-20261005.md)、[真实媒体准备](VIDEO-MASK-MEDIA-PREPARATION-20261005.md)、[CDN 上传](FAL-CDN-UPLOAD-20261005.md)及[准备恢复](VIDEO-MASK-DURABLE-RECOVERY-20261005.md)。下文“尚未实现”描述的是本研究完成时；新视频首次识别所需的[分割服务合同缺口](VIDEO-SEGMENTATION-FAL-CONTRACT-20261005.md)仍开放。
+
 **建议下一步实现独立的 Wan VACE 遮罩编辑 adapter，显式绑定 `fal-ai/wan-vace-14b/inpainting`。** 公开合同同时包含来源视频、时序遮罩视频和参考图片，可承接 `video.erase` 与 `video.replace` 的主要输入。它是明确的独立供应商替代，不是 TapNow 私有 `tapnow-video-edit` 的同型号实现，也未证明生成效果等同。第二候选 LTX 2.3 能消费时序遮罩，但没有替换图片字段，不能承接当前图片替换操作。
 
 当前仅完成只读核对和本记录；尚未实现 adapter、遮罩封装、上传或路由。填 Key 仍不能使当前两个操作直接可用。首次识别目标还依赖独立分割服务，这个前置缺口也必须计入端到端验收。
