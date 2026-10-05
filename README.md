@@ -55,7 +55,7 @@ FFmpeg 已安装在其他位置时，可配置 `FFMPEG_PATH`、`FFPROBE_PATH`。
 | 无限画布 | 新建/切换项目、平移缩放、搜索、连线、分组、堆叠、自动布局、撤销重做、素材与个人模板 | 本地使用 |
 | 文本与图片 | Tiptap 富文本/Markdown、Fabric 图层/画笔、裁剪、变换、蒙版、版本历史与导出 | 本地编辑；AI 编辑另需供应商 |
 | 音视频 | 本地导入、播放、波形、帧捕获、裁切、播放列表、生成历史与结果归档 | 部分操作需 FFmpeg；生成另需供应商 |
-| 3D 片场 | Three.js 场景、模型与光照、对象变换、镜头与运镜、动画、取景、GLB 导出及保存恢复 | 本地使用；生成模型/世界另需供应商 |
+| 3D 片场 | Three.js 场景、GLB 模型、SPZ 高斯世界、对象变换、镜头与运镜、动画、取景及保存恢复 | SPZ 通过世界节点导入；含高斯场景不能完整导出为 GLB；生成另需供应商 |
 | Agent | OpenAI SDK 工具循环、画布/片场操作、技能与附件引用、创作应用、只读子任务/DAG 编排 | 支持 Responses API 的模型与配置 |
 | 工作流与恢复 | 分组依赖执行、任务持久回执、原任务查询、显式继续、项目/来源失效保护 | 未知状态不自动重新提交 |
 
@@ -109,7 +109,7 @@ node --env-file=.env.local server/server.cjs
 | `ark-native` | 火山方舟视频任务 | [Ark](docs/ARK-VIDEO.md) |
 | `ark-video-extend-reference` | 工具栏延长镜头：片头/片尾、4–30秒、连续性与参考 | [延长镜头](docs/VIDEO-EXTEND-NATIVE-20261005.md)，明确为参考生成；本地视频另需公网发布通道 |
 | `ark-video-reshoot-edit` | 视频重拍：分镜、四种镜头模式与提示词编译 | [重拍](docs/VIDEO-RESHOOT-EDIT-20261005.md)，实验性提示词模拟；Ark Key 外还需要独立 HTTPS 视频 |
-| `fal-video-depth-native` | Agent 视频深度转换 | [深度](docs/VIDEO-DEPTH-NATIVE-20261005.md)，完整 MP4、原尺寸/时长、单灰度结果；需 FFmpeg，普通节点同位入口尚未补齐 |
+| `fal-video-depth-native` | 普通视频节点与 Agent 视频深度转换 | [深度](docs/VIDEO-DEPTH-NATIVE-20261005.md) / [节点入口](docs/VIDEO-DEPTH-NODE-ENTRY-20261005.md)，完整 MP4、原尺寸/时长、1–2 个灰度结果；需 FFmpeg，支持多变体/铺开/堆叠 |
 | `openai-panorama-edit-native` | 旧版 3D 片场全景局部编辑 | [局部编辑](docs/OPENAI-PANORAMA-EDIT-NATIVE-20261005.md)，2048×1024 全景、可见凸四角选区；透视蒙版编辑后本地回投，硬边接缝与效果待验 |
 | `fal-panorama-native` | 单张图片 → Hunyuan World Panorama | [全景](docs/PANORAMA-NATIVE-20261005.md)，固定 2:1、单结果、原生尺寸；当前后端仅接受实际 PNG 像素，非区域编辑 |
 | `minimax-native` | MiniMax H3 视频 | [H3](docs/MINIMAX-H3-SETUP.md) |
@@ -122,7 +122,7 @@ node --env-file=.env.local server/server.cjs
 | `fal-video-mask-native` | 已保存时序蒙层的视频物体移除／替换 | [Wan VACE](docs/WAN-VACE-VIDEO-MASK-NATIVE-20261005.md)，显式替代；需 FFmpeg、fal Key 和完整蒙层，首次识别另需分割服务 |
 | `fal-native` / `fal-video-native` | 图片抠图/增强、视频增强 | [图片](docs/FAL-NATIVE-SETUP.md) / [视频](docs/FAL-VIDEO-NATIVE-SETUP.md) |
 | `tripo-native` | 3D 模型生成 | [Tripo](docs/TRIPO-NATIVE-SETUP.md) |
-| `marble-native` | World Labs 世界生成后端 | [Marble](docs/MARBLE-NATIVE-SETUP.md)，SPZ 渲染尚未完成，前端阻止派发 |
+| `marble-native` | World Labs 世界生成及本地 SPZ 渲染 | [Marble](docs/MARBLE-NATIVE-SETUP.md)，预算内高斯已接通预览、片场、照片和视频；真实供应商效果待 Key 验收 |
 | `tasks-v1` | 其他统一任务服务 | [任务协议](docs/GENERATION-GATEWAY.md)，需实际实现该协议的后端 |
 
 模型输出会校验并归档到本地。同步调用丢失回执时保留 `unknown`，不会自动重试造成重复生成；可查询任务只核对原任务身份。
@@ -137,6 +137,18 @@ node --env-file=.env.local server/server.cjs
 - 页面和内嵌应用使用本地资源限制；服务端拒绝向原站域名请求或转交原站媒体。未知旧资源须显式导入修复，不自动联网回源。[本地化验收边界](docs/FREENOW-LOCALIZATION-ACCEPTANCE.md)
 
 ## 最新接入与核验
+
+SPZ 高斯世界已接入成熟 Spark 2.3.1，代码、WASM、Worker 和素材均在本地运行。真实 786,233 高斯样本已验导入、坐标、变换、保存刷新、撤销重做、删除清空、1280×720 照片及 2 秒运镜视频；照片、视频和来源连线刷新后保留。单文件限制为 64MiB 压缩 / 256MiB 实际展开，场景最多 250 万高斯；当前没有 LOD，真实 Marble 生成及长视频仍待验。[本地渲染与验收](docs/SPZ-LOCAL-RENDERING-20261005.md)
+
+| SPZ：真实高斯预览 | 片场产物：照片、视频和来源连线 |
+| --- | --- |
+| ![本地 Spark 真实高斯预览](docs/screenshots/spz-world-preview-20261005.jpg) | ![高斯片场拍摄结果回到画布](docs/screenshots/spz-world-canvas-20261005.jpg) |
+
+普通视频节点已补 Depth Anything Video 的官方同位模型菜单、自动规格和 1/2 数量；两个结果使用独立持久子任务，恢复仅查询原任务。实机验证多变体、铺开、保存失败后的同结果重试及刷新恢复。Agent 平台裁切修复同宽高比选项的拖动互斥；搜索高亮减少重复 DOM 操作，并补两级 Escape 与焦点返回验收。[本批记录](docs/LOCAL-DEPTH-BATCH-AND-CANVAS-20261005.md)
+
+| 视频深度：正式双结果历史 | 搜索：500 节点场景的键盘高亮 |
+| --- | --- |
+| ![视频深度的双结果历史](docs/screenshots/video-depth-node-history-20261005.jpg) | ![freenow 搜索与键盘高亮](docs/screenshots/canvas-search-hover-20261005.jpg) |
 
 本批补齐视频深度原生接口、全景局部蒙版编辑和 Agent 页面关闭前保存。全景实机验证鼠标框选、缺 Key 不提交、真实 2:1 图片归档、保存失败锁定与同结果重试、历史刷新恢复；深度通过正式 Agent 链输出可播放的本地 MP4。供应商返回使用合成夹具，不代表真实模型效果。[本批记录与未完成项](docs/LOCAL-DEPTH-PANORAMA-LIFECYCLE-20261005.md)
 
@@ -231,6 +243,7 @@ pnpm build:text
 pnpm build:image
 pnpm build:mask
 pnpm build:agent
+pnpm build:spark
 ```
 
 按改动选择验证，避免每次运行完整回归：
@@ -247,7 +260,7 @@ pnpm test    # 全库回归，需要时运行
 ## 未完成项
 
 - 全站菜单、hover、微动效、坐标与性能的逐态对照和交叉验收。
-- 92 份精确创意模板正文，以及 SPZ 渲染与相应依赖接入。
+- 92 份精确创意模板正文；SPZ 的 LOD、混合拾取遮挡、设备压力与长视频验收。
 - 其余专用生成能力的原生供应商适配，及真实 Key/账号下的端到端验证。
 - 部分本地存储容量和长期运行边界的继续完善。
 - 主要运行位置已替换为 **freenow** 名称和本地标识；剩余嵌套应用、导出和旧内容的品牌清点仍需逐项验收，保留来源与用户原文。

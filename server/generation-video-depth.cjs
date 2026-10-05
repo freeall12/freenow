@@ -5,14 +5,33 @@ const {assertCredentialFree,assertCredentialFreeBytes}=require('./outbound-clien
 const {publicMediaUrl,createGenerationMediaDownloader}=require('./generation-media-download.cjs');
 const {createFalQueue}=require('./generation-fal-queue.cjs');
 const {createVideoMaskMediaTools}=require('./generation-video-mask-media.cjs');
+const {createVideoDepthBatch}=require('./generation-video-depth-batch.cjs');
+const path=require('node:path');
 const MODEL='fal-ai/depth-anything-video',ALIAS='depth-anything-video',PROTOCOL='fal-video-depth-native';
 const MAX_VIDEO_BYTES=32*1024*1024,MAX_JSON_BYTES=1024*1024;
 const DEPTH_PROMPT='Extract per-frame depth; preserve source movement, camera, duration and frame size.';
 const object=value=>value!==null&&typeof value==='object'&&!Array.isArray(value);
 const fail=(message,code='unsupported_generation')=>Object.assign(Error(message),{code});
-const localFail=message=>Object.assign(fail(message),{providerDispatched:false});
+const localFail=(message,code)=>Object.assign(fail(message,code),{providerDispatched:false});
 const unknown=()=>fail('视频深度原任务尚未确认，请查询原任务；未自动重试或重新提交','unknown');
 const taskId=value=>typeof value==='string'&&/^[A-Za-z0-9][A-Za-z0-9._:-]{0,199}$/.test(value);
+const nodeId=value=>typeof value==='string'&&value.length>0&&value.length<=200&&value===value.trim()&&!/[\x00-\x1f\x7f]/.test(value);
+function resultCount(request){
+ const p=request.parameters,plan=p.canvasResults;
+ const counts=[request.count,p.count,p.times,...(plan===undefined?[]:[plan?.targetNodeIds?.length])].filter(value=>value!==undefined),count=counts[0]??1;
+ if(![1,2].includes(count)||counts.some(value=>value!==count))throw localFail('视频深度结果数须明确为 1 或 2，所有数量声明须一致');
+ if(p.resultMode!==undefined&&!['variants','spread','pile'].includes(p.resultMode)||p.layout!==undefined&&!['variants','spread','pile'].includes(p.layout)||p.resultMode!==undefined&&p.layout!==undefined&&p.resultMode!==p.layout||p.is_regeneration!==undefined&&typeof p.is_regeneration!=='boolean'||p.batch_id!==undefined&&!nodeId(p.batch_id))throw localFail('视频深度结果布局或批次身份无效');
+ if(plan!==undefined){
+  if(!object(plan)||Object.keys(plan).some(key=>!['runId','targetNodeIds','requestPlans'].includes(key))||!nodeId(plan.runId)||!Array.isArray(plan.targetNodeIds)||plan.targetNodeIds.length!==count||plan.targetNodeIds.some(id=>!nodeId(id))||new Set(plan.targetNodeIds).size!==count||!Array.isArray(plan.requestPlans)||!plan.requestPlans.length||plan.requestPlans.length>count||p.batch_id!==undefined&&p.batch_id!==plan.runId||p.batch_count!==undefined&&p.batch_count!==plan.requestPlans.length)throw localFail('视频深度画布目标与批次规划不一致');
+  const ordered=[],requests=new Set();
+  for(const group of plan.requestPlans){
+   if(!object(group)||Object.keys(group).sort().join(',')!=='requestId,targets'||!nodeId(group.requestId)||requests.has(group.requestId)||!Array.isArray(group.targets)||!group.targets.length)throw localFail('视频深度逻辑请求规划无效');requests.add(group.requestId);
+   for(const [index,target]of group.targets.entries()){if(!object(target)||Object.keys(target).sort().join(',')!=='nodeId,resultIndex'||!nodeId(target.nodeId)||target.resultIndex!==index)throw localFail('视频深度结果索引无效');ordered.push(target.nodeId);}
+  }
+  if(JSON.stringify(ordered)!==JSON.stringify(plan.targetNodeIds))throw localFail('视频深度结果目标必须按原规划顺序覆盖');
+ }else if(p.batch_count!==undefined&&p.batch_count!==1)throw localFail('无画布分组规划的深度转换只有一个逻辑批次');
+ return count;
+}
 function parseVideoDepthModelMap(value){
  const map=typeof value==='string'?JSON.parse(value):value??{};
  if(!object(map)||Object.keys(map).some(alias=>alias!==ALIAS))throw fail('视频深度须显式配置 depth-anything-video 别名','configuration_invalid');
@@ -44,16 +63,16 @@ function guardedJsonFetch(fetchImpl,apiKey){return async(url,options)=>{
   return new Response(bytes,{status:response.status,headers:{'Content-Type':'application/json'}});
  }finally{options.signal?.removeEventListener('abort',abort);if(!complete){if(reader)void reader.cancel().catch(()=>{});else void response.body?.cancel().catch(()=>{});}try{reader?.releaseLock();}catch{}}
 };}
-function createVideoDepthProvider({baseUrl='',apiKey='',modelMap,fetchImpl=fetch,download,mediaTools,mediaTimeoutMs=120000}={}){
+function createVideoDepthProvider({baseUrl='',apiKey='',modelMap,fetchImpl=fetch,download,mediaTools,mediaTimeoutMs=120000,directory}={}){
  let mapping={},origin='https://queue.fal.run',configurationError=null;
  try{
   mapping=parseVideoDepthModelMap(modelMap);if(typeof baseUrl!=='string')throw Error();
   if(baseUrl){const url=new URL(baseUrl);if(baseUrl!==baseUrl.trim()||url.origin!==origin||url.pathname!=='/'||url.username||url.password||url.search||url.hash||baseUrl.includes('?')||baseUrl.includes('#'))throw Error();}
-  if(typeof fetchImpl!=='function'||download!==undefined&&typeof download!=='function'||mediaTools!==undefined&&typeof mediaTools.inspectVideo!=='function'||!Number.isSafeInteger(mediaTimeoutMs)||mediaTimeoutMs<1||mediaTimeoutMs>120000||typeof apiKey!=='string'||apiKey&&(apiKey!==apiKey.trim()||apiKey.length>4096||/[\x00-\x1f\x7f]/.test(apiKey)))throw Error();assertCredentialFree(mapping,apiKey);
+  if(typeof fetchImpl!=='function'||directory!==undefined&&(typeof directory!=='string'||!path.isAbsolute(directory))||download!==undefined&&typeof download!=='function'||mediaTools!==undefined&&typeof mediaTools.inspectVideo!=='function'||!Number.isSafeInteger(mediaTimeoutMs)||mediaTimeoutMs<1||mediaTimeoutMs>120000||typeof apiKey!=='string'||apiKey&&(apiKey!==apiKey.trim()||apiKey.length>4096||/[\x00-\x1f\x7f]/.test(apiKey)))throw Error();assertCredentialFree(mapping,apiKey);
  }catch{mapping={};configurationError='configuration_invalid';}
  const missing=[...(!apiKey?['GENERATION_API_KEY']:[]),...(!Object.hasOwn(mapping,ALIAS)?['GENERATION_MODEL_MAP']:[])],configured=!configurationError&&!missing.length;
  const fingerprint=createHash('sha256').update(JSON.stringify({protocol:PROTOCOL,origin,mapping})).digest('hex');
- const profile={label:'Video Depth Anything',model:MODEL,modelSize:'VDA-Large',kind:'video.depth',semantics:'per-frame-depth',tapNowEquivalent:false,sourceMimeTypes:['video/mp4'],audioPolicy:'discard',resolutions:['source'],colormaps:['grayscale'],preserveDuration:true,preserveDimensions:true,promptUsed:false,maxVideos:1,maxCount:1,maxSourceFrames:2400,maxInputBytes:MAX_VIDEO_BYTES,maxOutputBytes:MAX_VIDEO_BYTES,localMediaProfile:'mp4-cfr-even-square-pixels-5-30fps',maxWidth:1920,maxHeight:1080,minFps:5,maxFps:30,maxDuration:480,requiresMediaTools:['ffmpeg','ffprobe'],rawDepths:false,sideBySide:false};
+ const profile={label:'Video Depth Anything',model:MODEL,modelSize:'VDA-Large',kind:'video.depth',semantics:'per-frame-depth',tapNowEquivalent:false,sourceMimeTypes:['video/mp4'],audioPolicy:'discard',resolutions:['source'],colormaps:['grayscale'],preserveDuration:true,preserveDimensions:true,promptUsed:false,maxVideos:1,maxCount:directory?2:1,maxSourceFrames:2400,maxInputBytes:MAX_VIDEO_BYTES,maxOutputBytes:MAX_VIDEO_BYTES,localMediaProfile:'mp4-cfr-even-square-pixels-5-30fps',maxWidth:1920,maxHeight:1080,minFps:5,maxFps:30,maxDuration:480,requiresMediaTools:['ffmpeg','ffprobe'],rawDepths:false,sideBySide:false};
  const enabled=Object.hasOwn(mapping,ALIAS);
  const metadata={configured,protocol:PROTOCOL,missing,configurationError,capabilities:{kinds:enabled?['video.depth']:[],models:enabled?{[ALIAS]:{kind:'video.depth',label:profile.label,model:MODEL}}:{},videoDepth:enabled?{[ALIAS]:profile}:{},references:true,textReferences:false,videoReferences:{maxVideos:1,mimeTypes:['video/mp4'],transport:'inline-or-public-https'},remoteRecovery:true,remoteCancellation:'best-effort',verified:'official-schema-and-local-contract'}};
  const queue=createFalQueue({baseUrl:origin,apiKey,fetchImpl:guardedJsonFetch(fetchImpl,apiKey)}),downloadVideo=download||createGenerationMediaDownloader({limits:{video:MAX_VIDEO_BYTES}}).download;
@@ -65,15 +84,14 @@ function createVideoDepthProvider({baseUrl='',apiKey='',modelMap,fetchImpl=fetch
   if(!object(p)||!object(wire)||Object.keys(p).some(key=>!['workflow','protocol','model','modelId','providerParameters','resolution','duration','width','height','preserveDuration','promptUsed','count','times','resultMode','canvasResults','batch_count','batch_id','is_regeneration','layout'].includes(key))||Object.keys(wire).some(key=>key!=='model'))throw localFail('视频深度仅支持保留原尺寸时长的灰度结果；颜色、帧率、截帧或原始深度设置未支持');
   if([wire.model,p.modelId,p.model].some(value=>value!==undefined&&value!==ALIAS))throw localFail('视频深度型号须为明确映射的 depth-anything-video');
   if(p.workflow!=='depth-video-studio'||p.protocol!=='local-depth-v1'||p.resolution!=='source'||p.preserveDuration!==true||p.promptUsed!==false)throw localFail('视频深度须符合保留源尺寸和时长的 local-depth-v1 合同');
-  if(p.resultMode!==undefined&&p.resultMode!=='variants')throw localFail('视频深度只返回一个 variants 视频，不支持分镜结果模式');
-  for(const count of [request.count,p.count,p.times,p.batch_count,p.canvasResults?.targetNodeIds?.length])if(count!==undefined&&count!==1)throw localFail('每个视频深度任务仅返回一个视频');
+  const count=resultCount(request);if(count===2&&!directory)throw localFail('双结果视频深度需要私有持久批次目录','configuration_required');
   if(request.references!==undefined&&(!Array.isArray(request.references)||request.references.length)||!Array.isArray(request.inputs)||request.inputs.length!==1)throw localFail('视频深度须且只能绑定一个来源视频');const input=request.inputs[0];
-  if(!object(input)||typeof input.id!=='string'||!input.id.trim()||input.id!==input.id.trim()||input.id.length>200||/[\x00-\x1f\x7f]/.test(input.id)||input.type!=='video'||Object.keys(input).some(key=>!['id','nodeId','type','url','title','name','role','duration','width','height','sizeBytes','mime','mimeType'].includes(key))||input.role!==undefined&&!['source_video','reference_video'].includes(input.role)||request.nodeId!==input.id)throw localFail('来源须为一个真实视频；选段须先物化，不能用整片替代 clip/trim');
+  if(!object(input)||!nodeId(input.id)||!nodeId(request.nodeId)||input.nodeId!==undefined&&input.nodeId!==input.id||input.type!=='video'||Object.keys(input).some(key=>!['id','nodeId','type','url','title','name','role','duration','width','height','sizeBytes','mime','mimeType'].includes(key))||input.role!==undefined&&!['source_video','reference_video'].includes(input.role))throw localFail('来源与目标须为各自合法的节点；选段须先物化，不能用整片替代 clip/trim');
   if(![input.width,input.height].every(value=>Number.isSafeInteger(value)&&value>=2&&value%2===0)||input.width>profile.maxWidth||input.height>profile.maxHeight||!Number.isFinite(input.duration)||input.duration<=0||input.duration>480||p.width!==input.width||p.height!==input.height||p.duration!==input.duration)throw localFail('来源须为偶数尺寸且不超过本地 1920×1080 边界，实际时长与参数一致');
   if([input.mime,input.mimeType].some(value=>value!==undefined&&value!=='video/mp4')||input.sizeBytes!==undefined&&(!Number.isSafeInteger(input.sizeBytes)||input.sizeBytes<1||input.sizeBytes>MAX_VIDEO_BYTES))throw localFail('来源须为预算内 MP4');
   if(request.prompt!==undefined&&request.prompt!==''&&request.prompt!==DEPTH_PROMPT)throw localFail('视频深度不使用提示词，不会忽略用户文字');
   let bytes,url;if(typeof input.url==='string'&&input.url.startsWith('data:')){bytes=mp4Bytes(input.url,apiKey);if(input.sizeBytes!==undefined&&input.sizeBytes!==bytes.length)throw localFail('来源声明大小与实际 MP4 不一致');}else url=httpsMedia(input.url);
-  return {input,bytes,url};
+  return {input,bytes,url,count};
  }
  async function readVideo(url,{signal,expectedBytes}={}){
   const controller=new AbortController(),combined=AbortSignal.any([AbortSignal.timeout(mediaTimeoutMs),controller.signal,...signal?[signal]:[]]);let resource,iterator,complete=false,abort;
@@ -105,18 +123,22 @@ function createVideoDepthProvider({baseUrl='',apiKey='',modelMap,fetchImpl=fetch
    }catch{if(signal?.aborted)throw signal.reason;throw unknown();}
   }else if(value.status==='failed'){result.code='provider_failed';result.error='视频深度供应商未完成原任务';}else if(value.status==='unknown'){result.code='unknown';result.error='视频深度原任务尚未确认，不会重复提交';}return result;
  }
- async function submit(request,{signal}={}){
+ const batches=createVideoDepthBatch({directory,fingerprint,validateChild:identity,pollChild:pollSingle,cancelChild:cancelSingle});
+ async function submit(request,{signal,onTaskIdentity=()=>{}}={}){
   const resolved=resolve(request);let bytes,actual;
   try{bytes=resolved.bytes||await readVideo(resolved.url,{signal,expectedBytes:resolved.input.sizeBytes});actual=checkedMetadata(await media().inspectVideo({bytes,mime:'video/mp4'},{signal}));if(actual[0]!==resolved.input.width||actual[1]!==resolved.input.height||Math.abs(actual[2]-resolved.input.duration)>.0001)throw localFail('来源真实 MP4 宽高或时长与声明不一致');}
   catch(error){if(signal?.aborted)throw signal.reason;if(error.code==='media_tool_unavailable')throw Object.assign(error,{providerDispatched:false});throw localFail('来源实际 MP4 解码、帧时序或尺寸检查未通过，尚未提交深度任务');}
   const body={video_url:'data:video/mp4;base64,'+bytes.toString('base64'),model:'VDA-Large',colormap:'grayscale',resolution:'auto',max_frames:actual[4],output_fps:null,side_by_side:false,include_raw_depths:false};
-  return receipt(await queue.submit(MODEL,body,{signal}),actual,undefined,{signal});
+  if(resolved.count===2)return batches.submit({actual,nodeId:request.nodeId,sourceNodeId:resolved.input.id,submitChild:async(_index,{signal})=>receipt(await queue.submit(MODEL,body,{signal}),actual,undefined,{signal})},{signal,onTaskIdentity});
+  const value=await receipt(await queue.submit(MODEL,body,{signal}),actual,undefined,{signal});await onTaskIdentity(value.id);return value;
  }
- async function poll(id,{signal}={}){const original=identity(id);return receipt(await queue.poll(MODEL,original.requestId,{signal}),original.actual,original.requestId,{signal});}
- async function cancel(id,{signal}={}){const original=identity(id),value=await queue.cancel(MODEL,original.requestId,{signal});if(value.requestId!==original.requestId)throw fail('视频深度取消任务身份不一致','provider_identity_mismatch');return {id,status:'unknown'};}
+ async function pollSingle(id,{signal}={}){const original=identity(id);return receipt(await queue.poll(MODEL,original.requestId,{signal}),original.actual,original.requestId,{signal});}
+ async function cancelSingle(id,{signal}={}){const original=identity(id),value=await queue.cancel(MODEL,original.requestId,{signal});if(value.requestId!==original.requestId)throw fail('视频深度取消任务身份不一致','provider_identity_mismatch');return {id,status:'unknown'};}
+ async function poll(id,options){if(typeof id==='string'&&id.startsWith('vd2.')){if(!configured)throw fail('原视频深度后端未配置','configuration_required');return batches.poll(id,options);}return pollSingle(id,options);}
+ async function cancel(id,options){if(typeof id==='string'&&id.startsWith('vd2.')){if(!configured)throw fail('原视频深度后端未配置','configuration_required');return batches.cancel(id,options);}return cancelSingle(id,options);}
  async function generate(request,{signal,onTaskIdentity=()=>{},onProgress=()=>{},pollInterval=1500,timeout=600000}={}){
   if(!Number.isSafeInteger(timeout)||timeout<1||timeout>1800000||!Number.isSafeInteger(pollInterval)||pollInterval<1||pollInterval>30000)throw localFail('视频深度轮询预算无效');const combined=signal?AbortSignal.any([signal,AbortSignal.timeout(timeout)]):AbortSignal.timeout(timeout);
-  try{let value=await submit(request,{signal:combined});await onTaskIdentity(value.id);while(['queued','running'].includes(value.status)){onProgress(0);await new Promise((resolve,reject)=>{if(combined.aborted){reject(combined.reason);return;}const abort=()=>{clearTimeout(timer);reject(combined.reason);};const timer=setTimeout(()=>{combined.removeEventListener('abort',abort);resolve();},pollInterval);combined.addEventListener('abort',abort,{once:true});});value=await poll(value.id,{signal:combined});}if(value.status!=='succeeded')throw fail('视频深度原任务未完成',value.status==='unknown'?'unknown':'provider_failed');return value;}catch(error){if(signal?.aborted)throw signal.reason;if(combined.aborted)throw unknown();throw error;}
+  try{let value=await submit(request,{signal:combined,onTaskIdentity});while(['queued','running'].includes(value.status)){onProgress(0);await new Promise((resolve,reject)=>{if(combined.aborted){reject(combined.reason);return;}const abort=()=>{clearTimeout(timer);reject(combined.reason);};const timer=setTimeout(()=>{combined.removeEventListener('abort',abort);resolve();},pollInterval);combined.addEventListener('abort',abort,{once:true});});value=await poll(value.id,{signal:combined});}if(value.status!=='succeeded')throw fail('视频深度原任务未完成',value.status==='unknown'?'unknown':'provider_failed');return value;}catch(error){if(signal?.aborted)throw signal.reason;if(combined.aborted)throw unknown();throw error;}
  }
  return {configured,fingerprint,metadata,prepare:request=>{resolve(request);return request;},submit,poll,cancel,generate};
 }

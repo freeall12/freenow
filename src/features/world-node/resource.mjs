@@ -1,3 +1,5 @@
+import {decodeSplat,splatProxy,splatAxisScale,spatialBounds,SplatContext} from './splat-io.mjs';
+import {splatLimits} from './splat-contract.mjs';
 import {assertReadableMediaSource, assertReadableResultMedia} from '../generation-results/media-ref.mjs';
 import * as THREE from 'three';
 import {inspectModel, loadSaved, disposeModel, disposeLoadedModel, maxBytes} from '../studio-v2/model-io.mjs';
@@ -14,14 +16,16 @@ import {isStaticAssetRef} from '../local-resource-migration/index-format.mjs';
 const app = window.CanvasApp;
 const el = (tag, cls, text) => {const node = document.createElement(tag); node.className = cls || ''; if (text !== undefined) node.textContent = text; return node;};
 let current;
-function stage(model, canvas, loaded) {
-  const bounds = new THREE.Box3().setFromObject(model), center = bounds.getCenter(new THREE.Vector3());
+function stage(model, canvas, loaded, {splatMesh} = {}) {
+  const splat=!!model.userData?.worldSplat;const bounds = splat?spatialBounds(model,undefined,{framing:true}):new THREE.Box3().setFromObject(model), center = bounds.getCenter(new THREE.Vector3());
   if (bounds.isEmpty()) throw Error('模型没有可显示的几何体');
-  const renderer = new THREE.WebGLRenderer({canvas, antialias: true, preserveDrawingBuffer: true, alpha: false});
+  const renderer = new THREE.WebGLRenderer({canvas, antialias: !splat, preserveDrawingBuffer: true, alpha: false});
   try {
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2)); renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   const scene = new THREE.Scene(); scene.background = new THREE.Color('#050505'); scene.add(model);
+  let dirty=()=>{},capturing=false;const gaussian=splat?new SplatContext(renderer,scene,{onDirty:()=>dirty()}):null;
+  if(splatMesh){gaussian.entries.set(model,splatMesh);gaussian.layer.add(splatMesh);}
   previewLights(scene);
   const camera = new THREE.PerspectiveCamera(45, 1, .01, 10000);
   camera.fov = viewportFov(DEFAULT_FOCAL, canvas.clientWidth || 600, canvas.clientHeight || 400);
@@ -41,18 +45,29 @@ function stage(model, canvas, loaded) {
   const minDistance = Math.max(.01, size * .15), maxDistance = Math.max(10, size * 20);
   let renderedWidth, renderedHeight;
   function render(width = canvas.clientWidth || 600, height = canvas.clientHeight || 400) {
+    if(capturing)return;
     if (width !== renderedWidth || height !== renderedHeight) {renderer.setSize(width, height, false); renderedWidth = width; renderedHeight = height;}
-    camera.aspect = width / height; camera.updateProjectionMatrix(); renderer.render(scene, camera);
+    camera.aspect = width / height; camera.updateProjectionMatrix(); if(gaussian)gaussian.render(model,camera,()=>renderer.render(scene,camera));else renderer.render(scene, camera);
   }
   let disposed = false;
-  function dispose() {if (disposed) return; disposed = true; if (loaded) disposeLoadedModel(loaded); else disposeModel(model); renderer.dispose(); renderer.forceContextLoss();}
-  return {renderer, scene, camera, center, minDistance, maxDistance, render, dispose};
+  async function dispose() {if (disposed) return; disposed = true; dirty=()=>{};if(gaussian)await gaussian.dispose(); if (loaded) disposeLoadedModel(loaded); else disposeModel(model); renderer.dispose(); renderer.forceContextLoss();}
+  return {renderer, scene, camera, center, minDistance, maxDistance, render, dispose,gaussian,model,onDirty:fn=>{dirty=fn;},setCapturing:value=>{capturing=value;},settle:async view=>{if(gaussian)await gaussian.settle(model,view||camera);}};
   } catch (error) {renderer.dispose(); renderer.forceContextLoss(); throw error;}
 }
 function png(canvas) {return new Promise((resolve, reject) => canvas.toBlob(blob => blob ? resolve(blob) : reject(Error('预览图片编码失败')), 'image/png'));}
 
-async function localize(file, outputType = 'asset', scope) {
-  const canvas = document.createElement('canvas'); let view, prepared;
+async function localize(file, outputType = 'asset', scope, {format='glb',metadata}={}) {
+  const canvas = document.createElement('canvas'); let view, prepared,temporary;
+  if(format==='spz'){
+    try{prepared=await scope.wait(()=>decodeSplat(file,{signal:scope.signal,fileName:file.name}),{disposeLate:value=>value.mesh.dispose()});
+      temporary=URL.createObjectURL(file);const coordinateSystem=metadata?.world?.coordinateSystem==='marble_raw_opencv'?'marble_raw_opencv':'spz_rub',flip=new THREE.Matrix4().makeScale(...splatAxisScale({coordinateSystem}).toArray()),box=prepared.bounds.clone().applyMatrix4(flip),framing=prepared.framingBounds.clone().applyMatrix4(flip),metrics=metadata?.world?.assets?.splats?.semanticsMetadata;const descriptor={version:1,format:'spz',coordinateSystem,url:temporary,count:prepared.header.count,bounds:[box.min.toArray(),box.max.toArray()],framingBounds:[framing.min.toArray(),framing.max.toArray()],...(metrics?{metricScaleFactor:metrics.metricScaleFactor,groundPlaneOffset:metrics.groundPlaneOffset}:{})};
+      const proxy=splatProxy(descriptor,{name:file.name});view=stage(proxy,canvas,null,{splatMesh:prepared.mesh});
+      view.render(600,400);await scope.wait(()=>view.settle());view.render(600,400);
+      const thumbnail=await scope.wait(()=>png(canvas)),cover=await scope.wait(()=>window.LocalMedia.asDataUrl(thumbnail));
+      const url=await scope.wait(()=>window.LocalAssets.put(file)),image=await scope.wait(()=>window.LocalAssets.put(thumbnail));scope.check();
+      return {image:cover,outputType,worldResource:{format:'spz',representation:'gaussianSplat',url,thumbnail:image,name:file.name,bytes:file.size,splat:{coordinateSystem:descriptor.coordinateSystem,count:descriptor.count,bounds:descriptor.bounds,framingBounds:descriptor.framingBounds,...(metrics?{metricScaleFactor:metrics.metricScaleFactor,groundPlaneOffset:metrics.groundPlaneOffset}:{})},...(metadata?.world?{world:structuredClone(metadata.world)}:{})}};
+    }finally{if(view)await view.dispose();else prepared?.mesh.dispose();if(temporary)URL.revokeObjectURL(temporary);}
+  }
   try {
     prepared = await scope.wait(() => inspectModel(file, [], {signal: scope.signal}), {disposeLate: value => disposeLoadedModel(value.loaded)});
     view = stage(prepared.loaded.scene, canvas, prepared.loaded); view.render(600, 400); scope.check();
@@ -66,9 +81,9 @@ async function localize(file, outputType = 'asset', scope) {
   } finally {if (view) view.dispose(); else if (prepared) disposeLoadedModel(prepared.loaded);}
 }
 export async function importFile(file) {
-  if (!/\.glb$/i.test(file.name)) throw Error('请选择 .glb 文件');
+  if (!/\.(glb|spz)$/i.test(file.name)) throw Error('请选择 .glb 或 .spz 文件');
   const scope = materializationScope();
-  try {return await localize(file, 'asset', scope);} finally {scope.close();}
+  try {return await localize(file, 'asset', scope,{format:/\.spz$/i.test(file.name)?'spz':'glb'});} finally {scope.close();}
 }
 export async function materialize(output, outputType, options = {}) {
   const url = output?.url || output?.model;
@@ -81,8 +96,9 @@ export async function materialize(output, outputType, options = {}) {
     let response;
     try {response = await scope.wait(() => fetch(resolved, {signal: scope.signal}), {disposeLate: value => value.body?.cancel?.().catch(() => {})});}
     catch (error) {scope.check(); throw Object.assign(Error('3D 结果读取失败，请检查网络、地址及跨域 CORS 后从原任务重试'), {code: 'world_download_failed', cause: error});}
-    const blob = await readModelBlob(response, scope, maxBytes);
-    const patch = await localize(new File([blob], output.filename || 'generated.glb', {type: 'model/gltf-binary'}), outputType, scope);
+    const format=output.format==='spz'||output.representation==='gaussianSplat'?'spz':'glb',mime=format==='spz'?'application/octet-stream':'model/gltf-binary';
+    const blob = await readModelBlob(response, scope, format==='spz'?splatLimits.bytes:maxBytes,{format,mime});
+    const patch = await localize(new File([blob], format==='spz'?(output.filename||'generated').replace(/\.(?:glb|spz)$/i,'')+'.spz':output.filename || 'generated.glb', {type: mime}), outputType, scope,{format,metadata:output});
     for(const key of ['mime','sourceFileId','sourceUrl','representation','asset_metadata']) if(output[key]!==undefined)patch.worldResource[key]=structuredClone(output[key]);
     return patch;
   } finally {scope.close();}
@@ -100,7 +116,7 @@ function localDownloadSource(source, baseUrl, {allowAsset = false} = {}) {
   return url.href;
 }
 
-export async function readWorldDownloadBlob(source, {assets = window.LocalAssets, fetchImpl = globalThis.fetch, baseUrl = globalThis.location?.href || window.location?.href, signal} = {}) {
+export async function readWorldDownloadBlob(source, {assets = window.LocalAssets, fetchImpl = globalThis.fetch, baseUrl = globalThis.location?.href || window.location?.href, signal,format='glb'} = {}) {
   const scope = materializationScope({signal});
   try {
     const local = localDownloadSource(source, baseUrl, {allowAsset: true});
@@ -115,14 +131,14 @@ export async function readWorldDownloadBlob(source, {assets = window.LocalAssets
       response.body?.cancel?.().catch(() => {});
       throw Object.assign(Error('模型下载不允许跳转到其他资源'), {code: 'world_download_redirect_forbidden'});
     }
-    const blob = await readModelBlob(response, scope, maxBytes);
+    const blob = await readModelBlob(response, scope, format==='spz'?splatLimits.bytes:maxBytes,{format,mime:format==='spz'?'application/octet-stream':'model/gltf-binary'});
     return new Blob([blob], {type: response.headers?.get?.('content-type') || blob.type});
   } finally {scope.close();}
 }
 
 export async function download(node, options) {
-  const blob = await readWorldDownloadBlob(node?.worldResource?.url, options);
-  const url = URL.createObjectURL(blob), link = el('a'); link.href = url; link.download = node.worldResource.name || node.title + '.glb';
+  const blob = await readWorldDownloadBlob(node?.worldResource?.url, {...options,format:node?.worldResource?.format});
+  const url = URL.createObjectURL(blob), link = el('a'); link.href = url; link.download = node.worldResource.name || node.title + '.'+(node.worldResource.format||'glb');if(node.worldResource.format==='spz'&&!/\.spz$/i.test(link.download))link.download=link.download.replace(/\.[^.]+$/,'')+'.spz';
   try {link.click();} finally {const timer = setTimeout(() => URL.revokeObjectURL(url), 30000); timer.unref?.();}
 }
 
@@ -144,9 +160,11 @@ export async function preview(node, {panoramaUrl = null} = {}) {
   try {
     if (panoramaUrl) view = await (await import('./panorama-stage.mjs')).panoramaStage(panoramaUrl, canvas);
     else {
-      const loaded = await loadSaved(node.worldResource.url);
+      if(node.worldResource.format==='spz'){const descriptor={version:1,format:'spz',url:node.worldResource.url,...node.worldResource.splat};const proxy=splatProxy(descriptor,{name:node.title});view=stage(proxy,canvas);view.render();await view.settle();}
+      else {const loaded = await loadSaved(node.worldResource.url);
       if (!alive) {disposeLoadedModel(loaded); return;}
       try {view = stage(loaded.scene, canvas, loaded);} catch (error) {disposeLoadedModel(loaded); throw error;}
+      }
     }
     if (!alive) {view.dispose(); return;}
     status.hidden = true;
@@ -160,6 +178,7 @@ export async function preview(node, {panoramaUrl = null} = {}) {
       if (navigating || transitioning || Math.abs(target - view.camera.fov) > .001) frame = requestAnimationFrame(draw); else frame = 0;
     }
     const invalidate = () => {if (!alive) return; if (!frame) {lastTime = performance.now() - 16; frame = requestAnimationFrame(draw);}};
+    view.onDirty?.(invalidate);
     if (!panoramaUrl) {
       environment = previewEnvironment(view, invalidate);
       environmentUI = environmentControls(root, environment, message);
@@ -178,7 +197,7 @@ export async function preview(node, {panoramaUrl = null} = {}) {
           const fraction = parseFloat(root.querySelector('.world-viewfinder').style.height) / canvas.clientHeight;
           camera.fov = 2 * Math.atan(Math.tan(view.camera.fov * Math.PI / 360) * fraction) * 180 / Math.PI;
           camera.updateProjectionMatrix(); camera.updateMatrixWorld(true);
-          const output = renderPhoto(view, camera, width, height); chrome.flash();
+          const output = await renderPhoto(view, camera, width, height); chrome.flash();
           const blob = await png(output);
           if (!alive || !app.getState().nodes.some(n => n.id === node.id)) throw Error('来源节点已删除或预览已关闭');
           const url = await new Promise((resolve, reject) => {const r = new FileReader(); r.onload = () => resolve(r.result); r.onerror = reject; r.readAsDataURL(blob);});
@@ -193,7 +212,7 @@ export async function preview(node, {panoramaUrl = null} = {}) {
         try {
           if (!app.getState().nodes.some(n => n.id === node.id)) throw Error('来源节点已删除');
           const draft = panoramaUrl ? (await import('./panorama-stage.mjs')).panoramaStudio(node, panoramaUrl)
-            : {type: 'studio', title: '3D 片场', width: 375, height: 250, studioV2: {version: 2, asset: node.worldResource.url}};
+            : {type: 'studio', title: '3D 片场', width: 375, height: 250, studioV2: node.worldResource.format==='spz'?{version:2,splatAssets:[{version:1,format:'spz',url:node.worldResource.url,...node.worldResource.splat,name:node.title}]}:{version: 2, asset: node.worldResource.url}};
           if (!alive || !app.getState().nodes.some(n => n.id === node.id)) return;
           const [studio] = app.createConnected(node.id, [draft]);
           close(); await window.StudioAPI.open(studio.id);
@@ -210,21 +229,22 @@ export async function preview(node, {panoramaUrl = null} = {}) {
     }
   }
 }
-function renderPhoto(view, camera, width, height) {
+async function renderPhoto(view, camera, width, height) {
   const {renderer, scene} = view;
   if (Math.max(width, height) > renderer.capabilities.maxTextureSize) throw Error('此设备无法渲染 4096px 照片');
   const size = renderer.getSize(new THREE.Vector2()), pixelRatio = renderer.getPixelRatio();
   const target = renderer.getRenderTarget(), viewport = renderer.getViewport(new THREE.Vector4()), scissor = renderer.getScissor(new THREE.Vector4()), scissorTest = renderer.getScissorTest();
   try {
     // Three disables display tone mapping on ordinary render targets. Render to
-    // the same context's default framebuffer, copy synchronously, and restore
-    // before yielding so HDR PMREM resources and displayed colors stay intact.
+    // the same context's default framebuffer after Gaussian sorting. Suppress
+    // preview redraw/resize during the await, then restore in finally so HDR
+    // PMREM resources and displayed colors stay intact.
     renderer.setRenderTarget(null); renderer.setPixelRatio(1); renderer.setSize(width, height, false);
-    renderer.setViewport(0, 0, width, height); renderer.setScissorTest(false); renderer.render(scene, camera);
+    renderer.setViewport(0, 0, width, height); renderer.setScissorTest(false);view.setCapturing?.(true);await view.settle?.(camera);if(view.gaussian)view.gaussian.render(view.model,camera,()=>renderer.render(scene,camera));else renderer.render(scene, camera);
     const output = document.createElement('canvas'); output.width = width; output.height = height;
     output.getContext('2d').drawImage(renderer.domElement, 0, 0); return output;
   } finally {
-    renderer.setPixelRatio(pixelRatio); renderer.setSize(size.x, size.y, false); renderer.setRenderTarget(target);
+    view.setCapturing?.(false);renderer.setPixelRatio(pixelRatio); renderer.setSize(size.x, size.y, false); renderer.setRenderTarget(target);
     renderer.setViewport(viewport); renderer.setScissor(scissor); renderer.setScissorTest(scissorTest);
     view.render();
   }

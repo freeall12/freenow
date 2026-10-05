@@ -23,7 +23,7 @@ async function nodeFixture(model='tripo-h3'){
  const app={getState:()=>state,updateNode:(id,patch)=>{calls.updates++;Object.assign(node,patch);},notify:message=>notifications.push(message)};
  const api={getJobs:()=>[],configuration:async()=>({configured:true}),runInPlace:async(request,target,options)=>{
   calls.dispatch++;options.onSubmitted({controller:new AbortController()});target.guard();
-  await target.apply({type:'model',format:'glb',representation:'mesh',url:'/api/generation/media/result'});
+  await target.apply({type:'model',format:request.parameters.provider==='worldlabs'?'spz':'glb',representation:request.parameters.representation,url:'/api/generation/media/result'});
   return {status:'succeeded'};
  }};
  const panel=new Element('section'),context={...world,...renderer,app,panel,activeId:node.id,pending:new Set(),panelKey:null,promptTimer:null,composing:false,selecting:false,
@@ -33,7 +33,7 @@ async function nodeFixture(model='tripo-h3'){
   worldProviderPresentation:model=>({label:model.label}),
   captureWorldSourceGuard:(...args)=>{calls.guard++;return media.captureWorldSourceGuard(...args);},
   loadAgent:async()=>agent,
-  loadResource:async()=>{calls.resource++;return {materialize:async()=>{calls.materialize++;return {outputType:'asset',worldResource:{format:'glb',url:'asset:actual-model'}};}}},
+  loadResource:async()=>{calls.resource++;return {materialize:async output=>{calls.materialize++;return {outputType:output.format==='spz'?'world':'asset',worldResource:{format:output.format,url:'asset:actual-model'}};}}},
  };
  vm.createContext(context);
  // Execute the production Node functions; substitute only dynamic module
@@ -51,45 +51,23 @@ async function agentFixture(model='tripo-h3'){
  const calls={availability:0,dispatch:0,materialize:0},app={getState:()=>state,updateNode:(id,patch)=>Object.assign(node,patch)};
  const api={getJobs:()=>[],availability:async()=>{calls.availability++;return {configured:true};},runInPlace:(request,target,options)=>{
   calls.dispatch++;const job={id:'actual-local-job',request,status:'queued'};
-  return Promise.resolve().then(async()=>{await options.onSubmitted(job);target.guard();await target.apply({type:'model',url:'https://provider.example.test/result.glb'});return {status:'succeeded'};});
+  return Promise.resolve().then(async()=>{await options.onSubmitted(job);target.guard();await target.apply({type:'model',format:request.parameters.provider==='worldlabs'?'spz':'glb',url:'/api/generation/media/actual-result'});return {status:'succeeded'};});
  }};
  return {node,state,app,api,calls,read:()=>agent.readWorld({nodeId:node.id},{app}),
-  start:args=>agent.startWorldGeneration({nodeId:node.id,...args},{app,api,materialize:async(output,outputType)=>{calls.materialize++;assert.equal(outputType,'asset');return {outputType,worldResource:{format:'glb',url:'asset:actual-model'}};}})};
+  start:args=>agent.startWorldGeneration({nodeId:node.id,...args},{app,api,materialize:async(output,outputType)=>{calls.materialize++;assert.equal(outputType,output.format==='spz'?'world':'asset');return {outputType,worldResource:{format:output.format,url:'asset:actual-model'}};}})};
 }
 
-test('world catalog reports local GLB capability separately from provider readiness',async()=>{
+test('world catalog reports actual local GLB/SPZ rendering separately from provider readiness',async()=>{
  const f=await agentFixture(),catalog=f.read();
- assert.equal(catalog.models.length,3);assert.deepEqual(catalog.outputRenderer,{formats:['glb'],representations:['mesh'],gaussianSplat:false});
- assert.equal(catalog.models.find(model=>model.provider==='tripo').localRenderer.supported,true);
- for(const model of catalog.models.filter(model=>model.provider==='worldlabs')){
-  assert.equal(model.localRenderer.supported,false);assert.match(model.localRenderer.error,/本地.*高斯泼溅.*SPZ.*渲染/);
-  assert.ok(model.modes.includes('IMAGE_TO_WORLD'));assert.ok(model.modes.includes('PANORAMA_TO_WORLD'));
- }
+ assert.equal(catalog.models.length,3);assert.deepEqual(catalog.outputRenderer,{formats:['glb','spz'],representations:['mesh','gaussianSplat'],gaussianSplat:true});assert.equal(catalog.liveProviderVerified,false);assert.match(catalog.note,/无LOD/);
+ for(const model of catalog.models){assert.equal(model.localRenderer.supported,true);assert.equal(model.localRenderer.error,null);}
 });
-
 for(const model of ['worldlabs-marble-1.1','worldlabs-marble-1.1-plus']){
- test('Node '+model+' blocks generation before source preparation, resource loading and dispatch',async()=>{
-  const f=await nodeFixture(model);await f.context.generate();
-  assert.equal(f.calls.guard,0);assert.equal(f.calls.dispatch,0);assert.equal(f.calls.resource,0);assert.equal(f.calls.materialize,0);assert.equal(f.calls.updates,0);
-  assert.equal(f.notifications.length,1);assert.match(f.notifications[0],/本地.*高斯泼溅.*SPZ.*渲染/);assert.doesNotMatch(f.notifications[0],/Key|密钥/);
- });
- test('Agent '+model+' rejects locally before availability lookup and dispatch; an explicit GLB selection remains usable',async()=>{
-  const f=await agentFixture();await assert.rejects(f.start({model}),{code:'world_renderer_unavailable'});
-  assert.equal(f.calls.availability,0);assert.equal(f.calls.dispatch,0);assert.equal(f.calls.materialize,0);
-  const next=await f.start({model:'tripo-h3'});assert.equal(next.job.id,'actual-local-job');await next.completion;
-  assert.equal(f.calls.availability,1);assert.equal(f.calls.dispatch,1);assert.equal(f.calls.materialize,1);assert.equal(f.node.worldResource.format,'glb');
- });
+ test('Node '+model+' uses ordinary guarded dispatch and SPZ materialization',async()=>{const f=await nodeFixture(model);await f.context.generate();assert.equal(f.calls.guard,1);assert.equal(f.calls.dispatch,1);assert.equal(f.calls.materialize,1);assert.equal(f.node.worldResource.format,'spz');assert.deepEqual(f.notifications,[]);});
+ test('Agent '+model+' checks provider readiness and uses the same SPZ pipeline',async()=>{const f=await agentFixture(model),next=await f.start({model});await next.completion;assert.equal(f.calls.availability,1);assert.equal(f.calls.dispatch,1);assert.equal(f.calls.materialize,1);assert.equal(f.node.worldResource.format,'spz');});
 }
-
-test('Node keeps Gaussian model and prompt controls usable while generate remains disabled after typing',async()=>{
- const f=await nodeFixture('worldlabs-marble-1.1'),[world]=await ready;
- f.context.build(f.node,[],world.prepare(f.node,[]));
- const submit=f.panel.querySelector('.world-generate'),input=f.panel.querySelector('textarea'),message=f.panel.querySelector('.world-renderer-unavailable');
- assert.equal(submit.disabled,true);assert.match(submit.title,/本地.*SPZ.*渲染/);assert.equal(input.disabled,false);
- assert.equal(message.attributes.role,'status');assert.match(message.textContent,/本地.*SPZ.*渲染/);
- const footer=f.panel.querySelector('footer');assert.equal(footer.children[0].disabled,false,'model selector stays available');
- input.value='a new courtyard';input.oninput();assert.equal(submit.disabled,true);assert.match(submit.title,/本地.*SPZ.*渲染/);assert.equal(f.calls.dispatch,0);
-});
+test('unconfigured Marble still stops before dispatch despite available local SPZ renderer',async()=>{const f=await agentFixture('worldlabs-marble-1.1');f.api.availability=async()=>{f.calls.availability++;return {configured:false};};assert.equal((await f.start({})).configurationRequired,true);assert.equal(f.calls.availability,1);assert.equal(f.calls.dispatch,0);assert.equal(f.calls.materialize,0);});
+test('Node Gaussian controls enable generation for valid input and stay independent of provider configuration',async()=>{const f=await nodeFixture('worldlabs-marble-1.1'),[world]=await ready;f.context.build(f.node,[],world.prepare(f.node,[]));const submit=f.panel.querySelector('.world-generate'),input=f.panel.querySelector('textarea');assert.equal(submit.disabled,false);assert.equal(input.disabled,false);assert.equal(f.panel.querySelector('.world-renderer-unavailable'),null);input.value='a new courtyard';input.oninput();assert.equal(submit.disabled,false);assert.equal(f.calls.dispatch,0);});
 
 test('Node Tripo GLB settings remain enabled and dispatch through normal materialization',async()=>{
  const f=await nodeFixture(),[world]=await ready;f.context.build(f.node,[],world.prepare(f.node,[]));

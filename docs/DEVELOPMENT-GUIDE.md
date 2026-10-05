@@ -44,8 +44,9 @@
 | `pnpm build:image` | `image-editor-entry.mjs` | `assets/image-editor.js`，IIFE | Fabric 编辑器、关联图片和编辑器导入模块 |
 | `pnpm build:mask` | `image-mask-entry.mjs` | `assets/image-mask.js`，ESM | 浮动蒙版引擎及其导入模块 |
 | `pnpm build:agent` | `src/features/agent-composer/editor-entry.mjs` | `assets/agent-editor.js`，ESM | 共享 Agent/节点提示词编辑器、内联引用、共享 Markdown 解析 |
+| `pnpm build:spark` | 官方 `@sparkjsdev/spark@2.3.1` ESM | `assets/spark.js` 与 `assets/licenses/`，ESM | 成熟高斯渲染库；WASM/Worker 内嵌，Three 保持 external |
 
-四项构建均使用已有 esbuild，`legalComments: 'linked'` 保留许可旁文件。不要手改压缩产物。`build:agent` 将主体库 store 保留为外部模块，确保编辑器与按需 UI 使用同一份存储缓存；不要把它重新打包成第二个实例。
+上述构建均使用已有 esbuild，`legalComments: 'linked'` 保留许可旁文件；Spark 另复制其与 fflate 的完整 MIT 许可。不要手改压缩产物。`build:agent` 将主体库 store 保留为外部模块，确保编辑器与按需 UI 使用同一份存储缓存；不要把它重新打包成第二个实例。Spark 构建保留上游 GLSL 字符串中的行尾空白，提交时源码空白检查可精确排除 `assets/spark.js`，不重写着色器字符串以满足格式检查。
 
 `pnpm run setup` 只独占创建缺失的四份根数据文件，并校验/发布本机资源索引；已有数据不会覆盖。务必保留 `run`，`pnpm setup` 是包管理器自身的另一条命令。
 

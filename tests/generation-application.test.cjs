@@ -20,6 +20,7 @@ test('concurrent and reentrant requests share one application and unknown or unf
 function applicationHarness(){
  const source=fs.readFileSync(require.resolve('../generation-ui.js'),'utf8'),jobs=new Map(),nodes=[{id:'source',type:'studio'}],calls={connected:0,scene:0,cleared:0},context={service:{jobs},draftGuards:new Map(),inPlace:new Map(),videoTargets:new Map(),imageTargets:new Map(),derivedTargets:new Map(),resultWorkflow:{has:()=>false,clear:()=>calls.cleared++},app:{getState:()=>({nodes}),createConnected:()=>{calls.connected++;return [{id:'result'}];}},validateOutputMedia:async()=>{},window:{StudioAPI:{acceptGeneration:async()=>{calls.scene++;if(calls.scene===1)throw Error('scene not ready');return {objectIds:['object']};}}}};
  context.provenanceReady=import('../src/features/media-preview/provenance.mjs');
+ context.panoramaValidation=import('../src/features/image-generation/panorama-native.mjs');
  context.audioSubtitleReceipts=new Map();
  vm.createContext(context);vm.runInContext(source.slice(source.indexOf('  async function applyResults('),source.indexOf('  function applicationChanged(')),context);return {context,jobs,nodes,calls};
 }

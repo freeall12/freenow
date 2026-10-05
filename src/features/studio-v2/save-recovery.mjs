@@ -1,3 +1,4 @@
+import {splatProxy} from '../world-node/splat-io.mjs';
 import * as THREE from 'three';
 import {loadSaved,disposeModel} from './model-io.mjs';
 import {validateLighting,validateViewport} from './scene-settings.mjs';
@@ -43,7 +44,7 @@ export async function prepareSavedScene(runtime){
   const content=new THREE.Scene();content.name='Scene';
   try{
     const loaded=saved.asset?await loadSaved(saved.asset):null;
-    if(loaded)for(const child of loaded.scene.children.slice())content.add(child);
+    if(loaded)for(const child of loaded.scene.children.slice())content.add(child);else for(const resource of saved.splatAssets||[])content.add(splatProxy(resource,{name:resource.name,id:resource.id}));
     runtime.assertTargetNode();
     if(runtime.closed)throw Error('片场已关闭，本次未重新加载');
     const animations=loaded?.animations||[];

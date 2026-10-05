@@ -162,7 +162,7 @@ function toolbar(picked, bar, state) {
 async function preview(id) {try {const node = get(id); if (!node?.worldResource) return; await (await import('./resource.mjs')).preview(node);} catch (error) {app.notify(error.message);}}
 async function download(id) {try {await (await import('./resource.mjs')).download(get(id));} catch (error) {app.notify(error.message);}}
 function upload(id) {
-  const file = el('input'); file.type = 'file'; file.accept = '.glb';
+  const file = el('input'); file.type = 'file'; file.accept = '.glb,.spz';
   file.onchange = async () => {
     if (!file.files[0]) return; const node = get(id), baseline = JSON.stringify(node?.worldResource);
     try {const patch = await (await import('./resource.mjs')).importFile(file.files[0]);

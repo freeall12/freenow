@@ -1,17 +1,16 @@
 // Keep submission readiness independent of Three and browser initialization.
 // Add formats here only after resource.materialize can decode and persist them.
 export function worldRendererCapabilities() {
-  return {formats: ['glb'], representations: ['mesh'], gaussianSplat: false};
+  return {formats: ['glb','spz'], representations: ['mesh','gaussianSplat'], gaussianSplat: true};
 }
 
 export function worldRendererError(resource = {}) {
   const capabilities = worldRendererCapabilities();
   if (resource.format !== undefined && !capabilities.formats.includes(resource.format))
-    return '此 3D 结果格式的渲染器尚未接入；当前本地仅能应用 GLB 网格';
+    return '此 3D 结果格式的渲染器尚未接入；当前本地支持 GLB 网格和预算内 SPZ 高斯';
   if (resource.representation !== undefined && !capabilities.representations.includes(resource.representation))
-    return resource.representation === 'gaussianSplat'
-      ? '当前本地尚未接通高斯泼溅（SPZ）渲染，暂时无法生成并应用此 3D 场景'
-      : '此 3D 表示的本地渲染器尚未接入；当前本地仅能应用 GLB 网格';
+    return '此 3D 表示的本地渲染器尚未接入；当前本地支持 GLB 网格和预算内 SPZ 高斯';
+  if(resource.format==='glb'&&resource.representation==='gaussianSplat'||resource.format==='spz'&&resource.representation==='mesh')return '3D 结果格式与表示类型不一致，不能将高斯当作网格应用';
   return null;
 }
 

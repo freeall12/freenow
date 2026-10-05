@@ -90,6 +90,7 @@ const server=http.createServer(async(req,res)=>{try{
   'src/features/agent-apps/actor-emotion-local-resources.mjs',
   'src/features/agent-apps/production-progress-local-brand.mjs',
   'src/features/agent-apps/local-lifecycle.mjs',
+  'src/features/agent-apps/platform-resize-local-interactions.mjs',
   'src/features/agent-apps/performance-rhythm-local-interactions.mjs',
   'src/features/agent-apps/story-room-local-interactions.mjs',
   'src/features/agent-apps/picker-local-presentation.mjs',

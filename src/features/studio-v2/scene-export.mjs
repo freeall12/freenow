@@ -1,3 +1,4 @@
+import {splatObjects} from '../world-node/splat-io.mjs';
 import {exportGlb} from './model-io.mjs';
 
 export function sceneFilename(name){
@@ -10,7 +11,7 @@ export function sceneSize(bytes){return bytes<1e6?(bytes/1e3).toFixed(1)+' KB':(
 export async function exportSceneDocument(runtime,{serialize=exportGlb}={}){
   const revision=runtime.revision,content=runtime.content,sessionId=runtime.sessionId;
   const check=()=>{runtime.assertReady();runtime.assertTargetNode();if(runtime.restoring||runtime.motion?.gesture||runtime.transform?.dragging||runtime.capturing)throw Error('正在编辑或拍摄片场，请完成当前操作后导出');if(runtime.revision!==revision||runtime.content!==content||runtime.sessionId!==sessionId)throw Error('场景已更新，本次未导出。请重新导出当前场景');};
-  check();await runtime.flush();check();
+  check();if(typeof runtime.content.traverse==='function'&&splatObjects(runtime.content).length)throw Error('此片场含高斯数据，GLB 无法包含完整 SPZ；请下载原 SPZ，片场编辑已保存在本机');await runtime.flush();check();
   const document=runtime.playback.document(),animations=runtime.animations.map(clip=>clip.clone());
   const blob=await serialize(document,animations);check();
   if(!(blob instanceof Blob)||blob.size<20)throw Error('场景导出没有生成有效的 GLB 文件');

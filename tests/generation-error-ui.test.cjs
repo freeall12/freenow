@@ -8,11 +8,38 @@ function failure(target, signature, overrides = {}) {
     providerDispatched: true, error: '模型服务暂时不可用', nodeFailures: [{node: target, signature}], ...overrides};
 }
 
+test('depth errors use video overlay and are permanently superseded by a newer video operation', async () => {
+  const {failureSignature, createFailureState} = await model, {install} = await ui;
+  for (const [firstKind, nextKind] of [['video.depth', 'video.generate'], ['video.generate', 'video.depth']]) {
+    const f = fixture({type: 'video'}), first = failure(f.target, failureSignature(f.target), {request: {kind: firstKind, nodeId: f.target.id}});
+    f.setJobs([first]); const controller = install(f.options); assert.equal(f.body.children[0].className, 'generation-error-overlay');
+    const newer = {id: 'job-2', status: 'queued', request: {kind: nextKind, nodeId: f.target.id}};
+    f.setJobs([first, newer]); assert.equal(f.body.children.length, 0); f.setJobs([first]); assert.equal(f.body.children.length, 0); controller.destroy();
+  }
+  const image = node(), mismatch = failure(image, failureSignature(image), {request: {kind: 'video.depth', nodeId: image.id}});
+  assert.equal(createFailureState().collect({nodes: [image]}, [mismatch]).size, 0);
+});
+
+test('depth errors reject edited, replaced and unrelated-operation receipts', async () => {
+  const {failureSignature, createFailureState} = await model;
+  for (const change of ['edit', 'identity', 'operation']) {
+    const target = node('target', 'video'), original = {...target}, state = {nodes: [target]}, store = createFailureState(),
+      signed = failure(target, failureSignature(target), {request: {kind: 'video.depth', nodeId: target.id}});
+    assert.equal(store.collect(state, [signed]).size, 1);
+    if (change === 'edit') target.video = 'edited.mp4';
+    if (change === 'identity') state.nodes = [{...target}];
+    if (change === 'operation') target.pendingOperation = 'video.generate';
+    assert.equal(store.collect(state, [signed]).size, 0);
+    Object.assign(target, original); delete target.pendingOperation; state.nodes = [target]; assert.equal(store.collect(state, [signed]).size, 0);
+  }
+});
+
 test('signature is stable and ignores exactly movement and transient generation markers', async () => {
   const {failureSignature} = await model;
   const source = {...node(), generation: {model: 'model', ratio: '1:1'}}, signature = failureSignature(source);
   assert.equal(failureSignature({...source, generation: {ratio: '1:1', model: 'model'}, x: 500, y: 800, selected: true,
-    pendingOperation: 'image.generate', generationRun: {runId: 'job'}}), signature);
+    pendingOperation: 'image.generate', generationRun: {runId: 'job'},
+    generationRecovery: {version: 1, runId: 'job', kind: 'image.generate', signature: 'durable baseline'}}), signature);
   for (const patch of [{width: 301}, {title: '改名'}, {image: 'new.jpg'}, {generation: {model: 'other'}}, {hidden: true}]) {
     assert.notEqual(failureSignature({...source, ...patch}), signature);
   }

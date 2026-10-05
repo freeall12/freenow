@@ -11,9 +11,11 @@
     "build:image": "node scripts/build-image-editor.cjs",
     "build:mask": "node scripts/build-image-mask.cjs",
     "build:agent": "node scripts/build-agent-editor.cjs",
-    "setup": "node scripts/setup-local-data.cjs"
+    "setup": "node scripts/setup-local-data.cjs",
+    "build:spark": "node scripts/build-spark.cjs"
   },
   "dependencies": {
+    "@sparkjsdev/spark": "2.3.1",
     "@tabler/icons": "^3.47.0",
     "@tiptap/core": "3.31.3",
     "@tiptap/markdown": "3.31.3",

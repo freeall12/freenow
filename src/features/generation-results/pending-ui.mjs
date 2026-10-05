@@ -1,4 +1,6 @@
 const types = new Set(['image', 'video', 'text']);
+const supportsOperation = (type, kind) => types.has(type) &&
+  (kind === `${type}.generate` || type === 'video' && kind === 'video.depth');
 const installations = new WeakMap();
 const isActive = job => ['queued', 'running'].includes(job.status) ||
   job.status === 'succeeded' && job.applying && !job.applied && !job.applicationError;
@@ -10,20 +12,20 @@ export function pendingNodes(state, jobs = []) {
   const result = new Map(), activeRuns = new Set();
   let byJob, nodes;
   for (const node of state.nodes) {
-    if (!types.has(node.type) || node.pendingOperation !== `${node.type}.generate` ||
+    if (!supportsOperation(node.type, node.pendingOperation) ||
         typeof node.generationRun?.runId !== 'string' || !node.generationRun.runId ||
         typeof node.generationRun?.requestId !== 'string' || !node.generationRun.requestId) continue;
     const job = jobs.length ? (byJob ||= new Map(jobs.map(job => [job.id, job]))).get(node.generationRun.runId) : undefined;
     // A durable marker without a live task is awaiting explicit recovery, not evidence of active generation.
     if (!job && node.generationRecovery?.version === 1) continue;
-    if (job && (job.request?.kind !== `${node.type}.generate` || !isActive(job))) continue;
+    if (job && (job.request?.kind !== node.pendingOperation || !isActive(job))) continue;
     result.set(node.id, {node, runId: node.generationRun.runId});
     activeRuns.add(node.generationRun.runId);
   }
   for (const job of jobs) {
     if (!isActive(job)) continue;
     const type = job.request?.kind?.split('.')[0];
-    if (!types.has(type) || job.request.kind !== `${type}.generate`) continue;
+    if (!supportsOperation(type, job.request.kind)) continue;
     const targets = job.request.parameters?.canvasResults?.targetNodeIds;
     // Planned targets are owned by their markers. Undo, editing or applying a
     // result may remove them while the provider task remains in the task tray.
@@ -32,7 +34,7 @@ export function pendingNodes(state, jobs = []) {
     for (const id of [job.request.nodeId]) {
       const node = nodes.get(id);
       if (!node || node.type !== type || result.has(id)) continue;
-      if (node.pendingOperation && node.pendingOperation !== `${type}.generate`) continue;
+      if (node.pendingOperation && node.pendingOperation !== job.request.kind) continue;
       if (node.generationRun?.runId && node.generationRun.runId !== job.id) continue;
       result.set(id, {node, runId: job.id});
       activeRuns.add(job.id);

@@ -3,7 +3,7 @@ import {imageResultCounts} from './counts.mjs';
 import {modelFor} from '../image-generation/catalog.mjs';
 import {resultProvenance} from '../media-preview/provenance.mjs';
 
-const kinds = new Set(['image.generate', 'video.generate', 'text.generate']);
+const kinds = new Set(['image.generate', 'video.generate', 'video.depth', 'text.generate']);
 const aborted = () => Object.assign(new Error('生成任务已取消'), {name: 'AbortError'});
 
 // Capture only the source and its incoming references, before any asynchronous
@@ -64,6 +64,9 @@ export function createResultWorkflow(app) {
         runId: jobId, resultLayout: submission.mode, sourceNodeSnapshot,
         idFactory: () => crypto.randomUUID(),
       });
+      // The graph planner is shared by generation and video processing. Keep
+      // the actual operation on every placeholder for recovery and task status.
+      for (const node of plan.pendingTargetNodes) node.pendingOperation = request.kind;
       const run = {plan, committed: false, cancelled: false, cleared: false};
       runs.set(jobId, run);
       try {

@@ -70,7 +70,7 @@ export async function saveSceneKeyframe(runtime, args) {
   const source = runtime.find(id);
   if (!source || source === runtime.content) throw Error('请先选择要设置关键帧的对象');
   let renderable = false;
-  source.traverse(node => { if (node.isMesh || node.isBone || node.isLight) renderable = true; });
+  source.traverse(node => { if (node.isMesh || node.isBone || node.isLight || node.userData?.worldSplat) renderable = true; });
   if (!source.isCamera && !renderable) throw Error('此对象不支持关键帧播放，请选择镜头、模型、骨骼、光源或包含这些内容的组');
   const revision = runtime.revision, time = Math.fround(args.time), space = args.space ?? 'parent-local';
   source.updateWorldMatrix(true, false);

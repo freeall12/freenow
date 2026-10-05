@@ -24,7 +24,7 @@
   const make = (tag, cls, text) => {const e=document.createElement(tag);if(cls)e.className=cls;if(text!==undefined)e.textContent=text;return e;};
   const icon = name => window.UI_ICONS[name] || window.UI_ICONS.spark;
   const button = (label, fn, cls='') => {const b=make('button',cls,label);b.type='button';if(fn)b.onclick=fn;window.applyButtonIcon?.(b,label);return b;};
-  const videoModels=['Seedance 2.0 Mini','Wan 2.6','TapNow 悠船 Video','Hailuo02','Vidu Q2','Seedance 2.0','Seedance 2.0 Fast','Seedance 2.5','Seedance 2.5 样片','MiniMax H3','Wan 3.0','Kling 3.0 Omni','TapNow Omni Flash','TapNow Omni 1.1 Flash','Kling 3.0','HappyHorse 1.0','HappyHorse 1.1','Kling O1','Video 3.1 Lite','Video 3.1 Fast','Video 3.1','Kling 2.6','Seedance 1.0 Pro','Vidu Q2 Pro','Vidu Q2 Turbo','Kling 2.1','PixVerse 5.5','PixVerse 5.0','MiniMax H3 Max','FLUX 3','HappyHorse 1.0 Edit','Kling 3.0 Omni Edit','Kling O1 Edit','Hailuo-2.3','Hailuo-2.3 Fast','Vidu Q3','Kling 2.5','Kling 2.6 Motion Control','Wan 2.2','Wan 2.2 Flash','Wan 2.5','Soda 2','Soda 2 Pro','OmniHuman 1.5'];
+  const videoModels=['Seedance 2.0 Mini','Wan 2.6','TapNow 悠船 Video','Depth Anything Video','Hailuo02','Vidu Q2','Seedance 2.0','Seedance 2.0 Fast','Seedance 2.5','Seedance 2.5 样片','MiniMax H3','Wan 3.0','Kling 3.0 Omni','TapNow Omni Flash','TapNow Omni 1.1 Flash','Kling 3.0','HappyHorse 1.0','HappyHorse 1.1','Kling O1','Video 3.1 Lite','Video 3.1 Fast','Video 3.1','Kling 2.6','Seedance 1.0 Pro','Vidu Q2 Pro','Vidu Q2 Turbo','Kling 2.1','PixVerse 5.5','PixVerse 5.0','MiniMax H3 Max','FLUX 3','HappyHorse 1.0 Edit','Kling 3.0 Omni Edit','Kling O1 Edit','Hailuo-2.3','Hailuo-2.3 Fast','Vidu Q3','Kling 2.5','Kling 2.6 Motion Control','Wan 2.2','Wan 2.2 Flash','Wan 2.5','Soda 2','Soda 2 Pro','OmniHuman 1.5'];
   const modelLabel=name=>videoModels.includes(name)?name.replace(/^TapNow /,'freenow '):name;
   const nodeSettingsKey=window.CanvasProjects?.storageKey('tapnow-node-settings')||'tapnow-node-settings';
   let drafts={};try{drafts=JSON.parse(localStorage.getItem(nodeSettingsKey)||'{}');}catch{}
@@ -43,6 +43,10 @@
   import('./src/features/subject-library/entry.mjs').then(async module=>{await module.readySubjects();subjects=module;if(node)draw();}).catch(error=>console.error('Subject library:',error));
   let focusEdit=null;
   import('./src/features/focus-edit/entry.mjs').then(module=>{focusEdit=module;if(node){draw();}}).catch(error=>console.error('Focus edit:',error));
+  let depthComposer=null;
+  const depthComposerReady=import('./src/features/video-depth/composer.mjs').then(module=>{depthComposer=module;if(node&&module.isDepthModel(config)){config=structuredClone(getConfig(node));draw();}return module;}).catch(error=>{console.error('Depth composer:',error);return null;});
+  const depthSelected=value=>depthComposer?.isDepthModel(value)||['Depth Anything Video','depth-anything-video','DEPTH_ANYTHING_VIDEO'].includes(value?.model||value?.modelId);
+  function depthIcon(){const img=make('img','image-model-icon');img.src='assets/branding/freenow-mark.svg';img.alt='';return img;}
   let videoMenus=null, videoFrames=null, referencePicker=null, framePicker=null, tailFrameKey=null;
   import('./src/features/canvas-reference-picker/entry.mjs').then(module=>{referencePicker=module;}).catch(error=>console.error('Canvas reference selection:',error));
   import('./src/features/video-generation/frames.mjs').then(module=>{videoFrames=module;if(node)draw();}).catch(error=>console.error('Video frames:',error));
@@ -56,6 +60,7 @@
   document.body.append(panel,pop);
   function defaults(n){return {prompt:'',refs:[],model:n.type==='video'?'Seedance 2.0':'Tap Nano 2',ratio:'16:9',quality:n.type==='video'?'1080p':'2K',duration:5,count:n.type==='video'?1:4,camera:'Sony Venice',lens:'Zeiss Ultra Prime',focal:'24mm',aperture:'ƒ/4',thinking:'high',mode:'全能参考',audio:true};}
   function countConfiguration(value,n=node){
+    if(n.type==='video'&&depthSelected(value))return {options:[1,2],times:[1,2].includes(value.count??value.times)?value.count??value.times:1,batchSize:1,displayCount:1};
     if(n.type==='image'&&(imageMenus?.modelFor(value.model)?.nativePanorama||value.modelId==='hunyuan-world-panorama'||value.model==='hunyuan-world-panorama'||value.model==='Hunyuan World Panorama'))return {options:[1],times:1,batchSize:1,displayCount:1};
     if(!resultCounts)return {options:[1,2],times:value.count};
     if(n.type==='image')return resultCounts.imageResultCounts({mode:resultMode,isMidjourney:!!imageMenus?.modelFor(value.model)?.midjourney||/^midjourney(?:-|\s)/i.test(value.model),currentTimes:value.count??value.times});
@@ -73,6 +78,7 @@
   function getConfig(n){
     const saved=n.generation||n.params||drafts[n.id]||window.EDITOR_DATA?.nodes[n.id]||{};
     let value={...defaults(n),...cameraControls?.initialSettings(n,saved),...saved};
+    if(n.type==='video'&&depthComposer?.isDepthModel(saved))return depthComposer.depthComposerSettings(saved);
     if(n.type==='image'&&(saved.modelId==='hunyuan-world-panorama'||saved.model==='hunyuan-world-panorama'||saved.model==='Hunyuan World Panorama'))return normalizeCountConfig({prompt:'',refs:[],cameraEnabled:false,model:'Hunyuan World Panorama',...saved},n);
     if(saved.count===undefined&&saved.times!==undefined)value.count=saved.times;
     if(n.type==='video'&&['MiniMax-H3','MiniMax-H3-Max'].includes(videoMenus?.modelFor(value.model)?.id)){
@@ -138,9 +144,10 @@
   function videoInputs(){const base=[...references(),...(composerLayout?.assetReferences(config.prompt)||[])].filter(item=>!item.empty);if(!subjects?.subjectsEnabled(node.type,config))return base;try{return subjects.projectSubjects({kind:'video.generate',prompt:config.prompt,inputs:base,parameters:config},subjects.listSubjects()).inputs;}catch{return base;}}
   function commitVideo(next){
     if(!node||node.type!=='video'||busy())return config;
-    config=normalizeCountConfig(videoMenus.configuration(next,videoInputs())?.settings||next);
+    const redraw=depthSelected(config)||depthSelected(next);
+    config=depthComposer?.isDepthModel(next)?depthComposer.depthComposerSettings({...next,resultMode}):normalizeCountConfig(videoMenus.configuration(next,videoInputs())?.settings||next);
     if(!frameMode())framePicker?.close();
-    save();refreshReferenceRow();refreshFooter();position();return config;
+    save();if(redraw)draw();else{refreshReferenceRow();refreshFooter();position();}return config;
   }
   async function videoSpecMenu(anchor){
     if(togglePopover(anchor))return;
@@ -151,12 +158,13 @@
   }
   function qualityMenu(anchor){
     if(node.type==='image')return imageMenu('spec',anchor);
+    if(depthSelected(config)){if(togglePopover(anchor))return;showPopover(anchor);depthComposer?.renderDepthSpecifications(pop);placePopover();return;}
     if(videoMenus?.modelFor(config.model))return videoSpecMenu(anchor);
     if(togglePopover(anchor))return;showPopover(anchor,'quality-popover');row('生成方式',['首尾帧','全能参考'],'mode');ratios(['16:9','4:3','1:1','3:4','9:16','21:9']);row('清晰度',['480p','720p','1080p','4k'],'quality');row('生成时长',Array.from({length:12},(_,i)=>i+4),'duration','durations');row('生成音频',['开启','关闭'],'audioLabel');placePopover();
   }
-  function modelMenu(anchor){
+  async function modelMenu(anchor){
     if(node.type==='image')return imageMenu('model',anchor);
-    if(togglePopover(anchor))return;showPopover(anchor,'model-popover');for(const name of videoModels){const b=button('',()=>{const next={...config,model:name,videoMode:undefined},before=videoMenus?.modelFor(config.model)?.id||config.model,after=videoMenus?.modelFor(name)?.id||name;if(before!==after)for(const key of ['draft','draftVideoId','draftEstimateMedia'])delete next[key];if(videoMenus?.modelFor(name))commitVideo(next);else{config=normalizeCountConfig(next);save();draw();}closePopover(true);},'model-option');const symbol=make('span','model-symbol');const originalIcon=videoMenus?.modelIcon({model:name});if(originalIcon)symbol.append(originalIcon);else symbol.innerHTML=icon('spark');b.append(symbol,make('span','model-name',modelLabel(name)));if(name===config.model||videoMenus?.modelFor(name)?.id===videoMenus?.modelFor(config.model)?.id&&videoMenus?.modelFor(name))b.append(make('span','selected-mark','✓'));pop.append(b);}placePopover();
+    if(togglePopover(anchor))return;const revision=++menuRevision,id=activeId;pendingAnchor=anchor;await depthComposerReady;if(revision!==menuRevision||activeId!==id||!anchor.isConnected||busy())return;showPopover(anchor,'model-popover');for(const name of videoModels){const b=button('',()=>{const next={...config,model:name,videoMode:undefined},before=videoMenus?.modelFor(config.model)?.id||config.model,after=videoMenus?.modelFor(name)?.id||name;if(before!==after)for(const key of ['draft','draftVideoId','draftEstimateMedia'])delete next[key];if(depthSelected(next)||videoMenus?.modelFor(name))commitVideo(next);else{config=normalizeCountConfig(next);save();draw();}closePopover(true);},'model-option');const symbol=make('span','model-symbol');const originalIcon=depthSelected({model:name})?depthIcon():videoMenus?.modelIcon({model:name});if(originalIcon)symbol.append(originalIcon);else symbol.innerHTML=icon('spark');b.append(symbol,make('span','model-name',modelLabel(name)));if(depthSelected({model:name}))b.append(make('span','model-new','NEW'));if(name===config.model||videoMenus?.modelFor(name)?.id===videoMenus?.modelFor(config.model)?.id&&videoMenus?.modelFor(name))b.append(make('span','selected-mark','✓'));pop.append(b);}placePopover();
   }
   function countMenu(anchor){if(node.type==='image')return imageMenu('count',anchor);if(togglePopover(anchor))return;showPopover(anchor,'count-popover');row('生成数量',countConfiguration(config).options,'count');placePopover();}
   function commitCamera(patch){
@@ -244,7 +252,7 @@
         framePicker?.close();const images=items.filter(item=>item.type==='image');
         config=composerLayout.reorderReferences(config,items,items.indexOf(images[1]),items.indexOf(images[0]));tailFrameKey=null;save();draw();
       }});
-    }else referenceUI=composerLayout.renderReferences({focus:subjectFocus||(focusEdit?focusEdit.trigger(node.id):select),items,disabled:busy()||!!focusEdit?.active(),picking:framePicker?.slot==='reference',imageNode:node.type==='image',onAdd:selectReference,onPick:item=>promptControl?.insert(item),
+    }else referenceUI=composerLayout.renderReferences({focus:subjectFocus||(focusEdit?focusEdit.trigger(node.id):select),items,disabled:busy()||!!focusEdit?.active(),picking:framePicker?.slot==='reference',imageNode:node.type==='image',onAdd:selectReference,onPick:item=>{if(!depthSelected(config))promptControl?.insert(item);},
       onRemove:index=>removeReferenceItem(items[index]),
       onReorder(from,to){config=composerLayout.reorderReferences(config,items,from,to);save();draw();}
     });referenceUI.element.dataset.busy=String(busy());return referenceUI.element;
@@ -255,12 +263,12 @@
   function refreshFooter(){
     if(draftFinalUI?.finalMode(node,config))return;
     const footer=panel.querySelector('.generation-footer');if(!footer)return;const anchorClass=!pop.hidden?popAnchor?.classList[0]:null;footer.replaceChildren();
-    const model=button('',e=>modelMenu(e.currentTarget),'model-trigger');const originalModelIcon=node.type==='image'?imageMenus?.modelIcon(config):videoMenus?.modelIcon(config);if(originalModelIcon)model.append(originalModelIcon);else model.innerHTML=icon('spark');model.append(make('span','',node.type==='video'?modelLabel(videoMenus?.modelFor(config.model)?.name||config.model):config.model));model.setAttribute('aria-label','选择生成模型');footer.append(model,make('span','footer-separator'));
-    const videoData=node.type==='video'&&videoMenus?.configuration(config,videoInputs());
-    const quality=button('',e=>qualityMenu(e.currentTarget),'quality-trigger');if(node.type==='image'&&imageMenus)quality.append(imageMenus.ratioIcon(config.ratio,16));else if(!videoData?.modeOptions?.length)quality.innerHTML=icon('screen');quality.append(make('span','',node.type==='video'?(videoData?videoMenus.triggerLabel(videoData):`${config.mode} · ${config.ratio} · ${config.quality} · ${config.duration}s`):(imageMenus?.triggerLabel(config)||`${config.ratio} · ${config.quality}`)));if(node.type==='video'&&videoData?.options.supportsAudio){quality.append(make('span','','·'),videoMenus.audioIcon(videoData.settings.audio));}quality.setAttribute('aria-label','生成规格');footer.append(quality);
+    const model=button('',e=>modelMenu(e.currentTarget),'model-trigger');const originalModelIcon=node.type==='image'?imageMenus?.modelIcon(config):(depthSelected(config)?depthIcon():videoMenus?.modelIcon(config));if(originalModelIcon)model.append(originalModelIcon);else model.innerHTML=icon('spark');model.append(make('span','',node.type==='video'?modelLabel(videoMenus?.modelFor(config.model)?.name||config.model):config.model));model.setAttribute('aria-label','选择生成模型');footer.append(model,make('span','footer-separator'));
+    const depth=node.type==='video'&&depthSelected(config),videoData=node.type==='video'&&!depth&&videoMenus?.configuration(config,videoInputs());
+    const quality=button('',e=>qualityMenu(e.currentTarget),'quality-trigger');if(node.type==='image'&&imageMenus)quality.append(imageMenus.ratioIcon(config.ratio,16));else if(!videoData?.modeOptions?.length)quality.innerHTML=icon('screen');quality.append(make('span','',node.type==='video'?(depth?'视频编辑 · 自动':videoData?videoMenus.triggerLabel(videoData):`${config.mode} · ${config.ratio} · ${config.quality} · ${config.duration}s`):(imageMenus?.triggerLabel(config)||`${config.ratio} · ${config.quality}`)));if(node.type==='video'&&videoData?.options?.supportsAudio){quality.append(make('span','','·'),videoMenus.audioIcon(videoData.settings.audio));}quality.setAttribute('aria-label','生成规格');footer.append(quality);
     if(node.type==='image'){if(!imageMenus?.modelFor(config.model)?.nativePanorama){const style=button('',()=>chooseReference(true),'style-trigger');style.innerHTML=icon('image');style.append(make('span','','风格'));style.classList.toggle('configured',!!config.style);footer.append(style);}if(cameraControls?.supportsCamera(imageMenus?.modelFor(config.model)?.id))footer.append(cameraControls.renderTrigger(config,commitCamera,cameraMenu));}
-    footer.append(make('span','footer-spacer'));const voice=button('',null,'voice-trigger');voice.innerHTML=icon('mic');footer.append(voice,make('span','footer-separator'));const voiceNodeId=node.id,voiceTarget=panel.querySelector('.prompt-editor');window.VoiceInput.bind(voice,{target:voiceTarget,getValue:()=>promptControl?promptControl.getText():focusEdit?focusEdit.readPrompt(voiceTarget):voiceTarget.innerText,captureSelection:promptControl?()=>promptControl.captureSelection():undefined,commitTranscript:promptControl?(snapshot,text)=>promptControl.commitTranscript(snapshot,text):undefined,setValue:value=>{if(promptControl)promptControl.sync(value);else if(focusEdit)focusEdit.paintPrompt(voiceTarget,value);else voiceTarget.textContent=value;config.prompt=value;save();},isCurrent:()=>activeId===voiceNodeId,mount:footer});
-    const count=button(config.count*(node.type==='image'&&imageMenus?.modelFor(config.model)?.midjourney?4:1)+'×',e=>countMenu(e.currentTarget),'count-trigger');count.setAttribute('aria-label','生成数量');footer.append(count);
+    footer.append(make('span','footer-spacer'));const voice=button('',null,'voice-trigger');voice.innerHTML=icon('mic');footer.append(voice,make('span','footer-separator'));const voiceNodeId=node.id,voiceTarget=panel.querySelector('.prompt-editor');voice.disabled=depth;voice.setAttribute('aria-label','语音输入');voice.title=depth?'此模型无需提示词':'';if(!depth)window.VoiceInput.bind(voice,{target:voiceTarget,getValue:()=>promptControl?promptControl.getText():focusEdit?focusEdit.readPrompt(voiceTarget):voiceTarget.innerText,captureSelection:promptControl?()=>promptControl.captureSelection():undefined,commitTranscript:promptControl?(snapshot,text)=>promptControl.commitTranscript(snapshot,text):undefined,setValue:value=>{if(promptControl)promptControl.sync(value);else if(focusEdit)focusEdit.paintPrompt(voiceTarget,value);else voiceTarget.textContent=value;config.prompt=value;save();},isCurrent:()=>activeId===voiceNodeId,mount:footer});
+    const count=button(config.count*(node.type==='image'&&imageMenus?.modelFor(config.model)?.midjourney?4:1)+'×',e=>countMenu(e.currentTarget),'count-trigger');count.setAttribute('aria-label','生成数量');if(depth)count.title=depthComposer?.depthCountHint||'每个结果独立执行一次深度转换';footer.append(count);
     const generate=button('',submitGeneration,'generate-trigger');generate.title='生成';generate.setAttribute('aria-label','生成');footer.append(generate);
     for(const trigger of [model,quality,count]){trigger.setAttribute('aria-haspopup','dialog');trigger.setAttribute('aria-expanded','false');}
     if(anchorClass){popAnchor=footer.querySelector('.'+anchorClass);popAnchor?.setAttribute('aria-expanded','true');}
@@ -273,12 +281,12 @@
     if(busy())return;
     if(frameError()){app.notify(frameError());return;}
     const target=node,submitted=structuredClone(config);submitting.add(target.id);updateBusyState();
-    try{return await window.GenerationAPI.submit({kind:target.type+'.generate',label:target.type==='video'?'视频生成':'图片生成',nodeId:target.id,...generationContent(submitted),parameters:submitted});}catch(error){app.notify(error.message);}finally{submitting.delete(target.id);updateBusyState();}
+    try{if(target.type==='video'&&depthSelected(submitted)){const module=await depthComposerReady;if(!module||node!==target||panel.hidden)throw Error('原节点已切换或深度入口仍未就绪');return window.GenerationAPI.submit(module.depthComposerRequest({nodeId:target.id,settings:submitted,inputs:inputs(submitted),sourceNodes:app.getState().nodes}));}return await window.GenerationAPI.submit({kind:target.type+'.generate',label:target.type==='video'?'视频生成':'图片生成',nodeId:target.id,...generationContent(submitted),parameters:submitted});}catch(error){app.notify(error.message);}finally{submitting.delete(target.id);updateBusyState();}
   }
 
   function updateBusyState(){
     if(draftFinalUI?.finalMode(node,config)){panel.setAttribute('aria-busy',String(busy()));draftFinalUI.update();if(busy()&&!pop.hidden)closePopover();return;}
-    const disabled=busy();draftFinalUI?.update();if(panel.querySelector('.reference-strip')?.dataset.busy!==String(disabled)&&panel.querySelector('.reference-strip'))refreshReferenceRow();promptControl?.setEditable(!disabled);panel.setAttribute('aria-busy',disabled);
+    const disabled=busy();draftFinalUI?.update();if(panel.querySelector('.reference-strip')?.dataset.busy!==String(disabled)&&panel.querySelector('.reference-strip'))refreshReferenceRow();promptControl?.setEditable(!disabled&&!depthSelected(config));const prompt=panel.querySelector('.prompt-editor');if(prompt){prompt.contentEditable=String(!disabled&&!depthSelected(config));prompt.setAttribute('aria-readonly',String(disabled||depthSelected(config)));}panel.setAttribute('aria-busy',disabled);
     panel.querySelectorAll('.model-trigger,.quality-trigger,.count-trigger,.generate-trigger,.focus-edit-trigger,.camera-control-trigger button').forEach(button=>{button.disabled=disabled;});
     if(node?.type==='image'&&imageMenus){
       const imageCount=imageInputCount();
@@ -289,7 +297,8 @@
       const counter=panel.querySelector('.reference-count');
       if(counter){counter.textContent=compatibility.error==='max_images_exceeded'?`参考图 ${imageCount} / ${compatibility.maxImages}`:`参考图 ${imageCount} 张`;counter.classList.toggle('exceeded',!compatibility.supported);}
     }
-    if(node?.type==='video'&&videoMenus){const data=videoMenus.configuration(config,videoInputs()),generate=panel.querySelector('.generate-trigger');if(generate&&data){generate.disabled=disabled||!!data.error||!!frameError();generate.title=frameError()||data.error||'生成';}}
+    if(node?.type==='video'&&depthSelected(config)){const generate=panel.querySelector('.generate-trigger'),error=depthComposer?.depthReferenceError(references())||(!depthComposer?'深度入口仍在加载':'');if(generate){generate.disabled=disabled||!!error;generate.title=error||'生成';}const count=panel.querySelector('.count-trigger');if(count)count.title=depthComposer?.depthCountHint||'每个结果独立执行一次深度转换';}
+    if(node?.type==='video'&&!depthSelected(config)&&videoMenus){const data=videoMenus.configuration(config,videoInputs()),generate=panel.querySelector('.generate-trigger');if(generate&&data){generate.disabled=disabled||!!data.error||!!frameError();generate.title=frameError()||data.error||'生成';}}
     const generate=panel.querySelector('.generate-trigger');if(generate)generationAction?.updateGenerationAction(generate,{busy:disabled,disabled:generate.disabled,label:'生成'});
     if(framePicker){const focus=panel.querySelector('.focus-edit-trigger');if(focus)focus.disabled=true;if(disabled)framePicker.close();}
     shortcutController?.update();
@@ -316,7 +325,8 @@
     let prompt;
     if(promptModule){promptControl=promptModule.createNodePrompt({element:host,value:config.prompt,getItems:references,getLibrary:()=>({library:window.CanvasLibrary?.items||[],folders:window.CanvasLibrary?.folders||[]}),getPolicy:()=>composerLayout.libraryPolicy(node.type,config.model,config.mode),getSubjects:()=>subjects?.subjectsEnabled(node.type,config)?subjects.listSubjects():[],onChange:value=>{config.prompt=value;save();},onSubmit:()=>{if(!panel.querySelector('.generate-trigger')?.disabled)submitGeneration();}});prompt=promptControl.dom;}
     else{prompt=make('div','prompt-editor');prompt.contentEditable='true';prompt.setAttribute('role','textbox');prompt.setAttribute('aria-label','生成提示词');prompt.setAttribute('aria-multiline','true');if(focusEdit){focusEdit.paintPrompt(prompt,config.prompt);focusEdit.bindPrompt(prompt);}else prompt.textContent=config.prompt;prompt.oninput=()=>{config.prompt=focusEdit?focusEdit.readPrompt(prompt):prompt.innerText;save();};prompt.onkeydown=e=>e.stopPropagation();host.append(prompt);}
-    prompt.dataset.placeholder=node.type==='video'?'描述视频内容、动作和镜头运动…':'描述你想要生成的画面…';
+    prompt.dataset.placeholder=depthSelected(config)?'此模型无需提示词':node.type==='video'?'描述视频内容、动作和镜头运动…':'描述你想要生成的画面…';
+    if(depthSelected(config)){const disclosure=make('p','depth-model-disclosure','上传完整 MP4；生成无声音灰度视频，保留来源尺寸和时长。每个结果独立转换。');disclosure.title=depthComposer?.depthComposerDisclosure()||'';disclosure.style.cssText='margin:0;padding:0 14px 8px;font-size:11px;color:#aaa;overflow-wrap:anywhere';content.append(disclosure);}
     const footer=make('div','generation-footer');content.append(footer);refreshFooter();bindShortcuts();draftFinalUI?.finishMount();position();
   }
   // Viewport updates retain live width/history geometry, but prompt overflow and

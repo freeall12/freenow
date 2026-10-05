@@ -28,9 +28,11 @@ export function prepareDepthTaskRequest(request){
   if(typeof wire!=='object'||!wire||Array.isArray(wire)||Object.keys(wire).some(key=>key!=='model'))fail('depth_contract_mismatch','深度转换包含不支持的供应商参数');
   const aliases=[p.model,p.modelId,wire.model].filter(value=>value!==undefined);
   if(aliases.some(value=>!text(value))||new Set(aliases).size>1)fail('invalid_model','深度模型标识无效或互相矛盾');
-  for(const count of [request.count,p.count,p.times,p.batch_count,p.canvasResults?.targetNodeIds?.length])if(count!==undefined&&count!==1)fail('depth_contract_mismatch','每个深度转换仅支持单个结果');
+  const counts=[request.count,p.count,p.times,p.canvasResults?.targetNodeIds?.length].filter(value=>value!==undefined);
+  if(counts.some(count=>![1,2].includes(count))||new Set(counts).size>1)fail('depth_contract_mismatch','深度转换数量须为 1 或 2，且数量声明必须一致');
+  if(p.batch_count!==undefined&&(p.canvasResults?p.batch_count!==p.canvasResults.requestPlans?.length:p.batch_count!==1))fail('depth_contract_mismatch','深度转换逻辑批次数与画布分组声明不一致');
   if(request.references!==undefined&&(!Array.isArray(request.references)||request.references.length)||!source||Object.keys(source).some(key=>!['id','nodeId','type','url','title','name','role','duration','width','height','sizeBytes','mime','mimeType'].includes(key))||source.role!==undefined&&!['source_video','reference_video'].includes(source.role))fail('invalid_references','深度转换需要一个已物化完整视频，不能忽略额外参考或选段');
-  if(request.nodeId!==source.id||p.workflow!=='depth-video-studio'||p.protocol!=='local-depth-v1'||p.resolution!=='source'||p.duration!==source.duration||p.width!==source.width||p.height!==source.height||p.preserveDuration!==true||p.promptUsed!==false)fail('depth_contract_mismatch','深度转换请求不符合保留来源时长与分辨率的本地协议');
+  if(typeof request.nodeId!=='string'||!request.nodeId.trim()||request.nodeId!==request.nodeId.trim()||request.nodeId.length>200||/[\x00-\x1f\x7f]/.test(request.nodeId)||p.workflow!=='depth-video-studio'||p.protocol!=='local-depth-v1'||p.resolution!=='source'||p.duration!==source.duration||p.width!==source.width||p.height!==source.height||p.preserveDuration!==true||p.promptUsed!==false)fail('depth_contract_mismatch','深度转换请求不符合保留来源时长与分辨率的本地协议');
   buildDepthRequest({source,modelId:aliases[0]});
   // Preserve already-validated aliases and host orchestration receipts. Rebuilding
   // a request here previously erased unsupported intent before native validation.

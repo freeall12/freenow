@@ -1,12 +1,14 @@
 # World Labs Marble 原生接口
 
-核验日期：2026-10-03。适配器：`server/generation-marble.cjs`，导出 `createMarbleProvider`、`parseMarbleModelMap`。这份说明描述已接线的 API 生成、原任务恢复与 SPZ 输出合同，以及尚待实现的渲染边界。真实供应商调用尚未验收。
+核验日期：2026-10-03；本地Spark渲染接入更新：2026-10-05。适配器：`server/generation-marble.cjs`，导出 `createMarbleProvider`、`parseMarbleModelMap`。这份说明描述已接线的 API 生成、原任务恢复与 SPZ 输出合同，以及已接入的本地SPZ渲染预算与尚待验证的真实Marble资产边界。真实供应商调用尚未验收。
 
 ## 当前接线状态
 
 2026-10-03 已直接检查 `server/generation-router.cjs` 和 `server/generation.cjs`：两处已导入 `createMarbleProvider`，协议白名单和原生工厂均注册 `marble-native`。既有 `generation-routing-config.cjs` 解析服务端环境配置与 Key 引用，无须新增凭据字段。下文配置可用于这条后端链；没有 Key、没有映射或别名未路由时，明确返回未配置并保持零上传、零生成请求。
 
-原生适配器、路由和持久媒体服务可分别验证生成、原操作查询与 SPZ 原始资源保存；公共结果使用本机 `/api/generation/media/{id}`，资源所有权和完整性由持久媒体服务验证。原始资源保留 SPZ 格式及世界元数据，碰撞网格仅作为辅助资源。真实 SPZ/Spark 渲染涉及新增依赖，审批仍待回复，尚未完成接入及浏览器验收；本轮没有安装或再次申请依赖。后端配置就绪、资源保存成功均不表示已经能在世界节点预览、进入片场或拍摄高斯场景。
+原生适配器、路由和持久媒体服务可分别验证生成、原操作查询与 SPZ 原始资源保存；公共结果使用本机 `/api/generation/media/{id}`，资源所有权和完整性由持久媒体服务验证。原始资源保留 SPZ 格式及世界元数据，碰撞网格仅作为辅助资源。2026-10-05用户已批准并接入官方Spark2.3.1（MIT）。真实Niantic SPZ（786,233高斯）已通过World节点导入/预览→片场变换/保存刷新/撤销重做→1280×720 PNG→2秒运镜视频本机验收，原始18,143,098 bytes及哈希保持一致。SPZ能力已开放，真实Marble Key生成及其坐标/碰撞对齐仍未实测，不能将本地样本验收说成供应商调用通过。
+
+本地渲染预算：64MiB压缩、256MiB展开、单文件及场景累计各250万高斯；当前全量绘制，无LOD或100k→full_res切换。后端下载预算与前端渲染预算分别生效，服务端保存大文件不保证浏览器能应用。通过World节点导入SPZ并进入片场；片场上传按钮仍为GLB。见 [SPZ本地渲染记录](./SPZ-LOCAL-RENDERING-20261005.md)。
 
 ## 官方来源
 
@@ -129,9 +131,9 @@ GENERATION_ROUTES={"world.generate":{"models":{"worldlabs-marble-1.1":"marble"}}
 1. `server/generation-router.cjs`：已导入 `createMarbleProvider`，配置协议白名单与原生工厂已注册 `marble-native`。沿用现有 `rg1.` 路由身份、别名选路和 provider 指纹恢复规则。
 2. `server/generation.cjs`：已导入 `createMarbleProvider`，单供应商协议分支和 `invalidProtocol` 白名单已注册 `marble-native`。多供应商仍走已有 `createGenerationRouter`，不会落到 tasks-v1。
 3. `server/generation-routing-config.cjs` 现有通用字段已经能解析 `protocol`、`apiKeyEnv` 和 `modelMap`；不需要增加凭据字段或新的环境解析协议。接线后用显式 `world.generate` 模型别名路由启用 Marble，保留 Tripo 路由。
-4. `generation-durable.cjs` 与持久媒体链保留并校验 SPZ 世界元数据、本机资源引用和任务所有权。UI/Agent/历史结果应按 `format:'spz'` 与 `representation:'gaussianSplat'` 处理；真实高斯预览、片场与拍摄仍待 Spark 接入，不能送进 GLB 加载器。
+4. `generation-durable.cjs` 与持久媒体链保留并校验 SPZ 世界元数据、本机资源引用和任务所有权。UI/Agent/历史结果应按 `format:'spz'` 与 `representation:'gaussianSplat'` 处理；SPZ由Spark原生解码进入World预览和片场，不能送进GLB加载器；权威片场GLB只保存高斯本地描述与变换，真实高斯源字节另存LocalAssets。
 
-后端验收使用模拟供应商覆盖路由注册、缺 Key 零 dispatch、原操作重启恢复、明确型号/模式和 SPZ 元数据持久化。真实供应商生成以及真实 SPZ 的浏览器渲染、坐标与碰撞对齐验收仍需分别完成，不能以模拟 transport 或仅有资源 URL 替代。
+后端验收使用模拟供应商覆盖路由注册、缺 Key 零 dispatch、原操作重启恢复、明确型号/模式和 SPZ 元数据持久化。本地真实SPZ浏览器闭环已另验；真实供应商生成及Marble资产坐标与碰撞对齐仍需分别完成，不能以模拟transport或仅有资源URL替代。
 
 ## 聚焦验证
 
@@ -139,4 +141,4 @@ GENERATION_ROUTES={"world.generate":{"models":{"worldlabs-marble-1.1":"marble"}}
 node --test tests/generation-marble.test.cjs tests/generation-marble-contract.test.cjs tests/generation-marble-integration.test.cjs
 ```
 
-测试只使用本地模拟 transport，不调用真实模型。覆盖显式配置、准确模式能力、五种输入、上传头与字节、4/8 图模式、有限视频 provenance、原操作恢复、SPZ 输出合同、拒绝网格代理、尺度缺失、身份不一致、丢失回执、取消、超时和响应预算。集成用例连接实际 gateway/router/durable、下载器、物化器与本机资源存储，使用本地合成 SPZ/GLB/PNG 证明资源保存与原身份恢复合同，未经过 Spark 渲染。无后缀签名资源按 SPZ 合同保留，不凭 URL 扩展推断内容。真实供应商资产的内容、浏览器 SPZ 解码/碰撞对齐、网络权限和费用仍需配置后单独验收。
+测试只使用本地模拟 transport，不调用真实模型。覆盖显式配置、准确模式能力、五种输入、上传头与字节、4/8 图模式、有限视频 provenance、原操作恢复、SPZ 输出合同、拒绝网格代理、尺度缺失、身份不一致、丢失回执、取消、超时和响应预算。集成用例连接实际 gateway/router/durable、下载器、物化器与本机资源存储，使用本地合成 SPZ/GLB/PNG 证明资源保存与原身份恢复合同，未经过 Spark 渲染。无后缀签名资源按 SPZ 合同保留，不凭 URL 扩展推断内容。上述后端合同测试不是GPU测试。本地Niantic SPZ的真实解码/拍摄已另验；真实Marble资产内容/碰撞对齐、网络权限和费用仍需配置后单独验收。

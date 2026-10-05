@@ -4,6 +4,8 @@
   let generationRequests,generationMedia,recognitionMedia,videoAnalysisMedia,extensionMedia,reshootMedia,videoMaskMedia,videoDepthMedia,panoramaEditMedia,panoramaMedia,panoramaValidation,imageToolMedia,maskedEditMedia,relightMedia,skinMedia,magnificMedia,worldMedia,draftWorkflow,resultModules,resultWorkflow,failureBridge;
   const failureSources=new Map();
   const resultSubmissions=new Map();
+  const depthApplications=new Map();
+  let depthApplicationModule;
   const draftGuards=new Map();
   const applicationListeners=new Set();
   const historyReadinessOriginals=new WeakMap();
@@ -21,8 +23,9 @@
   function audioReceiptCurrent(receipt,id,content=false){return !!receipt?.source&&receipt.projectId===app.projectIdentity().id&&receipt.pageEpoch===audioSubtitlePageEpoch&&app.getState().nodes.includes(receipt.source)&&latestAudioSubmissions.get(receipt.source)===id&&(!content||audioSourceSignature(receipt.source)===receipt.signature);}
   const applicationReady=import('./src/features/generation-results/application.mjs').then(module=>module.createApplicationRunner({getJob:id=>service.jobs.get(id),apply:applyResults,changed:applicationChanged}));
   const service=new GenerationCore.TaskService({prepareRequest:async(request,{jobId,signal})=>{
-    if(!['image.generate','video.generate','text.generate'].includes(request.kind))return request;
+    if(!['image.generate','video.generate','video.depth','text.generate'].includes(request.kind))return request;
     failureBridge||=await import('./src/features/generation-results/failure-bridge.mjs');
+    if(request.kind==='video.depth')return request;
     generationRequests||=import('./src/features/node-composer/generation-request.mjs');
     if(request.kind==='video.generate'){
       draftWorkflow||=import('./src/features/video-generation/draft-final-workflow.mjs');
@@ -80,9 +83,9 @@
       return (await videoMaskMedia).prepareMaskedVideoMedia(request,{signal,validateSources,localAssets:window.LocalAssets,localMedia:window.LocalMedia,baseUrl:document.baseURI,nativeConfiguration});
     }
     if(request.kind==='video.depth'){
-      videoDepthMedia||=import('./src/features/video-depth/media.mjs');
+      videoDepthMedia||=import('./src/features/video-depth/composer.mjs');
       const nativeConfiguration=service.jobs.get(jobId)?.transport===localProvider?taskNativeConfigurations.get(signal):null;
-      return (await videoDepthMedia).prepareDepthMedia(request,{signal,validateSources,localAssets:window.LocalAssets,baseUrl:document.baseURI,nativeConfiguration});
+      request=await (await videoDepthMedia).prepareDepthNodeMedia(request,{signal,validateSources,localAssets:window.LocalAssets,baseUrl:document.baseURI,nativeConfiguration});
     }
     if(request.kind==='panorama.edit'){
       panoramaEditMedia||=import('./src/features/panorama-edit/media.mjs');
@@ -99,7 +102,7 @@
       const nativeConfiguration=service.jobs.get(jobId)?.transport===localProvider?taskNativeConfigurations.get(signal):null;
       return (await recognitionMedia).prepareRecognitionMedia(request,{signal,localAssets:window.LocalAssets,baseUrl:document.baseURI,nativeConfiguration,validateSources});
     }
-    if(!['image.generate','video.generate','text.generate'].includes(request.kind))return request;
+    if(!['image.generate','video.generate','video.depth','text.generate'].includes(request.kind))return request;
     validateSources();
     generationMedia||=import('./src/features/node-composer/generation-media.mjs');
     const media=await generationMedia;
@@ -110,7 +113,7 @@
     if(panorama?.isNativePanoramaRequest(request)){
       panoramaMedia||=import('./src/features/image-generation/panorama-media.mjs');
       request=await (await panoramaMedia).preparePanoramaMedia(request,{signal,localAssets:window.LocalAssets,baseUrl:document.baseURI,nativeConfiguration,validateSources});
-    }else request=await media.prepareGenerationMediaRequest(request,{signal,localAssets:window.LocalAssets,baseUrl:document.baseURI,nativeConfiguration,validateSources});
+    }else if(request.kind!=='video.depth')request=await media.prepareGenerationMediaRequest(request,{signal,localAssets:window.LocalAssets,baseUrl:document.baseURI,nativeConfiguration,validateSources});
     validateSources();
     const submission=resultSubmissions.get(jobId);
     if(submission&&!draftGuards.has(jobId)){
@@ -233,12 +236,19 @@
   }
   async function applyResults(job){
     const stored=service.jobs.get(job.id);
+    const depth=job.request.kind==='video.depth'?await (depthApplicationModule||=import('./src/features/video-depth/application.mjs')):null;
+    const depthReceipt=depth&&depthApplications.get(job.id);
+    const depthGuard=()=>{if(depthReceipt){depth.assertDepthApplicationCurrent(app,depthReceipt);if(!stored.resultIds)depthReceipt.sourceGuard?.();}};
+    const saveDepth=()=>depth.persistDepthApplication(app,window.CanvasStore,stored,depthReceipt);
+    if(depth)depth.assertDepthResultCount(job.request,job.outputs);
+    depthGuard();
     const panorama=job.request.kind==='image.generate'?await (panoramaValidation||=import('./src/features/image-generation/panorama-native.mjs')):null;
     const isPanorama=panorama?.isNativePanoramaRequest(job.request);
     if(isPanorama&&(!Array.isArray(job.outputs)||job.outputs.length!==1))throw Error('全景任务必须返回一个真实图片结果');
     async function validateJobMedia(output){
       if(!isPanorama){
         await validateOutputMedia(output);
+        if(depth){depth.assertDepthResultGeometry(job.request,output);depthGuard();}
         if(['video.erase','video.replace'].includes(job.request.kind)){
           videoMaskMedia||=import('./src/features/video-mask/media.mjs');
           await (await videoMaskMedia).captureMaskedVideoPoster(output,{signal:stored.controller?.signal});
@@ -287,8 +297,8 @@
     };
     const {resultProvenance}=await provenanceReady;
     if(stored.recovered&&stored.recoveryMode!=='workflow_existing'){
-      if(stored.recoveryMode==='existing'){const {applyRecoveredPlan}=await import('./src/features/generation-results/recovery.mjs');await applyRecoveredPlan(stored,{app,workflow:resultWorkflow,validateMedia:validateJobMedia,persist:()=>{const state=app.getState();return window.CanvasStore.save({version:1,nodes:state.nodes,edges:state.edges});}});}
-      else if(stored.recoveryMode==='new_nodes'){const {importRecoveredOutputs}=await import('./src/features/generation-results/recovery.mjs');await importRecoveredOutputs(stored,{app,sourceId:stored.recoverySourceId,validateMedia:validateJobMedia,localizeAudio:url=>window.AudioAPI.localize(url),onApplied:(ids,{created,audioRefs})=>{if(!subtitlesEnabled)return;if(created)recordSubtitleMedia(ids.map((id,index)=>({node:app.getState().nodes.find(node=>node.id===id),audio:audioRefs[index]})));else if(!audioSubtitleBindings.has(stored.id))retainedWithoutSubtitleReceipt=true;},persist:()=>{const state=app.getState();return window.CanvasStore.save({version:1,nodes:state.nodes,edges:state.edges});}});}
+      if(stored.recoveryMode==='existing'){const {applyRecoveredPlan}=await import('./src/features/generation-results/recovery.mjs');await applyRecoveredPlan(stored,{app,workflow:resultWorkflow,validateMedia:validateJobMedia,guard:depthGuard,persist:()=>{if(depthReceipt)return saveDepth();const state=app.getState();return window.CanvasStore.save({version:1,nodes:state.nodes,edges:state.edges});}});}
+      else if(stored.recoveryMode==='new_nodes'){const {importRecoveredOutputs}=await import('./src/features/generation-results/recovery.mjs');await importRecoveredOutputs(stored,{app,sourceId:stored.recoverySourceId,validateMedia:validateJobMedia,guard:depthGuard,localizeAudio:url=>window.AudioAPI.localize(url),onApplied:(ids,{created,audioRefs})=>{if(!subtitlesEnabled)return;if(created)recordSubtitleMedia(ids.map((id,index)=>({node:app.getState().nodes.find(node=>node.id===id),audio:audioRefs[index]})));else if(!audioSubtitleBindings.has(stored.id))retainedWithoutSubtitleReceipt=true;},persist:()=>{if(depthReceipt)return saveDepth();const state=app.getState();return window.CanvasStore.save({version:1,nodes:state.nodes,edges:state.edges});}});}
       else throw Error('任务已取回，请明确选择原占位或新节点应用方式');
       await applySubtitles();return;
     }
@@ -349,7 +359,7 @@
         const expected=videoTargets.get(job.id),n=app.getState().nodes.find(n=>n.id===job.request.nodeId);
         const guard=()=>{if(!n||!app.getState().nodes.includes(n)||videoSignature(n)!==expected)throw Error('视频或生成参数已变化，请重新生成');draftGuards.get(job.id)?.();};guard();
         if(job.outputs.some(o=>o.type!=='video'))throw Error('视频节点需要视频生成结果');
-        await Promise.all(job.outputs.map(validateJobMedia));const history=await import('./src/features/video-history/core.mjs');guard();
+        await Promise.all(job.outputs.map(validateJobMedia));const history=await import('./src/features/video-history/core.mjs');guard();depthGuard();
         window.NodeEditor.invalidate();app.updateNode(n.id,history.record({...n,video:n.video||window.EDITOR_DATA?.nodes[n.id]?.video},job,window.NodeEditor.getConfig(n)));stored.resultIds=[n.id];
       }
       if(!stored.resultIds&&imageTargets.has(job.id)){
@@ -377,6 +387,7 @@
         recordSubtitleMedia(results.map((node,index)=>({node,audio:stored.materializedOutputs[index].audio})));
       }
       await applySubtitles();
+      if(depthReceipt)await saveDepth();
       if(job.request.kind==='model.generate'&&app.getState().nodes.some(n=>n.id===job.request.nodeId&&n.type==='studio')){
         if(!window.StudioAPI)throw Error('片场仍在加载，请稍后重试放置');
         stored.sceneResult=await window.StudioAPI.acceptGeneration(job);
@@ -432,7 +443,10 @@
     if(job.applied)return retryApplication(id);
     if(!['existing','new_nodes'].includes(mode))throw Error('未知的恢复应用方式');
     if(job.recoveryMode&&job.recoveryMode!==mode&&job.resultIds?.length)throw Error('结果已部分应用，请继续原方式，避免重复节点');
-    if(mode==='existing'&&!job.resultIds?.length){resultModules||=import('./src/features/generation-results/workflow.mjs');resultWorkflow||=(await resultModules).createResultWorkflow(app);await resultWorkflow.restore(job);}
+    if(job.request.kind==='video.depth'&&!depthApplications.has(id))depthApplications.set(id,{projectId:app.projectIdentity().id});
+    const depthReceipt=job.request.kind==='video.depth'&&depthApplications.get(id);
+    const current=()=>{if(depthReceipt&&depthReceipt.projectId!==app.projectIdentity().id)throw Error('深度恢复所属画布已切换，请返回原画布');};current();
+    if(mode==='existing'&&!job.resultIds?.length){resultModules||=import('./src/features/generation-results/workflow.mjs');const module=await resultModules;current();resultWorkflow||=module.createResultWorkflow(app);await resultWorkflow.restore(job);current();}
     job.recoveryMode=mode;job.recoverySourceId=sourceId;return retryApplication(id);
   }
   async function retryApplication(id){return (await applicationReady).run(id);}
@@ -540,10 +554,30 @@
   }
   function videoSignature(n){return JSON.stringify([n.video||window.EDITOR_DATA?.nodes[n.id]?.video,n.clip,window.NodeEditor.getConfig(n),n.videoHistory]);}
   function imageSignature(n){return JSON.stringify([n.fullImage||n.image,n.imageHistory,n.versions,window.NodeEditor.getConfig(n),n.params]);}
+  function captureDepthSourceGuard(request,state){
+    const projectId=app.projectIdentity().id,targetId=request.nodeId;
+    const incoming=()=>app.getState().edges.filter(edge=>edge.target===targetId);
+    const edges=JSON.stringify(state.edges.filter(edge=>edge.target===targetId));
+    const referenceIds=new Set((request.inputs||[]).map(input=>input.id||input.nodeId));
+    const ids=new Set([targetId,...referenceIds,...state.edges.filter(edge=>edge.target===targetId).map(edge=>edge.source)]);
+    const signature=node=>JSON.stringify([Object.fromEntries(Object.entries(node).filter(([key])=>!['x','y','selected'].includes(key))),window.EDITOR_DATA?.nodes?.[node.id]?.video,node.id===targetId?window.NodeEditor.getConfig(node):null]);
+    const snapshots=[...ids].map(id=>{const node=state.nodes.find(value=>value.id===id);if(!node)throw Error('深度来源或目标节点已不存在');return {node,signature:signature(node)};});
+    const checkContext=()=>{if(app.projectIdentity().id!==projectId||JSON.stringify(incoming())!==edges)throw Error('深度任务所属画布或参考连线已变化，请重新提交');};
+    const guard=()=>{checkContext();for(const snapshot of snapshots)if(!app.getState().nodes.includes(snapshot.node)||signature(snapshot.node)!==snapshot.signature)throw Error('深度来源或目标内容已变化，请重新提交');};
+    guard.acceptReplacements=receipts=>{
+      checkContext();if(!Array.isArray(receipts))throw Error('深度结果规划缺少节点替换回执');
+      for(const snapshot of snapshots){const receipt=receipts.find(value=>value.before===snapshot.node);if(!receipt)continue;
+        if(signature(snapshot.node)!==snapshot.signature||receipt.after?.id!==snapshot.node.id||receipt.after.type!==snapshot.node.type||!app.getState().nodes.includes(receipt.after)||referenceIds.has(snapshot.node.id)&&signature(receipt.after)!==snapshot.signature)throw Error('深度结果规划与实际来源不一致');
+        snapshot.node=receipt.after;snapshot.signature=signature(receipt.after);
+      }
+      guard();
+    };
+    guard();return guard;
+  }
   function submit(request,options){
     const state=app.getState(),n=state.nodes.find(n=>n.id===request.nodeId);
     let submission;
-    if(['image.generate','video.generate','text.generate'].includes(request.kind)){
+    if(['image.generate','video.generate','video.depth','text.generate'].includes(request.kind)){
       let mode='variants';try{const saved=localStorage.getItem('tapnow.canvas.generation-result-mode');if(['pile','variants','spread'].includes(saved))mode=saved;}catch{}
       // Host workflows own their result targets independently of the canvas menu preference.
       if(options?.resultMode!==undefined){if(!['pile','variants','spread'].includes(options.resultMode))throw Error('生成结果布局无效');mode=options.resultMode;}
@@ -551,8 +585,16 @@
       const incoming=state.edges.filter(edge=>edge.target===request.nodeId),ids=new Set([request.nodeId,...incoming.map(edge=>edge.source)]);
       submission={mode,request:structuredClone(request),state:structuredClone({nodes:state.nodes.filter(node=>ids.has(node.id)||node.type==='pile'&&node.memberIds?.includes(request.nodeId)),edges:incoming})};
     }
-    const expected=request.kind==='video.generate'&&n?.type==='video'?videoSignature(n):null;
+    const expected=['video.generate','video.depth'].includes(request.kind)&&n?.type==='video'?videoSignature(n):null;
+    let depthGuard;
+    if(request.kind==='video.depth'){
+      depthGuard=captureDepthSourceGuard(request,state);
+      const previous=options?.beforeDispatch,guard=()=>{previous?.();depthGuard();};
+      guard.acceptReplacements=receipts=>{previous?.acceptReplacements?.(receipts);depthGuard.acceptReplacements(receipts);};
+      options={...options,beforeDispatch:guard};
+    }
     const job=submitJob(request,options);
+    if(request.kind==='video.depth')depthApplications.set(job.id,{projectId:app.projectIdentity().id,sourceGuard:depthGuard});
     if(submission)resultSubmissions.set(job.id,submission);
     if(submission&&n)failureSources.set(job.id,{node:n,snapshot:structuredClone(n)});
     if(expected!==null)videoTargets.set(job.id,expected);

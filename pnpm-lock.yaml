@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@sparkjsdev/spark':
+        specifier: 2.3.1
+        version: 2.3.1(three@0.186.0)
       '@tabler/icons':
         specifier: ^3.47.0
         version: 3.47.0
@@ -195,6 +198,11 @@ packages:
   '@mapbox/node-pre-gyp@1.0.11':
     resolution: {integrity: sha512-Yhlar6v9WQgUp/He7BdgzOz8lqMQ8sU+jkCq7Wx8Myc5YFJLbEe7lgui/V7G1qB1DJykHSGwreceSaD60Y0PUQ==}
     hasBin: true
+
+  '@sparkjsdev/spark@2.3.1':
+    resolution: {integrity: sha512-K+SyIbkO/dx1TLLudK8Jp3/noS13z/kdNPo6OK2waxQaGy81HBmKGnNBT/t/K9Ew3dsIXmWqsJXxGfmAu1T5Jg==}
+    peerDependencies:
+      three: '>=0.180.0'
 
   '@tabler/icons@3.47.0':
     resolution: {integrity: sha512-aCbSemVrGvSA3w0sJi8mka6QrnQCN8wCD1jKNXXIR/h6Q4ffov/yFPyzjTULDM8ETtK4DABUZhWdYlygqy3npA==}
@@ -505,6 +513,9 @@ packages:
   fabric@6.7.0:
     resolution: {integrity: sha512-+yKumsh1MvJ44Um2eOhb4Q6CyZ6e2XKBV3IfQvzuGKhl2UkRFQtIKPUi6f06m3gd0r5zspgMUl5iwxtT1dmFAQ==}
     engines: {node: '>=16.20.0'}
+
+  fflate@0.8.3:
+    resolution: {integrity: sha512-tbZNuJrLwGUp3zshBtdy4W+ORxZuIh8a5ilyIEQDC5rY1f3U20JMry0Ll3WBzU58EZKsEuJFXhb5gwv8CsPvgA==}
 
   form-data@4.0.6:
     resolution: {integrity: sha512-vKatAh4SlVfgbv+YtmhiRjhEMJsYpsG1Y2rMQtR+SVSbytsSD1YGzDIcrAJmdFec88u/+VoGmxnl+80gL1tRCQ==}
@@ -1007,6 +1018,11 @@ snapshots:
       - supports-color
     optional: true
 
+  '@sparkjsdev/spark@2.3.1(three@0.186.0)':
+    dependencies:
+      fflate: 0.8.3
+      three: 0.186.0
+
   '@tabler/icons@3.47.0': {}
 
   '@tiptap/core@3.31.3(@tiptap/pm@3.31.3)':
@@ -1377,6 +1393,8 @@ snapshots:
       - encoding
       - supports-color
       - utf-8-validate
+
+  fflate@0.8.3: {}
 
   form-data@4.0.6:
     dependencies:

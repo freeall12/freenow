@@ -22,7 +22,7 @@
 | 旧项目/共享素材/附件 | 画布、库、模板、主体、生成历史有迁移；会话附件真实 PNG 迁移/回读/刷新已验 | 未映射图片节点已提供正式文件导入修复入口，真实 asset 显示/刷新/撤销已验；其他未知资源及队列/历史/撤销/App state 的读取仍需逐槽验收。已追加合法人物卡的 reference_nodes.preview_url 精确槽位迁移及刷新解码；其余任意 App trace/result/appState 仍未覆盖，不能以迁移计数替代全覆盖。 |
 | 历史 Widget 与 HTML | 入向 HTML 派生已接；真实 HTML 下载重开、图像和计数交互已有主线程证据 | 不能泛化为任意 HTML：外部脚本/样式、CSS import/font/image-set 等明确未支持；动态 JS 未静态分析。本批已验 HTML 嵌套菜单/dialog 逐层 Escape、最新版本讨论与草稿持久化；仍需逐工作流补本地实现，验失效/重试、嵌套导航及 Widget 白模/录像。 |
 | Creative 精确模板 | 选择器与可信交接已实现 | 未取得所选精确模板正文，后续下载/编辑/生成链未完整验；不能只做 awaiting-content 卡片就算功能完成。 |
-| 世界/SPZ | Marble 原生路由、原任务恢复和资源归档已注册 | SPZ 渲染尚未接，生产派发受能力检查阻止；Spark 生产依赖授权、真实解码、尺度/地面/碰撞、保存/撤销/镜头渲染未关闭。落盘不等于可用场景。 |
+| 世界/SPZ | Marble 原生路由、原任务恢复和归档，以及 Spark 本地解码、预览、片场变换/保存/撤销、照片和短视频已接入 | 真实 Niantic 样本已验；LOD、混合拾取遮挡、设备压力、长视频及真实 Marble 生成/尺度/碰撞对齐未关闭。[最新边界](SPZ-LOCAL-RENDERING-20261005.md) |
 | 全站交互与模型 | 部分 App、图层、PNG/MP4、刷新恢复有实机记录 | 全部菜单、hover/焦点、拖动、布局与组合状态未逐项闭环；压缩 Draco、全部 Fabric 状态、最大画幅/大媒体性能及真实 Key 供应商联调仍有未验范围。注册 URI 数和单元检查不算功能验收比例。 |
 | freenow 品牌 | 首页 `index.html` 的 TapNow logo/alt；`studio.mjs` 的片场 logo/文字；HTML 预览 logo/免责声明仍在 | 统一替换尚未执行。最终还需清点标题/favicon、全部 App 内页、分享/支持、可访问文案、导出水印/文件名；不能据几个文字命中声称清点完整。 |
 
@@ -32,7 +32,7 @@
 
 最新增量：旧音频的本机解码、持久 asset/波形、刷新撤销已验；Agent 跨组移动保存后坐标保持已验；片场“放弃修改并重新加载”和“重试保存”两条正式操作均完成浏览器刷新闭环。见[本批验收](LOCAL-AUDIO-LAYERS-SCENE-RECOVERY-20261003.md)。这不关闭全部资源槽、GPU 拾取、全站请求盘点或最终品牌清单。
 
-最新增量：GPU 点选已补标准透明孔、Mesh/Line/Points、形变及辅助体映射，普通上传已补迟到结果保护；详细实机范围见[本批记录](LOCAL-PICKING-AND-AUDIO-UPLOAD-20261003.md)。特殊着色器、完整逐态矩阵、精确模板与 SPZ 仍开放。
+已有增量：GPU 点选已补标准透明孔、Mesh/Line/Points、形变及辅助体映射，普通上传已补迟到结果保护；详细实机范围见[该批记录](LOCAL-PICKING-AND-AUDIO-UPLOAD-20261003.md)。特殊着色器、完整逐态矩阵、精确模板仍开放；SPZ 基础渲染已接入，剩余验收见上表。
 
 ## 关闭清单
 
@@ -40,7 +40,7 @@
 - [ ] 页面静态与动态资源、服务端调用、下载/导出、用户导航分别记录实际目的地与触发动作。原站域/子域/尾点形式、跳转和资源缺失回退零放行；独立供应商只能走显式配置链。
 - [ ] 覆盖空项目、新项目、旧项目、项目列表缩略图、会话/队列/App 状态、共享库、模板、历史与撤销；未知资源明确导入修复，验证真实字节、解码、持久提交与刷新，不删原记录。
 - [ ] HTML/Widget 以真实图片、音视频、SVG/CSS 与本地交互验收；未知资源不报告 ready，旧异步结果不污染新会话；导出重新打开后验证媒体、交互及外部导航隔离。
-- [ ] 关闭精确 Creative 模板、SPZ 渲染、全部交互/性能和真实供应商未验项；每项记录源码/入口、实际输入与输出、截图/播放及限制。用户于2026-10-05明确要求同步品牌更换，主要运行界面已开始该批次，未关闭其他功能/视觉验收。
+- [ ] 关闭精确 Creative 模板、SPZ 规模/LOD/长视频、全部交互/性能和真实供应商未验项；每项记录源码/入口、实际输入与输出、截图/播放及限制。用户于2026-10-05明确要求同步品牌更换，主要运行界面已开始该批次，未关闭其他功能/视觉验收。
 - [ ] 做产品可见品牌清点并统一 freenow：界面、嵌套 App、logo/favicon、标题/alt/aria、帮助/免责声明、分享与支持入口。归档证据保留，不以改名破坏完整来源 SHA 或协议/存储兼容。
 - [ ] 逐类型导出真实 PNG/JPEG、视频/录像、HTML 和其他已提供格式，检查应用叠加水印、默认文件名、包内标识及元数据；回读/播放确认没有旧产品品牌或外连回退。
 - [ ] 复验正式入口与发布包，断开原站可达性仍能使用本地功能；未配置独立供应商时如实失败。保存/加载旧项目、剪贴板、会话恢复与原任务身份仍正确；保留许可与来源声明。
@@ -51,7 +51,7 @@
 
 - 运行边界：`server/server.cjs`、`server/generation-endpoint-policy.cjs`、`server/outbound-client.cjs`、`local-resource-migration/origin-policy.mjs`、`agent-messages/markdown.mjs`。
 - 接线/兼容：`agent-apps/registry.mjs`（product-kit 已注册）、`agent-apps/card.mjs`、`canvas-menus.js`、`project-context.js`；它们的本地标识不按联网次数计数。
-- 细项合同：[HTML 派生](HTML-RESOURCE-DERIVATION.md)、[Widget](widget-html-resource-localization.md)、[会话附件](AGENT-CONVERSATION-RESOURCE-MIGRATION.md)、[本地运行边界](LOCAL-RUNTIME-BOUNDARIES-20261003.md)、[精确创意模板](AGENT-CREATIVE-FAMILY-20261003.md)、[世界/SPZ 最新补记](AGENT-STORY-ACTOR-AND-WORLD-20261003.md)、[供应商配置/验收](MULTI-PROVIDER-SETUP.md)。
+- 细项合同：[HTML 派生](HTML-RESOURCE-DERIVATION.md)、[Widget](widget-html-resource-localization.md)、[会话附件](AGENT-CONVERSATION-RESOURCE-MIGRATION.md)、[本地运行边界](LOCAL-RUNTIME-BOUNDARIES-20261003.md)、[精确创意模板](AGENT-CREATIVE-FAMILY-20261003.md)、[世界/SPZ 本地渲染](SPZ-LOCAL-RENDERING-20261005.md)、[供应商配置/验收](MULTI-PROVIDER-SETUP.md)。
 
 ## 2026-10-03 本批增量
 

@@ -1,3 +1,5 @@
+import {splatProxy,readLocalSplat} from '../world-node/splat-io.mjs';
+import {inspectSplatHeader} from '../world-node/splat-contract.mjs';
 import {inspectModel, disposeLoadedModel, maxBytes} from './model-io.mjs';
 
 export function assertSceneBinding(runtime, args, {restoring = false} = {}) {
@@ -33,7 +35,7 @@ export async function importSceneModel(runtime, args, {signal} = {}) {
   validateProperties(properties);
   assertSceneBinding(runtime, args);
   const app = window.CanvasApp, getNode = () => app.getState().nodes.find(node => node.id === args.sourceNodeId), node = getNode();
-  if (node?.type !== 'world' || node.worldResource?.format !== 'glb' || typeof node.worldResource.url !== 'string') throw Error('请指定含真实本地 GLB 的 3D 资源节点');
+  if (node?.type !== 'world' || !['glb','spz'].includes(node.worldResource?.format) || typeof node.worldResource.url !== 'string') throw Error('请指定含真实本地 GLB / SPZ 的 3D 资源节点');
   const source = structuredClone(node.worldResource), sourceKey = JSON.stringify(source);
   if (!source.url.startsWith('asset:')) {
     const url = new URL(source.url, location.href);
@@ -47,6 +49,7 @@ export async function importSceneModel(runtime, args, {signal} = {}) {
   let prepared, adopted = false;
   try {
     guard();
+    if(source.format==='spz'){if(args.sceneIndex!==undefined&&args.sceneIndex!==0)throw Error('SPZ 只有一个高斯资源场景');const blob=await readLocalSplat(source.url,{signal});await inspectSplatHeader(blob,{signal});guard();const object=splatProxy({version:1,format:'spz',url:source.url,...source.splat},{name:source.name||node.title});object.userData.studioImport={sourceNodeId:node.id,sourceAsset:source.url,sceneIndex:0};const result=await runtime.addObject(object,properties,[],{beforeApply:guard});return {...result,applied:true,version:2,nodeId:runtime.nodeId,sessionId:runtime.sessionId,revision:runtime.revision,savedRevision:runtime.savedRevision,sourceNodeId:node.id,sourceAsset:source.url,sceneIndex:0};}
     const resolved = await window.LocalAssets.url(source.url);
     guard();
     const response = await fetch(resolved, {signal});

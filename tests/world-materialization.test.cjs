@@ -149,10 +149,10 @@ test('exact local GLB result preserves actual model bytes and complete source me
   for(const key of Object.keys(metadata))assert.deepEqual(result.worldResource[key],metadata[key]);
 });
 
-test('legacy TapNow GLB is rejected before fetch and a local SPZ never claims renderer readiness', async () => {
+test('legacy TapNow sources and unsupported or inconsistent representations fail before fetching', async () => {
   const f = await fixture();let reads = 0;f.context.fetch = async () => {reads++;assert.fail('must not read remote or unsupported format');};
   await assert.rejects(f.context.materialize({type:'model',url:'https://files.tapnow.media/old.glb',format:'glb'}),{code:'media_localization_required'});
-  await assert.rejects(f.context.materialize({type:'model',url:'/api/generation/media/12345678-1234-4234-8234-000000000001',format:'spz',representation:'gaussianSplat'}),/渲染器尚未接入/);
-  await assert.rejects(f.context.materialize({type:'model',url:'/api/generation/media/12345678-1234-4234-8234-000000000001',representation:'gaussianSplat'}),{code:'world_renderer_unavailable'});
+  await assert.rejects(f.context.materialize({type:'model',url:'/api/generation/media/12345678-1234-4234-8234-000000000001',format:'ply',representation:'gaussianSplat'}),/渲染器尚未接入/);
+  await assert.rejects(f.context.materialize({type:'model',url:'/api/generation/media/12345678-1234-4234-8234-000000000001',format:'glb',representation:'gaussianSplat'}),{code:'world_renderer_unavailable'});
   assert.equal(reads,0);assert.equal(f.puts.length,0);
 });

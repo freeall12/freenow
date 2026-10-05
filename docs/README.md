@@ -24,8 +24,12 @@
 
 | 记录 | 范围 |
 | --- | --- |
+| [SPZ 本地高斯渲染](SPZ-LOCAL-RENDERING-20261005.md) · [Marble 配置](MARBLE-NATIVE-SETUP.md) | Spark、真实样本、变换/保存/撤销、照片/短视频、gzip 实际预算与 LOD 限制 |
+| [深度双结果与画布交互](LOCAL-DEPTH-BATCH-AND-CANVAS-20261005.md) | 普通节点、持久父子任务、保存恢复、Agent 裁切互斥与搜索响应 |
+| [深度节点同位入口](VIDEO-DEPTH-NODE-ENTRY-20261005.md) · [应用守卫](VIDEO-DEPTH-CANVAS-RECOVERY-GUARDS-20261005.md) | 自动规格、1/2 数量、三种布局、来源/项目变化与失败提示 |
+| [平台裁切拖动](AGENT-PLATFORM-RESIZE-DRAG-SELECTION-20261005.md) · [搜索高亮](CANVAS-SEARCH-HOVER-RESPONSE-20261005.md) | 真实 PNG、单份回执、500 节点键盘与焦点实机证据 |
 | [深度、全景局部编辑与关闭保存](LOCAL-DEPTH-PANORAMA-LIFECYCLE-20261005.md) | 真实 SDK/媒体归档、配置与来源保护、Computer Use 和截图 |
-| [视频深度原生接口](VIDEO-DEPTH-NATIVE-20261005.md) · [前端与 Agent](VIDEO-DEPTH-FRONTEND-QA-20261005.md) | 完整 MP4、原尺寸时长、无声灰度与原任务恢复；节点入口未接 |
+| [视频深度原生接口](VIDEO-DEPTH-NATIVE-20261005.md) · [前端与 Agent](VIDEO-DEPTH-FRONTEND-QA-20261005.md) | 完整 MP4、原尺寸时长、无声灰度与原任务恢复；普通节点见上方最新入口记录 |
 | [全景局部编辑原生接口](OPENAI-PANORAMA-EDIT-NATIVE-20261005.md) · [前端隔离验收](../src/features/panorama-edit/qa/README.md) | 透视裁片/蒙版、2048×1024 本地回投、失败保留同一补丁 |
 | [Agent 关闭生命周期](AGENT-CLOSE-LIFECYCLE-20261005.md) | Rhythm/Story 关闭保存握手、慢保存和失败重试；强制离页边界 |
 | [Agent内嵌交互闭环](LOCAL-AGENT-INTERACTIONS-20261005.md) | 表演节奏键盘/保存与确认、剧本结构失败重试/恢复、模板本地能力说明及真实截图 |

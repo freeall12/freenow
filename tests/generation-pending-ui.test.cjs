@@ -7,6 +7,33 @@ const marker = (id, type = 'image', runId = 'run') => ({id, type,
   pendingOperation: `${type}.generate`, generationRun: {runId, requestId: 'request', resultIndex: 0}});
 const job = (status = 'running', kind = 'image.generate', id = 'run') => ({id, status, request: {kind, nodeId: 'source'}});
 
+test('depth variants show source pending while planned depth owns only exact video targets', async () => {
+  const {pendingNodes} = await modulePromise, source = {id: 'source', type: 'video', video: 'original.mp4'},
+    target = {...marker('target', 'video'), pendingOperation: 'video.depth'}, depth = job('running', 'video.depth');
+  assert.deepEqual([...pendingNodes({nodes: [source]}, [depth]).keys()], ['source']);
+  depth.request.parameters = {canvasResults: {targetNodeIds: ['target']}};
+  assert.deepEqual([...pendingNodes({nodes: [source, target]}, [depth]).keys()], ['target']);
+  target.pendingOperation = 'video.generate'; assert.equal(pendingNodes({nodes: [source, target]}, [depth]).size, 0);
+  target.pendingOperation = 'video.depth'; target.type = 'image'; assert.equal(pendingNodes({nodes: [source, target]}, [depth]).size, 0);
+  source.type = 'image'; delete depth.request.parameters; assert.equal(pendingNodes({nodes: [source]}, [depth]).size, 0);
+  assert.equal(pendingNodes({nodes: [{...source, type: 'video'}]}, [job('running', 'video.upscale')]).size, 0);
+});
+
+test('depth source and planned overlay clear on terminal notifications and preserve video identity', async () => {
+  const {install} = await modulePromise;
+  for (const planned of [false, true]) for (const status of ['failed', 'cancelled', 'configuration_required', 'succeeded']) {
+    const f = fixture('video'); f.node.video = 'original.mp4';
+    if (planned) f.node.pendingOperation = 'video.depth';
+    else {delete f.node.pendingOperation; delete f.node.generationRun;}
+    const running = job('running', 'video.depth'); running.request.nodeId = 'target';
+    if (planned) running.request.parameters = {canvasResults: {targetNodeIds: ['target']}};
+    f.setJobs([running]); const controller = install(f.setup);
+    assert.equal(f.body.getAttribute('data-generation-pending'), 'video'); assert.equal(f.body.children.length, 1);
+    f.setJobs([{...running, status}]); assert.equal(f.body.children.length, 0); assert.equal(f.body.getAttribute('aria-busy'), null);
+    assert.equal(f.node.type, 'video'); assert.equal(f.node.video, 'original.mp4'); controller.destroy();
+  }
+});
+
 test('only genuine matching generation markers or active generation jobs activate nodes', async () => {
   const {pendingNodes} = await modulePromise;
   const state = {nodes: [marker('target'), {id: 'source', type: 'image'},

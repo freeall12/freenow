@@ -1,0 +1,11 @@
+'use strict';
+const fs=require('node:fs'),path=require('node:path'),root=path.resolve(__dirname,'..');
+const spark=fs.realpathSync(path.join(root,'node_modules/@sparkjsdev/spark'));
+const version=JSON.parse(fs.readFileSync(path.join(spark,'package.json'))).version;
+if(version!=='2.3.1')throw Error('Spark build requires the reviewed 2.3.1 release');
+require('esbuild').buildSync({entryPoints:[path.join(spark,'dist/spark.module.js')],outfile:path.join(root,'assets/spark.js'),bundle:true,format:'esm',platform:'browser',target:'es2022',minify:true,external:['three','three/addons/*'],legalComments:'linked'});
+const licenses=path.join(root,'assets/licenses');fs.mkdirSync(licenses,{recursive:true});
+fs.copyFileSync(path.join(spark,'LICENSE'),path.join(licenses,'spark-2.3.1-MIT.txt'));
+const fflate=path.dirname(require.resolve('fflate',{paths:[spark]}));
+fs.copyFileSync(path.resolve(fflate,'../LICENSE'),path.join(licenses,'fflate-MIT.txt'));
+console.log('Built local Spark 2.3.1 with external project Three and bundled Worker/WASM');

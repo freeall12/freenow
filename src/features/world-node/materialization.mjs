@@ -33,8 +33,8 @@ export function materializationScope({signal, validateSources = () => {}, timeou
   };
 }
 
-export async function readModelBlob(response, scope, maxBytes) {
-  const tooLarge = () => failure('size', '3D 结果超过本地 12 MiB 模型上限；原任务结果仍保留，请精简模型或纹理后导入');
+export async function readModelBlob(response, scope, maxBytes, {format='glb',mime='model/gltf-binary'}={}) {
+  const tooLarge = () => failure('size', format==='spz'?'SPZ 结果超过本地 64 MiB 导入预算；原任务结果仍保留':'3D 结果超过本地 12 MiB 模型上限；原任务结果仍保留，请精简模型或纹理后导入');
   scope.check();
   if (!response?.ok) {response?.body?.cancel?.().catch(() => {}); throw failure('world_download_failed', '3D 结果读取失败，请检查网络、地址及跨域 CORS 后从原任务重试');}
   if (Number(response.headers?.get?.('content-length')) > maxBytes) {response.body?.cancel?.().catch(() => {}); throw tooLarge();}
@@ -50,6 +50,6 @@ export async function readModelBlob(response, scope, maxBytes) {
       chunks.push(chunk.value);
     }
     if (!size) throw failure('world_download_empty', '3D 结果内容为空，请从原任务重试');
-    scope.check(); return new Blob(chunks, {type: 'model/gltf-binary'});
+    scope.check(); return new Blob(chunks, {type: mime});
   } finally {if (!complete) reader.cancel().catch(() => {}); reader.releaseLock();}
 }

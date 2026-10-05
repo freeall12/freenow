@@ -6,7 +6,7 @@ async function harness(nodes,edges=[]){
  const settings=await import('../src/features/video-generation/settings.mjs');
  const references=await import('../src/features/node-composer/reference-model.mjs');
  const state={nodes,edges};
- const context={window:{EDITOR_DATA:{nodes:{}},CanvasLibrary:{items:[]}},drafts:{},cameraControls:null,videoMenus:settings,composerLayout:{referencesFor:references.referencesFor,assetReferences:()=>[]},subjects:null,app:{getState:()=>state},normalizeCountConfig:value=>({...value,resultMode:'variants'})};
+ const context={depthComposer:null,window:{EDITOR_DATA:{nodes:{}},CanvasLibrary:{items:[]}},drafts:{},cameraControls:null,videoMenus:settings,composerLayout:{referencesFor:references.referencesFor,assetReferences:()=>[]},subjects:null,app:{getState:()=>state},normalizeCountConfig:value=>({...value,resultMode:'variants'})};
  vm.createContext(context);vm.runInContext(functionSource('defaults','countConfiguration')+functionSource('getConfig','save'),context);
  return {getConfig:context.getConfig,settings,state};
 }

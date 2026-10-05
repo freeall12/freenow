@@ -1,8 +1,9 @@
-const kinds = new Set(['image.generate', 'video.generate', 'text.generate']);
-const ignoredFields = new Set(['x', 'y', 'selected', 'pendingOperation', 'generationRun']);
+const kinds = new Set(['image.generate', 'video.generate', 'video.depth', 'text.generate']);
+const ignoredFields = new Set(['x', 'y', 'selected', 'pendingOperation', 'generationRun', 'generationRecovery']);
 
-// Remove only transient task markers and movement. Content, size, title and
-// model/reference changes invalidate the receipt even after task cleanup.
+// Terminal cleanup deletes the durable run baseline alongside its transient
+// markers. Content, size, title and model/reference changes invalidate the
+// receipt even after task cleanup.
 export function failureSignature(node) {
   const value = Object.fromEntries(Object.entries(node).filter(([key]) => !ignoredFields.has(key)));
   return JSON.stringify(value, (_key, item) => item && typeof item === 'object' && !Array.isArray(item)

@@ -27,6 +27,81 @@ async function harness({modulePromise,originalFullImage}={}){
 }
 const results=(ids)=>ids.map((id,index)=>({id,patch:{image:`result-${index}.png`,fullImage:`result-${index}.png`,pixelWidth:1000,pixelHeight:800}}));
 
+async function depthFixture(mode='spread'){
+ const f=await harness();f.probe.edit('a',{type:'video',video:'old.mp4'});
+ const plan=f.plan({resultLayout:mode});for(const node of plan.pendingTargetNodes)node.pendingOperation='video.depth';
+ const receipt=await f.api.commitGenerationPlan(plan);
+ return {...f,plan,receipt,recovery:{runId:receipt.runId,kind:'video.depth',targetNodeIds:plan.targetNodeIds,requestPlans:plan.requestPlans}};
+}
+
+test('depth planned provider failure survives exact capture then workflow clear while edits and newer jobs invalidate receipts',async()=>{
+ const [{captureFailureReceipts},{createFailureState},{createResultWorkflow}]=await Promise.all([
+  import('../src/features/generation-results/failure-bridge.mjs'),import('../src/features/generation-results/error-state.mjs'),import('../src/features/generation-results/workflow.mjs')]);
+ for(const reload of [false,true]){
+  const f=await depthFixture(),ids=f.plan.targetNodeIds;
+  if(reload)await f.probe.reload(f.saves[0]);
+  const job={id:f.receipt.runId,status:'failed',providerDispatched:true,error:'模型服务拒绝任务',request:{kind:'video.depth',nodeId:'a',parameters:{canvasResults:f.recovery}}},workflow=createResultWorkflow(f.api);
+  workflow.restore(job);assert.equal(workflow.has(job.id),true);
+  assert.ok(ids.every(id=>f.probe.liveNode(id).generationRecovery?.kind==='video.depth'));
+  const saves=f.saves.length;job.nodeFailures=captureFailureReceipts({job,app:f.api,planned:workflow.has(job.id)});assert.equal(f.saves.length,saves);
+  workflow.clear(job.id);
+  const state=()=>({nodes:f.state().nodes.map(node=>f.probe.liveNode(node.id))}),store=createFailureState();
+  assert.deepEqual([...store.collect(state(),[job]).keys()],ids);
+  for(const id of ids){const target=f.probe.liveNode(id);assert.equal(target.generationRecovery,undefined);assert.equal(target.generationRun,undefined);assert.equal(target.pendingOperation,undefined);}
+  const oldTitle=f.probe.liveNode(ids[0]).title;f.probe.edit(ids[0],{title:'edited result'});
+  assert.deepEqual([...store.collect(state(),[job]).keys()],[ids[1]]);f.probe.edit(ids[0],{title:oldTitle});assert.deepEqual([...store.collect(state(),[job]).keys()],[ids[1]]);
+  const newer={id:'new-run',status:'queued',request:{kind:'video.generate',nodeId:ids[1]}};
+  assert.equal(store.collect(state(),[job,newer]).size,0);assert.equal(store.collect(state(),[job]).size,0);
+ }
+});
+
+test('depth real spread and pile targets survive hydration and apply as video without residual markers',async()=>{
+ const {pendingNodes}=await import('../src/features/generation-results/pending-ui.mjs');
+ for(const mode of ['spread','pile']){
+  const f=await depthFixture(mode),ids=f.plan.targetNodeIds,job={id:f.receipt.runId,status:'running',request:{kind:'video.depth',nodeId:'a',parameters:{canvasResults:f.recovery}}};
+  assert.deepEqual([...pendingNodes(f.state(),[job]).keys()],ids);assert.equal(f.state().nodes.find(node=>node.id==='a').pendingOperation,undefined);
+  if(mode==='pile')assert.deepEqual(f.state().nodes.find(node=>node.type==='pile').memberIds,f.plan.layoutNodeIds);
+  else assert.ok(f.state().nodes.find(node=>node.id===ids[1]).y>f.state().nodes.find(node=>node.id==='a').y);
+  await f.probe.reload(f.saves[0]);assert.equal(pendingNodes(f.state()).size,0);
+  const before=f.state(),saves=f.saves.length;assert.equal(f.api.restoreGenerationResults(f.recovery).restored,true);
+  assert.deepEqual(f.state(),before);assert.equal(f.saves.length,saves);assert.equal(f.probe.history(),0);
+  assert.equal(f.api.restoreGenerationResults(f.recovery).restored,false);
+  assert.deepEqual([...pendingNodes(f.state(),[job]).keys()],ids);
+  f.api.applyGenerationResults(f.receipt.runId,ids.map((id,i)=>({id,patch:{video:`depth-${i}.mp4`,pixelWidth:1280,pixelHeight:720}})));
+  for(const id of ids){const node=f.state().nodes.find(node=>node.id===id);assert.equal(node.type,'video');assert.ok(node.video.startsWith('depth-'));assert.equal(node.generationRun,undefined);assert.equal(node.pendingOperation,undefined);assert.equal(node.generationRecovery,undefined);}
+  assert.equal(pendingNodes(f.state(),[job]).size,0);
+ }
+});
+
+test('depth cancellation and terminal cleanup remove recovered markers and undo cannot revive deleted ownership',async()=>{
+ const {pendingNodes}=await import('../src/features/generation-results/pending-ui.mjs');
+ for(const status of ['cancelled','failed','configuration_required','succeeded']){
+  const f=await depthFixture(),ids=f.plan.targetNodeIds;await f.probe.reload(f.saves[0]);f.api.restoreGenerationResults(f.recovery);
+  assert.equal(pendingNodes(f.state(),[{id:f.receipt.runId,status,request:{kind:'video.depth',nodeId:'a',parameters:{canvasResults:f.recovery}}}]).size,0);
+  assert.deepEqual([...f.api.clearGenerationResults(f.receipt.runId)],ids);
+  for(const id of ids){const node=f.state().nodes.find(node=>node.id===id);assert.equal(node.generationRun,undefined);assert.equal(node.pendingOperation,undefined);assert.equal(node.generationRecovery,undefined);}
+ }
+ const f=await depthFixture(),ids=f.plan.targetNodeIds;f.probe.remove(ids[0]);f.api.undo();
+ const restored=f.state().nodes.find(node=>node.id===ids[0]);assert.equal(restored.pendingOperation,undefined);assert.equal(restored.generationRun,undefined);assert.equal(restored.generationRecovery,undefined);
+ assert.throws(()=>f.api.applyGenerationResults(f.receipt.runId,ids.map(id=>({id,patch:{video:'late.mp4'}}))),/目标/);
+});
+
+test('depth commit and recovery reject operation and node type mismatches including coherent saved baselines',async()=>{
+ const wrong=await harness(),bad=wrong.plan();for(const node of bad.pendingTargetNodes)node.pendingOperation='video.depth';
+ await assert.rejects(wrong.api.commitGenerationPlan(bad),/占位/);assert.equal(wrong.saves.length,0);assert.equal(wrong.probe.history(),0);
+ for(const scenario of ['kind','type','unsupported']){
+  const f=await depthFixture(),saved=structuredClone(f.saves[0]);
+  if(scenario==='type')for(const node of saved.nodes.filter(node=>f.plan.targetNodeIds.includes(node.id))){
+   node.type='image';const content={...node};delete content.x;delete content.y;delete content.selected;delete content.generationRecovery;
+   node.generationRecovery.signature=JSON.stringify(content,(_key,value)=>value&&typeof value==='object'&&!Array.isArray(value)?Object.fromEntries(Object.keys(value).sort().map(key=>[key,value[key]])):value);
+  }
+  await f.probe.reload(saved);const before=f.state();
+  assert.throws(()=>f.api.restoreGenerationResults({...f.recovery,kind:scenario==='kind'?'video.generate':scenario==='unsupported'?'video.upscale':'video.depth'}),error=>error.code==='unsafe_generation_recovery');
+  assert.deepEqual(f.state(),before);assert.equal(f.saves.length,1);
+  if(scenario==='type')assert.ok(before.nodes.filter(node=>f.plan.targetNodeIds.includes(node.id)).every(node=>!node.pendingOperation&&!node.generationRun&&!node.generationRecovery));
+ }
+});
+
 test('commit applies only planned changes once, preserves selection, and undo restores graph',async()=>{
  const f=await harness(),plan=f.plan(),before=f.state();f.probe.edit('b',{title:'unrelated reference rename'});
  // Re-plan after a reference content edit; unrelated nodes introduced after planning remain intact.

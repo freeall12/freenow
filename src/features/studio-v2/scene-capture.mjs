@@ -34,6 +34,7 @@ export async function captureScene(runtime) {
       playbackTarget: runtime.playback.target, time: runtime.playback.time
     };
     runtime.updateLighting();
+    await shot.ready({width,height});assertCurrent();
     if (!shot.render({width, height}) || shot.renderer.getContext().isContextLost()) {
       throw Error('镜头渲染失败，请重新打开片场后重试');
     }
@@ -59,7 +60,7 @@ export async function captureScene(runtime) {
     }
     return {nodeId, width, height};
   } finally {
-    shot?.dispose();
+    await shot?.dispose();
     runtime.capturing = false;
   }
 }

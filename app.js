@@ -190,16 +190,17 @@
   function clearOrphanGenerationState({allowRecovery=false}={}) {
     for(const node of nodes){
       const run=node.generationRun;
-      if(!run||typeof run.runId!=='string'||node.pendingOperation!==`${node.type}.generate`)continue;
+      if(!run||typeof run.runId!=='string'||node.pendingOperation!==`${node.type}.generate`&&node.pendingOperation!=='video.depth')continue;
+      const validOperation=node.pendingOperation!=='video.depth'||node.type==='video';
       // Rebuild reconciles surviving history snapshots into their existing live
       // objects. Deleted/recreated nodes have no such identity and cannot inherit a task.
       const record=nodeRecords.get(node.id),live=record?.node.type===node.type?record.node:node;
       const guard=generationRuns.get(run.runId)?.find(item=>item.id===node.id);
-      if(guard?.node===live&&guard.operation===node.pendingOperation&&guard.token===JSON.stringify(run))continue;
+      if(validOperation&&guard?.node===live&&guard.operation===node.pendingOperation&&guard.token===JSON.stringify(run))continue;
       const recovery=node.generationRecovery;
       // Only hydration may retain a durable baseline. Undo must not resurrect
       // deleted task identities or turn a completed operation back into a job.
-      if(allowRecovery&&recovery?.version===1&&recovery.runId===run.runId&&recovery.kind===node.pendingOperation&&
+      if(validOperation&&allowRecovery&&recovery?.version===1&&recovery.runId===run.runId&&recovery.kind===node.pendingOperation&&
         Array.isArray(recovery.targetNodeIds)&&recovery.targetNodeIds.includes(node.id)&&
         typeof recovery.signature==='string'&&recovery.signature===generationSignature(node))continue;
       delete node.generationRun;delete node.pendingOperation;delete node.generationRecovery;
@@ -571,7 +572,7 @@
         changed.add(id);byId.set(id,node);
       }
       for(const change of edgeChanges){const edge=change.item;if(change.type!=='add'||!edge||typeof edge.id!=='string'||!edge.id||edgeIds.has(edge.id)||!byId.has(edge.source)||!byId.has(edge.target))throw Error('生成参考连线无效');edgeIds.add(edge.id);}
-      for(const id of ids){const node=byId.get(id);if(!changed.has(id)||node?.generationRun?.runId!==runId||node.pendingOperation!==`${node.type}.generate`)throw Error('生成占位标识不匹配');
+      for(const id of ids){const node=byId.get(id);if(!changed.has(id)||node?.generationRun?.runId!==runId||node.pendingOperation!==`${node.type}.generate`&&!(node.type==='video'&&node.pendingOperation==='video.depth'))throw Error('生成占位标识不匹配');
         node.generationRecovery={version:1,runId,kind:node.pendingOperation,targetNodeIds:[...ids],signature:generationSignature(node)};
       }
       remember();
@@ -589,7 +590,7 @@
     },
     restoreGenerationResults({runId,kind,targetNodeIds:ids,requestPlans}){
       const invalid=()=>{throw Object.assign(Error('原占位缺失、已编辑或没有可验证的恢复基准；未应用结果'),{code:'unsafe_generation_recovery'});};
-      if(typeof runId!=='string'||!runId||!['image.generate','video.generate','text.generate'].includes(kind)||!Array.isArray(ids)||!ids.length||ids.length>50||ids.some(id=>typeof id!=='string'||!id)||new Set(ids).size!==ids.length||!Array.isArray(requestPlans)||!requestPlans.length)invalid();
+      if(typeof runId!=='string'||!runId||!['image.generate','video.generate','video.depth','text.generate'].includes(kind)||!Array.isArray(ids)||!ids.length||ids.length>50||ids.some(id=>typeof id!=='string'||!id)||new Set(ids).size!==ids.length||!Array.isArray(requestPlans)||!requestPlans.length)invalid();
       const targets=[],requestIds=new Set();
       for(const request of requestPlans){if(!request||typeof request.requestId!=='string'||!request.requestId||requestIds.has(request.requestId)||!Array.isArray(request.targets)||!request.targets.length)invalid();requestIds.add(request.requestId);for(const [index,target]of request.targets.entries()){if(!target||target.resultIndex!==index)invalid();targets.push({id:target.nodeId,token:{runId,requestId:request.requestId,resultIndex:index}});}}
       if(targets.length!==ids.length||targets.some((target,index)=>target.id!==ids[index]))invalid();

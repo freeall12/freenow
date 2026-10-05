@@ -1,12 +1,12 @@
 # 原生 SPZ / Spark 本地集成计划
 
-首次研究：2026-10-03；本机安装包、npm 发布物与当前接线复核：2026-10-05。当前只更新此方案，未安装依赖、修改生产代码、操作浏览器或提交 Git。目标是用 World Labs 的成熟高斯渲染器直接解码并渲染 SPZ，保留原始高斯数据与来源。
+首次研究：2026-10-03；本机安装包、npm 发布物与当前接线复核：2026-10-05。此文保留依赖审批前的研究方案；2026-10-05 用户已批准接入，当前实现与验收边界见 [SPZ-LOCAL-RENDERING-20261005.md](./SPZ-LOCAL-RENDERING-20261005.md)。目标是用 World Labs 的成熟高斯渲染器直接解码并渲染 SPZ，保留原始高斯数据与来源。
 
 ## 结论与最小依赖审批
 
 建议新增并精确固定一个生产依赖 `@sparkjsdev/spark@2.3.1`；npm 元数据声明其传递依赖为 `fflate@^0.8.2`。保留本项目现有 `three@0.186.0` 和 esbuild，不增加另一套 Three、Rust、独立解码器或自写高斯渲染器。
 
-批准后执行 `pnpm add @sparkjsdev/spark@2.3.1 --save-exact`，核对 lockfile 的实际变更与单一 Three 实例。新包审批包含传递的 fflate；此命令尚未执行。
+批准后执行 `pnpm add @sparkjsdev/spark@2.3.1 --save-exact`，核对 lockfile 的实际变更与单一 Three 实例。新包审批包含传递的 fflate；获批后已执行，lockfile 固定 Spark2.3.1 与 fflate0.8.3，保留 Three0.186。
 
 2026-10-05 重新读取 npm registry 与 `2.3.1` tarball，确认 `latest` 仍为 `2.3.1`，许可证 MIT，版权声明 `Copyright © 2025 WORLD LABS TECHNOLOGIES, INC.`，peer dependency 为 `three >=0.180.0`，本项目满足。README 明确支持 WebGL2、SPZ、多个高斯对象、网格混合渲染及多个视点。包发布与源码覆盖已核验；本机 GPU、Three 0.186 上的实际渲染尚未验证。
 

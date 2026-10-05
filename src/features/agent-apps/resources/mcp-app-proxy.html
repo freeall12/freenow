@@ -298,6 +298,11 @@
             return localizePlatformResizeBrand(templateHtml, name, version);
           })
           .then(async function (templateHtml) {
+            if (name !== "platform-resize") return templateHtml;
+            var interactions = await import("../platform-resize-local-interactions.mjs");
+            return interactions.localizePlatformResizeInteractions(templateHtml, name, version);
+          })
+          .then(async function (templateHtml) {
             // Only v2 has variant submission errors; historical v1 is read-only.
             if (name !== "animatic" || version !== "v2") return templateHtml;
             var errors = await import("../animatic-local-errors.mjs");
