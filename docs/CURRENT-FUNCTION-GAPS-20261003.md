@@ -8,6 +8,8 @@
 
 ## 已有实现，不重复开发
 
+2026-10-05 / 1005o补充：[Agent首次识别及恢复](LOCAL-AGENT-SEGMENTATION-AND-EXPORTS-20261005.md)已实机验证独立确认、来源漂移拒绝、同素材重存与原Agent回执闭环、换clip后取消、同库重启后显式补发唯一未派发分支；本地封面解析、视频规格焦点/滚轮与Widget实际PNG/MP4/WebM下载亦已验。合成供应商证明本地流程，真实识别质量仍待Key验收；HTML独立离线重开和92份精确模板正文仍开放。
+
 2026-10-05 / 1005m补充：[分组/多选复制粘贴](CANVAS-GROUP-COPY-PASTE-20261005.md)已验父子绝对几何、入边保留/出边排除、清图库/运行归属、连续粘贴、⌘D与撤销；[拼装审阅](AGENT-CUTLIST-REVIEW-INTERACTIONS-20261005.md)已验裁切/保留、同快照确认、复原再改、关闭失败重试与刷新。普通单节点[副本](CANVAS-SINGLE-DUPLICATE-20261005.md)、[人物走位](AGENT-CHARACTER-BLOCKING-INTERACTIONS-20261005.md)、[视频延长生命周期](VIDEO-EXTENSION-LIFECYCLE-20261005.md)亦已有前批证据。其他节点组合、应用全部状态/语言和真实供应商仍需逐项核对。
 
 用户已批准 Spark 2.3.1，预算内 SPZ 已完成真实解码、预览、片场保存/撤销、照片与2秒视频；[混合拾取](SPZ-MIXED-PICKING-20261005.md)及[原生tiny-lod](SPZ-LOD-20261005.md)已实机验证。不能再将依赖授权、基础渲染、普通混合遮挡或LOD列为尚未实现。LOD最多25万参与绘制/排序，不减少全量解码或驻留数据；仍需多设备压力、长视频、复杂半透明、按页流式加载及真实Marble生成/碰撞对齐验收。前批已补[视频深度普通节点、双结果、布局和恢复](LOCAL-DEPTH-BATCH-AND-CANVAS-20261005.md)。

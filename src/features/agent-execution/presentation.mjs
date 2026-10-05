@@ -1,3 +1,4 @@
+import {segmentationDisclosure} from '../agent-generation/video-segmentation.mjs';
 import {isImageEditorTool,imageEditorPresentation} from './image-editor-presentation.mjs';
 import {depthActions,depthToolDetails,depthTaskState,isDepthTool} from './depth-card.mjs';
 import {isVideoTrimTool,videoTrimPresentation} from './video-trim-presentation.mjs';
@@ -41,7 +42,7 @@ export function videoMaskDisclosure(configuration,kind){
  return state.hint||state.reason;
 }
 const imageProcessingActions={'image.upscale':'图片超分','image.skin':'皮肤增强','image.relight':'图片打光','image.multiAngle':'多角度调整','image.remove-background':'图片抠图','video.erase':'视频移除','video.replace':'视频替换'};
-const actions={...depthActions,generation_video_models:'读取视频模型能力',
+const actions={video_segment_target:'识别视频目标并保存蒙层',video_segmentation_recover:'恢复原视频识别任务',video_segmentation_resume:'确认续发 SAM2 分支',video_segmentation_cancel:'取消原视频识别任务',video_segmentation_retry_save:'重存完整视频蒙层',...depthActions,generation_video_models:'读取视频模型能力',
  web_search:'检索公开网络',agent_delegate:'编排子任务',ask_question:'询问创作需求',
  show_app:'展示应用',show_form:'收集创作表单',show_html:'展示互动作品',show_widget:'展示互动组件',prepare_widget:'准备互动组件',
  artifacts_list:'读取文件列表',artifacts_read:'读取文件',artifacts_write:'保存文件',
@@ -52,12 +53,21 @@ const actions={...depthActions,generation_video_models:'读取视频模型能力
  scene_create:'创建片场',scene_open:'打开片场',scene_read:'读取片场',scene_library:'读取片场素材',scene_sample:'添加片场素材',scene_add:'添加片场对象',scene_update:'更新片场对象',scene_delete:'删除片场对象',scene_camera:'设置相机',scene_capture:'拍摄画面',scene_keyframe:'设置关键帧',scene_playback:'控制片场预览',scene_setup:'切换片场状态',scene_environment:'设置片场环境',scene_export:'导出片场',scene_panorama:'处理全景图',scene_undo:'撤销片场修改',
  world_read:'读取3D世界生成设置',world_generate:'生成3D资产或世界',skills_list:'读取技能列表',skills_read:'读取技能',skills_save:'保存技能',skills_rename:'重命名个人技能',skills_uninstall:'卸载个人技能',scene_import:'导入画布3D资源',scene_redo:'重做片场修改',generation_submit:'提交生成任务',generation_status:'检查生成进度',generation_wait:'等待生成结果',generation_cancel:'取消生成任务'
 };
+function segmentationOutcomeLabel(trace){
+ if(!['video_segment_target','video_segmentation_recover','video_segmentation_resume','video_segmentation_cancel','video_segmentation_retry_save'].includes(trace.name)||!['done','error'].includes(trace.status))return null;
+ const result=trace.result||{};
+ // Tool completion and provider success do not establish canvas persistence.
+ if(result.status==='applied'&&result.applied===true&&result.saved===true&&!result.error&&!trace.error)return '完整视频蒙层已应用并保存';
+ const labels={applied:'视频蒙层应用和保存尚未确认',succeeded:'视频识别已完成，蒙层应用和保存尚未确认',needs_resume:'视频识别等待确认续发分支',unknown:'原视频识别任务状态未确认',cancelled:'原视频识别任务已取消',save_failed:'完整视频蒙层保存失败，尚未确认保存',failed:'原视频识别任务失败',intent:'原视频识别意图已记录，派发尚未确认',existing_task:'节点保留原视频识别任务，待查询',preparing:'原视频识别任务正在准备',queued:'原视频识别任务等待处理',running:'原视频识别任务仍在处理中'};
+ return labels[result.status]||((result.error||trace.error||trace.status==='error')?'视频识别操作失败':'视频识别结果待核对');
+}
 export function toolPresentation(trace){
  if(isImageEditorTool(trace))return imageEditorPresentation(trace);
  if(isSubjectsTool(trace))return subjectsPresentation(trace);
  if(isVideoTrimTool(trace))return videoTrimPresentation(trace);
  const args=trace.args||{},action=(trace.name==='generation_submit'?imageProcessingActions[args.kind]:null)||actions[trace.name]||trace.name||'工具操作';
  let detail=trace.name==='skills_rename'?`${args.name} → ${args.new_name}`:trace.name==='skills_uninstall'?`${args.name}（移除个人技能包，无法从归档恢复）`:isDepthTool(trace)?depthToolDetails(trace).join(' · '):args.query||args.title||args.artifact_path||args.name||args.nodeId||args.id||args.groupId||'';
+ if(trace.name.startsWith('video_segment'))detail+=(detail?'\n':'')+(args.rect?`源像素选区 x=${args.rect.x}, y=${args.rect.y}, ${args.rect.width}×${args.rect.height}；源绝对时间 ${args.time}s\n`:'原 UUID '+args.taskId+'\n')+(trace.segmentationDisclosure||segmentationDisclosure);
  if(trace.name==='generation_submit'&&args.kind==='image.relight')detail+=(detail?'\n':'')+relightParameterDetails(args.relight)+'\n'+(trace.relightDisclosure||parameterEditDisclosure);
  if(trace.name==='generation_submit'&&args.kind==='image.upscale'&&args.upscale)detail+=(detail?'\n':'')+upscaleParameterDetails(args)+'\n'+(trace.upscaleDisclosure||upscaleDisclosure(null));
  if(trace.name==='generation_submit'&&args.kind==='image.skin')detail+=(detail?'\n':'')+skinParameterDetails(args)+'\n'+(trace.skinDisclosure||skinDisclosure(null));
@@ -74,5 +84,7 @@ export function toolPresentation(trace){
  if(trace.name==='show_form')label=trace.status==='waiting'?'等待填写表单':trace.status==='done'?(trace.result?.skipped?'用户已跳过表单':'已收到表单'):(prefix[trace.status]||'')+'收集创作表单';
  if(trace.name==='generation_wait'&&trace.status==='done')label='已检查生成任务 · '+(trace.result?.status||'等待结束');
  if(isDepthTool(trace))label=action+' · '+depthTaskState(trace).label;
+ const segmentationLabel=segmentationOutcomeLabel(trace);
+ if(segmentationLabel)label=segmentationLabel+(lineDetail?' · '+lineDetail:'');
  return {label,action,detail,icon};
 }

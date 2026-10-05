@@ -20,7 +20,7 @@
 
 等待工具回执的检查点保留原 callId、多模态像素、输入和轮次，可通过原回执显式续轮；已落盘但尚未请求模型的 `planned` / `receipts_saved` 也可显式继续。请求过程中断恢复为 `unknown`，不推断成功或自动重发。配置改变阻断未完成运行；历史终态仍可查询。已保存的委派批次可恢复原子任务身份、调用、依赖与规范结论；完成结果只读复用，已知尚未发出的任务需要显式启动/继续，模型在途中断仍为unknown。旧记录缺少委派检查点时标记 `blocked / delegation_state_not_persisted`，不会猜测重建子任务。`delegated-state` 和 `delegated-result` 同样可无Key只读核对；修改和续轮仍需原配置。详见 子任务恢复合同（开发机来源：`reference/agent-delegation-checkpoints-20261002.md`）。
 
-浏览器目前只提供“核对中断任务”的手动只读查询；没有自动恢复工具、自动重发或继续按钮。`canResumeWithReceipts` 只表示服务端协议具备续轮条件，不能代替原工具执行证据或授权。完整合同、聚焦验证与剩余工作见 检查点接线（开发机来源：`reference/agent-checkpoint-integration-20261002.md`） 和 [存储合同](AGENT-SESSION-STORE.md)。
+浏览器提供“核对中断任务”的手动只读查询；只有原回执、提交、来源与服务端待执行身份都能核对时，才允许“继续中断任务”。继续需要明确点击，不自动恢复工具或重发未知请求。`canResumeWithReceipts` 只表示服务端协议具备续轮条件，不能代替原工具执行证据或授权。完整合同、聚焦验证与剩余工作见 [前端恢复模块](../src/features/agent-recovery/README.md) 和 [存储合同](AGENT-SESSION-STORE.md)。
 
 生成任务走独立 `GenerationAPI`，可以注入提供方或HTTP `/tasks` 协议。没有提供方时状态为 `configuration_required`，不会生成占位成功图像。
 
@@ -552,6 +552,16 @@ Tests：13项聚焦父子Runtime/调度/客户端执行器回归通过，复用�
 - 普通/批量生成卡与样片卡的未知任务提供查询按钮；取回成功后提供原占位／新节点两个显式入口。该恢复操作是本地推断功能，尚无官方同状态视觉依据。
 
 生产记录位于静态访问被拒绝的 `server/.generation-tasks`；协议与局限见 [生成网关](GENERATION-GATEWAY.md)。这不代表 Agent 对话执行状态或分组 DAG 已支持跨重启继续。
+
+## 视频首次目标识别
+
+`video_segment_target({operationId,nodeId,rect:{x,y,width,height},time})` 使用完整源视频的像素与绝对秒数，识别并保存完整时序蒙层。`video_segmentation_recover`、`video_segmentation_resume`、`video_segmentation_cancel`、`video_segmentation_retry_save` 均只接受 `{nodeId,taskId}`，绑定原 UUID，不创建编辑视频。
+
+- 用途与输出：Replicate SAM2 原生识别及恢复，返回原 taskId、真实状态、完整源时间轴和 applied/saved；提供方成功不等于画布已保存。
+- 权限：首次识别和续发始终独立确认，披露完整源上传与最多两次推理；查询、取消和重存不额外请求 LLM。创建/续发 HTTP 绑定批准的模型版本和供应商指纹。
+- 失败：配置、项目、节点、来源、clip、蒙层或批准参数变化会阻止应用；未知任务不重提。取消仍核对原项目/节点/UUID，但允许来源已改变，以便停止原任务。
+- 日志与持久化：原 UUID、Agent 工具检查点和节点回执在派发前保存；保存失败只重存原资产。首次无旧蒙层且原待回执唯一时，可核对完整蒙层、原调用及来源后补存原工具回执，再显式继续。
+- 验证：定向工具/媒体/批准守卫检查及合成供应商的真实本机整链；真实账号、跟踪效果和线上解码兼容仍待验证。详见 [工具合同与验证](AGENT-VIDEO-SEGMENTATION-20261005.md)、[供应商配置](VIDEO-SEGMENTATION-SETUP.md)。
 
 ## 深度视频专用工作流
 

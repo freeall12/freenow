@@ -1,4 +1,6 @@
-# 当前导出与内嵌品牌窄审计 · 2026-10-05 / 1005m
+# 当前导出与内嵌品牌窄审计 · 2026-10-05
+
+1005o 补充：Widget 的 PNG、默认 H.264 MP4 和 WebM 能力环境已通过真实捕获、正式宿主下载、文件落盘、SHA 回读及浏览器播放。两个视频均实际解码 40 个不同画面帧，见[实机记录](WIDGET-WHITEBOX-DOWNLOAD-QA-20261005.md)与[文件和运动采样](research/widget-whitebox-download-20261005.json)。此批只验证下载，加入画布仍须独立验收；以下 1005m 清单保留历史依据。
 
 本批重新读取当前生产源码和 manifest，对 HTML、Widget 媒体、PNG/JPEG、WebM/MP4、GLB 与内嵌应用的品牌归属作窄审计。**没有发现新的、可以明确归属于应用自加的旧产品品牌，未修改生产代码。** 本结论不覆盖任意用户 HTML、历史媒体或全部动态可达状态，不是全站品牌完成声明。
 
@@ -47,4 +49,12 @@ node --test --test-name-pattern='opaque wrapper|derived export retains|export bo
 2. **PNG/JPEG**：正式 `http://127.0.0.1:4173/` 在独立 QA 项目上传同一已知本地图片，打开图片编辑器→导出 PNG/JPG。核对 `Image Editor.png/.jpg`、实际解码尺寸、PNG 透明度和 JPG 白底；检查整张像素没有应用自加品牌。若输入本身带用户商标/文字，应保留它；不把用户图的旧名当缺陷。旧 `qa/image-editor-app.html` 是历史壳，仍有原静态 Logo，不作当前正式品牌截图。
 3. **MP4 与原文件下载**：仍在独立正式项目上传已知本地短视频，裁切后走正式下载；播放列表可用“下载合并视频（mp4）”。核对标题决定的文件名、真实 MP4 编码/时长及抽帧，检查没有宿主 UI 或自加 Logo；原始 WebM 下载另核对原字节，不能用转码 MP4替代原片下载验收。FFmpeg 为现有本机依赖。旧 `qa/video-trim-app.html` 同属历史壳，不证明当前主页面品牌。
 
-Widget 白模 PNG/MP4/WebM 尚缺一条专属、可重复的真实浏览器捕获→宿主“下载素材”→文件回读记录；现有 `qa/whitebox-capture-check.mjs` 是 Node 平台替身检查，不能作为此项实机证据。这里明确保留缺口，不临时注入点击或修改 sandbox。全格式、最大尺寸、发布包、动态网络和全部用户工作流仍按[总验收清单](FREENOW-LOCALIZATION-ACCEPTANCE.md)开放。
+Widget 白模 PNG/MP4/WebM 的专属下载记录已在上方 1005o 增量补齐，旧 `qa/whitebox-capture-check.mjs` 仍只是 Node 平台替身检查。全格式、最大尺寸、发布包、动态网络和全部用户工作流仍按[总验收清单](FREENOW-LOCALIZATION-ACCEPTANCE.md)开放。
+
+## 1005o HTML 实际下载
+
+在 `/src/features/agent-artifacts/qa/local-export.html?session=export-1005o` 使用真实产物 store、预览与“下载 HTML”。本次将验收产物和素材均隔离到 session 专属 IndexedDB，并仅允许转换器读取本地 Blob，不读取用户资源映射。原文中的本地素材引用保持不变，下载的是含内联图片与 opaque iframe 的派生文件。
+
+实际 `离线互动 (1).html` 文件为 2,359 bytes，SHA256 `e2bba158c7ef9df9be5282f02f004550708e84d0e1b9c35eb1f2d42821b916b7`；文件回读确认 `connect-src 'none'`、`frame-src about:` 和 `sandbox="allow-scripts"`。浏览器下载事件等待 20 秒超时，但文件在本次点击后真实落盘，不能以事件超时判定下载失败。浏览器工具策略拒绝打开 `file://`，未绕过限制，因此**独立离线文件重新打开的浏览器验收未完成**；当前证据只覆盖生产预览、实际下载及静态文件回读。
+
+![正式 HTML 预览与已下载反馈](screenshots/html-export-local-20261005.jpg)

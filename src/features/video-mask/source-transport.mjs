@@ -1,0 +1,4 @@
+// Whole-source transport: clip controls playback, never the SAM2 upload bytes.
+export async function transportVideoSource(source,signal,validateSources=()=>{},inlineRemote=false,{localAssets=globalThis.LocalAssets,fetchImpl=(...args)=>fetch(...args),asDataUrl=blob=>globalThis.LocalMedia.asDataUrl(blob),baseURI=globalThis.document?.baseURI,origin=globalThis.location?.origin}={}){
+ const check=()=>{if(signal?.aborted)throw signal.reason;validateSources();};check();const raw=await localAssets.url(source);check();if(raw.startsWith('data:'))return raw;const url=new URL(raw,baseURI);if(!inlineRemote&&url.origin!==origin&&url.protocol!=='blob:')return url.href;const response=await fetchImpl(url,{signal});check();if(!response.ok)throw Error('本地素材读取失败');const blob=await response.blob();check();const value=await asDataUrl(blob);check();return value;
+}

@@ -29,6 +29,23 @@ TaskDTO 包含 `id/protocol/version/providerFingerprint/status/nodeId/createdAt/
 
 `providerFingerprint` 由固定 origin、版本及 Key 的 SHA256 指纹共同构成，公开不可逆摘要。更换账户凭据或版本后，旧任务不能查询上游，也不能继续派发（已完整归档的本地结果仍可读取）；恢复原配置后才可取回。
 
+## 批准配置与 POST 边界 · 1005o
+
+原生 `POST /api/video-segmentation/tasks` 和 `POST /api/video-segmentation/tasks/:id/resume` 必须携带用户本次批准的两个公开身份字段：
+
+```http
+X-Segmentation-Model-Version: <config.version>
+X-Segmentation-Provider-Fingerprint: <config.providerFingerprint>
+```
+
+服务端在校验幂等 ID、解析请求体、准备或读取来源、上传、查询续发任务及创建预测之前，要求两者与当前服务实例配置逐字一致。任一缺失或不匹配返回 `409 segmentation_configuration_identity_mismatch`；不保存新任务、不解析视频，也不会向更换后的配置提交识别。不能仅在收到创建回执后拒绝错误身份，因为那时可能已经产生费用。
+
+前端保存的批准值在 POST 时原样携带，不能自动替换为刚刷新的未批准配置。服务 A 重启为 B 后，A 的创建批准及旧收据续发首先被此 HTTP 边界拒绝；即使显式批准 B，A 的已有收据仍受原任务 `providerFingerprint` 绑定限制，返回 `segmentation_provider_changed`，不查询或续发到 B。
+
+`GET` 和 `/cancel` 不要求新增批准头，继续使用已有任务身份与恢复/取消规则；内部服务方法保持测试和私有调用兼容，公开 HTTP 路由始终强制此检查。两个字段均为公开版本/不可逆配置摘要，浏览器不接收或发送供应商 Key。
+
+定向证据：`node --test tests/video-segmentation-replicate-approval.test.cjs`，3/3 通过。真实 localhost HTTP 请求验证缺失、部分、错误、正确创建头；同配置重启后正确/错误续发；A→B 重启后旧批准和旧收据拒绝；无批准头的 GET/cancel。被拒请求使用非法 JSON，body/parser、prepare、source、media、upload、submit、poll 计数不变，证明拒绝发生在视频处理之前。该专项使用私有临时 store 和计数 DI，仅验证配置批准边界，不是模型、媒体或真实供应商效果验收。未重跑旧专项或操作现有 QA host/store。
+
 ## 状态与持久化边界
 
 父状态为 `preparing/running/needs_resume/unknown/succeeded/failed/cancelled`。原创建或显式续发仍在执行时，即使第一路已开始下载且第二路仍 pending，公开收据也保持 `running`、`canResume:false`；工作实际停止后才公开 `needs_resume`，避免前端过早停止观察或重复提示续发。私有目录默认 `server/.segmentation-tasks`，复用 `createGenerationStore` 的单 writer lease、原子 rename、文件/目录 fsync。媒体、PNG、完整 decode 记录置于独立 `files/:uuid/`，mode0600/0700；没有公开静态路由。

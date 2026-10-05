@@ -24,6 +24,9 @@
 
 | 记录 | 范围 |
 | --- | --- |
+| [Agent识别、交互与实际导出](LOCAL-AGENT-SEGMENTATION-AND-EXPORTS-20261005.md) | 1005o整批：保存回执闭环、原任务取消/重启续发、本地封面、视频规格与真实下载 |
+| [Agent 首次视频识别](AGENT-VIDEO-SEGMENTATION-20261005.md) · [隔离整链复现](../src/features/agent-generation/qa/agent-segmentation-README.md) | 独立确认、完整源像素、原UUID任务与真实画布保存；当前实机范围以专项记录为准 |
+| [视频规格交互](VIDEO-SPECIFICATIONS-INTERACTION-20261005.md) · [Widget 实际下载](WIDGET-WHITEBOX-DOWNLOAD-QA-20261005.md) | 模式焦点、时长滚轮、Escape；真实PNG/MP4/WebM与逐帧运动证据 |
 | [原生SAM2与人物站位补验](LOCAL-SAM2-AND-BLOCKING-20261005.md) · [分割配置](VIDEO-SEGMENTATION-SETUP.md) | 双向真实媒体、完整PNG/RLE、持久任务、保存恢复与真实鼠标 |
 | [SAM2后台](REPLICATE-SAM2-NATIVE-20261005.md) · [前端](VIDEO-SEGMENTATION-FRONTEND-20261005.md) · [官方UI核对](VIDEO-SEGMENTATION-OFFICIAL-UI-20261005.md) | 独立供应商合同、原UUID恢复、费用说明与本地界面边界 |
 | [SAM2媒体](VIDEO-SEGMENTATION-MEDIA-20261005.md) · [PNG/RLE](VIDEO-SEGMENTATION-MASK-CODEC-20261005.md) · [公开传输来源](REPLICATE-SAM2-TRANSPORT-20261005.md) | 原始帧磁盘流式处理、首帧一致性、严格像素和下载合同 |

@@ -22,12 +22,14 @@ REPLICATE_SEGMENTATION_VERSION=
 
 | 操作 | 本机接口与行为 |
 | --- | --- |
-| 创建 | UUID意图先保存，再 `POST /api/video-segmentation/tasks`，带同 UUID `Idempotency-Key`。 |
+| 创建 | UUID意图先保存，再 `POST /api/video-segmentation/tasks`，带同 UUID `Idempotency-Key`，以及批准的 `X-Segmentation-Model-Version`、`X-Segmentation-Provider-Fingerprint`。 |
 | 查看/恢复 | `GET /api/video-segmentation/tasks/:id`，只查询既有任务、下载及合并，不重新推理。 |
-| 续发 | `needs_resume` 时用户确认后 `POST /tasks/:id/resume`，仅派发已准备且尚未提交的方向。 |
+| 续发 | `needs_resume` 时用户确认后 `POST /tasks/:id/resume`，携带上述两个批准头，仅派发已准备且尚未提交的方向。 |
 | 取消 | `POST /tasks/:id/cancel`，分别处理已知预测；回执未知不能宣称远程取消成功。 |
 
 后台私有目录 `server/.segmentation-tasks` 保存任务及实际片段/PNG，不公开静态访问且被 Git 忽略。重启不自动重新提交；未知 POST 不自动重试。两路实际二值PNG必须覆盖完整原时间轴、提示帧逐像素相同，全部通过才返回RLE。前端等待实际画布保存与flush确认，失败保留同任务、同资产再保存；供应商身份、模型、来源、clip或选择变化会阻断旧结果。配置和状态响应不包含Key、上传URL或视频字节。
+
+创建/续发的批准头缺失或不匹配时返回409，拒绝发生在解析媒体和提供方调用之前；查询及取消不要求重新批准。[Agent 识别与原任务工具](AGENT-VIDEO-SEGMENTATION-20261005.md)复用同一接口。
 
 分割与后续 Wan VACE 编辑是两个独立能力：Replicate Token用于识别，fal Key用于已有蒙层的移除/替换。后者还要求选段81–241帧。不能将“分割成功”解释为后续编辑也满足输入条件或已生成成片。完整合同见[任务后台](REPLICATE-SAM2-NATIVE-20261005.md)、[前端与恢复](VIDEO-SEGMENTATION-FRONTEND-20261005.md)。真实供应商的RGB H.264解码兼容、双向跟踪一致性及实际效果仍待授权验收。
 

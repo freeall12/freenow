@@ -22,14 +22,16 @@ export function httpProvider({fetchImpl=fetch,baseUrl,apiKey}={}){
 // separate user action; neither a fetch retry nor a reload can dispatch it.
 export function nativeTasksProvider({fetchImpl=fetch}={}){
  const id=value=>{if(typeof value!=='string'||!/^[a-f0-9-]{36}$/i.test(value))throw Error('本机识别任务标识无效');return encodeURIComponent(value);};
- const call=async(path,{signal,method='GET',body,key}={})=>{
-  let response,value;try{response=await fetchImpl('/api/video-segmentation/tasks'+path,{method,signal,redirect:'error',headers:{...(body!==undefined?{'Content-Type':'application/json'}:{}),...(key?{'Idempotency-Key':key}:{})},...(body!==undefined?{body:JSON.stringify(body)}:{})});value=await response.json();}
+ const approvedHeaders=configuration=>{if(typeof configuration?.version!=='string'||!configuration.version||typeof configuration?.providerFingerprint!=='string'||!configuration.providerFingerprint)throw Object.assign(Error('原生识别上传或续发缺少已确认的模型版本与供应商身份；未派发'),{code:'segmentation_configuration_identity_required'});return {'X-Segmentation-Model-Version':configuration.version,'X-Segmentation-Provider-Fingerprint':configuration.providerFingerprint};};
+ const call=async(path,{signal,method='GET',body,key,configuration,paid=false}={})=>{
+  const identityHeaders=paid?approvedHeaders(configuration):{};
+  let response,value;try{response=await fetchImpl('/api/video-segmentation/tasks'+path,{method,signal,redirect:'error',headers:{...identityHeaders,...(body!==undefined?{'Content-Type':'application/json'}:{}),...(key?{'Idempotency-Key':key}:{})},...(body!==undefined?{body:JSON.stringify(body)}:{})});value=await response.json();}
   catch{if(signal?.aborted)throw new DOMException('已停止查看原任务；供应商任务是否停止尚未确认','AbortError');throw Object.assign(Error('原识别任务回执未确认；请恢复同一任务，未自动重发'),{code:'segmentation_unknown'});}
   if(!response.ok)throw Object.assign(Error(value?.error||'本机识别任务请求失败'),{code:value?.code||'segmentation_failed'});
   if(!value||typeof value.id!=='string'||value.protocol!=='replicate-sam2-native'||!['preparing','running','needs_resume','unknown','succeeded','failed','cancelled'].includes(value.status))throw Object.assign(Error('原识别任务回执无效；未自动重发'),{code:'segmentation_unknown'});
   return value;
  };
- return {create:(request,{idempotencyKey,signal}={})=>{id(idempotencyKey);return call('',{method:'POST',body:request,key:idempotencyKey,signal});},get:(taskId,{signal}={})=>call('/'+id(taskId),{signal}),resume:(taskId,{signal}={})=>call('/'+id(taskId)+'/resume',{method:'POST',body:{},signal}),cancel:(taskId,{signal}={})=>call('/'+id(taskId)+'/cancel',{method:'POST',body:{},signal})};
+ return {create:(request,{idempotencyKey,signal,configuration}={})=>{id(idempotencyKey);return call('',{method:'POST',body:request,key:idempotencyKey,signal,configuration,paid:true});},get:(taskId,{signal}={})=>call('/'+id(taskId),{signal}),resume:(taskId,{signal,configuration}={})=>call('/'+id(taskId)+'/resume',{method:'POST',body:{},signal,configuration,paid:true}),cancel:(taskId,{signal}={})=>call('/'+id(taskId)+'/cancel',{method:'POST',body:{},signal})};
 }
 export const nativeTasks=nativeTasksProvider();
 const localProvider=httpProvider();

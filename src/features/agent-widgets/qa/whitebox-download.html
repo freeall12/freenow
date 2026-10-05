@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="zh">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src blob: data:; media-src blob: data:; frame-src 'self'; connect-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>Widget 白模下载 QA</title>
+  <link rel="stylesheet" href="../../agent-execution/styles.css">
+  <style>
+    body{margin:24px;background:#161616;color:#eee;font:14px/20px system-ui}h1{margin:0 0 12px;font:600 22px/28px system-ui}p{margin:0 0 12px}main{max-width:820px}button,input{font:14px/20px system-ui}button{padding:8px;cursor:pointer}pre{white-space:pre-wrap;overflow-wrap:anywhere;font:12px/18px monospace}section{margin-top:20px}summary{cursor:pointer}ul{padding-left:20px}li{overflow-wrap:anywhere;margin-bottom:4px}#preview{display:flex;flex-wrap:wrap;gap:16px;margin-top:12px}#preview figure{margin:0;width:320px}#preview figcaption{overflow-wrap:anywhere;font:12px/18px system-ui}#preview img,#preview video{display:block;max-width:320px;max-height:180px;margin-top:8px}
+  </style>
+  <script src="/media-tools.js" defer></script>
+  <script type="module" src="./whitebox-download.mjs"></script>
+</head>
+<body>
+  <main>
+    <h1>Widget 白模下载 QA</h1>
+    <p>独立合成场景，使用正式 Widget 双层 sandbox、捕获 helper、媒体接收器与下载函数。不调用模型，不读取项目、会话或用户存储。</p>
+    <p>每次捕获后点击宿主“下载素材”，保存文件，再点击“拒绝”开始下一次。本页只验下载；“添加到画布”未配置，点击会明确报错，保存路径未验。</p>
+    <button id="reset" type="button">重建独立 Widget</button>
+    <p id="host-status" role="status"></p>
+    <div id="mount"></div>
+    <section aria-label="下载请求证据">
+      <p>下载请求记录：仅表示正式下载函数已调用，不能证明磁盘保存。</p>
+      <ul id="download-summary"><li>尚无下载请求</li></ul>
+      <details><summary>完整下载请求 JSON</summary><pre id="downloads">[]</pre></details>
+    </section>
+    <section aria-label="显式文件回读">
+      <label>回读刚下载的文件（显式选择） <input id="readback" type="file" accept="image/png,video/webm,video/mp4" multiple></label>
+      <p>回读会比较实际文件 SHA-256，并显示真实解码尺寸。磁盘绝对路径须另用浏览器下载事件或文件系统检查记录。</p>
+      <ul id="readback-summary"><li>尚未显式回读文件</li></ul>
+      <details><summary>完整文件回读 JSON</summary><pre id="readback-results">[]</pre></details>
+      <div id="preview"></div>
+    </section>
+  </main>
+</body>
+</html>

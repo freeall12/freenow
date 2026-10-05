@@ -5,23 +5,29 @@ const css=document.createElement('link');css.rel='stylesheet';css.href=new URL('
 const el=(tag,cls,text)=>{const e=document.createElement(tag);e.className=cls||'';if(text!==undefined)e.textContent=text;return e;};
 export function modelIcon(config){const d=configuration(config);if(!d)return null;const img=el('img','image-model-icon');img.src=d.model.icon;img.alt='';return img;}
 export function renderSpecifications(pop,config,getInputs,onChange){
-  let current=config,observers=[],tooltip=null,disposed=false,renderRevision=0;
+  let current=config,observers=[],listeners=[],tooltip=null,disposed=false,renderRevision=0;
   const hideTooltip=()=>{tooltip?.remove();tooltip=null;};
+  const release=()=>{hideTooltip();observers.forEach(o=>o.disconnect());observers=[];listeners.forEach(remove=>remove());listeners=[];};
+  const scrollBehavior=()=>typeof matchMedia==='function'&&matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth';
   pop.classList.add('video-spec-menu');pop.setAttribute('role','dialog');pop.setAttribute('aria-label','视频生成规格');pop.tabIndex=-1;
   function section(label){const s=el('section','video-parameter-section');s.append(el('div','video-parameter-label',label));pop.append(s);return s;}
-  function draw(){
-    const revision=++renderRevision;
-    hideTooltip();observers.forEach(o=>o.disconnect());observers=[];pop.replaceChildren();const data=configuration(current,getInputs());if(!data)return;
+  function draw(focusKey=null){
+    const revision=++renderRevision;let focusTarget=null;
+    release();pop.replaceChildren();const data=configuration(current,getInputs());if(!data)return;
     current=data.settings;pop.classList.toggle('wide-duration',data.model.id.startsWith('seedance-2.5'));
-    function commit(key,value,rebuild=false){if(disposed||revision!==renderRevision)return;current=onChange({...current,[key]:value,...(key==='mode'?{videoMode:undefined}:{} )})||current;if(rebuild)draw();}
+    function commit(key,value,rebuild=false,restoreFocus=false){if(disposed||revision!==renderRevision)return;current=onChange({...current,[key]:value,...(key==='mode'?{videoMode:undefined}:{} )})||current;if(rebuild&&!disposed)draw(restoreFocus?key:null);}
     function segments(label,values,key,{render,scroll=false,disabled=[],hint=''}={}){
       const s=section(label);if(!values?.length){s.append(el('div','video-parameter-auto','自动'));return;}
       const group=el('div','video-parameter-segments');group.classList.toggle('scrollable',scroll);const selection=el('span','video-parameter-selection');group.append(selection);s.append(group);
-      const buttons=values.map(value=>{const b=el('button','',render?undefined:String(value));b.type='button';if(render)b.append(render(value));b.disabled=disabled.includes(value);b.setAttribute('aria-pressed',String(current[key]===value));if(b.disabled)b.title='当前参考素材不支持此生成方式';b.onclick=()=>{commit(key,value,key==='mode');if(key!=='mode')update();};group.append(b);return b;});
+      const buttons=values.map(value=>{const b=el('button','',render?undefined:String(value));b.type='button';if(render)b.append(render(value));b.disabled=disabled.includes(value);b.setAttribute('aria-pressed',String(current[key]===value));if(b.disabled)b.title='当前参考素材不支持此生成方式';b.onclick=()=>{commit(key,value,key==='mode',b.contains(document.activeElement));if(key!=='mode')syncSelection();};group.append(b);return b;});
+      if(key===focusKey)focusTarget=buttons.find((b,i)=>!b.disabled&&values[i]===current[key])||buttons.find(b=>!b.disabled);
       if(hint){const b=buttons[values.indexOf('全能参考')];if(b){const info=el('span','video-mode-hint');info.tabIndex=0;info.setAttribute('role','button');info.setAttribute('aria-label',hint);info.innerHTML='<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4"></path><path d="M12 8h.01"></path></svg>';const showTooltip=()=>{if(disposed||revision!==renderRevision)return;hideTooltip();tooltip=el('span','video-mode-tooltip is-visible',hint);tooltip.setAttribute('role','tooltip');document.body.append(tooltip);const r=info.getBoundingClientRect();tooltip.style.left=Math.max(8,Math.min(innerWidth-tooltip.offsetWidth-8,r.left+r.width/2-tooltip.offsetWidth/2))+'px';tooltip.style.top=(r.top>tooltip.offsetHeight+12?r.top-tooltip.offsetHeight-8:r.bottom+8)+'px';};info.onmouseenter=showTooltip;info.onmouseleave=hideTooltip;info.onfocus=showTooltip;info.onblur=hideTooltip;info.onclick=e=>e.stopPropagation();info.onkeydown=e=>{if(e.isComposing||e.keyCode===229)return;if(e.key==='Escape'){if(tooltip){e.stopPropagation();e.preventDefault();hideTooltip();}return;}if(e.key==='Enter'||e.key===' '){e.stopPropagation();e.preventDefault();showTooltip();}};b.append(info);}}
-      function update(){if(disposed)return;buttons.forEach((b,i)=>b.setAttribute('aria-pressed',String(current[key]===values[i])));const active=buttons[values.indexOf(current[key])];if(active)Object.assign(selection.style,{left:active.offsetLeft+'px',top:active.offsetTop+'px',width:active.offsetWidth+'px',height:active.offsetHeight+'px'});const left=group.scrollLeft>1,right=group.scrollLeft+group.clientWidth<group.scrollWidth-1;group.style.maskImage=scroll?`linear-gradient(to right,${left?'transparent':'black'},black 15%,black 85%,${right?'transparent':'black'})`:'';}
+      function update(){if(disposed||revision!==renderRevision)return;buttons.forEach((b,i)=>b.setAttribute('aria-pressed',String(current[key]===values[i])));const active=buttons[values.indexOf(current[key])];if(active)Object.assign(selection.style,{left:active.offsetLeft+'px',top:active.offsetTop+'px',width:active.offsetWidth+'px',height:active.offsetHeight+'px'});const left=group.scrollLeft>1,right=group.scrollLeft+group.clientWidth<group.scrollWidth-1;group.style.maskImage=scroll?`linear-gradient(to right,${left?'transparent':'black'},black 15%,black 85%,${right?'transparent':'black'})`:'';}
+      // Scroll events update the edge mask only, so manual browsing is not pulled back to the selected duration.
+      function syncSelection(){update();if(disposed||revision!==renderRevision||!scroll||group.scrollWidth<=group.clientWidth)return;const active=buttons[values.indexOf(current[key])];if(active)group.scrollTo({left:Math.max(0,Math.min(group.scrollWidth-group.clientWidth,active.offsetLeft-group.clientWidth/2+active.offsetWidth/2)),behavior:scrollBehavior()});}
+      function wheel(e){if(disposed||revision!==renderRevision||!scroll||group.scrollWidth<=group.clientWidth||e.deltaX!==0||e.deltaMode===0&&Math.abs(e.deltaY)<50)return;e.preventDefault();group.scrollTo({left:Math.max(0,Math.min(group.scrollWidth-group.clientWidth,group.scrollLeft+e.deltaY)),behavior:scrollBehavior()});}
       group.onkeydown=e=>{if(!['ArrowLeft','ArrowRight','Home','End'].includes(e.key))return;const enabled=buttons.filter(b=>!b.disabled),i=enabled.indexOf(document.activeElement);if(i<0)return;e.preventDefault();const next=e.key==='Home'?enabled[0]:e.key==='End'?enabled.at(-1):enabled[(i+(e.key==='ArrowRight'?1:-1)+enabled.length)%enabled.length];next.focus();next.scrollIntoView({block:'nearest',inline:'nearest'});};
-      group.addEventListener('scroll',update);const observer=new ResizeObserver(update);observer.observe(group);observers.push(observer);requestAnimationFrame(update);return {s,group,update};
+      group.addEventListener('scroll',update);if(scroll)group.addEventListener('wheel',wheel,{passive:false});listeners.push(()=>{group.removeEventListener('scroll',update);group.removeEventListener('wheel',wheel);group.onkeydown=null;});const observer=new ResizeObserver(syncSelection);observer.observe(group);observers.push(observer);requestAnimationFrame(syncSelection);return {s,group,update:syncSelection};
     }
     if(data.options.modes?.length)segments('生成模式',data.options.modes,'generateMode',{render:v=>el('span','',{std:'标准',pro:'专业','4k':'4K'}[v]||v)});
     if(data.modeOptions.length>1)segments('生成方式',data.modeOptions.map(v=>v.label),'mode',{disabled:data.modeOptions.filter(v=>v.disabled).map(v=>v.label),hint:data.hint});
@@ -34,8 +40,9 @@ export function renderSpecifications(pop,config,getInputs,onChange){
       input.oninput=()=>{input.value=input.value.replace(/\D/g,'').slice(0,3);if(input.value&&data.options.durations.includes(Number(input.value))){commit('duration',Number(input.value));duration.update();}};input.onfocus=()=>input.select();input.onblur=apply;input.onkeydown=e=>{e.stopPropagation();if(e.key==='Enter'){e.preventDefault();apply();input.select();}if(e.key==='Escape'&&!e.isComposing&&e.keyCode!==229){e.preventDefault();input.value=String(current.duration);pop.focus({preventScroll:true});}};
     }
     if(data.options.supportsAudio)segments('生成音频',[true,false],'audio',{render:v=>el('span','',v?'开启':'关闭')});
+    if(focusKey&&!disposed)(focusTarget||pop).focus({preventScroll:true});
   }
-  draw();return()=>{disposed=true;hideTooltip();observers.forEach(o=>o.disconnect());};
+  draw();return()=>{disposed=true;release();};
 }
 
 // Official v$e / VideoConfigsTrigger paths from canvas-current-readable.js:29311.

@@ -1,10 +1,14 @@
 import {createStore} from '../store.mjs';
 import {createPanel} from '../panel.mjs';
-import {defaultHtmlResourceOptions} from '../local-export.mjs';
-const store=createStore({namespace:'tapnow-qa-artifact-local-export-v1'}),path='artifacts/离线互动.html',status=document.getElementById('status'),source=document.getElementById('source');
+const session=new URLSearchParams(location.search).get('session')||'default';
+if(!/^[a-zA-Z0-9_-]{1,80}$/.test(session))throw Error('验收 session 仅接受 1–80 位字母、数字、下划线或连字符');
+const namespace='freenow-qa-artifact-local-export-'+session;
+// Keep every fixture asset and document out of the user's actual libraries.
+window.LOCAL_ASSETS_DB_NAME=namespace+'-assets';
+const store=createStore({namespace}),path='artifacts/离线互动.html',status=document.getElementById('status'),source=document.getElementById('source');
 let selectedPath=path;
 function delay(signal) {return new Promise((resolve,reject)=>{const timer=setTimeout(()=>{signal.removeEventListener('abort',cancel);resolve();},3000);function cancel(){clearTimeout(timer);reject(signal.reason||Error('已取消'));}signal.addEventListener('abort',cancel,{once:true});if(signal.aborted)cancel();});}
-const panel=createPanel({store,onError:message=>{status.textContent=message;},getHtmlResourceOptions:async signal=>{if(document.getElementById('delay').checked)await delay(signal);return defaultHtmlResourceOptions(signal);},onAdd:()=>{throw Error('此验收页仅验证作品预览与导出');},onDiscuss:()=>{throw Error('本页未连接模型对话');}});
+const panel=createPanel({store,onError:message=>{status.textContent=message;},getHtmlResourceOptions:async signal=>{if(document.getElementById('delay').checked)await delay(signal);return {assets:window.LocalAssets,fetchImpl:(url,options)=>{if(!String(url).startsWith('blob:'))throw Error('验收资源只允许读取本页本地 Blob');return fetch(url,options);}};},onAdd:()=>{throw Error('此验收页仅验证作品预览与导出');},onDiscuss:()=>{throw Error('本页未连接模型对话');}});
 async function showSource() {
   const files=await store.list();document.getElementById('preview').disabled=!files.some(file=>file.artifact_path===selectedPath);
   if(!files.some(file=>file.artifact_path===selectedPath)){source.textContent='专用产物存储为空。请保存验收作品。';return;}

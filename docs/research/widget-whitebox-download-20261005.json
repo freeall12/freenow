@@ -1,0 +1,95 @@
+{
+  "date": "2026-10-05",
+  "scope": "Actual native Widget downloads; no provider calls; files explicitly read back in browser. WebM uses MIME-family capability fixture.",
+  "videos": [
+    {
+      "filename": "widget-whitebox-qa-default.mp4",
+      "sha256": "58d074a42a6ed96b63520fb375591bc6bd01243886da37be788e942958540d21",
+      "bytes": 3724,
+      "probe": {
+        "programs": [],
+        "stream_groups": [],
+        "streams": [
+          {
+            "codec_name": "h264",
+            "codec_type": "video",
+            "width": 320,
+            "height": 180,
+            "r_frame_rate": "239/12",
+            "duration": "1.985900"
+          }
+        ],
+        "format": {
+          "duration": "1.985900",
+          "size": "3724"
+        }
+      },
+      "decodedFrames": 40,
+      "distinctFrameHashes": 40,
+      "motionSamples": [
+        {
+          "frame": 0,
+          "orangePixels": 1536,
+          "orangeCenterX": 39.5
+        },
+        {
+          "frame": 20,
+          "orangePixels": 1536,
+          "orangeCenterX": 159.5
+        },
+        {
+          "frame": 39,
+          "orangePixels": 1536,
+          "orangeCenterX": 273.42
+        }
+      ]
+    },
+    {
+      "filename": "widget-whitebox-qa-webm.webm",
+      "sha256": "fac0859366e5624f2d6f6dfd88b5d061140dfbdcccd277cf45c5f277e25a0aa4",
+      "bytes": 4344,
+      "probe": {
+        "programs": [],
+        "stream_groups": [],
+        "streams": [
+          {
+            "codec_name": "vp9",
+            "codec_type": "video",
+            "width": 320,
+            "height": 180,
+            "r_frame_rate": "20/1"
+          }
+        ],
+        "format": {
+          "duration": "1.951485",
+          "size": "4344"
+        }
+      },
+      "decodedFrames": 40,
+      "distinctFrameHashes": 40,
+      "motionSamples": [
+        {
+          "frame": 0,
+          "orangePixels": 1536,
+          "orangeCenterX": 39.5
+        },
+        {
+          "frame": 20,
+          "orangePixels": 1536,
+          "orangeCenterX": 159.5
+        },
+        {
+          "frame": 39,
+          "orangePixels": 1536,
+          "orangeCenterX": 273.5
+        }
+      ]
+    }
+  ],
+  "html": {
+    "filename": "离线互动 (1).html",
+    "bytes": 2359,
+    "sha256": "e2bba158c7ef9df9be5282f02f004550708e84d0e1b9c35eb1f2d42821b916b7",
+    "browserFileReopen": "not_verified_file_scheme_rejected_by_browser_policy"
+  }
+}

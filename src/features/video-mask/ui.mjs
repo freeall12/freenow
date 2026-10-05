@@ -1,3 +1,4 @@
+import {transportVideoSource as transport} from './source-transport.mjs';
 import * as core from './core.mjs';
 import * as segmentation from './segmentation.mjs';
 import {maskedVideoRequestState} from './native-profile.mjs';
@@ -9,7 +10,7 @@ import {createReceiptStore,createSegmentationReceipt,assertReceiptCurrent,assert
 const app=window.CanvasApp,el=(tag,cls,text)=>{const e=document.createElement(tag);e.className=cls||'';if(text!==undefined)e.textContent=text;return e;};
 const button=(label,icon,fn,showText=false)=>{const b=el('button');b.type='button';b.setAttribute('aria-label',label);b.dataset.tooltip=label;b.innerHTML=icons[icon]||'';if(showText)b.append(el('span','',label));b.onclick=fn;return b;};
 const clock=time=>`${String(Math.floor(time/60)).padStart(2,'0')}:${String(Math.floor(time%60)).padStart(2,'0')}`;
-async function transport(source,signal,validateSources=()=>{},inlineRemote=false){const check=()=>{if(signal?.aborted)throw signal.reason;validateSources();};check();const raw=await window.LocalAssets.url(source);check();if(raw.startsWith('data:'))return raw;const url=new URL(raw,document.baseURI);if(!inlineRemote&&url.origin!==location.origin&&url.protocol!=='blob:')return url.href;const r=await fetch(url,{signal});check();if(!r.ok)throw Error('本地素材读取失败');const blob=await r.blob();check();const value=await window.LocalMedia.asDataUrl(blob);check();return value;}
+
 const styleUrl=new URL('./styles.css',import.meta.url).href;if(!document.querySelector('link[data-video-mask-readiness]')){const style=document.createElement('link');style.rel='stylesheet';style.href=styleUrl;style.dataset.videoMaskReadiness='';document.head.append(style);}
 let current;
 class MaskEditor {

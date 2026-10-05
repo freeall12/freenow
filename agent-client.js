@@ -325,7 +325,7 @@
   depthHosts.set(chat,host);return host;
  }
  function execute(...args){return track(async()=>{await flushConversation();const result=await executeTool(...args);await flushConversation();return result;});}
- async function executeTool(name,raw,{signal,visualBudget,draftFinalApproval,depthHost,authorizeDepth,onDepthSubmitted,approvedVideoMaskConfiguration,videoMaskApprovalGuard,approvedRelightConfiguration,relightApprovalGuard,approvedSkinConfiguration,skinApprovalGuard,approvedUpscaleConfiguration,upscaleApprovalGuard,cutlistAuthorized=false}={}){const {args:a}=window.AgentTools.parse(name,raw);switch(name){
+ async function executeTool(name,raw,{signal,visualBudget,draftFinalApproval,depthHost,authorizeDepth,onDepthSubmitted,approvedSegmentationConfiguration,segmentationApprovalGuard,onSegmentationCheckpoint,approvedVideoMaskConfiguration,videoMaskApprovalGuard,approvedRelightConfiguration,relightApprovalGuard,approvedSkinConfiguration,skinApprovalGuard,approvedUpscaleConfiguration,upscaleApprovalGuard,cutlistAuthorized=false}={}){const {args:a}=window.AgentTools.parse(name,raw);switch(name){
   case 'web_search':try{return await request('search',a,signal);}catch(error){if(error.name==='AbortError')throw error;return {error:error.message,code:error.code||'search_failed',status:'failed',sources:[],citations:[]};}
   case 'image_editor_export':{
    imageEditorExporter||=import('./src/features/image-editor/agent-export.mjs').then(({createImageEditorExporter})=>createImageEditorExporter({getCurrent:()=>window.CanvasImageEditor?.current,app,localAssets:window.LocalAssets,download:(blob,filename)=>window.LocalMedia.download(blob,filename)}));
@@ -338,6 +338,7 @@
   }
   case 'subjects_list':case 'subjects_read':case 'subjects_save':case 'subjects_archive':case 'subjects_apply':{try{return await (await subjectsHost())[name.slice(9)](a,{signal});}catch(error){if(error.code==='save_failed'&&error.receipt)return {...error.receipt,error:error.message};throw error;}}
   case 'video_trim':case 'video_trim_retry_save':return trimVideo(name,a,signal);
+  case 'video_segment_target':case 'video_segmentation_recover':case 'video_segmentation_resume':case 'video_segmentation_cancel':case 'video_segmentation_retry_save':{const {executeAgentSegmentation}=await import('./src/features/agent-generation/video-segmentation.mjs');return executeAgentSegmentation(name,a,{app,localAssets:window.LocalAssets,canvasStore:window.CanvasStore,signal,approvalGuard:segmentationApprovalGuard,approvedConfiguration:approvedSegmentationConfiguration,onCheckpoint:onSegmentationCheckpoint});}
   case 'video_analyze':return analyzeVideo(a,{signal,authorize:authorizeDepth,onSubmitted:onDepthSubmitted});
   case 'generation_video_models':return (await import('./src/features/agent-generation/model-contracts.mjs')).videoModelContracts(a);
   case 'artifacts_list':return (await artifactsReady).list();
@@ -444,8 +445,42 @@
   case 'generation_cancel':return window.GenerationAPI.cancel(a.id);
   default:if(name.startsWith('scene_'))return window.StudioAPI.execute(name.slice(6),a);throw Error('未知工具');
  }}
+ let segmentationRecoveryActive=false,segmentationCard;
+ import('./src/features/agent-generation/video-segmentation-card.mjs').then(module=>{segmentationCard=module.createSegmentationRecoveryCard;if(panel)render();});
+ async function recoverSegmentationFromCard(originTrace,name,args){
+  const d=draft(),projectId=app.projectIdentity().id;if(!d.messages.includes(originTrace))throw Error('原识别卡不属于当前对话');
+  if(busy||queueRunner?.running||pageLeaving){originTrace.segmentationRecoveryError={action:name,stage:'preflight',message:pageLeaving?'页面已离开，请重新打开原对话后恢复。':'当前对话正在执行，请等待或停止后恢复原任务。',at:Date.now()};save();if(panel)render();return;}
+  const runController=new AbortController(),check=()=>{if(runController.signal.aborted||pageLeaving||draft()!==d||app.projectIdentity().id!==projectId||!d.messages.includes(originTrace))throw new DOMException('SAM2 恢复来源已变化','AbortError');};
+  busy=true;segmentationRecoveryActive=true;controller=runController;let trace,phase='load_execution',finalNotice;delete originTrace.segmentationRecoveryError;
+  try{
+   await executionReady;check();phase='load_native';const native=await import('./src/features/agent-generation/video-segmentation.mjs');check();
+   let approvedConfiguration,approvalGuard;if(name==='video_segmentation_resume'){const sourceGuard=native.captureAgentSegmentationApproval(args,{app,signal:runController.signal});approvalGuard=input=>{check();sourceGuard(input);};approvedConfiguration=await native.segmentationApprovalConfiguration({signal:runController.signal});approvalGuard(args);}
+   phase='load_receipt';const receipts=await import('./src/features/agent-generation/video-segmentation-receipt.mjs');check();const origin=receipts.segmentationOriginFor(originTrace,d);
+   const call={name,args,callId:crypto.randomUUID()};
+   phase='execute';const outcome=await executionModule.executeTracedCall(call,{signal:runController.signal,
+    confirm:name==='video_segmentation_resume'?value=>new Promise(resolve=>{pendingTraceId=value.id;pendingResolve=allowed=>{pendingResolve=null;pendingTraceId=null;resolve(allowed);};}):null,
+    changed:value=>{trace=value;if(origin)value.segmentationOrigin=origin;if(name==='video_segmentation_resume')value.segmentationDisclosure=native.segmentationDisclosure+' 固定模型版本 '+approvedConfiguration.version+'；供应商身份 '+approvedConfiguration.providerFingerprint;if(!d.messages.includes(value))d.messages.push(value);save();render();},
+    execute:()=>native.executeAgentSegmentation(name,args,{app,localAssets:window.LocalAssets,canvasStore:window.CanvasStore,signal:runController.signal,approvalGuard,approvedConfiguration,onCheckpoint:async record=>{check();trace.submittedTaskId=record.id;trace.segmentationTask=record;if(record.status==='applied'){trace.result={nodeId:record.nodeId,taskId:record.id,status:'applied',applied:true,saved:true,timeline:'full-source'};trace.status='done';}if(!save())throw Error('SAM2 恢复记录未能保存，保留原 UUID');await flushConversation();check();executionRenderer.updateTrace(trace);}})});
+   phase='persist_result';check();if(!save())throw Error('SAM2 最终回执未能保存');await flushConversation();check();
+   if(outcome.result?.applied&&outcome.result?.saved){phase='stage_original_receipt';const staged=await receipts.prepareAppliedSegmentationReceipt({chat:d,originTrace,result:outcome.result,app,scope:{projectId,conversationId:d.id},sourceVersion:options=>recoverySourceVersion(d,options),isCurrent:()=>!runController.signal.aborted&&!pageLeaving&&draft()===d&&app.projectIdentity().id===projectId&&d.messages.includes(originTrace)});check();if(staged){if(!save())throw Error('原 SAM2 工具回执未能保存，请保留原任务');await flushConversation();check();finalNotice='原 SAM2 完整工具回执已保存；请核对中断任务后明确继续。';}}
+  }catch(error){if(draft()===d&&app.projectIdentity().id===projectId&&d.messages.includes(originTrace)){originTrace.segmentationRecoveryError={action:name,stage:phase,message:error.name==='AbortError'?'本次恢复查看已停止；原任务未重发。':error.message||String(error),code:error.code||error.name,at:Date.now()};finalNotice=originTrace.segmentationRecoveryError.message;try{save();await flushConversation();}catch{}}}
+  finally{busy=false;segmentationRecoveryActive=false;controller=null;pendingResolve=null;pendingTraceId=null;if(panel)render();if(finalNotice)notice(finalNotice);}
+ }
+ function appendResultThumbnail(card,node){
+  const chat=draft(),projectId=app.projectIdentity().id,source=node.image,mediaSource=JSON.stringify([node.image,node.video,node.fullImage]),type=node.type;
+  const symbol=el('span','agent-result-symbol');symbol.innerHTML=window.UI_ICONS[type==='video'?'video':type==='studio'?'cube':'file']||window.UI_ICONS.cube;card.append(symbol);
+  if(!source)return;
+  const current=()=>!pageLeaving&&draft()===chat&&app.projectIdentity().id===projectId&&app.getState().nodes.find(value=>value.id===node.id)===node&&JSON.stringify([node.image,node.video,node.fullImage])===mediaSource&&node.type===type&&card.isConnected&&symbol.parentNode===card;
+  // Wait until the synchronous render has connected the card. LocalAssets
+  // applies the shared display policy and resolves immutable asset refs.
+  void Promise.resolve().then(async()=>{
+   if(!current())return;const url=await window.LocalAssets.url(source);if(!current())return;
+   const image=el('img');image.alt=node.title;image.onload=()=>{image.onload=image.onerror=null;if(current())symbol.replaceWith(image);};image.onerror=()=>{image.onload=image.onerror=null;};image.src=url;
+  }).catch(()=>{});
+ }
  function appendResultCards(row,result,trace){
   if(trace?.batchItems){for(const item of trace.batchItems)appendResultCards(row,item.result,item);return;}
+  if(trace?.name.startsWith('video_segment')){const card=segmentationCard?.(trace,{disabled:busy||!!queueRunner?.running,onAction:(name,args)=>{void recoverSegmentationFromCard(trace,name,args).catch(error=>notice(error.message));}});if(card)row.append(card);}
   if(!result||typeof result!=='object')return;
   if(trace?.name==='web_search'){const search=searchResultView?.(result);if(search)row.append(search);return;}
   const ids=[...(trace?.name.startsWith('canvas_')&&result.id?[result.id]:[]),...(result.nodeIds||[]),...(trace?.generationJob?.resultIds||result.resultIds||[]),...(result.nodeId?[result.nodeId]:[])];
@@ -454,7 +489,7 @@
   const list=el('div','agent-result-cards');
   for(const node of nodes){
    const card=btn(null,'查看 '+node.title,async()=>{try{if(window.StudioAPI?.active)await window.StudioAPI.active.close();app.select(node.id,true);if(node.image||node.video)app.preview(node);}catch(error){notice(error.message||String(error));}},'agent-result-card');
-   if(node.image){const image=el('img');image.src=node.image;image.alt=node.title;card.append(image);}else{const symbol=el('span','agent-result-symbol');symbol.innerHTML=window.UI_ICONS[node.type==='video'?'video':node.type==='studio'?'cube':'file']||window.UI_ICONS.cube;card.append(symbol);}
+   appendResultThumbnail(card,node);
    card.append(el('span','',node.title),el('small','',node.width&&node.height?node.width+' × '+node.height:node.type));list.append(card);
   }
   row.append(list);
@@ -621,7 +656,7 @@
   if(pageLeaving)throw Error('页面已离开，排队任务已暂停。');
   if(!modelModule)throw Error('模型控件正在加载，请稍后再试。');
   if(item.studioNodeId!== (d.studioNodeId||null))throw Error('排队任务所属片场已改变');
-  if(d.studioNodeId&&window.StudioAPI.getState()?.nodeId!==d.studioNodeId)throw Error('请先打开此对话对应的片场，再继续执行。');
+  if(d.studioNodeId&&window.StudioAPI?.getState?.()?.nodeId!==d.studioNodeId)throw Error('请先打开此对话对应的片场，再继续执行。');
  }
  function clearSubmittedDraft(d){
   if(composerModule)composerModule.applyComposerSnapshot(d,{doc:composerModule.textDocument('')});else d.text='';
@@ -806,7 +841,7 @@
    if(d.studioNodeId){await window.StudioAPI.prepareAgentContext();validateSubmission(d,item);}
    const depthHost=await depthHostFor(d);depthHost.beginTurn(item.id);
    await recoveryModule.initializeJournal(run,{submission:item,sourceVersion:await recoverySourceVersion(d,{persistCanvas:true})});await persistRunCheckpoint(d,run);
-   let response=await request('turn',{binding:run.binding,message:item.formSubmission?'':text,history,...(item.formSubmission?{formSubmission:{form:item.formDefinition,result:item.formSubmission}}:{}),modelSelection:selection,mediaInputs,context:{conversationMemory,...(item.widgetOrigin?{widgetOrigin:item.widgetOrigin}:{}),composerReferences:submittedReferences,referenceMaterials:referencedMaterials.map(({id,name,title,type,source,content})=>({id,name:name||title,type,source,content:content?.slice(0,20000)})),...(await graph()),artifacts:await artifactContext(item,d),references:submittedRefs,selectedSkills:submittedSkills,attachments:item.uploads.map(({id,name,type,mime,size})=>({id,name,type,mime,size,visualInput:mediaInputs.some(input=>input.name===name)})),activeScene:window.StudioAPI.getState(),studioNodeId:d.studioNodeId||null}},controller.signal,{chat:d,seenCallIds});
+   let response=await request('turn',{binding:run.binding,message:item.formSubmission?'':text,history,...(item.formSubmission?{formSubmission:{form:item.formDefinition,result:item.formSubmission}}:{}),modelSelection:selection,mediaInputs,context:{conversationMemory,...(item.widgetOrigin?{widgetOrigin:item.widgetOrigin}:{}),composerReferences:submittedReferences,referenceMaterials:referencedMaterials.map(({id,name,title,type,source,content})=>({id,name:name||title,type,source,content:content?.slice(0,20000)})),...(await graph()),artifacts:await artifactContext(item,d),references:submittedRefs,selectedSkills:submittedSkills,attachments:item.uploads.map(({id,name,type,mime,size})=>({id,name,type,mime,size,visualInput:mediaInputs.some(input=>input.name===name)})),activeScene:window.StudioAPI?.getState?.()??null,studioNodeId:d.studioNodeId||null}},controller.signal,{chat:d,seenCallIds});
    completed=await runToolLoop(d,item,run,response,{depthHost,seenCallIds,runController});
   }catch(error){
    const cancelled=error.name==='AbortError'||runController.signal.aborted;
@@ -843,14 +878,14 @@
    delete row.reason;if(task.error===undefined)delete row.error;if(task.blockedBy===undefined)delete row.blockedBy;return row;});
   return true;
  }
- async function recoverySourceVersion(chat,{persistCanvas=false}={}){
+ async function recoverySourceVersion(chat,{persistCanvas=false,segmentationBaseline}={}){
   if(chat.studioNodeId){if(window.StudioAPI?.getState()?.nodeId!==chat.studioNodeId)throw Error('请先打开原任务对应的片场，再继续执行');await window.StudioAPI.prepareAgentContext();}
   if(persistCanvas)await app.saveProject();
   const store=await artifactsReady,files=await store.list(),builtinSkills=await catalog(),state=app.getState(),editor=window.CanvasImageEditor?.current;
   if(editor&&(editor.loading||editor.saving||editor.crop||editor.canvas?._currentTransform||editor.resizing))throw Error('图片编辑器正在操作，请完成后再核对来源版本');
   const scene=chat.studioNodeId?window.StudioAPI.getState():null;
   await window.CanvasLibrary?.ready?.();const subjectLibrary=await import('./src/features/subject-library/store.mjs');await subjectLibrary.readySubjects();
-  return recoveryModule.fingerprint({projectId:project.id,studioNodeId:chat.studioNodeId||null,nodes:state.nodes,edges:state.edges,
+  return recoveryModule.fingerprint({projectId:project.id,studioNodeId:chat.studioNodeId||null,nodes:segmentationBaseline?state.nodes.map(node=>{if(node.id!==segmentationBaseline.nodeId)return node;if(node.videoMask?.taskId!==segmentationBaseline.taskId||node.videoMask.asset!==segmentationBaseline.maskAsset)throw Error('原 SAM2 蒙层已变化，不能核对原来源');const original={...node};if(segmentationBaseline.present)original.videoMask=null;else delete original.videoMask;return original;}):state.nodes,edges:state.edges,
    configs:state.nodes.filter(node=>['image','video'].includes(node.type)).map(node=>({id:node.id,config:window.NodeEditor?.getConfig(node)||{}})),
    artifacts:files.map(({artifact_path,revision,content_type,source_artifact_path,source_revision})=>({artifact_path,revision,content_type,source_artifact_path,source_revision})),
    scene:scene?Object.fromEntries(['version','nodeId','sessionId','revision','objects','room','ground','environment','activeSetup','setups','cameras','animations','lighting'].map(key=>[key,scene[key]])):null,
@@ -916,7 +951,13 @@
      callIndex+=calls.length;const call=calls[0];
      if(runController.signal.aborted)throw new DOMException('Aborted','AbortError');
      const definition=window.AgentTools.parse(call.name,call.args).definition;
-     let videoMaskNotice,videoMaskConfiguration,videoMaskApprovalGuard,relightNotice,relightConfiguration,relightApprovalGuard,skinNotice,skinConfiguration,skinApprovalGuard,upscaleNotice,upscaleConfiguration,upscaleApprovalGuard;
+     let segmentationNotice,segmentationConfiguration,segmentationApprovalGuard,videoMaskNotice,videoMaskConfiguration,videoMaskApprovalGuard,relightNotice,relightConfiguration,relightApprovalGuard,skinNotice,skinConfiguration,skinApprovalGuard,upscaleNotice,upscaleConfiguration,upscaleApprovalGuard;
+     if(['video_segment_target','video_segmentation_resume'].includes(call.name)){
+      const native=await import('./src/features/agent-generation/video-segmentation.mjs');const sourceApproval=native.captureAgentSegmentationApproval(call.args,{app,signal:runController.signal});segmentationApprovalGuard=args=>{sourceApproval(args);if(draft()!==d||d.activeRun!==run)throw new DOMException('SAM2 确认对话来源已变化','AbortError');};
+      segmentationConfiguration=await native.segmentationApprovalConfiguration({signal:runController.signal});segmentationApprovalGuard(call.args);
+      if(draft()!==d||d.activeRun!==run)throw new DOMException('SAM2 确认来源已变化','AbortError');
+      segmentationNotice=native.segmentationDisclosure+' 固定模型版本 '+segmentationConfiguration.version+'；供应商身份 '+segmentationConfiguration.providerFingerprint;
+     }
      if(call.name==='generation_submit'&&['video.erase','video.replace'].includes(call.args.kind)){
       const {captureAgentVideoMaskApproval}=await import('./src/features/agent-generation/video-mask.mjs');videoMaskApprovalGuard=captureAgentVideoMaskApproval(call.args,{app,signal:runController.signal});
       const {videoMaskDisclosure}=await import('./src/features/agent-execution/presentation.mjs');
@@ -1008,10 +1049,18 @@
        }
        const authorizedArgs=JSON.stringify(args);
        const authorizeDepth=(tool,input)=>{if(tool!==name||JSON.stringify(input)!==authorizedArgs||draft()!==d||d.activeRun?.submissionId!==item.id||runController.signal.aborted)throw Error('深度流程的本次执行授权已失效');};
+       const onSegmentationCheckpoint=async record=>{
+        if(draft()!==d||d.activeRun!==run||runController.signal.aborted)throw new DOMException('SAM2 对话来源已变化','AbortError');
+        const trace=d.messages.findLast(entry=>entry.role==='tool'&&entry.callId===call.callId);if(!trace)throw Error('SAM2 执行记录不存在');
+        trace.submittedTaskId=record.id;trace.segmentationTask=record;
+        if(record.status==='applied'){trace.result={nodeId:record.nodeId,taskId:record.id,status:'applied',applied:true,saved:true,timeline:'full-source'};trace.status='done';}
+        if(!save())throw Error('SAM2 执行记录未能保存；保留原 UUID，不重新派发');await flushConversation();
+        if(draft()!==d||d.activeRun!==run||runController.signal.aborted)throw new DOMException('SAM2 对话来源已变化','AbortError');executionRenderer.updateTrace(trace);
+       };
        const onDepthSubmitted=async job=>{const trace=d.messages.findLast(entry=>entry.role==='tool'&&entry.callId===call.callId);if(!trace)throw Error('生成执行记录不存在');trace.submittedTaskId=job.id;generationJobs?.attachGenerationJob(trace,job);if(!save())throw Error('生成任务记录未能保存，尚未调用外部服务');await flushConversation();executionRenderer.updateTrace(trace);};
-       return execute(name,args,{signal:runController.signal,visualBudget,draftFinalApproval,depthHost,authorizeDepth,onDepthSubmitted,approvedVideoMaskConfiguration:videoMaskConfiguration,videoMaskApprovalGuard,approvedRelightConfiguration:relightConfiguration,relightApprovalGuard,approvedSkinConfiguration:skinConfiguration,skinApprovalGuard,approvedUpscaleConfiguration:upscaleConfiguration,upscaleApprovalGuard,cutlistAuthorized:name==='cutlist_assemble'&&draft()===d&&d.activeRun===run&&!runController.signal.aborted});
+       return execute(name,args,{signal:runController.signal,visualBudget,draftFinalApproval,depthHost,authorizeDepth,onDepthSubmitted,approvedSegmentationConfiguration:segmentationConfiguration,segmentationApprovalGuard,onSegmentationCheckpoint,approvedVideoMaskConfiguration:videoMaskConfiguration,videoMaskApprovalGuard,approvedRelightConfiguration:relightConfiguration,relightApprovalGuard,approvedSkinConfiguration:skinConfiguration,skinApprovalGuard,approvedUpscaleConfiguration:upscaleConfiguration,upscaleApprovalGuard,cutlistAuthorized:name==='cutlist_assemble'&&draft()===d&&d.activeRun===run&&!runController.signal.aborted});
       },
-      changed:trace=>{if(upscaleNotice)trace.upscaleDisclosure??=upscaleNotice;if(skinNotice)trace.skinDisclosure??=skinNotice;if(relightNotice)trace.relightDisclosure??=relightNotice;if(videoMaskNotice)trace.videoMaskDisclosure??=videoMaskNotice;trace.confirmationMode??=trace.status==='pending'?'ask':confirmationModule?.getMode()||'ask';if(!d.messages.includes(trace))d.messages.push(trace);for(const job of window.GenerationAPI.getJobs())generationJobs?.attachGenerationJob(trace,job);const persisted=save();if(!persisted&&['show_html','show_widget','show_app','show_form'].includes(trace.name)){trace.status='error';trace.result={error:'互动作品执行记录未能保存，请释放本地存储空间后重试。'};render();throw Error(trace.result.error);}render();}
+      changed:trace=>{if(segmentationNotice)trace.segmentationDisclosure??=segmentationNotice;if(upscaleNotice)trace.upscaleDisclosure??=upscaleNotice;if(skinNotice)trace.skinDisclosure??=skinNotice;if(relightNotice)trace.relightDisclosure??=relightNotice;if(videoMaskNotice)trace.videoMaskDisclosure??=videoMaskNotice;trace.confirmationMode??=trace.status==='pending'?'ask':confirmationModule?.getMode()||'ask';if(!d.messages.includes(trace))d.messages.push(trace);for(const job of window.GenerationAPI.getJobs())generationJobs?.attachGenerationJob(trace,job);const persisted=save();if(!persisted&&['show_html','show_widget','show_app','show_form'].includes(trace.name)){trace.status='error';trace.result={error:'互动作品执行记录未能保存，请释放本地存储空间后重试。'};render();throw Error(trace.result.error);}render();}
      };
      const groupResults=calls.length>1?await generationBatch.executeGenerationBatch(calls,{...executionOptions,validate:(name,args)=>window.AgentTools.parse(name,args),validateConfirmed:(original,args)=>generationModel.confirmedArguments(original,args,app.getState().nodes)}):[await executionModule.executeTracedCall(call,executionOptions)];
      results.push(...groupResults);recoveryModule.recordExecutedCalls(run,groupResults);await persistRunCheckpoint(d,run);
@@ -1031,7 +1080,7 @@
  }
 
  function appCardsReadyProjection(entry){return appCardsProjection?appCardsProjection(entry):entry;}
- function stop(){const chat=draft(),run=chat.activeRun,id=run?.sessionId||sessionId;controller?.abort();pendingResolve?.(false);if(id&&run?.binding)request('cancel',{sessionId:id,binding:run.binding},undefined,{chat}).catch(()=>{});}
+ function stop(){if(segmentationRecoveryActive){controller?.abort();pendingResolve?.(false);return;}const chat=draft(),run=chat.activeRun,id=run?.sessionId||sessionId;controller?.abort();pendingResolve?.(false);if(id&&run?.binding)request('cancel',{sessionId:id,binding:run.binding},undefined,{chat}).catch(()=>{});}
  function sanitize(html,safeLink=()=>null){const template=document.createElement('template');template.innerHTML=html;const allowed=new Set(['H1','H2','H3','H4','P','UL','OL','LI','STRONG','EM','B','I','CODE','PRE','BLOCKQUOTE','TABLE','THEAD','TBODY','TR','TH','TD','BR','HR','SPAN','DIV','A']);for(const n of [...template.content.querySelectorAll('*')]){if(!allowed.has(n.tagName)){n.replaceWith(document.createTextNode(n.textContent||''));continue;}const href=n.getAttribute('href'),strong=n.classList.contains('font-semibold');for(const attr of [...n.attributes])n.removeAttribute(attr.name);if(strong)n.style.fontWeight='600';if(n.tagName==='A'&&href&&/^https:\/\//.test(href)){const target=safeLink(href);if(target){n.href=target;n.target='_blank';n.rel='noopener noreferrer';}}}return template.content;}
  function saveCustomSkills(...args){return track(()=>saveCustomSkillsTracked(...args));}
  async function rewriteSkillReferences(change){

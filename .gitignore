@@ -169,3 +169,6 @@ __pycache__/
 !qa/video-mask-native-fixture.js
 !qa/video-mask-native-audit.js
 !qa/video-mask-native-controls.mjs
+
+# Generated from the official entrypoint by build-agent-segmentation-fixture.cjs.
+/src/features/agent-generation/qa/agent-segmentation-app.html

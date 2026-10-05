@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="zh">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src data:; connect-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>视频规格交互 QA</title>
+  <style>
+    body{margin:32px;background:#171717;color:#eee;font:14px/1.5 system-ui}main{max-width:720px}h1{font-size:22px}button{font:inherit;cursor:pointer}#open{padding:8px 16px;margin-bottom:16px}#parameter-popover{position:relative}pre{white-space:pre-wrap;color:#aaa}
+  </style>
+  <script type="module" src="./specifications.mjs"></script>
+</head>
+<body>
+  <main>
+    <h1>视频规格交互 QA</h1>
+    <p>使用正式 Seedance 2.5 配置与规格菜单，初始时长 30 秒，传入一张合成图片引用。仅验本地菜单，不运行生成、不读取用户存储。</p>
+    <p>键盘 Tab 到生成方式，Enter 切换后继续左右方向键；在时长条用鼠标滚轮浏览，选项点击后应滚入视野。Escape 关闭，按钮再次打开。</p>
+    <button id="open" type="button" aria-expanded="false">打开视频规格</button>
+    <div id="parameter-popover" hidden></div>
+    <pre id="state" aria-label="当前菜单状态"></pre>
+  </main>
+</body>
+</html>

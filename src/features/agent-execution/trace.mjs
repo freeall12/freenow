@@ -1,6 +1,6 @@
 const abortError=()=>new DOMException('Aborted','AbortError');
 // Automatic generation is not permission to install, rename or remove reusable instructions.
-export const needsToolConfirmation=(definition,mode)=>['skills_save','skills_rename','skills_uninstall'].includes(definition.name)||definition.mutates&&mode!=='auto';
+export const needsToolConfirmation=(definition,mode)=>['skills_save','skills_rename','skills_uninstall','video_segment_target','video_segmentation_resume'].includes(definition.name)||definition.mutates&&mode!=='auto';
 export const activeTrace=trace=>['pending','running','waiting'].includes(trace.status);
 
 // Reload cannot establish whether an in-flight remote operation took effect.

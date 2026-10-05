@@ -1,5 +1,19 @@
 # 功能截图与复现
 
+## 2026-10-05 视频规格、实际下载与 Agent 识别
+
+| 文件 | 实际内容与来源 |
+| --- | --- |
+| [Agent原对话恢复](agent-sam2-local-recovery-20261005.jpg) | 独立宿主 `session=agent-sam2-1005o-c`；真实本地源和封面，保存失败后复用同一蒙层，补存原工具回执、明确继续并刷新；结果卡实际解码320×180。 |
+| [Agent取消](agent-sam2-cancel-source-change-20261005.jpg) | `session=agent-sam2-1005o-cancel3`；停止等待后clip改为2–4秒，原UUID取消，前向已归档/取消确认，倒序未派发；无部分蒙层。 |
+| [Agent重启续发](agent-sam2-resume-complete-20261005.jpg) | `session=agent-sam2-1005o-resume2`；同store重启后独立确认，仅补倒序26帧；原UUID完整50帧、单蒙层素材保存，无新LLM轮次或新识别任务。 |
+| [视频规格](video-specifications-interaction-20261005.jpg) | `src/features/video-generation/qa/specifications.html`；生产菜单，模式焦点、真实滚轮、时长4秒与两级Escape，未调用生成接口。 |
+| [Widget实际下载](widget-whitebox-download-20261005.jpg) | `src/features/agent-widgets/qa/whitebox-download.html`；正式双层sandbox与下载按钮，实际PNG、默认H.264 MP4、VP9 WebM。两份视频已播放到结束，文件SHA及40个不同帧见[下载证据](../research/widget-whitebox-download-20261005.json)。 |
+| [HTML本地导出](html-export-local-20261005.jpg) | `src/features/agent-artifacts/qa/local-export.html?session=export-1005o`；实际预览与下载。已读回离线HTML内容；浏览器策略不允许`file://`重开，独立离线运行未验。 |
+| [Agent来源漂移](agent-sam2-approval-drift-20261005.jpg) | 独立Agent SAM2宿主，`session=agent-sam2-1005o-drift`；正式确认前clip由1–4秒改为2–4秒，允许后正确拒绝，当前会话零媒体读取/零任务。供应商审计为该宿主各会话累计值。 |
+
+以上均为实际浏览器原始截图，未修改页面样式或合成图像。Agent与供应商固定边界只用于公开合成素材的本机验证，不表示真实模型质量。
+
 ## 2026-10-05 原生视频识别与人物走位补验
 
 | 文件 | 实际内容与来源 |

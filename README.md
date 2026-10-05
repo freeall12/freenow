@@ -138,6 +138,18 @@ node --env-file=.env.local server/server.cjs
 
 ## 最新接入与核验
 
+Agent 视频识别已贯通首次确认、完整源分割、原 UUID 查询/取消/续发，以及保存失败后的同素材重存和原对话继续。实机已验证换剪辑后取消、重启后只补未派发分支、本地封面显示与刷新保留；LLM及供应商使用合成边界，真实识别质量待验。[本批证据与限制](docs/LOCAL-AGENT-SEGMENTATION-AND-EXPORTS-20261005.md)
+
+![Agent原任务续发后保存完整蒙层](docs/screenshots/agent-sam2-resume-complete-20261005.jpg)
+
+视频规格菜单补齐切换模式后的焦点保留、当前时长自动滚入视野和垂直滚轮横向浏览；键盘、两级 Escape 与真实滚轮已验。Widget 的正式下载入口已实际导出 PNG、H.264 MP4 和 VP9 WebM，两份视频均播放到结束并解码出40个不同帧；这是本地 Canvas 录像，不是模型生成。[菜单交互](docs/VIDEO-SPECIFICATIONS-INTERACTION-20261005.md) · [实际下载及文件证据](docs/WIDGET-WHITEBOX-DOWNLOAD-QA-20261005.md)
+
+| 视频规格：模式焦点和横向时长 | Widget：真实图片与视频下载 |
+| --- | --- |
+| ![正式视频规格菜单](docs/screenshots/video-specifications-interaction-20261005.jpg) | ![本地Widget下载与视频回读](docs/screenshots/widget-whitebox-download-20261005.jpg) |
+
+离线 HTML 已通过正式按钮下载并核对内嵌资源与隔离策略；独立 `file://` 浏览器重开受安全策略限制，尚未验收。[导出与品牌边界](docs/FREENOW-EXPORT-BRAND-AUDIT-20261005.md)
+
 本批完成分组/多选复制粘贴、Agent 拼装审阅保存交接，以及 SPZ 原生 LOD。复制保留父子几何和输入连线，连续粘贴偏移40像素，支持精确撤销；审阅的保留/裁切、确认和“再改改”等待同一份状态保存，关闭失败保留编辑。三项均完成定向回归、独立交审及 Computer Use。[复制粘贴](docs/CANVAS-GROUP-COPY-PASTE-20261005.md) · [拼装审阅](docs/AGENT-CUTLIST-REVIEW-INTERACTIONS-20261005.md) · [高斯 LOD](docs/SPZ-LOD-20261005.md)。
 
 | 分组复制：父子位置、输入连线与连续粘贴 | 拼装审阅：真实视频、裁切及保存恢复 |
@@ -198,7 +210,7 @@ Magnific 高清放大已接独立公开原生 API，正式面板和 Agent 保留
 
 这是显式 Wan VACE 独立替代。选段须为恒定 5–30 fps、81–241 帧；不截断、补帧或改速。**仅填 fal Key 不能完成新视频从识别到编辑的全流程**；首次识别可另选下方独立 Replicate SAM2。截图使用合成蒙层和固定结果，不代表模型效果。[编辑接口配置](docs/WAN-VACE-VIDEO-MASK-NATIVE-20261005.md) · [媒体处理](docs/VIDEO-MASK-MEDIA-PREPARATION-20261005.md)
 
-新视频首次目标识别已接 `replicate-sam2-native`：按原提示帧准备前向/倒序真实视频，接收逐帧二值PNG并合并完整原轴蒙层。UUID先保存，刷新只恢复原任务，保存失败重用结果，停止后的未派发分支需再次确认。需独立 Replicate Token、FFmpeg及符合预算的源视频；最多两次推理，界面在上传前明确说明。模型效果和真实账号尚未验收。[配置](docs/VIDEO-SEGMENTATION-SETUP.md) · [实现与实机证据](docs/LOCAL-SAM2-AND-BLOCKING-20261005.md)
+新视频首次目标识别已接 `replicate-sam2-native`：按原提示帧准备前向/倒序真实视频，接收逐帧二值PNG并合并完整原轴蒙层。Agent 新增源像素选区识别及原任务查询、取消、续发和重存工具；首次识别、续发在自动模式下也需独立确认。UUID先保存，刷新只恢复原任务，保存失败重用结果。需独立 Replicate Token、FFmpeg及符合预算的源视频；最多两次推理，界面在上传前明确说明，服务端拒绝批准后改变的供应商配置。模型效果和真实账号尚未验收。[配置](docs/VIDEO-SEGMENTATION-SETUP.md) · [Agent 合同与验证](docs/AGENT-VIDEO-SEGMENTATION-20261005.md) · [视频面板实机证据](docs/LOCAL-SAM2-AND-BLOCKING-20261005.md)
 
 | 首次视频识别：真实本机链路与保存恢复 | Agent人物走位：真实拖动、吸附与朝向 |
 | --- | --- |

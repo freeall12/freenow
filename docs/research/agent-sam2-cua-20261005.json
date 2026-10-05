@@ -1,0 +1,2393 @@
+{
+  "fixture": true,
+  "externalCalls": false,
+  "source": {
+    "width": 320,
+    "height": 180,
+    "fps": 10,
+    "numFrames": 50,
+    "duration": 5,
+    "sha256": "6f1626326e04801beac78be182d855fffcd30e4067fe3cb72c94392a8f06a306",
+    "movingBox": true,
+    "hasAudio": false,
+    "codec": "h264",
+    "pixelFormat": "yuv420p",
+    "uploadComparison": "actual source decoded RGB"
+  },
+  "scenarios": {
+    "auto_save_failed_retry_and_source_drift": {
+      "supplierCounts": {
+        "uploadPostAttempts": 2,
+        "uploadPosts": 2,
+        "predictionPosts": 2,
+        "predictionGets": 0,
+        "cancelPosts": 0,
+        "sourceDownloads": 1,
+        "pngDownloadAttempts": 51,
+        "pngDownloads": 51,
+        "rejectedBoundaryCalls": 0
+      },
+      "http": {
+        "taskPosts": 1,
+        "taskGets": 2,
+        "resumePosts": 0,
+        "cancelPosts": 0,
+        "restarts": 0
+      },
+      "uploads": [
+        {
+          "id": "file1",
+          "direction": "forward",
+          "bytes": 8898,
+          "sha256": "160ec74dd6bd9db976b15762c79cb4f8ed22a479e947ff82c8d1d2b71c77adfd",
+          "numFrames": 25,
+          "sourceIndices": [
+            25,
+            26,
+            27,
+            28,
+            29,
+            30,
+            31,
+            32,
+            33,
+            34,
+            35,
+            36,
+            37,
+            38,
+            39,
+            40,
+            41,
+            42,
+            43,
+            44,
+            45,
+            46,
+            47,
+            48,
+            49
+          ],
+          "firstFrameSha256": "30c4a3c8ffc2b4874ed734231aef39791a1034ed6fc0a50e8c68d14c3dafe08c",
+          "pixelOrderVerified": true
+        },
+        {
+          "id": "file2",
+          "direction": "reverse",
+          "bytes": 9735,
+          "sha256": "e951eb1f9512d4bc10bd2ef0ae084525aed0b094b928b9e739a98436b7542250",
+          "numFrames": 26,
+          "sourceIndices": [
+            25,
+            24,
+            23,
+            22,
+            21,
+            20,
+            19,
+            18,
+            17,
+            16,
+            15,
+            14,
+            13,
+            12,
+            11,
+            10,
+            9,
+            8,
+            7,
+            6,
+            5,
+            4,
+            3,
+            2,
+            1,
+            0
+          ],
+          "firstFrameSha256": "30c4a3c8ffc2b4874ed734231aef39791a1034ed6fc0a50e8c68d14c3dafe08c",
+          "pixelOrderVerified": true
+        }
+      ],
+      "nativeRecords": [
+        {
+          "id": "f2ca2fd9-5ad5-480d-8da8-46d8165ac128",
+          "status": "succeeded",
+          "prompt": {
+            "frameIndex": 25,
+            "time": 2.5,
+            "pts": 2.5
+          },
+          "source": {
+            "width": 320,
+            "height": 180,
+            "fps": 10,
+            "numFrames": 50,
+            "sha256": "6f1626326e04801beac78be182d855fffcd30e4067fe3cb72c94392a8f06a306"
+          },
+          "branches": [
+            {
+              "direction": "forward",
+              "status": "archived",
+              "predictionId": "fixtureprediction1",
+              "numFrames": 25,
+              "sourceIndices": [
+                25,
+                26,
+                27,
+                28,
+                29,
+                30,
+                31,
+                32,
+                33,
+                34,
+                35,
+                36,
+                37,
+                38,
+                39,
+                40,
+                41,
+                42,
+                43,
+                44,
+                45,
+                46,
+                47,
+                48,
+                49
+              ],
+              "firstFrameSha256": "30c4a3c8ffc2b4874ed734231aef39791a1034ed6fc0a50e8c68d14c3dafe08c",
+              "sha256": "160ec74dd6bd9db976b15762c79cb4f8ed22a479e947ff82c8d1d2b71c77adfd",
+              "downloadedFrames": 25,
+              "remoteCancellation": null
+            },
+            {
+              "direction": "reverse",
+              "status": "archived",
+              "predictionId": "fixtureprediction2",
+              "numFrames": 26,
+              "sourceIndices": [
+                25,
+                24,
+                23,
+                22,
+                21,
+                20,
+                19,
+                18,
+                17,
+                16,
+                15,
+                14,
+                13,
+                12,
+                11,
+                10,
+                9,
+                8,
+                7,
+                6,
+                5,
+                4,
+                3,
+                2,
+                1,
+                0
+              ],
+              "firstFrameSha256": "30c4a3c8ffc2b4874ed734231aef39791a1034ed6fc0a50e8c68d14c3dafe08c",
+              "sha256": "e951eb1f9512d4bc10bd2ef0ae084525aed0b094b928b9e739a98436b7542250",
+              "downloadedFrames": 26,
+              "remoteCancellation": null
+            }
+          ],
+          "mask": {
+            "encoding": "rle-zero-based-row-major",
+            "width": 320,
+            "height": 180,
+            "fps": 10,
+            "numFrames": 50,
+            "rleSha256": "105176f136923ee8e3f6b8a3b3072df1221b989ea3c1c29bccbbcf2587327897",
+            "selectedRle": [
+              {
+                "frameIndex": 0,
+                "rle": "19220 40 19540 40 19860 40 20180 40 20500 40 20820 40 21140 40 21460 40 21780 40 22100 40 22420 40 22740 40 23060 40 23380 40 23700 40 24020 40 24340 40 24660 40 24980 40 25300 40 25620 40 25940 40 26260 40 26580 40 26900 40 27220 40 27540 40 27860 40 28180 40 28500 40 28820 40 29140 40 29460 40 29780 40 30100 40 30420 40 30740 40 31060 40 31380 40 31700 40 32020 40 32340 40 32660 40 32980 40 33300 40 33620 40 33940 40 34260 40 34580 40 34900 40"
+              },
+              {
+                "frameIndex": 25,
+                "rle": "19320 40 19640 40 19960 40 20280 40 20600 40 20920 40 21240 40 21560 40 21880 40 22200 40 22520 40 22840 40 23160 40 23480 40 23800 40 24120 40 24440 40 24760 40 25080 40 25400 40 25720 40 26040 40 26360 40 26680 40 27000 40 27320 40 27640 40 27960 40 28280 40 28600 40 28920 40 29240 40 29560 40 29880 40 30200 40 30520 40 30840 40 31160 40 31480 40 31800 40 32120 40 32440 40 32760 40 33080 40 33400 40 33720 40 34040 40 34360 40 34680 40 35000 40"
+              },
+              {
+                "frameIndex": 49,
+                "rle": "19416 40 19736 40 20056 40 20376 40 20696 40 21016 40 21336 40 21656 40 21976 40 22296 40 22616 40 22936 40 23256 40 23576 40 23896 40 24216 40 24536 40 24856 40 25176 40 25496 40 25816 40 26136 40 26456 40 26776 40 27096 40 27416 40 27736 40 28056 40 28376 40 28696 40 29016 40 29336 40 29656 40 29976 40 30296 40 30616 40 30936 40 31256 40 31576 40 31896 40 32216 40 32536 40 32856 40 33176 40 33496 40 33816 40 34136 40 34456 40 34776 40 35096 40"
+              }
+            ]
+          }
+        }
+      ],
+      "llm": {
+        "fixedAdapter": true,
+        "calls": 3,
+        "tools": [
+          {
+            "name": "video_segment_target",
+            "args": {
+              "operationId": "f2ca2fd9-5ad5-480d-8da8-46d8165ac128",
+              "nodeId": "agent-segmentation-source",
+              "rect": {
+                "x": 120,
+                "y": 60,
+                "width": 40,
+                "height": 50
+              },
+              "time": 2.5
+            }
+          },
+          {
+            "name": "video_segment_target",
+            "args": {
+              "operationId": "99ba7df5-a259-4204-9f59-8943fff24c7b",
+              "nodeId": "agent-segmentation-source",
+              "rect": {
+                "x": 120,
+                "y": 60,
+                "width": 40,
+                "height": 50
+              },
+              "time": 2.5
+            }
+          }
+        ],
+        "plans": 2
+      },
+      "sessions": [
+        {
+          "id": "000f78a3-b7ae-4325-8848-2e46bcea1962",
+          "status": "completed",
+          "pending": [],
+          "receipts": 1
+        },
+        {
+          "id": "919195d8-cae2-41f0-98df-827a15b89095",
+          "status": "waiting_tools",
+          "pending": [
+            {
+              "callId": "agentsegmentation-fc5d2bd1-6039-41aa-a525-518f79b3c2a2",
+              "name": "video_segment_target"
+            }
+          ],
+          "receipts": 0
+        }
+      ],
+      "browserEvidence": {
+        "saveSession": "agent-sam2-1005o-b",
+        "taskId": "f2ca2fd9-5ad5-480d-8da8-46d8165ac128",
+        "maskAsset": "asset:e31bd13c-1b7b-4c8c-af58-65173852bcd8",
+        "maskAssetPuts": 1,
+        "savedReceiptStatus": "applied",
+        "beforeApproval": {
+          "sourceReads": 0,
+          "nativeTaskPosts": 0,
+          "supplierPosts": 0
+        },
+        "saveRecoveryPendingJournal": "Detected and under repair; not passed at this checkpoint",
+        "driftSession": "agent-sam2-1005o-drift",
+        "driftSourceReads": 0,
+        "driftDispatches": 0,
+        "driftTaskCreated": false
+      }
+    },
+    "original_receipt_staged_before_explicit_continue": {
+      "http": {
+        "taskPosts": 4,
+        "taskGets": 32,
+        "resumePosts": 0,
+        "cancelPosts": 0,
+        "restarts": 1
+      },
+      "supplierCounts": {
+        "uploadPostAttempts": 8,
+        "uploadPosts": 7,
+        "predictionPosts": 7,
+        "predictionGets": 16,
+        "cancelPosts": 0,
+        "sourceDownloads": 4,
+        "pngDownloadAttempts": 178,
+        "pngDownloads": 178,
+        "rejectedBoundaryCalls": 0
+      },
+      "llmCalls": 9,
+      "sessions": [
+        {
+          "id": "000f78a3-b7ae-4325-8848-2e46bcea1962",
+          "status": "completed",
+          "pending": [],
+          "receipts": 1
+        },
+        {
+          "id": "0bb8f0d8-f3c1-40f6-80a8-02caf5417715",
+          "status": "completed",
+          "pending": [],
+          "receipts": 1
+        },
+        {
+          "id": "2540eba8-95f0-4504-af2b-0018aaacab90",
+          "status": "completed",
+          "pending": [],
+          "receipts": 1
+        },
+        {
+          "id": "919195d8-cae2-41f0-98df-827a15b89095",
+          "status": "waiting_tools",
+          "pending": [
+            {
+              "callId": "agentsegmentation-fc5d2bd1-6039-41aa-a525-518f79b3c2a2",
+              "name": "video_segment_target"
+            }
+          ],
+          "receipts": 0
+        },
+        {
+          "id": "cfeb2715-44a2-48d6-b046-25f4540933cf",
+          "status": "completed",
+          "pending": [],
+          "receipts": 1
+        }
+      ],
+      "taskId": "f2ca2fd9-5ad5-480d-8da8-46d8165ac128",
+      "sameMaskAsset": "asset:e31bd13c-1b7b-4c8c-af58-65173852bcd8",
+      "newAssetPutsAfterReload": 0,
+      "continueButtonEnabled": true
+    },
+    "original_receipt_explicit_continue": {
+      "http": {
+        "taskPosts": 4,
+        "taskGets": 32,
+        "resumePosts": 0,
+        "cancelPosts": 0,
+        "restarts": 1
+      },
+      "supplierCounts": {
+        "uploadPostAttempts": 8,
+        "uploadPosts": 7,
+        "predictionPosts": 7,
+        "predictionGets": 16,
+        "cancelPosts": 0,
+        "sourceDownloads": 4,
+        "pngDownloadAttempts": 178,
+        "pngDownloads": 178,
+        "rejectedBoundaryCalls": 0
+      },
+      "llmCalls": 10,
+      "session": {
+        "id": "919195d8-cae2-41f0-98df-827a15b89095",
+        "status": "completed",
+        "pending": [],
+        "receipts": 1
+      },
+      "nativePostDelta": 0,
+      "newInferenceDelta": 0,
+      "llmDeltaAfterExplicitContinue": 1,
+      "newAssetPuts": 0
+    },
+    "localAssetSaveRecoveryAfterReload": {
+      "session": "agent-sam2-1005o-c",
+      "node": {
+        "id": "agent-segmentation-source",
+        "video": "asset:520c4cd2-4a93-4236-86ce-fd6a96103888",
+        "image": "asset:cd35bbf3-26b6-4b3b-92fc-20c0184b23bc",
+        "poster": "asset:cd35bbf3-26b6-4b3b-92fc-20c0184b23bc",
+        "clip": {
+          "start": 1,
+          "end": 4
+        },
+        "mask": {
+          "source": "asset:520c4cd2-4a93-4236-86ce-fd6a96103888",
+          "clip": "{\"start\":1,\"end\":4}",
+          "asset": "asset:ce6bf54b-8396-4c3c-9809-9c83730a53d1",
+          "time": 2.5,
+          "width": 320,
+          "height": 180,
+          "duration": 5,
+          "timeline": "full-source",
+          "taskId": "b38745a5-496d-4915-9782-e52c245dc8ee"
+        }
+      },
+      "receipt": {
+        "version": 1,
+        "taskId": "b38745a5-496d-4915-9782-e52c245dc8ee",
+        "revision": 9,
+        "projectId": "canvas",
+        "nodeId": "agent-segmentation-source",
+        "source": "asset:520c4cd2-4a93-4236-86ce-fd6a96103888",
+        "sourceFingerprint": "{\"clip\":{\"end\":4,\"start\":1},\"durationMs\":5000,\"height\":180,\"id\":\"agent-segmentation-source\",\"image\":\"asset:cd35bbf3-26b6-4b3b-92fc-20c0184b23bc\",\"pixelHeight\":180,\"pixelWidth\":320,\"poster\":\"asset:cd35bbf3-26b6-4b3b-92fc-20c0184b23bc\",\"provenance\":{\"kind\":\"imported\",\"mediaSource\":\"asset:520c4cd2-4a93-4236-86ce-fd6a96103888\",\"model\":null},\"title\":\"SAM2 Agent · 5秒公开合成移动矩形\",\"type\":\"video\",\"video\":\"asset:520c4cd2-4a93-4236-86ce-fd6a96103888\",\"width\":320}",
+        "clip": "{\"start\":1,\"end\":4}",
+        "baselineMask": null,
+        "baselineMaskSnapshot": "null",
+        "rect": {
+          "x": 0.375,
+          "y": 0.3333333333333333,
+          "width": 0.125,
+          "height": 0.2777777777777778
+        },
+        "time": 2.5,
+        "modelVersion": "33432afdfc06a10da6b4018932893d39b0159f838b6d11dd1236dff85cc5ec1d",
+        "providerFingerprint": "6775b38f384890001609c06762392f2bdee2e06df4dc7ccd4159018616ac207a",
+        "status": "applied",
+        "dispatched": true,
+        "createdAt": "2026-10-05T11:52:56.417Z",
+        "agentArguments": "{\"operationId\":\"b38745a5-496d-4915-9782-e52c245dc8ee\",\"nodeId\":\"agent-segmentation-source\",\"rect\":{\"x\":120,\"y\":60,\"width\":40,\"height\":50},\"time\":2.5}",
+        "media": {
+          "width": 320,
+          "height": 180,
+          "duration": 5
+        },
+        "inputSha256": "6f1626326e04801beac78be182d855fffcd30e4067fe3cb72c94392a8f06a306",
+        "maskAsset": "asset:ce6bf54b-8396-4c3c-9809-9c83730a53d1"
+      },
+      "sourceReads": 0,
+      "assetPuts": [],
+      "errors": [],
+      "thumbnails": [
+        {
+          "localBlob": true,
+          "width": 320,
+          "height": 180,
+          "complete": true
+        },
+        {
+          "localBlob": true,
+          "width": 320,
+          "height": 180,
+          "complete": true
+        }
+      ],
+      "alerts": []
+    }
+  },
+  "cancellation_after_clip_change": {
+    "taskId": "586513f4-b245-4fb2-9e84-b3473bc91ed4",
+    "supplierCounts": {
+      "uploadPostAttempts": 12,
+      "uploadPosts": 10,
+      "predictionPosts": 10,
+      "predictionGets": 16,
+      "cancelPosts": 1,
+      "sourceDownloads": 6,
+      "pngDownloadAttempts": 254,
+      "pngDownloads": 254,
+      "rejectedBoundaryCalls": 0
+    },
+    "http": {
+      "taskPosts": 6,
+      "taskGets": 42,
+      "resumePosts": 0,
+      "cancelPosts": 1,
+      "restarts": 1
+    },
+    "llmCalls": 13,
+    "task": {
+      "id": "586513f4-b245-4fb2-9e84-b3473bc91ed4",
+      "status": "cancelled",
+      "code": "segmentation_cancelled",
+      "prompt": {
+        "frameIndex": 25,
+        "time": 2.5,
+        "pts": 2.5
+      },
+      "source": {
+        "width": 320,
+        "height": 180,
+        "fps": 10,
+        "numFrames": 50,
+        "sha256": "6f1626326e04801beac78be182d855fffcd30e4067fe3cb72c94392a8f06a306"
+      },
+      "branches": [
+        {
+          "direction": "forward",
+          "status": "archived",
+          "predictionId": "fixtureprediction10",
+          "numFrames": 25,
+          "sourceIndices": [
+            25,
+            26,
+            27,
+            28,
+            29,
+            30,
+            31,
+            32,
+            33,
+            34,
+            35,
+            36,
+            37,
+            38,
+            39,
+            40,
+            41,
+            42,
+            43,
+            44,
+            45,
+            46,
+            47,
+            48,
+            49
+          ],
+          "firstFrameSha256": "30c4a3c8ffc2b4874ed734231aef39791a1034ed6fc0a50e8c68d14c3dafe08c",
+          "sha256": "160ec74dd6bd9db976b15762c79cb4f8ed22a479e947ff82c8d1d2b71c77adfd",
+          "downloadedFrames": 25,
+          "remoteCancellation": "confirmed"
+        },
+        {
+          "direction": "reverse",
+          "status": "uploading",
+          "predictionId": null,
+          "numFrames": 26,
+          "sourceIndices": [
+            25,
+            24,
+            23,
+            22,
+            21,
+            20,
+            19,
+            18,
+            17,
+            16,
+            15,
+            14,
+            13,
+            12,
+            11,
+            10,
+            9,
+            8,
+            7,
+            6,
+            5,
+            4,
+            3,
+            2,
+            1,
+            0
+          ],
+          "firstFrameSha256": "30c4a3c8ffc2b4874ed734231aef39791a1034ed6fc0a50e8c68d14c3dafe08c",
+          "sha256": "e951eb1f9512d4bc10bd2ef0ae084525aed0b094b928b9e739a98436b7542250",
+          "downloadedFrames": 0,
+          "remoteCancellation": null
+        }
+      ],
+      "mask": null
+    },
+    "agentSessions": [
+      {
+        "id": "000f78a3-b7ae-4325-8848-2e46bcea1962",
+        "status": "completed",
+        "pending": [],
+        "receipts": 1
+      },
+      {
+        "id": "0bb8f0d8-f3c1-40f6-80a8-02caf5417715",
+        "status": "completed",
+        "pending": [],
+        "receipts": 1
+      },
+      {
+        "id": "2103b913-181d-441d-b5a5-c6ccfa1b21ee",
+        "status": "completed",
+        "pending": [],
+        "receipts": 1
+      },
+      {
+        "id": "2540eba8-95f0-4504-af2b-0018aaacab90",
+        "status": "completed",
+        "pending": [],
+        "receipts": 1
+      },
+      {
+        "id": "919195d8-cae2-41f0-98df-827a15b89095",
+        "status": "completed",
+        "pending": [],
+        "receipts": 1
+      },
+      {
+        "id": "9e36ef77-4736-41a5-92a9-deec7825b42f",
+        "status": "cancelled",
+        "pending": [
+          {
+            "callId": "agentsegmentation-d017c2e0-127e-4c2f-9b58-90f9cfe0d976",
+            "name": "video_segment_target"
+          }
+        ],
+        "receipts": 0
+      },
+      {
+        "id": "cfeb2715-44a2-48d6-b046-25f4540933cf",
+        "status": "completed",
+        "pending": [],
+        "receipts": 1
+      }
+    ],
+    "browserEvidence": {
+      "session": "agent-sam2-1005o-cancel3",
+      "actions": [
+        "stop waiting",
+        "change clip from 1-4 to 2-4",
+        "request original task cancellation",
+        "reload"
+      ],
+      "persistedReceipt": "cancelled",
+      "mask": null,
+      "assetPuts": [],
+      "remoteScope": "forward was archived and cancellation confirmed; reverse had no prediction ID"
+    }
+  },
+  "resume_independent_approval_before_allow": {
+    "taskId": "dd315cfb-1d40-49a8-bff5-39012c49cc4b",
+    "supplierCounts": {
+      "uploadPostAttempts": 14,
+      "uploadPosts": 11,
+      "predictionPosts": 11,
+      "predictionGets": 16,
+      "cancelPosts": 1,
+      "sourceDownloads": 7,
+      "pngDownloadAttempts": 279,
+      "pngDownloads": 279,
+      "rejectedBoundaryCalls": 0
+    },
+    "http": {
+      "taskPosts": 7,
+      "taskGets": 52,
+      "resumePosts": 0,
+      "cancelPosts": 1,
+      "restarts": 2
+    },
+    "llmCalls": 15,
+    "task": {
+      "id": "dd315cfb-1d40-49a8-bff5-39012c49cc4b",
+      "status": "needs_resume",
+      "prompt": {
+        "frameIndex": 25,
+        "time": 2.5,
+        "pts": 2.5
+      },
+      "source": {
+        "width": 320,
+        "height": 180,
+        "fps": 10,
+        "numFrames": 50,
+        "sha256": "6f1626326e04801beac78be182d855fffcd30e4067fe3cb72c94392a8f06a306"
+      },
+      "branches": [
+        {
+          "direction": "forward",
+          "status": "archived",
+          "predictionId": "fixtureprediction11",
+          "numFrames": 25,
+          "sourceIndices": [
+            25,
+            26,
+            27,
+            28,
+            29,
+            30,
+            31,
+            32,
+            33,
+            34,
+            35,
+            36,
+            37,
+            38,
+            39,
+            40,
+            41,
+            42,
+            43,
+            44,
+            45,
+            46,
+            47,
+            48,
+            49
+          ],
+          "firstFrameSha256": "30c4a3c8ffc2b4874ed734231aef39791a1034ed6fc0a50e8c68d14c3dafe08c",
+          "sha256": "160ec74dd6bd9db976b15762c79cb4f8ed22a479e947ff82c8d1d2b71c77adfd",
+          "downloadedFrames": 25,
+          "remoteCancellation": null
+        },
+        {
+          "direction": "reverse",
+          "status": "pending",
+          "predictionId": null,
+          "numFrames": 26,
+          "sourceIndices": [
+            25,
+            24,
+            23,
+            22,
+            21,
+            20,
+            19,
+            18,
+            17,
+            16,
+            15,
+            14,
+            13,
+            12,
+            11,
+            10,
+            9,
+            8,
+            7,
+            6,
+            5,
+            4,
+            3,
+            2,
+            1,
+            0
+          ],
+          "firstFrameSha256": "30c4a3c8ffc2b4874ed734231aef39791a1034ed6fc0a50e8c68d14c3dafe08c",
+          "sha256": "e951eb1f9512d4bc10bd2ef0ae084525aed0b094b928b9e739a98436b7542250",
+          "downloadedFrames": 0,
+          "remoteCancellation": null
+        }
+      ],
+      "mask": null
+    },
+    "agentSessions": [
+      {
+        "id": "000f78a3-b7ae-4325-8848-2e46bcea1962",
+        "status": "completed",
+        "pending": [],
+        "receipts": 1
+      },
+      {
+        "id": "0bb8f0d8-f3c1-40f6-80a8-02caf5417715",
+        "status": "completed",
+        "pending": [],
+        "receipts": 1
+      },
+      {
+        "id": "2103b913-181d-441d-b5a5-c6ccfa1b21ee",
+        "status": "completed",
+        "pending": [],
+        "receipts": 1
+      },
+      {
+        "id": "2540eba8-95f0-4504-af2b-0018aaacab90",
+        "status": "completed",
+        "pending": [],
+        "receipts": 1
+      },
+      {
+        "id": "919195d8-cae2-41f0-98df-827a15b89095",
+        "status": "completed",
+        "pending": [],
+        "receipts": 1
+      },
+      {
+        "id": "9e36ef77-4736-41a5-92a9-deec7825b42f",
+        "status": "cancelled",
+        "pending": [
+          {
+            "callId": "agentsegmentation-d017c2e0-127e-4c2f-9b58-90f9cfe0d976",
+            "name": "video_segment_target"
+          }
+        ],
+        "receipts": 0
+      },
+      {
+        "id": "cfeb2715-44a2-48d6-b046-25f4540933cf",
+        "status": "completed",
+        "pending": [],
+        "receipts": 1
+      },
+      {
+        "id": "f0f393d6-5cd1-403d-adbb-f8b61f842cc5",
+        "status": "completed",
+        "pending": [],
+        "receipts": 1
+      }
+    ]
+  },
+  "resume_explicit_completion": {
+    "taskId": "dd315cfb-1d40-49a8-bff5-39012c49cc4b",
+    "supplierCounts": {
+      "uploadPostAttempts": 15,
+      "uploadPosts": 12,
+      "predictionPosts": 12,
+      "predictionGets": 16,
+      "cancelPosts": 1,
+      "sourceDownloads": 7,
+      "pngDownloadAttempts": 305,
+      "pngDownloads": 305,
+      "rejectedBoundaryCalls": 0
+    },
+    "http": {
+      "taskPosts": 7,
+      "taskGets": 53,
+      "resumePosts": 1,
+      "cancelPosts": 1,
+      "restarts": 2
+    },
+    "llmCalls": 15,
+    "task": {
+      "id": "dd315cfb-1d40-49a8-bff5-39012c49cc4b",
+      "status": "succeeded",
+      "prompt": {
+        "frameIndex": 25,
+        "time": 2.5,
+        "pts": 2.5
+      },
+      "source": {
+        "width": 320,
+        "height": 180,
+        "fps": 10,
+        "numFrames": 50,
+        "sha256": "6f1626326e04801beac78be182d855fffcd30e4067fe3cb72c94392a8f06a306"
+      },
+      "branches": [
+        {
+          "direction": "forward",
+          "status": "archived",
+          "predictionId": "fixtureprediction11",
+          "numFrames": 25,
+          "sourceIndices": [
+            25,
+            26,
+            27,
+            28,
+            29,
+            30,
+            31,
+            32,
+            33,
+            34,
+            35,
+            36,
+            37,
+            38,
+            39,
+            40,
+            41,
+            42,
+            43,
+            44,
+            45,
+            46,
+            47,
+            48,
+            49
+          ],
+          "firstFrameSha256": "30c4a3c8ffc2b4874ed734231aef39791a1034ed6fc0a50e8c68d14c3dafe08c",
+          "sha256": "160ec74dd6bd9db976b15762c79cb4f8ed22a479e947ff82c8d1d2b71c77adfd",
+          "downloadedFrames": 25,
+          "remoteCancellation": null
+        },
+        {
+          "direction": "reverse",
+          "status": "archived",
+          "predictionId": "fixtureprediction12",
+          "numFrames": 26,
+          "sourceIndices": [
+            25,
+            24,
+            23,
+            22,
+            21,
+            20,
+            19,
+            18,
+            17,
+            16,
+            15,
+            14,
+            13,
+            12,
+            11,
+            10,
+            9,
+            8,
+            7,
+            6,
+            5,
+            4,
+            3,
+            2,
+            1,
+            0
+          ],
+          "firstFrameSha256": "30c4a3c8ffc2b4874ed734231aef39791a1034ed6fc0a50e8c68d14c3dafe08c",
+          "sha256": "e951eb1f9512d4bc10bd2ef0ae084525aed0b094b928b9e739a98436b7542250",
+          "downloadedFrames": 26,
+          "remoteCancellation": null
+        }
+      ],
+      "mask": {
+        "encoding": "rle-zero-based-row-major",
+        "width": 320,
+        "height": 180,
+        "fps": 10,
+        "numFrames": 50,
+        "rleSha256": "105176f136923ee8e3f6b8a3b3072df1221b989ea3c1c29bccbbcf2587327897"
+      }
+    },
+    "agentSessions": [
+      {
+        "id": "000f78a3-b7ae-4325-8848-2e46bcea1962",
+        "status": "completed",
+        "pending": [],
+        "receipts": 1
+      },
+      {
+        "id": "0bb8f0d8-f3c1-40f6-80a8-02caf5417715",
+        "status": "completed",
+        "pending": [],
+        "receipts": 1
+      },
+      {
+        "id": "2103b913-181d-441d-b5a5-c6ccfa1b21ee",
+        "status": "completed",
+        "pending": [],
+        "receipts": 1
+      },
+      {
+        "id": "2540eba8-95f0-4504-af2b-0018aaacab90",
+        "status": "completed",
+        "pending": [],
+        "receipts": 1
+      },
+      {
+        "id": "919195d8-cae2-41f0-98df-827a15b89095",
+        "status": "completed",
+        "pending": [],
+        "receipts": 1
+      },
+      {
+        "id": "9e36ef77-4736-41a5-92a9-deec7825b42f",
+        "status": "cancelled",
+        "pending": [
+          {
+            "callId": "agentsegmentation-d017c2e0-127e-4c2f-9b58-90f9cfe0d976",
+            "name": "video_segment_target"
+          }
+        ],
+        "receipts": 0
+      },
+      {
+        "id": "cfeb2715-44a2-48d6-b046-25f4540933cf",
+        "status": "completed",
+        "pending": [],
+        "receipts": 1
+      },
+      {
+        "id": "f0f393d6-5cd1-403d-adbb-f8b61f842cc5",
+        "status": "completed",
+        "pending": [],
+        "receipts": 1
+      }
+    ],
+    "browserEvidence": {
+      "session": "agent-sam2-1005o-resume2",
+      "maskAsset": "asset:c022e2b7-6856-483a-b336-286062173c8e",
+      "assetPuts": [
+        {
+          "asset": "asset:c022e2b7-6856-483a-b336-286062173c8e",
+          "bytes": 22684
+        }
+      ],
+      "status": "applied",
+      "clip": {
+        "start": 1,
+        "end": 4
+      },
+      "sourceTime": 2.5,
+      "timeline": "full-source"
+    },
+    "afterBrowserReload": {
+      "session": "agent-sam2-1005o-resume2",
+      "node": {
+        "id": "agent-segmentation-source",
+        "video": "asset:b65984a7-3200-408e-ac3b-7d25edd65012",
+        "image": "asset:278c8fdd-8069-48a6-942d-4404504d4114",
+        "clip": {
+          "start": 1,
+          "end": 4
+        },
+        "mask": {
+          "source": "asset:b65984a7-3200-408e-ac3b-7d25edd65012",
+          "clip": "{\"start\":1,\"end\":4}",
+          "asset": "asset:c022e2b7-6856-483a-b336-286062173c8e",
+          "time": 2.5,
+          "width": 320,
+          "height": 180,
+          "duration": 5,
+          "timeline": "full-source",
+          "taskId": "dd315cfb-1d40-49a8-bff5-39012c49cc4b"
+        }
+      },
+      "receipt": "applied",
+      "sourceReads": 0,
+      "assetPuts": [],
+      "dispatches": [],
+      "errors": [],
+      "thumbnails": [
+        {
+          "localBlob": true,
+          "width": 320,
+          "height": 180,
+          "complete": true
+        },
+        {
+          "localBlob": true,
+          "width": 320,
+          "height": 180,
+          "complete": true
+        },
+        {
+          "localBlob": true,
+          "width": 320,
+          "height": 180,
+          "complete": true
+        }
+      ],
+      "resultLabels": [
+        "视频识别等待确认续发分支 · agent-segmentation-source\n源像素选区 x=120, y=60, 40×50；源绝对时间 2.5s\nReplicate SAM2 原生目标识别：读取并上传完整源视频，clip 不缩短上传范围；前向片段及可能的倒序片段最多两次推理，可能分别计费，取消仍可能收费。只保存完整时序蒙层，不执行移除、替换或生成视频。 固定模型版本 33432afdfc06a10da6b4018932893d39b0159f838b6d11dd1236dff85cc5ec1d；供应商身份 6775b38f384890001609c06762392f2bdee2e06df4dc7ccd4159018616ac207a",
+        "视频识别等待确认续发分支 · agent-segmentation-source\n原 UUID dd315cfb-1d40-49a8-bff5-39012c49cc4b\nReplicate SAM2 原生目标识别：读取并上传完整源视频，clip 不缩短上传范围；前向片段及可能的倒序片段最多两次推理，可能分别计费，取消仍可能收费。只保存完整时序蒙层，不执行移除、替换或生成视频。",
+        "完整视频蒙层已应用并保存 · agent-segmentation-source\n原 UUID dd315cfb-1d40-49a8-bff5-39012c49cc4b\nReplicate SAM2 原生目标识别：读取并上传完整源视频，clip 不缩短上传范围；前向片段及可能的倒序片段最多两次推理，可能分别计费，取消仍可能收费。只保存完整时序蒙层，不执行移除、替换或生成视频。 固定模型版本 33432afdfc06a10da6b4018932893d39b0159f838b6d11dd1236dff85cc5ec1d；供应商身份 6775b38f384890001609c06762392f2bdee2e06df4dc7ccd4159018616ac207a"
+      ],
+      "alerts": []
+    }
+  },
+  "finalMediaEvidence": {
+    "scope": "Final resumed task only; counters above remain cumulative for the isolated host.",
+    "source": {
+      "width": 320,
+      "height": 180,
+      "fps": 10,
+      "numFrames": 50,
+      "duration": 5,
+      "sha256": "6f1626326e04801beac78be182d855fffcd30e4067fe3cb72c94392a8f06a306",
+      "movingBox": true,
+      "hasAudio": false,
+      "codec": "h264",
+      "pixelFormat": "yuv420p",
+      "uploadComparison": "actual source decoded RGB"
+    },
+    "uploads": [
+      {
+        "id": "file11",
+        "direction": "forward",
+        "bytes": 8898,
+        "sha256": "160ec74dd6bd9db976b15762c79cb4f8ed22a479e947ff82c8d1d2b71c77adfd",
+        "numFrames": 25,
+        "sourceIndices": [
+          25,
+          26,
+          27,
+          28,
+          29,
+          30,
+          31,
+          32,
+          33,
+          34,
+          35,
+          36,
+          37,
+          38,
+          39,
+          40,
+          41,
+          42,
+          43,
+          44,
+          45,
+          46,
+          47,
+          48,
+          49
+        ],
+        "firstFrameSha256": "30c4a3c8ffc2b4874ed734231aef39791a1034ed6fc0a50e8c68d14c3dafe08c",
+        "pixelOrderVerified": true
+      },
+      {
+        "id": "file12",
+        "direction": "reverse",
+        "bytes": 9735,
+        "sha256": "e951eb1f9512d4bc10bd2ef0ae084525aed0b094b928b9e739a98436b7542250",
+        "numFrames": 26,
+        "sourceIndices": [
+          25,
+          24,
+          23,
+          22,
+          21,
+          20,
+          19,
+          18,
+          17,
+          16,
+          15,
+          14,
+          13,
+          12,
+          11,
+          10,
+          9,
+          8,
+          7,
+          6,
+          5,
+          4,
+          3,
+          2,
+          1,
+          0
+        ],
+        "firstFrameSha256": "30c4a3c8ffc2b4874ed734231aef39791a1034ed6fc0a50e8c68d14c3dafe08c",
+        "pixelOrderVerified": true
+      }
+    ],
+    "predictions": [
+      {
+        "id": "fixtureprediction11",
+        "direction": "forward",
+        "numFrames": 25,
+        "promptFrameIndex": 25,
+        "point": [
+          140,
+          85
+        ],
+        "receipt": "known"
+      },
+      {
+        "id": "fixtureprediction12",
+        "direction": "reverse",
+        "numFrames": 26,
+        "promptFrameIndex": 25,
+        "point": [
+          140,
+          85
+        ],
+        "receipt": "known"
+      }
+    ],
+    "maskDownloads": [
+      {
+        "predictionId": "fixtureprediction11",
+        "direction": "forward",
+        "index": 0,
+        "sourceIndex": 25,
+        "bytes": 230,
+        "sha256": "1f924656930ef513f64c37bfbe136585d484a5e5875fcfb27d67560fb2daf131",
+        "pixelSha256": "3486ae554ab958dda05622df6b6cda80070e9b18f5bd55f602ab024f0f99c6c6",
+        "foregroundPixels": 2000
+      },
+      {
+        "predictionId": "fixtureprediction11",
+        "direction": "forward",
+        "index": 1,
+        "sourceIndex": 26,
+        "bytes": 230,
+        "sha256": "11367bf43bf284f7acb01c4f9350493b81e1778b4788f78313c5747e7ab626a1",
+        "pixelSha256": "f88a70f2fb2d6b4363001f1f402bfc82c69d587d28ca2f89909e72bd9b850192",
+        "foregroundPixels": 2000
+      },
+      {
+        "predictionId": "fixtureprediction11",
+        "direction": "forward",
+        "index": 2,
+        "sourceIndex": 27,
+        "bytes": 230,
+        "sha256": "c444197d4fc2fd49b646710d8ce45a9ad26c491947703f724cfdbd86f12865bd",
+        "pixelSha256": "1a481dbb9868a3d34b8ddc414bc4388d93f007c7a958f02a12a583b9db0b1f7d",
+        "foregroundPixels": 2000
+      },
+      {
+        "predictionId": "fixtureprediction11",
+        "direction": "forward",
+        "index": 3,
+        "sourceIndex": 28,
+        "bytes": 230,
+        "sha256": "9d7e055bab656235f65b1fcefc4dab8cbbecf12e4dca69b200253de62c613856",
+        "pixelSha256": "d8627e34f50e807130a9ab5be683f71566175eb2ad51753fec12861e966b8659",
+        "foregroundPixels": 2000
+      },
+      {
+        "predictionId": "fixtureprediction11",
+        "direction": "forward",
+        "index": 4,
+        "sourceIndex": 29,
+        "bytes": 230,
+        "sha256": "588806f3dcca9d6627b398103de20c92fb6185d1944b52a6eeef0558cc418278",
+        "pixelSha256": "b29e73c73c3174e17a7a9f0abc42f8a02897e4fecdf93ee9b12ec15987dd95b1",
+        "foregroundPixels": 2000
+      },
+      {
+        "predictionId": "fixtureprediction11",
+        "direction": "forward",
+        "index": 5,
+        "sourceIndex": 30,
+        "bytes": 230,
+        "sha256": "138a79fee8645dcd23141a7c0124c677c86e7c2f3c4cec83014aa5960bf78b0a",
+        "pixelSha256": "1fdeec13e4656c4ae56c0a2a3b83f10ac0324f6d618660abe7182d7ac6c65395",
+        "foregroundPixels": 2000
+      },
+      {
+        "predictionId": "fixtureprediction11",
+        "direction": "forward",
+        "index": 6,
+        "sourceIndex": 31,
+        "bytes": 230,
+        "sha256": "ae9b7d6e5334fc4c812b00dc1c9958f51f6da197a9ed6e0cdee7084158431803",
+        "pixelSha256": "8bd54d2c316474a8951136a50a5d19a3708e37927c4146b572edde821455e4b0",
+        "foregroundPixels": 2000
+      },
+      {
+        "predictionId": "fixtureprediction11",
+        "direction": "forward",
+        "index": 7,
+        "sourceIndex": 32,
+        "bytes": 230,
+        "sha256": "83b84588db18ea6fb15effbc487d9fa67472bb3276b1c9e94485ae8ae0f56309",
+        "pixelSha256": "8e5a752d03955003ea337053e02131d8efa3484cecf8a670a6bcf1d74561f0ae",
+        "foregroundPixels": 2000
+      },
+      {
+        "predictionId": "fixtureprediction11",
+        "direction": "forward",
+        "index": 8,
+        "sourceIndex": 33,
+        "bytes": 230,
+        "sha256": "23faf2cea938caedb7b029bf902802f3c6d3de8ceefb79c231e5b1e88d650254",
+        "pixelSha256": "e396167c1d5fd5b6fbebe8dd7dad036d3ab67255edd625b3034635d5b050e973",
+        "foregroundPixels": 2000
+      },
+      {
+        "predictionId": "fixtureprediction11",
+        "direction": "forward",
+        "index": 9,
+        "sourceIndex": 34,
+        "bytes": 230,
+        "sha256": "b89c4aacb9d7fd6f967b14c9ee6fb9e184ef124570319010b7417e83a5f45746",
+        "pixelSha256": "21a5b759046c7bc79ee5697fca5128c96fa5ea80a4cf8f5b82da55a95dc0c40b",
+        "foregroundPixels": 2000
+      },
+      {
+        "predictionId": "fixtureprediction11",
+        "direction": "forward",
+        "index": 10,
+        "sourceIndex": 35,
+        "bytes": 230,
+        "sha256": "728b04fd8a9b60452fc638a622de52f52af1cd56fc4bc03198d92c6749c0e425",
+        "pixelSha256": "92d2b138ebfe1d26683905777979efb4911d25c98127c13cdc24178f6edacdd1",
+        "foregroundPixels": 2000
+      },
+      {
+        "predictionId": "fixtureprediction11",
+        "direction": "forward",
+        "index": 11,
+        "sourceIndex": 36,
+        "bytes": 230,
+        "sha256": "e46df534318278fb4412fa3e751792e0b0a40decc5bb9f6921f76667c270f240",
+        "pixelSha256": "39f40d17b26fc8a30c7c1f1c3f6cacd5ab2b2d2b2893df60978d6a0de4db67f8",
+        "foregroundPixels": 2000
+      },
+      {
+        "predictionId": "fixtureprediction11",
+        "direction": "forward",
+        "index": 12,
+        "sourceIndex": 37,
+        "bytes": 230,
+        "sha256": "c282f5e3e06dde8b1745b07c3b44e2eb009a19080bf2f1a4d807cb2bd3853772",
+        "pixelSha256": "6935a8caddd01e7a36dfd35d47b4af1122b00d4d84d5b68f79f2585a1ba3c5b9",
+        "foregroundPixels": 2000
+      },
+      {
+        "predictionId": "fixtureprediction11",
+        "direction": "forward",
+        "index": 13,
+        "sourceIndex": 38,
+        "bytes": 230,
+        "sha256": "a498d9df16efa75873eb95dc7fd67bd3acd2650e76017d074e6343f02e0805a8",
+        "pixelSha256": "b62091244d799c6399cc025e76ce1ea051bf4519ebb41351a95805964cf5c3c6",
+        "foregroundPixels": 2000
+      },
+      {
+        "predictionId": "fixtureprediction11",
+        "direction": "forward",
+        "index": 14,
+        "sourceIndex": 39,
+        "bytes": 230,
+        "sha256": "2be7aae1d931a188de6573df499c4d2c5434859a7dd30175ce395bd4e022b0dc",
+        "pixelSha256": "28ee88d1c96d47b2f0fd4c9a430d360d01cb1ce12c82ba9a2828a271abb0194d",
+        "foregroundPixels": 2000
+      },
+      {
+        "predictionId": "fixtureprediction11",
+        "direction": "forward",
+        "index": 15,
+        "sourceIndex": 40,
+        "bytes": 230,
+        "sha256": "babb3167e76209ae658b174a1e459549d4a370829c8a1be708ad422fea5a9089",
+        "pixelSha256": "8a889d45ad2c1b65ba0b6436d2749d0a8e6134ab07be5c7a42c941ed25272d57",
+        "foregroundPixels": 2000
+      },
+      {
+        "predictionId": "fixtureprediction11",
+        "direction": "forward",
+        "index": 16,
+        "sourceIndex": 41,
+        "bytes": 230,
+        "sha256": "ddee238dbe0811b2628127740eb09e4522618fb1627a7fa4c1d44d9afdfe1fef",
+        "pixelSha256": "7ea81f7e6f5f2b8ad9240b06e6ecfd0b3bd07a690a299f443298cc6394061640",
+        "foregroundPixels": 2000
+      },
+      {
+        "predictionId": "fixtureprediction11",
+        "direction": "forward",
+        "index": 17,
+        "sourceIndex": 42,
+        "bytes": 230,
+        "sha256": "665c681743bad0e383308d8a84249bdf09db35e3c25859cd4dc358c06bfc6954",
+        "pixelSha256": "093f35db5292336f749a5c152484239df391a8e2d6b3f818bf7d3893cdb2f8b6",
+        "foregroundPixels": 2000
+      },
+      {
+        "predictionId": "fixtureprediction11",
+        "direction": "forward",
+        "index": 18,
+        "sourceIndex": 43,
+        "bytes": 230,
+        "sha256": "e8a05d9cc5554c24f07205456d111ef4bbb7119c9f23f7fa00b19ae3ada0c4dd",
+        "pixelSha256": "8ab923aff6e5e4ff9b1d0b0c95c579fb0285cc00e1a53e64e70cf99f1445d9d8",
+        "foregroundPixels": 2000
+      },
+      {
+        "predictionId": "fixtureprediction11",
+        "direction": "forward",
+        "index": 19,
+        "sourceIndex": 44,
+        "bytes": 230,
+        "sha256": "5dd3704ca7ee4010692126edf0108c48c19a82995f794204f11c168f99f5a4b4",
+        "pixelSha256": "b8548195a6c6eebf7dc6266cbc8f6797ec7e6200f3018320d509da72994d45f2",
+        "foregroundPixels": 2000
+      },
+      {
+        "predictionId": "fixtureprediction11",
+        "direction": "forward",
+        "index": 20,
+        "sourceIndex": 45,
+        "bytes": 230,
+        "sha256": "d6868506f5f4a63e0ef10a1d883f399a176f205cd0b7459562475d02d52e40b6",
+        "pixelSha256": "622a04492f581d2f3a4307dd50f5b37882cd812bce3fb3cc1f7b403d660bef3f",
+        "foregroundPixels": 2000
+      },
+      {
+        "predictionId": "fixtureprediction11",
+        "direction": "forward",
+        "index": 21,
+        "sourceIndex": 46,
+        "bytes": 230,
+        "sha256": "b07a259bae985b658c4a1a8736145b101d01fb770417540dc9cc5066613de70c",
+        "pixelSha256": "8d9b8c9ee0eac641f6b8aab2b6354d29c5830465baa932abbc485461687f5706",
+        "foregroundPixels": 2000
+      },
+      {
+        "predictionId": "fixtureprediction11",
+        "direction": "forward",
+        "index": 22,
+        "sourceIndex": 47,
+        "bytes": 230,
+        "sha256": "cc37732ee0b510075ce966ff06aff0ccfa1abfdf8e7549ec715cce48aabb3b78",
+        "pixelSha256": "984f0ab71e942cd2b078d35bc93fc2ea7d129485a25d86889a15f957a811690b",
+        "foregroundPixels": 2000
+      },
+      {
+        "predictionId": "fixtureprediction11",
+        "direction": "forward",
+        "index": 23,
+        "sourceIndex": 48,
+        "bytes": 230,
+        "sha256": "1b44aee574c48a9ac98af881d5d1b63e196d29056fb0711908e4562d5c0ff0b9",
+        "pixelSha256": "a3f970280f7894b74151016f55251435baeebba0be0e551d36ad6af7a53ff176",
+        "foregroundPixels": 2000
+      },
+      {
+        "predictionId": "fixtureprediction11",
+        "direction": "forward",
+        "index": 24,
+        "sourceIndex": 49,
+        "bytes": 230,
+        "sha256": "720c956ce27e712c788d7466bee34a837da83c1728d17669011d23596414a99c",
+        "pixelSha256": "2589f748fdbe3ad5cf796c96a316e8220960e2b80c95babac871b44306c588fc",
+        "foregroundPixels": 2000
+      },
+      {
+        "predictionId": "fixtureprediction12",
+        "direction": "reverse",
+        "index": 0,
+        "sourceIndex": 25,
+        "bytes": 230,
+        "sha256": "1f924656930ef513f64c37bfbe136585d484a5e5875fcfb27d67560fb2daf131",
+        "pixelSha256": "3486ae554ab958dda05622df6b6cda80070e9b18f5bd55f602ab024f0f99c6c6",
+        "foregroundPixels": 2000
+      },
+      {
+        "predictionId": "fixtureprediction12",
+        "direction": "reverse",
+        "index": 1,
+        "sourceIndex": 24,
+        "bytes": 231,
+        "sha256": "ee9a7788393eaa0386d5c84f0546ba8001f45707d065c758b4cd01795b11bf5f",
+        "pixelSha256": "79ce3600f6d9feb6979efc3a51b1f314abd9bc29f8ba2d55db2bd92a1e9a2ef1",
+        "foregroundPixels": 2000
+      },
+      {
+        "predictionId": "fixtureprediction12",
+        "direction": "reverse",
+        "index": 2,
+        "sourceIndex": 23,
+        "bytes": 231,
+        "sha256": "6c8e0d8cf075c0b4b395e2042ae384db1550f299e2f27eb62efed7ecb4a34ed8",
+        "pixelSha256": "2cfdfc7103d3da030aecef38f1956782a6cecbd84dd8d3741300ad427ad8b8a6",
+        "foregroundPixels": 2000
+      },
+      {
+        "predictionId": "fixtureprediction12",
+        "direction": "reverse",
+        "index": 3,
+        "sourceIndex": 22,
+        "bytes": 231,
+        "sha256": "cb2b5853f2319ea3ffd1df5f71c3afded8997ebc1d2b257915ebd537c1587978",
+        "pixelSha256": "2596c06deece49214ed6243bfb3b84d44af030472b1b13bf716151d2b008dc45",
+        "foregroundPixels": 2000
+      },
+      {
+        "predictionId": "fixtureprediction12",
+        "direction": "reverse",
+        "index": 4,
+        "sourceIndex": 21,
+        "bytes": 230,
+        "sha256": "106d12c1cef73abca97f7253811660658155533ca6bae33240f9496fe6f5c883",
+        "pixelSha256": "9d8237f3e039048c2e5f0a241c374d137ca465bb218e9c055f647a64bfcb70a3",
+        "foregroundPixels": 2000
+      },
+      {
+        "predictionId": "fixtureprediction12",
+        "direction": "reverse",
+        "index": 5,
+        "sourceIndex": 20,
+        "bytes": 230,
+        "sha256": "36a82a3b692854a8fa142e9b0ee243d238071211eb8d1fda7eb79b10168c86ce",
+        "pixelSha256": "be5295c7aebf25f15307bc542913cab800e8b05dba11cd9e87e367f0457d0b97",
+        "foregroundPixels": 2000
+      },
+      {
+        "predictionId": "fixtureprediction12",
+        "direction": "reverse",
+        "index": 6,
+        "sourceIndex": 19,
+        "bytes": 230,
+        "sha256": "2b9a60f5c07ef7be2630a1092cd4462926c0565d3a9e535e2395fbe3c784a30b",
+        "pixelSha256": "5b1f4b39268a68a13016a414549950d044e0a39cea26066d5ba1edd3e5f97dd1",
+        "foregroundPixels": 2000
+      },
+      {
+        "predictionId": "fixtureprediction12",
+        "direction": "reverse",
+        "index": 7,
+        "sourceIndex": 18,
+        "bytes": 230,
+        "sha256": "b78e708f61623a7bd6355331c917f5a2653242c2c439c481ef44d7113ed17251",
+        "pixelSha256": "532c73aea4b0bdbcd0e1d2c6daf5cf5e1bad81a0b477972724b542e548adca78",
+        "foregroundPixels": 2000
+      },
+      {
+        "predictionId": "fixtureprediction12",
+        "direction": "reverse",
+        "index": 8,
+        "sourceIndex": 17,
+        "bytes": 230,
+        "sha256": "b5cce11928e20eb145cec0484091f8cd7492bb62073fce9cdd58f70384866a46",
+        "pixelSha256": "9f1a5a5f055a947a0903d2a1147d4bad17685e69aa5ad7feeb049dac35f0292c",
+        "foregroundPixels": 2000
+      },
+      {
+        "predictionId": "fixtureprediction12",
+        "direction": "reverse",
+        "index": 9,
+        "sourceIndex": 16,
+        "bytes": 230,
+        "sha256": "3a5c54de7b55c165d212b38b592d564e25e189d1732dae066f53dc2cfb0a96cb",
+        "pixelSha256": "0b07a687b3d92c9dc0356b014e55a956a7bc471ca54b6665a1e34be67935e02c",
+        "foregroundPixels": 2000
+      },
+      {
+        "predictionId": "fixtureprediction12",
+        "direction": "reverse",
+        "index": 10,
+        "sourceIndex": 15,
+        "bytes": 231,
+        "sha256": "41156bd27d963b5b0d8eb12be17af9e1c0b8ea221e60197f8848d2b320df2971",
+        "pixelSha256": "65bfc6f6aa4cbd3a98eade9f7cd4e0616d31715d3ebb7cab3e0e791cebcd5620",
+        "foregroundPixels": 2000
+      },
+      {
+        "predictionId": "fixtureprediction12",
+        "direction": "reverse",
+        "index": 11,
+        "sourceIndex": 14,
+        "bytes": 230,
+        "sha256": "a69a37e3c6a104611b86bf145aa52260cec9e94fd95c75a54989035d4fd4ca1c",
+        "pixelSha256": "28fa617be2ae525905498c8d9445bbc9a1cfa7f67a3d175cb49a516670fcb621",
+        "foregroundPixels": 2000
+      },
+      {
+        "predictionId": "fixtureprediction12",
+        "direction": "reverse",
+        "index": 12,
+        "sourceIndex": 13,
+        "bytes": 230,
+        "sha256": "13326c9d0c7eebcf3037dbd13a22b3a7b8211728e3729eb90bbe8e84aa5f44bf",
+        "pixelSha256": "f2759196fcd51c78fdd1f2d36a5b28aff8218cc56c76ba90165950f1679526e3",
+        "foregroundPixels": 2000
+      },
+      {
+        "predictionId": "fixtureprediction12",
+        "direction": "reverse",
+        "index": 13,
+        "sourceIndex": 12,
+        "bytes": 231,
+        "sha256": "9d7cc3a9b53dd744bd01c3fb223a0f5da61520466e3e662d3d238363b0205737",
+        "pixelSha256": "13cf8c62844d96c2af753355c567db8e3b30c86b0e5a099a6242918f8603a0db",
+        "foregroundPixels": 2000
+      },
+      {
+        "predictionId": "fixtureprediction12",
+        "direction": "reverse",
+        "index": 14,
+        "sourceIndex": 11,
+        "bytes": 231,
+        "sha256": "9de31adf290572574cd806a3c5dff29bf048d0ff160aba1aadfebb5570a9b1d3",
+        "pixelSha256": "300f0645d534162cdacc4492cb67d0e8550a14dfb287cec536a474f31abed5ad",
+        "foregroundPixels": 2000
+      },
+      {
+        "predictionId": "fixtureprediction12",
+        "direction": "reverse",
+        "index": 15,
+        "sourceIndex": 10,
+        "bytes": 231,
+        "sha256": "966bf9a1cca77f2966dbc8c9c231bbeb383641eeb48af001041a14a2132c4d78",
+        "pixelSha256": "f20f877166f069bb7a10008bcb6f090e4ed4aa6dff3d97feaa48f052c147e0d8",
+        "foregroundPixels": 2000
+      },
+      {
+        "predictionId": "fixtureprediction12",
+        "direction": "reverse",
+        "index": 16,
+        "sourceIndex": 9,
+        "bytes": 230,
+        "sha256": "54c12b50319fdb571192a620742f04e871300ee498fca400c3f45e0bac4ec9ea",
+        "pixelSha256": "319629774f5228043f0ba90d2ab5d76ab85f1991ffe1429b85b980a2c550cfbc",
+        "foregroundPixels": 2000
+      },
+      {
+        "predictionId": "fixtureprediction12",
+        "direction": "reverse",
+        "index": 17,
+        "sourceIndex": 8,
+        "bytes": 230,
+        "sha256": "46d0ac5f5739b966a5c9c6434938ab6c49887e4d4847443bfc7f6d3bd3031750",
+        "pixelSha256": "6173676cf94fcb6920768d86a141647abbf859f2771a0611b03b7ffa60899616",
+        "foregroundPixels": 2000
+      },
+      {
+        "predictionId": "fixtureprediction12",
+        "direction": "reverse",
+        "index": 18,
+        "sourceIndex": 7,
+        "bytes": 230,
+        "sha256": "25da7e507dd7cff96011e0c153cf2793f00be35351bb84072c8b74cd8a5d060b",
+        "pixelSha256": "61d0cf74401f1a8db9dd8ebb52cf3c95d3b517a965794ec4ddcedf2099520e54",
+        "foregroundPixels": 2000
+      },
+      {
+        "predictionId": "fixtureprediction12",
+        "direction": "reverse",
+        "index": 19,
+        "sourceIndex": 6,
+        "bytes": 230,
+        "sha256": "414938d85452985a5b8cb0522a6512e5ef9ed767c2550b8744aa9052254bc537",
+        "pixelSha256": "2537feafe5db8042d203e103c79c6ebeb6e344e52386e7e3d57ab7b43c20558c",
+        "foregroundPixels": 2000
+      },
+      {
+        "predictionId": "fixtureprediction12",
+        "direction": "reverse",
+        "index": 20,
+        "sourceIndex": 5,
+        "bytes": 230,
+        "sha256": "ebec6dd4fd58767f1995f98f334cd4feddf0841b5cdea8b7b729bc4f4ff0e070",
+        "pixelSha256": "d76a86877c773caf955b84908e20e7383987a11fba495dbfb519bcf03eead06c",
+        "foregroundPixels": 2000
+      },
+      {
+        "predictionId": "fixtureprediction12",
+        "direction": "reverse",
+        "index": 21,
+        "sourceIndex": 4,
+        "bytes": 230,
+        "sha256": "07d17115fdc394089e098a7718f23bfbc57184745533fb1ad00c5dbc97056633",
+        "pixelSha256": "9390f7deeb84962ee1186195786aa277464e80a81a9218deba2c82cc3c0da69e",
+        "foregroundPixels": 2000
+      },
+      {
+        "predictionId": "fixtureprediction12",
+        "direction": "reverse",
+        "index": 22,
+        "sourceIndex": 3,
+        "bytes": 230,
+        "sha256": "1ffa74815b9243bd17378eaf5c5d7a524d9034a7913ef060896ae1006f24786a",
+        "pixelSha256": "00ca4db31d584998619aa05cfc642af8cb7f95a771e859f0f3ca4ebd28534b19",
+        "foregroundPixels": 2000
+      },
+      {
+        "predictionId": "fixtureprediction12",
+        "direction": "reverse",
+        "index": 23,
+        "sourceIndex": 2,
+        "bytes": 230,
+        "sha256": "acfefb7862218a92ca7c9bd85d22d3cee975fcc2f4c3a2e09ea786db866102a0",
+        "pixelSha256": "bc011dc7f0fe6d95dbd762f9ec40cc45b7b251286be00ef645b62c5c4ebfafe8",
+        "foregroundPixels": 2000
+      },
+      {
+        "predictionId": "fixtureprediction12",
+        "direction": "reverse",
+        "index": 24,
+        "sourceIndex": 1,
+        "bytes": 230,
+        "sha256": "b8ee6d78502b2d65aecaa96a0d69a8cf4b821bdf6e386d15004cc593a3b2953c",
+        "pixelSha256": "9367a2b493d4d5a7d2a3f1d625ad8aeaab960112a08c5ffb80b0bc2f99d408f5",
+        "foregroundPixels": 2000
+      },
+      {
+        "predictionId": "fixtureprediction12",
+        "direction": "reverse",
+        "index": 25,
+        "sourceIndex": 0,
+        "bytes": 230,
+        "sha256": "e696fc084b32fd2730db3714a6e0e9aef3a7c901b64242c5d4d3a9520271b6be",
+        "pixelSha256": "44464c7b694bfeced829af1158b59e5584f5eefe5ef69e54f89962374443b61f",
+        "foregroundPixels": 2000
+      }
+    ],
+    "nativeRecords": [
+      {
+        "id": "175c40bb-a8a6-4f63-8874-37dc12079c9a",
+        "status": "failed",
+        "code": "segmentation_unknown",
+        "prompt": {
+          "frameIndex": 25,
+          "time": 2.5,
+          "pts": 2.5
+        },
+        "source": {
+          "width": 320,
+          "height": 180,
+          "fps": 10,
+          "numFrames": 50,
+          "sha256": "6f1626326e04801beac78be182d855fffcd30e4067fe3cb72c94392a8f06a306"
+        },
+        "branches": [
+          {
+            "direction": "forward",
+            "status": "archived",
+            "predictionId": "fixtureprediction7",
+            "numFrames": 25,
+            "sourceIndices": [
+              25,
+              26,
+              27,
+              28,
+              29,
+              30,
+              31,
+              32,
+              33,
+              34,
+              35,
+              36,
+              37,
+              38,
+              39,
+              40,
+              41,
+              42,
+              43,
+              44,
+              45,
+              46,
+              47,
+              48,
+              49
+            ],
+            "firstFrameSha256": "30c4a3c8ffc2b4874ed734231aef39791a1034ed6fc0a50e8c68d14c3dafe08c",
+            "sha256": "160ec74dd6bd9db976b15762c79cb4f8ed22a479e947ff82c8d1d2b71c77adfd",
+            "downloadedFrames": 25,
+            "remoteCancellation": null
+          },
+          {
+            "direction": "reverse",
+            "status": "failed",
+            "predictionId": null,
+            "numFrames": 26,
+            "sourceIndices": [
+              25,
+              24,
+              23,
+              22,
+              21,
+              20,
+              19,
+              18,
+              17,
+              16,
+              15,
+              14,
+              13,
+              12,
+              11,
+              10,
+              9,
+              8,
+              7,
+              6,
+              5,
+              4,
+              3,
+              2,
+              1,
+              0
+            ],
+            "firstFrameSha256": "30c4a3c8ffc2b4874ed734231aef39791a1034ed6fc0a50e8c68d14c3dafe08c",
+            "sha256": "e951eb1f9512d4bc10bd2ef0ae084525aed0b094b928b9e739a98436b7542250",
+            "downloadedFrames": 0,
+            "remoteCancellation": null
+          }
+        ],
+        "mask": null
+      },
+      {
+        "id": "4d595c6c-1438-44d6-b23b-898bb0de18cd",
+        "status": "succeeded",
+        "prompt": {
+          "frameIndex": 25,
+          "time": 2.5,
+          "pts": 2.5
+        },
+        "source": {
+          "width": 320,
+          "height": 180,
+          "fps": 10,
+          "numFrames": 50,
+          "sha256": "6f1626326e04801beac78be182d855fffcd30e4067fe3cb72c94392a8f06a306"
+        },
+        "branches": [
+          {
+            "direction": "forward",
+            "status": "archived",
+            "predictionId": "fixtureprediction3",
+            "numFrames": 25,
+            "sourceIndices": [
+              25,
+              26,
+              27,
+              28,
+              29,
+              30,
+              31,
+              32,
+              33,
+              34,
+              35,
+              36,
+              37,
+              38,
+              39,
+              40,
+              41,
+              42,
+              43,
+              44,
+              45,
+              46,
+              47,
+              48,
+              49
+            ],
+            "firstFrameSha256": "30c4a3c8ffc2b4874ed734231aef39791a1034ed6fc0a50e8c68d14c3dafe08c",
+            "sha256": "160ec74dd6bd9db976b15762c79cb4f8ed22a479e947ff82c8d1d2b71c77adfd",
+            "downloadedFrames": 25,
+            "remoteCancellation": null
+          },
+          {
+            "direction": "reverse",
+            "status": "archived",
+            "predictionId": "fixtureprediction4",
+            "numFrames": 26,
+            "sourceIndices": [
+              25,
+              24,
+              23,
+              22,
+              21,
+              20,
+              19,
+              18,
+              17,
+              16,
+              15,
+              14,
+              13,
+              12,
+              11,
+              10,
+              9,
+              8,
+              7,
+              6,
+              5,
+              4,
+              3,
+              2,
+              1,
+              0
+            ],
+            "firstFrameSha256": "30c4a3c8ffc2b4874ed734231aef39791a1034ed6fc0a50e8c68d14c3dafe08c",
+            "sha256": "e951eb1f9512d4bc10bd2ef0ae084525aed0b094b928b9e739a98436b7542250",
+            "downloadedFrames": 26,
+            "remoteCancellation": null
+          }
+        ],
+        "mask": {
+          "encoding": "rle-zero-based-row-major",
+          "width": 320,
+          "height": 180,
+          "fps": 10,
+          "numFrames": 50,
+          "rleSha256": "105176f136923ee8e3f6b8a3b3072df1221b989ea3c1c29bccbbcf2587327897"
+        }
+      },
+      {
+        "id": "586513f4-b245-4fb2-9e84-b3473bc91ed4",
+        "status": "cancelled",
+        "code": "segmentation_cancelled",
+        "prompt": {
+          "frameIndex": 25,
+          "time": 2.5,
+          "pts": 2.5
+        },
+        "source": {
+          "width": 320,
+          "height": 180,
+          "fps": 10,
+          "numFrames": 50,
+          "sha256": "6f1626326e04801beac78be182d855fffcd30e4067fe3cb72c94392a8f06a306"
+        },
+        "branches": [
+          {
+            "direction": "forward",
+            "status": "archived",
+            "predictionId": "fixtureprediction10",
+            "numFrames": 25,
+            "sourceIndices": [
+              25,
+              26,
+              27,
+              28,
+              29,
+              30,
+              31,
+              32,
+              33,
+              34,
+              35,
+              36,
+              37,
+              38,
+              39,
+              40,
+              41,
+              42,
+              43,
+              44,
+              45,
+              46,
+              47,
+              48,
+              49
+            ],
+            "firstFrameSha256": "30c4a3c8ffc2b4874ed734231aef39791a1034ed6fc0a50e8c68d14c3dafe08c",
+            "sha256": "160ec74dd6bd9db976b15762c79cb4f8ed22a479e947ff82c8d1d2b71c77adfd",
+            "downloadedFrames": 25,
+            "remoteCancellation": "confirmed"
+          },
+          {
+            "direction": "reverse",
+            "status": "pending",
+            "predictionId": null,
+            "numFrames": 26,
+            "sourceIndices": [
+              25,
+              24,
+              23,
+              22,
+              21,
+              20,
+              19,
+              18,
+              17,
+              16,
+              15,
+              14,
+              13,
+              12,
+              11,
+              10,
+              9,
+              8,
+              7,
+              6,
+              5,
+              4,
+              3,
+              2,
+              1,
+              0
+            ],
+            "firstFrameSha256": "30c4a3c8ffc2b4874ed734231aef39791a1034ed6fc0a50e8c68d14c3dafe08c",
+            "sha256": "e951eb1f9512d4bc10bd2ef0ae084525aed0b094b928b9e739a98436b7542250",
+            "downloadedFrames": 0,
+            "remoteCancellation": null
+          }
+        ],
+        "mask": null
+      },
+      {
+        "id": "5ef9b1da-9beb-48d4-b1b6-cdde9fa5ca04",
+        "status": "succeeded",
+        "prompt": {
+          "frameIndex": 25,
+          "time": 2.5,
+          "pts": 2.5
+        },
+        "source": {
+          "width": 320,
+          "height": 180,
+          "fps": 10,
+          "numFrames": 50,
+          "sha256": "6f1626326e04801beac78be182d855fffcd30e4067fe3cb72c94392a8f06a306"
+        },
+        "branches": [
+          {
+            "direction": "forward",
+            "status": "archived",
+            "predictionId": "fixtureprediction5",
+            "numFrames": 25,
+            "sourceIndices": [
+              25,
+              26,
+              27,
+              28,
+              29,
+              30,
+              31,
+              32,
+              33,
+              34,
+              35,
+              36,
+              37,
+              38,
+              39,
+              40,
+              41,
+              42,
+              43,
+              44,
+              45,
+              46,
+              47,
+              48,
+              49
+            ],
+            "firstFrameSha256": "30c4a3c8ffc2b4874ed734231aef39791a1034ed6fc0a50e8c68d14c3dafe08c",
+            "sha256": "160ec74dd6bd9db976b15762c79cb4f8ed22a479e947ff82c8d1d2b71c77adfd",
+            "downloadedFrames": 25,
+            "remoteCancellation": null
+          },
+          {
+            "direction": "reverse",
+            "status": "archived",
+            "predictionId": "fixtureprediction6",
+            "numFrames": 26,
+            "sourceIndices": [
+              25,
+              24,
+              23,
+              22,
+              21,
+              20,
+              19,
+              18,
+              17,
+              16,
+              15,
+              14,
+              13,
+              12,
+              11,
+              10,
+              9,
+              8,
+              7,
+              6,
+              5,
+              4,
+              3,
+              2,
+              1,
+              0
+            ],
+            "firstFrameSha256": "30c4a3c8ffc2b4874ed734231aef39791a1034ed6fc0a50e8c68d14c3dafe08c",
+            "sha256": "e951eb1f9512d4bc10bd2ef0ae084525aed0b094b928b9e739a98436b7542250",
+            "downloadedFrames": 26,
+            "remoteCancellation": null
+          }
+        ],
+        "mask": {
+          "encoding": "rle-zero-based-row-major",
+          "width": 320,
+          "height": 180,
+          "fps": 10,
+          "numFrames": 50,
+          "rleSha256": "105176f136923ee8e3f6b8a3b3072df1221b989ea3c1c29bccbbcf2587327897"
+        }
+      },
+      {
+        "id": "b38745a5-496d-4915-9782-e52c245dc8ee",
+        "status": "succeeded",
+        "prompt": {
+          "frameIndex": 25,
+          "time": 2.5,
+          "pts": 2.5
+        },
+        "source": {
+          "width": 320,
+          "height": 180,
+          "fps": 10,
+          "numFrames": 50,
+          "sha256": "6f1626326e04801beac78be182d855fffcd30e4067fe3cb72c94392a8f06a306"
+        },
+        "branches": [
+          {
+            "direction": "forward",
+            "status": "archived",
+            "predictionId": "fixtureprediction8",
+            "numFrames": 25,
+            "sourceIndices": [
+              25,
+              26,
+              27,
+              28,
+              29,
+              30,
+              31,
+              32,
+              33,
+              34,
+              35,
+              36,
+              37,
+              38,
+              39,
+              40,
+              41,
+              42,
+              43,
+              44,
+              45,
+              46,
+              47,
+              48,
+              49
+            ],
+            "firstFrameSha256": "30c4a3c8ffc2b4874ed734231aef39791a1034ed6fc0a50e8c68d14c3dafe08c",
+            "sha256": "160ec74dd6bd9db976b15762c79cb4f8ed22a479e947ff82c8d1d2b71c77adfd",
+            "downloadedFrames": 25,
+            "remoteCancellation": null
+          },
+          {
+            "direction": "reverse",
+            "status": "archived",
+            "predictionId": "fixtureprediction9",
+            "numFrames": 26,
+            "sourceIndices": [
+              25,
+              24,
+              23,
+              22,
+              21,
+              20,
+              19,
+              18,
+              17,
+              16,
+              15,
+              14,
+              13,
+              12,
+              11,
+              10,
+              9,
+              8,
+              7,
+              6,
+              5,
+              4,
+              3,
+              2,
+              1,
+              0
+            ],
+            "firstFrameSha256": "30c4a3c8ffc2b4874ed734231aef39791a1034ed6fc0a50e8c68d14c3dafe08c",
+            "sha256": "e951eb1f9512d4bc10bd2ef0ae084525aed0b094b928b9e739a98436b7542250",
+            "downloadedFrames": 26,
+            "remoteCancellation": null
+          }
+        ],
+        "mask": {
+          "encoding": "rle-zero-based-row-major",
+          "width": 320,
+          "height": 180,
+          "fps": 10,
+          "numFrames": 50,
+          "rleSha256": "105176f136923ee8e3f6b8a3b3072df1221b989ea3c1c29bccbbcf2587327897"
+        }
+      },
+      {
+        "id": "dd315cfb-1d40-49a8-bff5-39012c49cc4b",
+        "status": "succeeded",
+        "prompt": {
+          "frameIndex": 25,
+          "time": 2.5,
+          "pts": 2.5
+        },
+        "source": {
+          "width": 320,
+          "height": 180,
+          "fps": 10,
+          "numFrames": 50,
+          "sha256": "6f1626326e04801beac78be182d855fffcd30e4067fe3cb72c94392a8f06a306"
+        },
+        "branches": [
+          {
+            "direction": "forward",
+            "status": "archived",
+            "predictionId": "fixtureprediction11",
+            "numFrames": 25,
+            "sourceIndices": [
+              25,
+              26,
+              27,
+              28,
+              29,
+              30,
+              31,
+              32,
+              33,
+              34,
+              35,
+              36,
+              37,
+              38,
+              39,
+              40,
+              41,
+              42,
+              43,
+              44,
+              45,
+              46,
+              47,
+              48,
+              49
+            ],
+            "firstFrameSha256": "30c4a3c8ffc2b4874ed734231aef39791a1034ed6fc0a50e8c68d14c3dafe08c",
+            "sha256": "160ec74dd6bd9db976b15762c79cb4f8ed22a479e947ff82c8d1d2b71c77adfd",
+            "downloadedFrames": 25,
+            "remoteCancellation": null
+          },
+          {
+            "direction": "reverse",
+            "status": "archived",
+            "predictionId": "fixtureprediction12",
+            "numFrames": 26,
+            "sourceIndices": [
+              25,
+              24,
+              23,
+              22,
+              21,
+              20,
+              19,
+              18,
+              17,
+              16,
+              15,
+              14,
+              13,
+              12,
+              11,
+              10,
+              9,
+              8,
+              7,
+              6,
+              5,
+              4,
+              3,
+              2,
+              1,
+              0
+            ],
+            "firstFrameSha256": "30c4a3c8ffc2b4874ed734231aef39791a1034ed6fc0a50e8c68d14c3dafe08c",
+            "sha256": "e951eb1f9512d4bc10bd2ef0ae084525aed0b094b928b9e739a98436b7542250",
+            "downloadedFrames": 26,
+            "remoteCancellation": null
+          }
+        ],
+        "mask": {
+          "encoding": "rle-zero-based-row-major",
+          "width": 320,
+          "height": 180,
+          "fps": 10,
+          "numFrames": 50,
+          "rleSha256": "105176f136923ee8e3f6b8a3b3072df1221b989ea3c1c29bccbbcf2587327897"
+        }
+      },
+      {
+        "id": "f2ca2fd9-5ad5-480d-8da8-46d8165ac128",
+        "status": "succeeded",
+        "prompt": {
+          "frameIndex": 25,
+          "time": 2.5,
+          "pts": 2.5
+        },
+        "source": {
+          "width": 320,
+          "height": 180,
+          "fps": 10,
+          "numFrames": 50,
+          "sha256": "6f1626326e04801beac78be182d855fffcd30e4067fe3cb72c94392a8f06a306"
+        },
+        "branches": [
+          {
+            "direction": "forward",
+            "status": "archived",
+            "predictionId": "fixtureprediction1",
+            "numFrames": 25,
+            "sourceIndices": [
+              25,
+              26,
+              27,
+              28,
+              29,
+              30,
+              31,
+              32,
+              33,
+              34,
+              35,
+              36,
+              37,
+              38,
+              39,
+              40,
+              41,
+              42,
+              43,
+              44,
+              45,
+              46,
+              47,
+              48,
+              49
+            ],
+            "firstFrameSha256": "30c4a3c8ffc2b4874ed734231aef39791a1034ed6fc0a50e8c68d14c3dafe08c",
+            "sha256": "160ec74dd6bd9db976b15762c79cb4f8ed22a479e947ff82c8d1d2b71c77adfd",
+            "downloadedFrames": 25,
+            "remoteCancellation": null
+          },
+          {
+            "direction": "reverse",
+            "status": "archived",
+            "predictionId": "fixtureprediction2",
+            "numFrames": 26,
+            "sourceIndices": [
+              25,
+              24,
+              23,
+              22,
+              21,
+              20,
+              19,
+              18,
+              17,
+              16,
+              15,
+              14,
+              13,
+              12,
+              11,
+              10,
+              9,
+              8,
+              7,
+              6,
+              5,
+              4,
+              3,
+              2,
+              1,
+              0
+            ],
+            "firstFrameSha256": "30c4a3c8ffc2b4874ed734231aef39791a1034ed6fc0a50e8c68d14c3dafe08c",
+            "sha256": "e951eb1f9512d4bc10bd2ef0ae084525aed0b094b928b9e739a98436b7542250",
+            "downloadedFrames": 26,
+            "remoteCancellation": null
+          }
+        ],
+        "mask": {
+          "encoding": "rle-zero-based-row-major",
+          "width": 320,
+          "height": 180,
+          "fps": 10,
+          "numFrames": 50,
+          "rleSha256": "105176f136923ee8e3f6b8a3b3072df1221b989ea3c1c29bccbbcf2587327897"
+        }
+      }
+    ]
+  },
+  "evidenceFormat": "Read-only native audit projected to relevant tasks, cumulative counters and final resumed task PNG hashes; repeated unrelated task media omitted."
+}
