@@ -24,9 +24,12 @@
 
 | 记录 | 范围 |
 | --- | --- |
+| [分组/多选复制](CANVAS-GROUP-COPY-PASTE-20261005.md) · [拼装审阅](AGENT-CUTLIST-REVIEW-INTERACTIONS-20261005.md) | 嵌套坐标/边/引用、40像素粘贴与撤销；同快照交接、保存失败重试及刷新 |
+| [SPZ 原生 LOD](SPZ-LOD-20261005.md) | 官方层级、真实GPU近远预算、实际拾取、照片/两秒视频及末源释放；不等于内存上限 |
+| [Replicate SAM2 接入研究](VIDEO-SEGMENTATION-REPLICATE-READINESS-20261005.md) · [导出品牌审计](FREENOW-EXPORT-BRAND-AUDIT-20261005.md) | 二值PNG与前后时轴的待实现方案；导出路径、兼容字段与实际验收边界 |
 | [普通节点副本](CANVAS-SINGLE-DUPLICATE-20261005.md) · [人物走位](AGENT-CHARACTER-BLOCKING-INTERACTIONS-20261005.md) | 官方坐标/边序/历史、旧 ID 媒体与参数、真实拖动/确认/关闭及刷新 |
 | [混合拾取](SPZ-MIXED-PICKING-20261005.md) · [视频延长生命周期](VIDEO-EXTENSION-LIFECYCLE-20261005.md) | 网格/高斯深度、四模式实际点击；取消、参数漂移、同任务保存重试 |
-| [SPZ 本地高斯渲染](SPZ-LOCAL-RENDERING-20261005.md) · [Marble 配置](MARBLE-NATIVE-SETUP.md) | Spark、真实样本、变换/保存/撤销、照片/短视频、gzip 实际预算与 LOD 限制 |
+| [SPZ 本地高斯渲染](SPZ-LOCAL-RENDERING-20261005.md) · [Marble 配置](MARBLE-NATIVE-SETUP.md) | Spark、真实样本、变换/保存/撤销、照片/短视频与gzip实际预算；LOD见上方最新记录 |
 | [深度双结果与画布交互](LOCAL-DEPTH-BATCH-AND-CANVAS-20261005.md) | 普通节点、持久父子任务、保存恢复、Agent 裁切互斥与搜索响应 |
 | [深度节点同位入口](VIDEO-DEPTH-NODE-ENTRY-20261005.md) · [应用守卫](VIDEO-DEPTH-CANVAS-RECOVERY-GUARDS-20261005.md) | 自动规格、1/2 数量、三种布局、来源/项目变化与失败提示 |
 | [平台裁切拖动](AGENT-PLATFORM-RESIZE-DRAG-SELECTION-20261005.md) · [搜索高亮](CANVAS-SEARCH-HOVER-RESPONSE-20261005.md) | 真实 PNG、单份回执、500 节点键盘与焦点实机证据 |
@@ -47,7 +50,7 @@
 | [Wan VACE 视频物体编辑](WAN-VACE-VIDEO-MASK-NATIVE-20261005.md) · [前端](VIDEO-MASK-FRONTEND-NATIVE-20261005.md) | 显式替代、完整时序蒙层、联合裁片、原任务与本地结果 |
 | [蒙层媒体处理](VIDEO-MASK-MEDIA-PREPARATION-20261005.md) · [CDN上传](FAL-CDN-UPLOAD-20261005.md) · [准备恢复](VIDEO-MASK-DURABLE-RECOVERY-20261005.md) | 全帧时序、原音样本、分阶段持久化和恢复不重提 |
 | [Agent 视频蒙层编辑](AGENT-VIDEO-MASK-CLOSURE-20261005.md) | 已保存蒙层、审批说明、高清参考、连接结果与保存重试 |
-| [目标识别供应商合同](VIDEO-SEGMENTATION-FAL-CONTRACT-20261005.md) | SAM2 公开输出缺少完整编码语义；独立分割服务仍必需 |
+| [目标识别原fal合同](VIDEO-SEGMENTATION-FAL-CONTRACT-20261005.md) | 该候选的RLE编码语义未确认；Replicate二值PNG新候选见上方，原生分割仍待实施 |
 | [运行品牌窄审计](FREENOW-RUNTIME-BRAND-AUDIT-20261005.md) | 平台尺寸应用固定提示本地化，保留用户内容与来源 |
 | [全景、重拍与Agent图片处理](LOCAL-PANORAMA-RESHOOT-AGENT-20261005.md) | 正式菜单/卡片、高清原图、2:1实际解码、WebGL预览、刷新与零重复派发 |
 | [Hunyuan全景原生协议](PANORAMA-NATIVE-20261005.md) · [前端](HUNYUAN-PANORAMA-FRONTEND-20261005.md) | 独立替代、PNG真实像素与参数白名单、原任务恢复 |

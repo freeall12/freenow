@@ -1,0 +1,232 @@
+{
+  "checkedAt": "2026-10-05",
+  "batch": "1005m",
+  "method": "public GET, static schema/source/sample-log inspection only; no credentials, inference, upload, browser or dependencies",
+  "candidate": {
+    "model": "meta/sam-2-video",
+    "version": "33432afdfc06a10da6b4018932893d39b0159f838b6d11dd1236dff85cc5ec1d",
+    "versionCreatedAt": "2024-08-14T12:25:20.277126Z",
+    "linkedRepositoryCommit": "0850d194e6de09803e93694e72ce3004bdfd1429",
+    "linkedPredictorCommitDate": "2024-08-14T12:27:49Z",
+    "digestToGitCommitMappingVerified": false,
+    "replicateOfficialModelFlag": "",
+    "priceAtCheck": "$0.000975 per second",
+    "hardwareAtCheck": "L40S",
+    "inputSchema": {
+      "type": "object",
+      "title": "Input",
+      "required": [
+        "input_video",
+        "click_coordinates"
+      ],
+      "properties": {
+        "mask_type": {
+          "enum": [
+            "binary",
+            "highlighted",
+            "greenscreen"
+          ],
+          "type": "string",
+          "title": "mask_type",
+          "description": "Mask type: binary (B&W), highlighted (colored overlay), or greenscreen",
+          "default": "binary",
+          "x-order": 5
+        },
+        "video_fps": {
+          "type": "integer",
+          "title": "Video Fps",
+          "default": 30,
+          "maximum": 60,
+          "minimum": 1,
+          "x-order": 8,
+          "description": "Video output frame rate (ignored for image sequence)"
+        },
+        "input_video": {
+          "type": "string",
+          "title": "Input Video",
+          "format": "uri",
+          "x-order": 0,
+          "description": "Input video file path"
+        },
+        "click_frames": {
+          "type": "string",
+          "title": "Click Frames",
+          "default": "0",
+          "x-order": 3,
+          "description": "Frame indices for clicks as '0,0,150,0'. Auto-extends if shorter than coordinates."
+        },
+        "click_labels": {
+          "type": "string",
+          "title": "Click Labels",
+          "default": "1",
+          "x-order": 2,
+          "description": "Click types (1=foreground, 0=background) as '1,1,0,1'. Auto-extends if shorter than coordinates."
+        },
+        "output_video": {
+          "type": "boolean",
+          "title": "Output Video",
+          "default": false,
+          "x-order": 7,
+          "description": "True for video output, False for image sequence"
+        },
+        "output_format": {
+          "enum": [
+            "webp",
+            "jpg",
+            "png"
+          ],
+          "type": "string",
+          "title": "output_format",
+          "description": "Image format for sequence (ignored for video)",
+          "default": "webp",
+          "x-order": 9
+        },
+        "output_quality": {
+          "type": "integer",
+          "title": "Output Quality",
+          "default": 80,
+          "maximum": 100,
+          "minimum": 0,
+          "x-order": 10,
+          "description": "JPG/WebP compression quality (0-100, ignored for PNG and video)"
+        },
+        "annotation_type": {
+          "enum": [
+            "mask",
+            "box",
+            "both"
+          ],
+          "type": "string",
+          "title": "annotation_type",
+          "description": "Annotation type: mask only, bounding box only, or both (ignored for binary and greenscreen)",
+          "default": "mask",
+          "x-order": 6
+        },
+        "click_object_ids": {
+          "type": "string",
+          "title": "Click Object Ids",
+          "default": "",
+          "x-order": 4,
+          "description": "Object labels for clicks as 'person,dog,cat'. Auto-generates if missing or incomplete."
+        },
+        "click_coordinates": {
+          "type": "string",
+          "title": "Click Coordinates",
+          "x-order": 1,
+          "description": "Click coordinates as '[x,y],[x,y],...'. Determines number of clicks."
+        },
+        "output_frame_interval": {
+          "type": "integer",
+          "title": "Output Frame Interval",
+          "default": 1,
+          "x-order": 11,
+          "description": "Output every Nth frame. 1=all frames, 2=every other, etc."
+        }
+      }
+    },
+    "outputSchema": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "format": "uri"
+      },
+      "title": "Output",
+      "x-cog-array-type": "iterator"
+    }
+  },
+  "publicSample": {
+    "sourcePage": "https://replicate.com/meta/sam-2-video",
+    "id": "bn3xep8srnrgp0cha4avc64azr",
+    "version": "33432afdfc06a10da6b4018932893d39b0159f838b6d11dd1236dff85cc5ec1d",
+    "status": "succeeded",
+    "parameters": {
+      "mask_type": "highlighted",
+      "click_frames": "1",
+      "output_video": true,
+      "output_format": "webp",
+      "output_frame_interval": 1
+    },
+    "sourceFramesInLogs": 395,
+    "propagatedFramesInLogs": 394,
+    "outputCount": 1,
+    "mediaDownloaded": false,
+    "pngPixelContractVerified": false,
+    "note": "Only highlighted MP4 examples; public old-version page had no initialPrediction. No signed input/output URLs retained."
+  },
+  "sources": [
+    {
+      "url": "https://replicate.com/meta/sam-2-video",
+      "bytes": 230285,
+      "sha256": "06bddd2b5c9d94616fcef72f42344e5aacdd621c909c5f60338991484f72ad61"
+    },
+    {
+      "url": "https://replicate.com/meta/sam-2-video/examples",
+      "bytes": 272843,
+      "sha256": "3c3ed51609500fe04ecfcf98598086fa326ae026ba2f620fe9c24b5305809013"
+    },
+    {
+      "url": "https://api.github.com/repos/zsxkib/segment-anything-2/branches/video",
+      "bytes": 4414,
+      "sha256": "9a8f944f0936c290ce09d5816a81d52505e70325c5aa5a8d0462d53df1344e7f"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/zsxkib/segment-anything-2/0850d194e6de09803e93694e72ce3004bdfd1429/predict.py",
+      "bytes": 14038,
+      "sha256": "56f87dd394b8d549f313995b7302694d0a9e6fe8464cb81c6781528fd6abfe89"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/zsxkib/segment-anything-2/0850d194e6de09803e93694e72ce3004bdfd1429/sam2/sam2_video_predictor.py",
+      "bytes": 44980,
+      "sha256": "35cd8c6f49e90a1f72483c3898f043469cda0cf84c97c943d081149368b64af1"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/zsxkib/segment-anything-2/0850d194e6de09803e93694e72ce3004bdfd1429/sam2/utils/misc.py",
+      "bytes": 9132,
+      "sha256": "2ca91323a2964622f54e6e928df1dccb1addc5851a4b7cb1783e0627ca49cbd2"
+    },
+    {
+      "url": "https://replicate.com/lucataco/sam3-video",
+      "bytes": 127768,
+      "sha256": "4500f8c4c860af40189529edd2f8ccbe0dbd182f556a3f6eec5ada7dd624150e"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/lucataco/cog-sam3-video/main/predict.py",
+      "bytes": 13594,
+      "sha256": "ac648f376df382537d9e8f537684faa1a615c36c1bc14915ef0013adbfe44555"
+    },
+    {
+      "url": "https://replicate.com/meta/sam-2-video/versions/73a9964e8177a80de711c77adb4f84e79ca05b5edcac0f05c31c16f1f0d96167",
+      "bytes": 69734,
+      "sha256": "1f58fc11393be27352c9221ede5e6af41e8ee99be54bdd886a0158a03c015831"
+    }
+  ],
+  "additionalOfficialDocumentation": [
+    {
+      "url": "https://replicate.com/docs/reference/http",
+      "access": "official indexed text via search connector; raw direct GET returned HTTP403, no raw hash claimed"
+    },
+    {
+      "url": "https://replicate.com/docs/topics/predictions/data-retention/",
+      "access": "official indexed text via search connector; raw direct GET returned HTTP403, no raw hash claimed"
+    },
+    {
+      "url": "https://replicate.com/docs/topics/billing",
+      "access": "official indexed text via search connector; raw direct GET returned HTTP403, no raw hash claimed"
+    },
+    {
+      "url": "https://replicate.com/docs/topics/predictions/create-a-prediction/",
+      "access": "official indexed text via search connector; raw direct GET returned HTTP403, no raw hash claimed"
+    }
+  ],
+  "decision": {
+    "implementNow": false,
+    "recommendedNext": "version-pinned Replicate SAM2 two materialized frame0 clips with lossless binary PNG outputs; strict merge validation before publishing full mask",
+    "unverified": [
+      "deployed image exact source commit",
+      "real binary PNG response pixel/depth/filename/ordering",
+      "actual account and file-upload contract execution",
+      "prompt mask consistency across independent branches",
+      "model tracking quality"
+    ]
+  }
+}

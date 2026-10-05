@@ -234,11 +234,11 @@ test('local close failure gives a Chinese retry message and retains the exact SD
  }finally{f.close();}
 });
 
-test('character blocking v3 flushes its pending state before close without giving historical v1 new lifecycle authority',async()=>{
- for(const version of ['v3','v1']){
-  const f=await fixture({resourceUri:`ui://tapnow/character-blocking@${version}`,allowResource:()=>true});try{
+test('exact character and cutlist versions flush before close without giving other versions lifecycle authority',async()=>{
+ for(const [resourceUri,supported] of [['ui://tapnow/character-blocking@v3',true],['ui://tapnow/character-blocking@v1',false],['ui://tapnow/cutlist-review@v1',true],['ui://tapnow/cutlist-review@v2',false]]){
+  const f=await fixture({resourceUri,allowResource:()=>true});try{
    f.initialize();const closing=f.host.prepareToClose(),request=f.sent.findLast(row=>row.method==='freenow/lifecycleFlush');
-   if(version==='v1'){assert.equal(request,undefined);assert.equal(await closing,true);continue;}
+   if(!supported){assert.equal(request,undefined);assert.equal(await closing,true);continue;}
    assert.ok(request);let settled=false;void closing.then(()=>{settled=true;});await tick();assert.equal(settled,false);
    f.emit({id:request.id,result:{flushed:true}});assert.equal(await closing,true);assert.equal(f.prompts.length,0);assert.equal(f.timers.size,0);
   }finally{f.close();}

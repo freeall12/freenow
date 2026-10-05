@@ -1,0 +1,11 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><title>分组多选复制隔离生产画布</title></head><body><p>正在载入生产画布与公开菜单夹具…</p><script>
+(async()=>{
+  const response=await fetch('/index.html');if(!response.ok)throw Error('生产画布入口不可读取');let html=await response.text();
+  if(!html.includes('<head>')||!/<script src="canvas-store\.js[^\"]*"><\/script>/.test(html))throw Error('生产画布入口结构已变化');
+  for(const name of ['canvas-data','editor-data','sidebar-data','versions-data'])html=html.replace(new RegExp('src="'+name+'\\.js[^\"]*"','g'),'src="defaults/'+name+'.js"');
+  html=html.replace('<head>','<head><base href="/"><script src="/src/features/canvas-clipboard/qa/group-fixture.js"><\/script>');
+  html=html.replace(/(<script src="canvas-store\.js[^\"]*"><\/script>)/,'$1<script src="/src/features/canvas-clipboard/qa/store-bootstrap.js"><\/script>');
+  html=html.replace('</body>','<script type="module" src="/src/features/canvas-clipboard/qa/group-controls.mjs"><\/script></body>');
+  document.open();document.write(html);document.close();
+})().catch(error=>{document.body.textContent='副本QA加载失败：'+error.message;});
+</script></body></html>

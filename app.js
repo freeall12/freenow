@@ -327,6 +327,12 @@
       const added=window.CanvasClipboard.duplicateNode(source,edges,()=>crypto.randomUUID());
       remember();nodes.push(added.node);edges.push(...added.edges);selected=new Set([added.node.id]);rebuildAndPersist();return;
     }
+    if(selected.size>1||copies[0]?.type==='group'){
+      // Group/selection Cmd-D is the official copy→paste flow, including its
+      // pointer anchor and incoming-only edge policy; it is not node duplicate.
+      if(window.CanvasMenus){window.CanvasMenus.copy();return window.CanvasMenus.paste();}
+      const snapshot=window.CanvasApp.captureSelection();return window.CanvasApp.pasteGraph(snapshot,{x:(canvas.clientWidth/2-view.x)/view.scale,y:(canvas.clientHeight/2-view.y)/view.scale});
+    }
     remember();const mapping=new Map(copies.map(n=>[n.id,crypto.randomUUID()]));
     const added=copies.map(n=>({...clone(n),id:mapping.get(n.id),parentId:mapping.get(n.parentId),memberIds:n.memberIds?.map(id=>mapping.get(id)),...(n.clips?{clips:n.clips.map(c=>({...c,id:crypto.randomUUID(),sourceId:mapping.get(c.sourceId)||c.sourceId}))}:{}),x:n.x+80,y:n.y+100}));
     for(let i=0;i<added.length;i++)if(copies[i].type==='text'&&copies[i].generation&&window.CanvasText?.remapGeneration)added[i].generation=window.CanvasText.remapGeneration(copies[i],mapping);
@@ -477,7 +483,14 @@
     transitionView:animateView,
     fitNode(id,{padding=.35,minZoom=.15,maxZoom=2,duration=500}={}){flushGesture();const n=nodes.find(n=>n.id===id);if(n)animateView(window.CanvasSearch.fit(n,{width:canvas.clientWidth,height:canvas.clientHeight},padding,{min:minZoom,max:maxZoom}),duration);},
     preview,addNode,download,render,resetView,returnToNodes,undo,focusNode,notify,duplicate,
-    captureSelection(){return window.CanvasClipboard.capture(nodes,edges,selected);},
+    captureSelection(){
+      const snapshot=window.CanvasClipboard.capture(nodes,edges,selected);
+      for(const source of snapshot.nodes){
+        if(['image','video'].includes(source.type)&&!source.generation&&!source.params&&(window.EDITOR_DATA?.nodes[source.id]||/generation|生成/i.test(source.title)||!source.image)){const config=window.NodeEditor?.getConfig(source)||window.EDITOR_DATA?.nodes[source.id];if(config)source.generation=clone(config);}
+        if(source.type==='video'&&!source.video){const video=window.EDITOR_DATA?.nodes[source.id]?.video;if(video){source.video=video;source.historyVariantCount=1;}}
+      }
+      return snapshot;
+    },
     pasteGraph(snapshot,point,iteration=0){const graph=window.CanvasClipboard.instantiate(snapshot,nodes,point,iteration,view.scale);remember();nodes.push(...graph.nodes);edges.push(...graph.edges);selected=new Set(graph.selected);rebuildAndPersist();return graph;},
     stack(ids=[...selected]){if(!window.CanvasPiles.plan(nodes,ids))throw Error('请选择2–50个可堆叠节点');const before=window.PileMotion.capture(nodes,view);remember();const pile=window.CanvasPiles.stack(nodes,ids,crypto.randomUUID());selected=new Set([pile.id]);rebuild();window.PileMotion.play(before,nodes,view,pile.memberIds,'entry');return pile;},
     unstack(id){if(!nodes.some(n=>n.id===id&&n.type==='pile'))throw Error('堆叠不存在');const before=window.PileMotion.capture(nodes,view);remember();const positions=window.CanvasPiles.unstack(nodes,id);selected=new Set(positions.map(n=>n.id));rebuild();window.PileMotion.play(before,nodes,view,positions.map(n=>n.id),'unstack',new Map(positions.map(p=>[p.id,p.animationIndex])));return positions;},

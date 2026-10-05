@@ -39,10 +39,10 @@ pnpm dev
 | 单文件与场景累计 | 各250万Gaussian |
 | 格式 | SPZ1–3，经有界gzip全流实际展开计数与文件头exact长度核对，再由官方解码实际count核对；不支持vendor扩展header |
 | 来源 | 同源本地asset/static/media/Blob，拒绝外部地址与跳转 |
-| 绘制 | 当前全量，未启用Spark LOD / 100k→full_res切换 |
+| 绘制 | 官方tiny-lod，单视图最多250,000节点绘制/排序；原数据与树保留。没有100k→full_res资源切换或RAD分页 |
 | 运镜输出 | 现有RAF + MediaRecorder实时录制，每次镜头改变等待排序；不保证30fps或逐帧精确 |
 
-数字为保护性硬预算，不是实测性能承诺。LOD、pager、多设备GPU预算、500k/250万压力验收、连续五轮开关资源测量、断网重开、4096px节点拍摄和长视频仍需分别验证。混合mesh/Gaussian拾取已补同物理像素的GPU深度与官方Spark raycast比较，实现及GPU验收边界见 [SPZ-MIXED-PICKING-20261005.md](./SPZ-MIXED-PICKING-20261005.md)。Gaussian颜色由其原始辐射数据决定，白模/PBR灯光不会等价修改高斯材质。
+数字为保护性硬预算，不是实测性能承诺。1005m已接[原生LOD](SPZ-LOD-20261005.md)并验真实近远GPU、拾取、摄影、两秒运镜和释放恢复；下文保留早期全量版本验收数字。LOD预算不限制全源解码、树或GPU纹理驻留内存。pager、多设备GPU预算、500k/250万压力、连续五轮开关资源测量、断网重开、4096px节点拍摄和长视频仍需分别验证。混合拾取范围见[SPZ-MIXED-PICKING-20261005.md](SPZ-MIXED-PICKING-20261005.md)。Gaussian颜色由原始辐射数据决定，白模/PBR灯光不会等价修改高斯材质。
 
 ## 已跑检查
 

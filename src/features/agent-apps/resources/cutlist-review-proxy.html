@@ -226,6 +226,11 @@
             if (!response.ok) throw new Error("template fetch failed: " + response.status);
             return response.text();
           })
+          .then(async function (templateHtml) {
+            if (name !== "cutlist-review" || version !== "v1") return templateHtml;
+            var local = await import(new URL("../cutlist-review-local-interactions.mjs", location.href).href);
+            return local.localizeCutlistReviewInteractions(templateHtml, name, version);
+          })
           .then(function (templateHtml) {
             inner.srcdoc = buildSrcdocWithCsp(templateHtml, buildCspPolicy(params.csp));
           })

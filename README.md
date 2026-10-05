@@ -55,7 +55,7 @@ FFmpeg 已安装在其他位置时，可配置 `FFMPEG_PATH`、`FFPROBE_PATH`。
 | 无限画布 | 新建/切换项目、平移缩放、搜索、连线、分组、堆叠、自动布局、撤销重做、素材与个人模板 | 本地使用 |
 | 文本与图片 | Tiptap 富文本/Markdown、Fabric 图层/画笔、裁剪、变换、蒙版、版本历史与导出 | 本地编辑；AI 编辑另需供应商 |
 | 音视频 | 本地导入、播放、波形、帧捕获、裁切、播放列表、生成历史与结果归档 | 部分操作需 FFmpeg；生成另需供应商 |
-| 3D 片场 | Three.js 场景、GLB 模型、SPZ 高斯世界、对象变换、镜头与运镜、动画、取景及保存恢复 | SPZ 通过世界节点导入；含高斯场景不能完整导出为 GLB；生成另需供应商 |
+| 3D 片场 | Three.js 场景、GLB 模型、SPZ 高斯世界与原生 LOD、对象变换、镜头与运镜、动画、取景及保存恢复 | SPZ 通过世界节点导入；含高斯场景不能完整导出为 GLB；生成另需供应商 |
 | Agent | OpenAI SDK 工具循环、画布/片场操作、技能与附件引用、创作应用、只读子任务/DAG 编排 | 支持 Responses API 的模型与配置 |
 | 工作流与恢复 | 分组依赖执行、任务持久回执、原任务查询、显式继续、项目/来源失效保护 | 未知状态不自动重新提交 |
 
@@ -138,15 +138,17 @@ node --env-file=.env.local server/server.cjs
 
 ## 最新接入与核验
 
-本批补齐四处实际交互：普通单节点“副本”按官方坐标及连线顺序创建，保留当前媒体并清理旧历史；人物走位支持拖动、保存后确认、失败重试和关闭恢复；混合片场按网格/高斯深度选择对象；视频延长在关闭和来源变化时阻止迟到派发，结果保存失败只重试原节点。均完成定向回归、独立交审和 Computer Use。[副本](docs/CANVAS-SINGLE-DUPLICATE-20261005.md) · [人物走位](docs/AGENT-CHARACTER-BLOCKING-INTERACTIONS-20261005.md) · [混合拾取](docs/SPZ-MIXED-PICKING-20261005.md) · [延长生命周期](docs/VIDEO-EXTENSION-LIFECYCLE-20261005.md)。
+本批完成分组/多选复制粘贴、Agent 拼装审阅保存交接，以及 SPZ 原生 LOD。复制保留父子几何和输入连线，连续粘贴偏移40像素，支持精确撤销；审阅的保留/裁切、确认和“再改改”等待同一份状态保存，关闭失败保留编辑。三项均完成定向回归、独立交审及 Computer Use。[复制粘贴](docs/CANVAS-GROUP-COPY-PASTE-20261005.md) · [拼装审阅](docs/AGENT-CUTLIST-REVIEW-INTERACTIONS-20261005.md) · [高斯 LOD](docs/SPZ-LOD-20261005.md)。
 
-| 人物走位：真实拖动、面向及刷新恢复 | 普通副本：分组外摆放和关联连线 |
+| 分组复制：父子位置、输入连线与连续粘贴 | 拼装审阅：真实视频、裁切及保存恢复 |
 | --- | --- |
-| ![本地人物走位及已保存交接](docs/screenshots/agent-character-blocking-20261005.png) | ![正式右键创建图片副本](docs/screenshots/canvas-single-duplicate-20261005.jpg) |
+| ![正式分组复制及40像素粘贴偏移](docs/screenshots/canvas-group-copy-20261005.jpg) | ![本地拼装审阅与真实视频跳转](docs/screenshots/agent-cutlist-review-20261005.png) |
 
-这些截图使用隔离公开素材。视频任务回执为合成数据；本批不代表真实模型效果、SPZ 全设备压力或全站逐态验收完成。
+这些截图使用隔离公开/合成素材，审阅不会自动拼装或生成。前批记录：[普通副本](docs/CANVAS-SINGLE-DUPLICATE-20261005.md)、[人物走位](docs/AGENT-CHARACTER-BLOCKING-INTERACTIONS-20261005.md)、[混合拾取](docs/SPZ-MIXED-PICKING-20261005.md)、[延长生命周期](docs/VIDEO-EXTENSION-LIFECYCLE-20261005.md)。
 
-SPZ 高斯世界已接入成熟 Spark 2.3.1，代码、WASM、Worker 和素材均在本地运行。真实 786,233 高斯样本已验导入、坐标、变换、保存刷新、撤销重做、删除清空、1280×720 照片及 2 秒运镜视频；照片、视频和来源连线刷新后保留。单文件限制为 64MiB 压缩 / 256MiB 实际展开，场景最多 250 万高斯；当前没有 LOD，真实 Marble 生成及长视频仍待验。[本地渲染与验收](docs/SPZ-LOCAL-RENDERING-20261005.md)
+SPZ 高斯世界使用 Spark 2.3.1，本地加载代码、WASM、Worker 和素材。新接入官方 tiny-lod：真实786,233高斯样本近景绘制249,999、远景83,321，单视图绘制/排序预算250,000；原始高斯与派生树保留，**这不是驻留内存上限或帧率保证**。实际点选、删除释放/撤销、1280×720照片、2秒运镜和刷新恢复已验。压缩/展开预算仍为64/256MiB，源高斯上限250万；真实Marble生成、跨设备压力及长视频待验。[本地渲染](docs/SPZ-LOCAL-RENDERING-20261005.md) · [LOD证据与限制](docs/SPZ-LOD-20261005.md)
+
+![本地原生LOD片场、摄影镜头与Agent](docs/screenshots/spz-lod-studio-20261005.jpg)
 
 | SPZ：真实高斯预览 | 片场产物：照片、视频和来源连线 |
 | --- | --- |
@@ -268,7 +270,8 @@ pnpm test    # 全库回归，需要时运行
 ## 未完成项
 
 - 全站菜单、hover、微动效、坐标与性能的逐态对照和交叉验收。
-- 92 份精确创意模板正文；SPZ 的 LOD、混合拾取遮挡、设备压力与长视频验收。
+- 92 份精确创意模板正文；SPZ 的跨设备压力、复杂半透明场景、按页流式加载与长视频验收。
+- 新视频的原生目标分割适配；已找到[Replicate SAM2二值PNG及双向时序方案](docs/VIDEO-SEGMENTATION-REPLICATE-READINESS-20261005.md)，持久子任务和真实模型结果尚未接入验收。
 - 其余专用生成能力的原生供应商适配，及真实 Key/账号下的端到端验证。
 - 部分本地存储容量和长期运行边界的继续完善。
 - 主要运行位置已替换为 **freenow** 名称和本地标识；剩余嵌套应用、导出和旧内容的品牌清点仍需逐项验收，保留来源与用户原文。

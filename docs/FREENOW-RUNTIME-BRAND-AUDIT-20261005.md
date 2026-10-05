@@ -43,12 +43,14 @@ node --test tests/agent-app-escape-bridge.test.cjs tests/agent-app-detail-links.
 
 ## 浏览器结果与尚未验收
 
-主线程已从 `src/features/agent-apps/qa/platform-resize.html` 的生产registry/proxy入口看到“本机图片裁切”。后续opaque iframe按钮受到工具焦点和坐标限制，未完成添加成功态的实机确认；没有削弱sandbox绕过。固定成功文案仍只有上述脚本级证据。本批没有真实模型调用或全套测试。全部正式入口、动态脚本/用户 HTML、未知资源槽、实际 PNG/视频/HTML/GLB 导出像素及元数据、原站断连后的工作流仍需分别取得证据；不以22个登记资源的静态检查代替全站盘点。
+主线程初次从 `src/features/agent-apps/qa/platform-resize.html` 的生产 registry/proxy 入口看到“本机图片裁切”，点击一度受到工具焦点和坐标限制；未削弱 sandbox 或用 eval 点击。后续 **1005k 已完成中文真实指针拖动、原生添加三张 PNG、保存和 freenow 成功提示**，见[最新实机记录](AGENT-PLATFORM-RESIZE-DRAG-SELECTION-20261005.md)，不能再把该中文成功态列为待验。本子任务没有真实模型调用或全套测试。English、刷新恢复及失败重试在该轮未重复验收；全部正式入口、动态脚本/用户 HTML、未知资源槽、实际导出像素/元数据和原站断连后的工作流仍需分别取得证据，不以22个登记资源静态检查代替全站盘点。
 
-全量开放清单见 [本地化与品牌验收](FREENOW-LOCALIZATION-ACCEPTANCE.md)；该文档早期“品牌替换尚未执行”是历史基线，后续增量及 [运行标签记录](FREENOW-RUNTIME-BRAND-LABELS-20261005.md)、[制作进度品牌派生](FREENOW-PRODUCTION-PROGRESS-BRAND-20261005.md) 才描述当前已完成的具体位置。
+全量开放清单见 [本地化与品牌验收](FREENOW-LOCALIZATION-ACCEPTANCE.md)，当前品牌具体位置见 [运行标签记录](FREENOW-RUNTIME-BRAND-LABELS-20261005.md)、[制作进度品牌派生](FREENOW-PRODUCTION-PROGRESS-BRAND-20261005.md) 及[本批导出窄审计](FREENOW-EXPORT-BRAND-AUDIT-20261005.md)。
 
 ## QA 宿主排版补记
 
 主线程已实际读到内嵌“本机图片裁切”；后续点击被 Computer Use 的 fractional iframe input coordinates 安全检查拒绝，测得外层 iframe top 为 `573.0546875`。本批只调整 `qa/platform-resize.html` 宿主：段落/输出行高 20px、标题行高 36/28px、caption 16px、整数边距，控制区 flex 排列并明确按钮边框和尺寸，源预览图片采用 block 去除行内基线空隙。没有改正式 App 字节、生产 card/iframe 样式、QA 模块或独立 IndexedDB。
 
-静态检查确认全部 control ID、模块入口、wrapper 平衡和整数 typography；实际 iframe 坐标及成功态由主线程重载复验。入口为 `http://127.0.0.1:4173/src/features/agent-apps/qa/platform-resize.html`，静态页面无需构建或重启。已有 QA 数据恢复后直接使用现有应用，关闭运行/保存失败开关、选尚未提交的裁切组合并点击“添加 N 张”；必要时“打开官方平台适配”新建卡片仍绑定已有源图。不要点击“载入实际像素测试图”覆盖当前 QA 会话。本链只在本机裁切，不调用供应商。
+静态检查确认全部 control ID、模块入口、wrapper 平衡和整数 typography。主线程重载后外层 iframe top 为 548、内层 top 为 0，初始品牌可见；当时点击仍被工具限制，已有数据保持。后续 1005k 中文实测得到 450×800、800×800、1200×675 PNG、1 次 undo、1 份持久回执，成功提示为“已添加 3 张到项目，请在 freenow 画布中查看。”，并保存[真实截图](screenshots/agent-platform-resize-drag-20261005.jpg)。
+
+入口为 `http://127.0.0.1:4173/src/features/agent-apps/qa/platform-resize.html`，静态页面无需构建或重启。已有 QA 数据恢复后直接使用现有应用，关闭运行/保存失败开关、选尚未提交的裁切组合并点击“添加 N 张”；必要时“打开官方平台适配”新建卡片仍绑定已有源图。不要点击“载入实际像素测试图”覆盖当前 QA 会话。本链只在本机裁切，不调用供应商。

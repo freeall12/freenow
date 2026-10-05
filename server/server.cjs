@@ -94,6 +94,7 @@ const server=http.createServer(async(req,res)=>{try{
   'src/features/agent-apps/performance-rhythm-local-interactions.mjs',
   'src/features/agent-apps/story-room-local-interactions.mjs',
   'src/features/agent-apps/character-blocking-local-interactions.mjs',
+  'src/features/agent-apps/cutlist-review-local-interactions.mjs',
   'src/features/agent-apps/picker-local-presentation.mjs',
   'assets/branding/freenow-mark.svg',
  ].includes(relative))headers['Access-Control-Allow-Origin']='*';

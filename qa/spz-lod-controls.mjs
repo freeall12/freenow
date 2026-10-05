@@ -1,0 +1,15 @@
+import * as THREE from 'three';
+import {spatialBounds} from '../src/features/world-node/splat-io.mjs';
+import {pickPixel} from '../src/features/studio-v2/scene-hit.mjs';
+export function installSPZLodQA({ensureWorld,runtime,button,refresh}){
+  let state={ready:false},center,axis;
+  const getRuntime=()=>{const rt=runtime();rt?.assertReady();if(!state.ready||rt?.nodeId!==state.studioId)throw Error('请先建立真实 SPZ LOD QA');return rt;};
+  const target=rt=>{const canvas=rt.renderer.domElement,rect=canvas.getBoundingClientRect();for(const [u,v]of [[.5,.5],[.45,.5],[.55,.5],[.5,.45],[.5,.55]]){const pixel=pickPixel(u,v,canvas.width,canvas.height),hit=rt.splatContext.pick(rt.camera,pixel.u,pixel.v,{root:rt.content});if(hit)return {x:rect.left+pixel.u*rect.width,y:rect.top+pixel.v*rect.height,expectedId:hit.proxy.userData.studioId,depth:hit.depth};}return null;};
+  const read=()=>{const rt=runtime();return {...state,current:rt?.splatContext?.readLod(),selectedId:rt?.selected?.userData.studioId||null,pickTarget:state.ready&&rt?.nodeId===state.studioId?target(rt):null};};
+  window.SPZLodQA={read};
+  const view=async mode=>{const rt=getRuntime();rt.select(null);rt.controls.reset();rt.camera.position.copy(center).addScaledVector(axis,mode==='近景'?6:70);rt.camera.lookAt(center);rt.camera.near=.01;rt.camera.far=1000;rt.camera.updateProjectionMatrix();rt.camera.updateMatrixWorld(true);const start=performance.now();await rt.splatContext.settle(rt.content,rt.camera);state.mode=mode;state.samples={...state.samples,[mode]:{...rt.splatContext.readLod(),settleMs:performance.now()-start}};rt.dirty=true;clearTimeout(rt.saveTimer);await rt.flush();await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));refresh();};
+  button('建立真实SPZ LOD QA',async()=>{const source=await ensureWorld();await window.StudioAPI.active?.close();const node=window.CanvasApp.createConnected(source.id,[{type:'studio',title:'QA真实SPZ原生LOD',width:375,height:250,studioV2:{version:2,splatAssets:[{version:1,format:'spz',url:source.worldResource.url,...source.worldResource.splat,name:source.title}]}}])[0];await window.CanvasApp.saveProject();await window.StudioAPI.open(node.id);const rt=runtime();rt.assertReady();center=spatialBounds(rt.content,undefined,{framing:true}).getCenter(new THREE.Vector3());axis=new THREE.Vector3(.7,.3,1).normalize();state={ready:true,studioId:node.id,samples:{}};rt.renderer.domElement.addEventListener('pointerup',()=>setTimeout(refresh,200),{signal:rt.abort.signal});await view('近景');});
+  button('LOD近景 · 真实细节',()=>view('近景'));
+  button('LOD远景 · 真实细节',()=>view('远景'));
+  button('核对近远LOD预算',()=>{const {近景:near,远景:far}=state.samples||{};if(!near||!far)throw Error('请先各观察一次近景和远景');state.passed=near.drawCount===near.selectedCount&&far.drawCount===far.selectedCount&&near.selectedCount<=near.targetSplats&&far.selectedCount<=far.targetSplats&&near.selectedCount>far.selectedCount&&near.sources[0].sourceCount===786233&&far.sources[0].sourceCount===786233;if(!state.passed)throw Error('LOD 实际累积数量或近远层级变化未匹配预算');});
+}

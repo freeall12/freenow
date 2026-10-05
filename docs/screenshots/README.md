@@ -1,5 +1,15 @@
 # 功能截图与复现
 
+## 2026-10-05 原生 LOD、分组复制与拼装审阅
+
+| 文件 | 实际内容与来源 |
+| --- | --- |
+| [SPZ原生LOD片场](spz-lod-studio-20261005.jpg) | `qa/spz-world.html?session=spzlod1005m-root2&lod`；跨视图补修后的真实Niantic MIT样本、鼠标选中物体、镜头预览；首轮root1的导出/释放/恢复及补修版近远/缓存点选/PNG见[专项记录](../SPZ-LOD-20261005.md) |
+| [分组复制](canvas-group-copy-20261005.jpg) | `src/features/canvas-clipboard/qa/group-main.html?session=group-copy-1005m-root1`；实际⌘C/⌘V连续两次，相同指针位置40px偏移，公开合成PNG与节点 |
+| [拼装审阅](agent-cutlist-review-20261005.png) | `src/features/agent-apps/qa/cutlist-review.html?session=interactions-1005m-root`；同快照保存/重试/刷新恢复后0.2–3s与4–7s两片，实际8秒合成MP4播放/seek |
+
+两张JPEG是CDP完整2560×1440截图；PNG为1280×1128完整页面。没有修改产品样式、生成式修图或拼接。均使用隔离本地数据；没有真实模型调用。审阅未执行拼装；SPZ运行本地WASM/Worker，视频仅调用本机FFmpeg封装。单次工具下载超时，未把MP4文件级FFprobe核验或帧率计作已验。
+
 ## 2026-10-05 副本、人物走位、混合拾取与视频延长
 
 | 文件 | 实际内容与来源 |

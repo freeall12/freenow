@@ -8,11 +8,11 @@
 
 ## 已有实现，不重复开发
 
-2026-10-05 最新补充：普通单节点[副本坐标/连线与历史](CANVAS-SINGLE-DUPLICATE-20261005.md)、[人物走位保存/确认/关闭](AGENT-CHARACTER-BLOCKING-INTERACTIONS-20261005.md)、[视频延长生命周期与保存重试](VIDEO-EXTENSION-LIFECYCLE-20261005.md)已完成本批定向及浏览器验证。其他节点类型的副本、全部应用组合状态和真实供应商验收仍需逐项核对。
+2026-10-05 / 1005m补充：[分组/多选复制粘贴](CANVAS-GROUP-COPY-PASTE-20261005.md)已验父子绝对几何、入边保留/出边排除、清图库/运行归属、连续粘贴、⌘D与撤销；[拼装审阅](AGENT-CUTLIST-REVIEW-INTERACTIONS-20261005.md)已验裁切/保留、同快照确认、复原再改、关闭失败重试与刷新。普通单节点[副本](CANVAS-SINGLE-DUPLICATE-20261005.md)、[人物走位](AGENT-CHARACTER-BLOCKING-INTERACTIONS-20261005.md)、[视频延长生命周期](VIDEO-EXTENSION-LIFECYCLE-20261005.md)亦已有前批证据。其他节点组合、应用全部状态/语言和真实供应商仍需逐项核对。
 
-用户已批准 Spark 2.3.1，预算内 SPZ 已完成真实解码、世界预览、片场变换/保存刷新/撤销重做、删除恢复、照片与 2 秒运镜视频；[混合网格/高斯点击遮挡](SPZ-MIXED-PICKING-20261005.md)亦已通过四模式实机点击。不能再将依赖授权、基础渲染或网格始终优先的问题列为未实现。仍需 LOD、多设备压力、长视频、复杂半透明场景及真实 Marble 生成/碰撞对齐验收，见 [SPZ 范围](SPZ-LOCAL-RENDERING-20261005.md)。前批已补 [视频深度普通节点、双结果、布局和恢复](LOCAL-DEPTH-BATCH-AND-CANVAS-20261005.md)。
+用户已批准 Spark 2.3.1，预算内 SPZ 已完成真实解码、预览、片场保存/撤销、照片与2秒视频；[混合拾取](SPZ-MIXED-PICKING-20261005.md)及[原生tiny-lod](SPZ-LOD-20261005.md)已实机验证。不能再将依赖授权、基础渲染、普通混合遮挡或LOD列为尚未实现。LOD最多25万参与绘制/排序，不减少全量解码或驻留数据；仍需多设备压力、长视频、复杂半透明、按页流式加载及真实Marble生成/碰撞对齐验收。前批已补[视频深度普通节点、双结果、布局和恢复](LOCAL-DEPTH-BATCH-AND-CANVAS-20261005.md)。
 
-2026-10-05 视频蒙层补充：[Wan VACE 原生适配](WAN-VACE-VIDEO-MASK-NATIVE-20261005.md)、完整来源/蒙层共同裁片、fal CDN 上传、分阶段持久恢复、原音轨与本地归档已实现。Toolbar 和 Agent 已保存蒙层入口已接线。不要再次把这些列为尚无接口；新视频首次目标识别仍需独立分割服务，SAM2 公开 RLE 编码语义尚不完整，见[合同缺口](VIDEO-SEGMENTATION-FAL-CONTRACT-20261005.md)。真实 Key 的上传权限、模型效果、长视频预算及全站逐态验收仍开放。
+2026-10-05 视频蒙层补充：[Wan VACE 原生适配](WAN-VACE-VIDEO-MASK-NATIVE-20261005.md)、完整来源/蒙层共同裁片、fal CDN 上传、分阶段持久恢复、原音轨与本地归档已实现。Toolbar 和 Agent 已保存蒙层入口已接线。新视频首次识别仍需独立分割服务：原fal候选的[RLE合同缺口](VIDEO-SEGMENTATION-FAL-CONTRACT-20261005.md)保留；本批找到[Replicate SAM2二值PNG/双向时序方案](VIDEO-SEGMENTATION-REPLICATE-READINESS-20261005.md)，尚待持久子任务适配、真实输出像素与部署版本验证。真实Key权限、模型效果、长视频预算及全站逐态验收仍开放。
 
 2026-10-05补充：[视频工具与存储批次](LOCAL-VIDEO-TOOLS-STORAGE-BRAND-20261005.md)已接 ThinkSound 单视频拟音、Toolbar 延长镜头参考生成、个人素材库IndexedDB容量迁移、模板离页保护及嵌套制作进度卡品牌。Ark本地视频公网传输、Sonilo音乐/分段、92份HTML原文与真实Key验收仍开放；不要将新增适配简化为“所有菜单仅填Key即可”。
 

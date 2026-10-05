@@ -171,6 +171,8 @@ export class SceneRuntime {
     try{
       this.assertTargetNode();
       const pixel=pickPixel((x-rect.left)/rect.width,(y-rect.top)/rect.height,width,height);if(!pixel)return false;
+      if(this.splatContext)await this.splatContext.settle(content,this.camera);
+      if(this.closed||this.exporting||this.reloading||this.restoring||token!==this.pickRevision||content!==this.content||revision!==this.revision)return false;
       const hit=this.splatContext?.pick(this.camera,pixel.u,pixel.v,{root:content});
       const mesh=hit?await this.picker.pickHit(this.scene,content,this.camera,pixel.u,pixel.v,nodeForObject,[this.cameraPresentations.layer]):{id:await this.picker.pick(this.scene,content,this.camera,pixel.u,pixel.v,nodeForObject,[this.cameraPresentations.layer])};
       const id=nearestSceneHit(mesh,hit);

@@ -17,6 +17,17 @@
   }
   const isComposing=event=>event.isComposing||event.keyCode===229||event.key==='Process';
   const clipboardFiles=data=>Array.from(data?.files||[]).length?Array.from(data.files):Array.from(data?.items||[]).filter(item=>item.kind==='file').map(item=>item.getAsFile()).filter(Boolean);
+  function resetMediaHistory(node){
+    if(!['image','video'].includes(node.type))return;
+    for(const key of ['options','versions','imageHistory','videoHistory','imageOptions','videoOptions','historyLocalQueues','historyLocalQueueMetadata','historyLocalQueueResourceMetadata'])node[key]=[];
+    node.historyVariantsHidden=false;node.historyVariantCount=(node.type==='video'?node.video:node.fullImage||node.image)?1:0;
+    for(const key of ['historySourceNodeId','historyPreviewSrc','currentImageOptionId','currentVideoOptionId'])delete node[key];
+  }
+  function resetExecution(node){
+    node.loading=false;node.taskInfo=null;
+    // Media provenance is retained; a fresh node never owns the old live run.
+    for(const key of ['pendingOperation','generationRun','generationRecovery','workflowRecoveryResult'])delete node[key];
+  }
   function capture(nodes, edges, selected) {
     const ids = new Set(selected),byId=new Map(),children=new Map(),queue=[...ids];
     for(const node of nodes){byId.set(node.id,node);if(node.parentId){let siblings=children.get(node.parentId);if(!siblings)children.set(node.parentId,siblings=[]);siblings.push(node.id);}}
@@ -29,7 +40,12 @@
     const picked = nodes.filter(n => ids.has(n.id));
     if (!picked.length) throw Error('请选择要复制的节点');
     if (picked.some(n => n.type === 'studio')) throw Error('暂不支持复制 3D 片场');
-    return { nodes: clone(picked).map(n => { if (!ids.has(n.parentId)) delete n.parentId; return n; }), edges: clone(edges.filter(e => ids.has(e.target))) };
+    return { nodes: clone(picked).map(n => {
+      if (!ids.has(n.parentId)){delete n.parentId;if(n.extent==='parent')delete n.extent;}
+      resetMediaHistory(n);n.selected=false;n.dragging=false;delete n.copyFrom;
+      if(n.type==='playlist')for(const key of Object.keys(n))if(key.startsWith('__playlist'))delete n[key];
+      return n;
+    }), edges: clone(edges.filter(e => ids.has(e.target))).map(e=>{delete e.selected;return e;}) };
   }
   function remap(value, ids, key = '') {
     if (Array.isArray(value)) return value.map(v => remap(v, ids, key));
@@ -45,16 +61,25 @@
     const ids = new Map(snapshot.nodes.map(n => [n.id, idFactory()]));
     const nodes = snapshot.nodes.map(source => {
       const n = clone(source); n.id = ids.get(source.id); n.x += dx; n.y += dy;
-      n.parentId = ids.get(n.parentId); if (!n.parentId) delete n.parentId;
-      if (n.memberIds) n.memberIds = n.memberIds.map(id => ids.get(id));
+      n.parentId = ids.get(n.parentId); if (!n.parentId){delete n.parentId;if(n.extent==='parent')delete n.extent;}
+      resetExecution(n);n.selected=true;n.dragging=false;delete n.copyFrom;
+      if (n.memberIds) n.memberIds = n.memberIds.flatMap(id => ids.has(id)?[ids.get(id)]:[]);
       if (n.sourceId) n.sourceId = ids.get(n.sourceId) || n.sourceId;
       if (n.clips) n.clips = n.clips.map(c => ({...c, id: idFactory(), sourceId: ids.get(c.sourceId) || c.sourceId}));
       if (n.generation) n.generation = remap(n.generation, ids);
+      if (n.params) n.params = remap(n.params, ids);
       if (n.audioConfig) n.audioConfig = remap(n.audioConfig, ids);
       return n;
     });
     const live = new Set([...existing.map(n => n.id), ...nodes.map(n => n.id)]);
-    const edges = snapshot.edges.map(e => ({ ...clone(e), id: idFactory(), source: ids.get(e.source) || e.source, target: ids.get(e.target), path: undefined })).filter(e => live.has(e.source) && live.has(e.target));
+    const edges=[];
+    for(const edge of snapshot.edges||[]){
+      const e={...clone(edge),id:idFactory(),source:ids.get(edge.source)||edge.source,target:ids.get(edge.target)};
+      if(!live.has(e.source)||!live.has(e.target))continue;
+      delete e.path;delete e.selected;
+      if(typeof e.order!=='number'&&typeof e.data?.order!=='number')e.order=edges.reduce((max,item)=>item.target===e.target?Math.max(max,typeof item.order==='number'?item.order:typeof item.data?.order==='number'?item.data.order:2**30):max,-1)+1;
+      edges.push(e);
+    }
     return { nodes, edges, selected: nodes.filter((n, i) => !n.parentId && !hidden.has(snapshot.nodes[i].id)).map(n => n.id) };
   }
   function duplicateNode(source, existingEdges, idFactory = () => crypto.randomUUID()) {
@@ -62,15 +87,7 @@
     const node=clone(source),width=source.width||source.measured?.width||source.dimensions?.width;
     node.id=idFactory();node.x=source.x+(Number.isFinite(width)?width:250)+100;node.y=source.y;
     delete node.parentId;if(node.extent==='parent')delete node.extent;
-    node.loading=false;node.taskInfo=null;
-    // A copied media file retains its provenance, but never the original node's
-    // live run or persisted recovery ownership (including grouped workflows).
-    for(const key of ['pendingOperation','generationRun','generationRecovery','workflowRecoveryResult'])delete node[key];
-    if(['image','video'].includes(node.type)){
-      for(const key of ['options','versions','imageHistory','videoHistory','imageOptions','videoOptions','historyLocalQueues','historyLocalQueueMetadata','historyLocalQueueResourceMetadata'])node[key]=[];
-      node.historyVariantsHidden=false;node.historyVariantCount=(node.type==='video'?node.video:node.fullImage||node.image)?1:0;
-      for(const key of ['historySourceNodeId','historyPreviewSrc','currentImageOptionId','currentVideoOptionId'])delete node[key];
-    }
+    resetExecution(node);resetMediaHistory(node);
     const edges=[],ordered=[...existingEdges],orderOf=edge=>typeof edge.order==='number'?edge.order:typeof edge.data?.order==='number'?edge.data.order:2**30;
     function copyEdge(edge, outgoing){
       const added=clone(edge);added.id=idFactory();delete added.selected;
