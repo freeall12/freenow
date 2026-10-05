@@ -24,6 +24,9 @@
 
 | 记录 | 范围 |
 | --- | --- |
+| [皮肤编辑与Agent实机验收](LOCAL-SKIN-AGENT-20261005.md) | 三档/键盘/保存重试/原任务查询、派发前持久回执与刷新 |
+| [皮肤专用网关](SKIN-EDITOR-PROVIDER-20261005.md) · [前端](SKIN-EDITOR-FRONTEND-20261005.md) · [Agent](AGENT-SKIN-AND-MASK-APPROVAL-20261005.md) | 完整原图、单结果、严格PNG、来源/参数/任务身份守卫 |
+| [Enhancor原生合同核对](SKIN-EDITOR-NATIVE-CONTRACT-20261005.md) | 安装包精确三档；公网来源/回调与未证实映射，非仅Key可用 |
 | [图片打光与Agent本机验收](LOCAL-RELIGHT-AGENT-20261005.md) | 正式控件/审批、真实SDK、原任务保存重试、刷新及初始化竞态修复 |
 | [独立图片打光协议](OPENAI-RELIGHT-NATIVE.md) · [Agent](AGENT-RELIGHT-PARAMETER-EDIT-20261005.md) | 全部五组光照参数、OpenAI SDK 编辑、原尺寸输入与真实结果归档 |
 | [打光原参数与独立编辑契约](RELIGHT-PARAMETER-EDIT-CONTRACT-20261005.md) · [预览分配优化](RELIGHT-STAGE-FRAME-ALLOCATION-20261005.md) | 安装包光位/轮廓资格/关闭逻辑；保持逐帧状态并减少临时对象 |

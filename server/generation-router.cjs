@@ -21,6 +21,7 @@ const {createPanoramaProvider}=require('./generation-panorama.cjs');
 const {createVideoMaskProvider}=require('./generation-video-mask.cjs');
 const {createOpenAIMaskedEditProvider}=require('./generation-openai-masked-edit.cjs');
 const {createOpenAIRelightProvider}=require('./generation-openai-relight.cjs');
+const {createSkinTasksProvider}=require('./generation-skin-tasks.cjs');
 const {endpoint:tasksEndpoint,protectGenerationFetch}=require('./generation-endpoint-policy.cjs');
 const {rejectCredentials}=require('./generation-durable.cjs');
 const object=value=>value&&typeof value==='object'&&!Array.isArray(value);
@@ -38,9 +39,9 @@ function requestAlias(request){
 
 // This task adapter makes one POST. Recovery only queries an accepted identity;
 // HTTP failures, redirects and malformed receipts never trigger another POST.
-function createTasksProvider({baseUrl='',apiKey='',modelMap,fetchImpl=fetch,allowUnauthenticated=false,rejectCredentialEcho=false}={}){
+function createTasksProvider({baseUrl='',apiKey='',modelMap,fetchImpl=fetch,allowUnauthenticated=false,rejectCredentialEcho=false,maxResponseBytes=1024*1024}={}){
  let endpoint='',configurationError=null;
- try{if(baseUrl)endpoint=tasksEndpoint(baseUrl);if(modelMap!==undefined&&!object(modelMap)&&typeof modelMap!=='string')throw Error();if(typeof modelMap==='string'&&!object(JSON.parse(modelMap)))throw Error();}catch{configurationError='configuration_invalid';}
+ try{if(baseUrl)endpoint=tasksEndpoint(baseUrl);if(modelMap!==undefined&&!object(modelMap)&&typeof modelMap!=='string')throw Error();if(typeof modelMap==='string'&&!object(JSON.parse(modelMap)))throw Error();if(!Number.isSafeInteger(maxResponseBytes)||maxResponseBytes<1||maxResponseBytes>64*1024*1024)throw Error();}catch{configurationError='configuration_invalid';}
  const missing=[...(!baseUrl?['GENERATION_API_BASE_URL']:[]),...(!apiKey&&!allowUnauthenticated?['GENERATION_API_KEY']:[])];
  const configured=!configurationError&&!missing.length;
  const fingerprint=digest({protocol:'tasks-v1',endpoint,modelMap:modelMap||null});
@@ -60,10 +61,10 @@ function createTasksProvider({baseUrl='',apiKey='',modelMap,fetchImpl=fetch,allo
   const wait=fn=>Promise.race([Promise.resolve().then(()=>{if(combined.aborted)throw combined.reason;return fn();}),interrupted]);
   try{
    const response=await wait(()=>fetchImpl(endpoint+'/tasks'+(id===undefined?'':'/'+encodeURIComponent(id)),{method,redirect:'error',headers:{'Content-Type':'application/json',...(apiKey?{Authorization:'Bearer '+apiKey}:{})},signal:combined,...(body?{body:JSON.stringify(body)}:{})}));
-   if(!response.ok||Number(response.headers?.get('content-length'))>1024*1024){response.body?.cancel().catch(()=>{});throw Error();}
+   if(!response.ok||Number(response.headers?.get('content-length'))>maxResponseBytes){response.body?.cancel().catch(()=>{});throw Error();}
    if(!response.body?.getReader)throw Error();
    const reader=response.body.getReader(),parts=[];let bytes=0,complete=false;
-   try{for(;;){const chunk=await wait(()=>reader.read());if(chunk.done){complete=true;break;}bytes+=chunk.value.byteLength;if(bytes>1024*1024)throw Error();parts.push(Buffer.from(chunk.value));}}
+   try{for(;;){const chunk=await wait(()=>reader.read());if(chunk.done){complete=true;break;}bytes+=chunk.value.byteLength;if(bytes>maxResponseBytes)throw Error();parts.push(Buffer.from(chunk.value));}}
    finally{if(!complete)reader.cancel().catch(()=>{});reader.releaseLock();}
    const value=JSON.parse(Buffer.concat(parts).toString('utf8'));
    const echoes=item=>typeof item==='string'?item.includes(apiKey):item&&typeof item==='object'&&Object.entries(item).some(([key,entry])=>key.includes(apiKey)||echoes(entry));
@@ -112,10 +113,10 @@ function createGenerationRouter({providers={},routes={},fetchImpl=fetch,localPor
   if(typeof providers==='string')providers=JSON.parse(providers);if(typeof routes==='string')routes=JSON.parse(routes);
   if(!object(providers)||!object(routes)||Object.keys(providers).length>100||Object.keys(routes).length>100)throw Error();
   for(const [id,config]of Object.entries(providers)){
-   if(!providerPattern.test(id)||!object(config)||!['tasks-v1','openai-native','ark-native','fal-native','tripo-native','minimax-native','elevenlabs-native','marble-native','minimax-music-native','fal-video-native','elevenlabs-sound-native','elevenlabs-music-native','mureka-native','seed-audio-native','fal-video-audio-native','ark-video-extend-reference','ark-video-reshoot-edit','fal-panorama-native','fal-video-mask-native','openai-masked-edit-native','openai-relight-native'].includes(config.protocol)||Object.keys(config).some(key=>!['protocol','baseUrl','apiKey','modelMap','client'].includes(key))||['baseUrl','apiKey'].some(key=>config[key]!==undefined&&typeof config[key]!=='string'))throw Error();
+   if(!providerPattern.test(id)||!object(config)||!['tasks-v1','openai-native','ark-native','fal-native','tripo-native','minimax-native','elevenlabs-native','marble-native','minimax-music-native','fal-video-native','elevenlabs-sound-native','elevenlabs-music-native','mureka-native','seed-audio-native','fal-video-audio-native','ark-video-extend-reference','ark-video-reshoot-edit','fal-panorama-native','fal-video-mask-native','openai-masked-edit-native','openai-relight-native','skin-tasks-v1'].includes(config.protocol)||Object.keys(config).some(key=>!['protocol','baseUrl','apiKey','modelMap','client'].includes(key))||['baseUrl','apiKey'].some(key=>config[key]!==undefined&&typeof config[key]!=='string'))throw Error();
    if(config.baseUrl)tasksEndpoint(config.baseUrl,{localPort});if(config.client?.baseURL)tasksEndpoint(config.client.baseURL,{localPort});
-   const provider=(config.protocol==='openai-native'?createOpenAINativeProvider:config.protocol==='ark-native'?createArkProvider:config.protocol==='fal-native'?createFalProvider:config.protocol==='tripo-native'?createTripoProvider:config.protocol==='minimax-native'?createMiniMaxProvider:config.protocol==='elevenlabs-native'?createElevenLabsProvider:config.protocol==='marble-native'?createMarbleProvider:config.protocol==='minimax-music-native'?createMiniMaxMusicProvider:config.protocol==='fal-video-native'?createFalVideoProvider:config.protocol==='elevenlabs-sound-native'?createElevenLabsSoundProvider:config.protocol==='elevenlabs-music-native'?createElevenLabsMusicProvider:config.protocol==='mureka-native'?createMurekaProvider:config.protocol==='seed-audio-native'?createSeedAudioProvider:config.protocol==='fal-video-audio-native'?createVideoAudioProvider:config.protocol==='ark-video-extend-reference'?createVideoExtendProvider:config.protocol==='ark-video-reshoot-edit'?createVideoReshootProvider:config.protocol==='fal-panorama-native'?createPanoramaProvider:config.protocol==='fal-video-mask-native'?createVideoMaskProvider:config.protocol==='openai-masked-edit-native'?createOpenAIMaskedEditProvider:config.protocol==='openai-relight-native'?createOpenAIRelightProvider:createTasksProvider)({...config,fetchImpl,localPort,...(config.protocol==='fal-video-mask-native'&&preparationDirectory?{directory:path.join(preparationDirectory,id)}:{})});
-   if(!['tasks-v1','elevenlabs-native','minimax-music-native','elevenlabs-sound-native','elevenlabs-music-native','mureka-native','seed-audio-native'].includes(config.protocol)){
+   const provider=(config.protocol==='skin-tasks-v1'?options=>createSkinTasksProvider({...options,transport:createTasksProvider({...options,maxResponseBytes:64*1024*1024,rejectCredentialEcho:true})}):config.protocol==='openai-native'?createOpenAINativeProvider:config.protocol==='ark-native'?createArkProvider:config.protocol==='fal-native'?createFalProvider:config.protocol==='tripo-native'?createTripoProvider:config.protocol==='minimax-native'?createMiniMaxProvider:config.protocol==='elevenlabs-native'?createElevenLabsProvider:config.protocol==='marble-native'?createMarbleProvider:config.protocol==='minimax-music-native'?createMiniMaxMusicProvider:config.protocol==='fal-video-native'?createFalVideoProvider:config.protocol==='elevenlabs-sound-native'?createElevenLabsSoundProvider:config.protocol==='elevenlabs-music-native'?createElevenLabsMusicProvider:config.protocol==='mureka-native'?createMurekaProvider:config.protocol==='seed-audio-native'?createSeedAudioProvider:config.protocol==='fal-video-audio-native'?createVideoAudioProvider:config.protocol==='ark-video-extend-reference'?createVideoExtendProvider:config.protocol==='ark-video-reshoot-edit'?createVideoReshootProvider:config.protocol==='fal-panorama-native'?createPanoramaProvider:config.protocol==='fal-video-mask-native'?createVideoMaskProvider:config.protocol==='openai-masked-edit-native'?createOpenAIMaskedEditProvider:config.protocol==='openai-relight-native'?createOpenAIRelightProvider:createTasksProvider)({...config,fetchImpl,localPort,...(config.protocol==='fal-video-mask-native'&&preparationDirectory?{directory:path.join(preparationDirectory,id)}:{})});
+   if(!['tasks-v1','skin-tasks-v1','elevenlabs-native','minimax-music-native','elevenlabs-sound-native','elevenlabs-music-native','mureka-native','seed-audio-native'].includes(config.protocol)){
     const map=provider.metadata.configurationError?{}:typeof config.modelMap==='string'?JSON.parse(config.modelMap):config.modelMap||{};
     provider.metadata={...provider.metadata,capabilities:{...provider.metadata.capabilities,models:Object.fromEntries(Object.entries(map).map(([alias,entry])=>{
      const label=provider.metadata.capabilities?.models?.[alias]?.label;
@@ -150,7 +151,7 @@ function createGenerationRouter({providers={},routes={},fetchImpl=fetch,localPor
   const id=route&&(alias!==undefined&&own(route.models,alias)?route.models[alias]:route.default);
   const provider=id&&own(instances,id)?instances[id]:null;
   const nativeAlias=alias;
-  const uniqueKindOperation=['fal-video-mask-native','openai-relight-native'].includes(provider?.metadata.protocol)&&Object.values(provider.metadata.capabilities.models||{}).filter(entry=>entry.kind===request.kind).length===1;
+  const uniqueKindOperation=['fal-video-mask-native','openai-relight-native','skin-tasks-v1'].includes(provider?.metadata.protocol)&&Object.values(provider.metadata.capabilities.models||{}).filter(entry=>entry.kind===request.kind).length===1;
   if(!usable(provider,request.kind,nativeAlias)||provider?.metadata.protocol!=='tasks-v1'&&nativeAlias===undefined&&!uniqueKindOperation)throw failure('此操作或模型尚未配置供应商路由','configuration_required');
   return {id,provider};
  }

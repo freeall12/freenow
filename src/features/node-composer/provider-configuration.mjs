@@ -31,7 +31,7 @@ const nativeKinds={
   'minimax-music-native':['audio.generate'],'fal-video-native':['video.upscale'],
   'fal-video-audio-native':['audio.generate'],'ark-video-extend-reference':['video.extend'],
   'ark-video-reshoot-edit':['video.reshoot'],'fal-panorama-native':['image.generate'],
-  'fal-video-mask-native':['video.erase','video.replace'],'openai-relight-native':['image.relight'],
+  'fal-video-mask-native':['video.erase','video.replace'],'openai-relight-native':['image.relight'],'skin-tasks-v1':['image.skin'],
   'elevenlabs-sound-native':['audio.generate'],'elevenlabs-music-native':['audio.generate'],'mureka-native':['audio.generate'],'seed-audio-native':['audio.generate'],'openai-masked-edit-native':['image.erase','image.redraw','image.outpaint']
 };
 const object=value=>value&&typeof value==='object'&&!Array.isArray(value);
@@ -90,7 +90,7 @@ export function providerConfigurationStatus(metadata,request,{operationOnly=fals
     if(models!==null&&!availableModels.length)return result(false,'model_unmapped','当前服务尚未公开'+operation+'的可用模型，请检查服务端 '+mapping+'。');
     return result(true,'ready',operation+'服务已配置。'+aliases);
   }
-  if(alias===undefined&&['fal-video-mask-native','openai-relight-native'].includes(selected.protocol)&&availableModels.length===1)return result(true,'ready',operation+'服务已配置。'+aliases);
+  if(alias===undefined&&['fal-video-mask-native','openai-relight-native','skin-tasks-v1'].includes(selected.protocol)&&availableModels.length===1)return result(true,'ready',operation+'服务已配置。'+aliases);
   if(strict&&!publicAlias(alias))return result(false,'model_required','请为'+operation+'选择已配置的公开模型别名。'+aliases);
   if((routed||native)&&models!==null&&(!own(models,alias)||models[alias]?.kind!==kind))return result(false,'model_unmapped','所选模型尚未映射到'+operation+'。请在服务端 '+mapping+' 中配置公开别名“'+(publicAlias(alias)?alias:'未选择')+'”（kind: '+kind+'）。'+aliases);
   if(routed&&models===null)return result(false,'model_unmapped','所选供应商尚未公开此操作的模型映射，请检查服务端 '+mapping+'。');
@@ -133,7 +133,7 @@ export function generationOperationReadiness(metadata){
       else if(routed&&!selected){reason='route_missing';}
       else if(!selected){state='unknown';reason='service_unavailable';}
       else if(status.configured===true&&route.configured){
-        if(selected.protocol==='tasks-v1'){state='gateway';reason='gateway_capability_unverified';}
+        if(['tasks-v1','skin-tasks-v1'].includes(selected.protocol)){state='gateway';reason='gateway_capability_unverified';}
         else if(!Array.isArray(selected.capabilities?.kinds)){state='unknown';reason='capabilities_unknown';}
         else{state='ready';reason='ready';}
       }

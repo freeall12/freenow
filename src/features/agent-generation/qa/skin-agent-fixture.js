@@ -1,0 +1,36 @@
+// Load after the skin QA isolation bootstrap, before production scripts.
+// Only Agent model replies are fixed; generation uses the same actual gateway.
+(()=>{
+ if(window.SkinFixture?.ready!==true)throw Error('Agent皮肤夹具必须运行在已隔离的皮肤验收宿主');
+ const inherited=window.fetch.bind(window),runs=new Map();
+ const state=window.SkinAgentFixture={turns:0,requests:[],generationReceipts:[],mode:'heavy',targetNodeId:null};
+ const argumentsFor=()=>({kind:'image.skin',nodeId:'skin-source',prompt:'',skin:{mode:state.mode},...(state.targetNodeId?{targetNodeId:state.targetNodeId}:{})});
+ state.setMode=mode=>{window.AgentTools.parse('generation_submit',{...argumentsFor(),skin:{mode}});state.mode=mode;};
+ state.useTarget=id=>{window.AgentTools.parse('generation_submit',{...argumentsFor(),...(id?{targetNodeId:id}:{})});state.targetNodeId=id||null;};
+ window.fetch=async(input,options={})=>{
+  const url=new URL(typeof input==='string'?input:input instanceof URL?input.href:input.url,document.baseURI||location.href),method=(options.method||input?.method||'GET').toUpperCase();
+  if(url.origin!==location.origin||!url.pathname.startsWith('/api/agent/')){
+   if(url.origin===location.origin&&url.pathname==='/api/generation/tasks'&&method==='POST'&&state.turns){
+    const id=new Headers(options.headers).get('Idempotency-Key'),record=await window.CanvasStore.readRecord('agent-conversations:'+(window.CanvasProjects?.id()||'canvas'));
+    const acknowledged=record?.chats?.some(chat=>chat.messages?.some(trace=>trace.name==='generation_submit'&&trace.args?.kind==='image.skin'&&trace.submittedTaskId===id));
+    state.generationReceipts.push({id,acknowledged:acknowledged===true});
+    if(!acknowledged)throw Error('Agent皮肤夹具：真实持久对话缺少派发前原任务ID');
+   }
+   return inherited(input,options);
+  }
+  state.requests.push({path:url.pathname,method});
+  if(url.pathname==='/api/agent/config'&&method==='GET')return Response.json({configured:true,model:'固定本机皮肤验收回复'});
+  const body=options.body?JSON.parse(options.body):null;
+  if(url.pathname==='/api/agent/turn'&&method==='POST'){
+   if(!body?.binding)throw Error('Agent皮肤夹具缺少实际对话绑定');
+   const args=window.AgentTools.parse('generation_submit',argumentsFor()).args,id='qa-skin-'+crypto.randomUUID();state.turns++;runs.set(id,JSON.stringify(body.binding));
+   return Response.json({sessionId:id,round:1,done:false,text:'本机固定回复：按明确皮肤模式处理完整来源图，将结果保存为增强节点的新版本。正式审批、网关和保存状态来自验收宿主，未调用真实Agent模型。',calls:[{callId:id+'-call',name:'generation_submit',args,mutates:true}]});
+  }
+  if(url.pathname==='/api/agent/continue'&&method==='POST'){
+   if(!runs.has(body?.sessionId)||runs.get(body.sessionId)!==JSON.stringify(body.binding))throw Error('Agent皮肤夹具对话绑定已变化');
+   return Response.json({sessionId:body.sessionId,round:2,done:true,text:'已收到工具回执；任务ID只证明提交，请检查原任务、增强节点版本和实际画布保存状态。',calls:[]});
+  }
+  if(url.pathname==='/api/agent/cancel'&&method==='POST')return Response.json({cancelled:true});
+  throw Error('Agent皮肤夹具未声明此接口或方法');
+ };
+})();

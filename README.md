@@ -98,6 +98,7 @@ node --env-file=.env.local server/server.cjs
 | `openai-native` | 文本、文生图/参考图、语音、视觉识别与分镜描述 | [网关](docs/GENERATION-GATEWAY.md) / [参考图](docs/OPENAI-IMAGE-REFERENCES.md) |
 | `openai-masked-edit-native` | 擦除、局部重绘、扩图 | [蒙版编辑](docs/OPENAI-MASKED-EDIT-NATIVE.md) |
 | `openai-relight-native` | 完整图片重新打光；面板与 Agent 共用全部五组参数 | [打光编辑](docs/OPENAI-RELIGHT-NATIVE.md)，显式参数提示词编辑；不保证物理光照或输出与来源同尺寸 |
+| `skin-tasks-v1` | 皮肤编辑三档、增强节点版本与 Agent 审批 | [专用网关](docs/SKIN-EDITOR-PROVIDER-20261005.md)，需实际实现合同的外部服务器；不是 Enhancor 原生适配，仅填其 Key 不可用 |
 | `ark-native` | 火山方舟视频任务 | [Ark](docs/ARK-VIDEO.md) |
 | `ark-video-extend-reference` | 工具栏延长镜头：片头/片尾、4–30秒、连续性与参考 | [延长镜头](docs/VIDEO-EXTEND-NATIVE-20261005.md)，明确为参考生成；本地视频另需公网发布通道 |
 | `ark-video-reshoot-edit` | 视频重拍：分镜、四种镜头模式与提示词编译 | [重拍](docs/VIDEO-RESHOOT-EDIT-20261005.md)，实验性提示词模拟；Ark Key 外还需要独立 HTTPS 视频 |
@@ -127,6 +128,14 @@ node --env-file=.env.local server/server.cjs
 - 页面和内嵌应用使用本地资源限制；服务端拒绝向原站域名请求或转交原站媒体。未知旧资源须显式导入修复，不自动联网回源。[本地化验收边界](docs/FREENOW-LOCALIZATION-ACCEPTANCE.md)
 
 ## 最新接入与核验
+
+皮肤编辑器保留细节／标准／重度三档、原面板几何与警告，补全配置反馈、键盘关闭、原任务查询和保存失败重试。Agent 可处理完整原图并新建相连增强节点，或写回指定增强节点；任务 ID 先持久化，再读取素材和派发。正式页面已验原尺寸 PNG、真实本地归档、零重复生成及刷新回读。[本批实现与实机记录](docs/LOCAL-SKIN-AGENT-20261005.md)
+
+| 皮肤编辑：增强节点与正式控件 | Agent：模式、来源和接口条件 |
+| --- | --- |
+| ![本地皮肤编辑面板及合成结果](docs/screenshots/image-skin-result-panel-20261005.jpg) | ![正式Agent皮肤增强审批](docs/screenshots/agent-skin-approval-20261005.jpg) |
+
+截图使用合成 PNG 和固定 Agent 回复，不代表皮肤生成质量。专用 `skin-tasks-v1` 合同已经接通；**Enhancor 原生接入仍缺公网来源、回调和精确参数映射，不能直接填 Enhancor Key 启用。** [合同与配置](docs/SKIN-EDITOR-PROVIDER-20261005.md) · [官方证据和缺口](docs/SKIN-EDITOR-NATIVE-CONTRACT-20261005.md)
 
 图片重新打光已接通正式面板与 Agent，保留26光位、亮度、色温和独立轮廓光。五参数经现有 OpenAI SDK 发送，结果归档后连接原图；缺配置、等待期间关闭/换图、保存失败重试和 Agent 持久回执已实操。另修复本地图片刷新时的初始化竞态、配置保存快照和 Agent 过期配置缓存。[本批实现与验收](docs/LOCAL-RELIGHT-AGENT-20261005.md)
 

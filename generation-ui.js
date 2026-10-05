@@ -1,7 +1,7 @@
 (() => {
   'use strict';
   const app=window.CanvasApp;
-  let generationRequests,generationMedia,recognitionMedia,videoAnalysisMedia,extensionMedia,reshootMedia,videoMaskMedia,panoramaMedia,panoramaValidation,imageToolMedia,maskedEditMedia,relightMedia,worldMedia,draftWorkflow,resultModules,resultWorkflow,failureBridge;
+  let generationRequests,generationMedia,recognitionMedia,videoAnalysisMedia,extensionMedia,reshootMedia,videoMaskMedia,panoramaMedia,panoramaValidation,imageToolMedia,maskedEditMedia,relightMedia,skinMedia,worldMedia,draftWorkflow,resultModules,resultWorkflow,failureBridge;
   const failureSources=new Map();
   const resultSubmissions=new Map();
   const draftGuards=new Map();
@@ -36,7 +36,12 @@
       const nativeConfiguration=service.jobs.get(jobId)?.transport===localProvider?taskNativeConfigurations.get(signal):null;
       return (await worldMedia).prepareWorldMediaRequest(request,{signal,validateSources,localAssets:window.LocalAssets,localMedia:window.LocalMedia,baseUrl:document.baseURI,nativeConfiguration});
     }
-    if(['image.upscale','image.skin','image.remove-background','image.multiAngle'].includes(request.kind)){
+    if(request.kind==='image.skin'){
+      skinMedia||=import('./src/features/image-skin/media.mjs');
+      const nativeConfiguration=service.jobs.get(jobId)?.transport===localProvider?taskNativeConfigurations.get(signal):null;
+      return (await skinMedia).prepareSkinMedia(request,{signal,validateSources,localAssets:window.LocalAssets,baseUrl:document.baseURI,nativeConfiguration});
+    }
+    if(['image.upscale','image.remove-background','image.multiAngle'].includes(request.kind)){
       imageToolMedia||=import('./src/features/image-editor/task-media.mjs');
       const nativeConfiguration=service.jobs.get(jobId)?.transport===localProvider?taskNativeConfigurations.get(signal):null;
       return (await imageToolMedia).prepareImageToolMedia(request,{signal,validateSources,localAssets:window.LocalAssets,baseUrl:document.baseURI,nativeConfiguration});
@@ -267,6 +272,11 @@
       draftGuards.get(job.id)?.();
       const originalTarget=inPlace.get(job.id),target=originalTarget&&{...originalTarget,guard(){originalTarget.guard();draftGuards.get(job.id)?.();if(workflowOutputs!==null&&JSON.stringify(stored.outputs)!==workflowOutputs)throw Error('工作流结果在应用期间已变化');}};
       if(stored.recoveryMode==='workflow_existing'&&!target)throw Error('工作流恢复缺少原节点应用权限');
+      if(target?.verifyRequest){
+        target.guard();const captured=JSON.stringify(job.request);
+        if(await target.verifyRequest(job.request,job)!==true)throw Error('原任务请求已变化，未应用结果');
+        target.guard();if(JSON.stringify(job.request)!==captured)throw Error('原任务在验证期间已变化，未应用结果');
+      }
       if(target&&!stored.resultIds){
         target.guard();audioGuard();
         if((target.beforeApply||target.onApplied)&&(target.apply||target.applyBatch))throw Error('持久工作流必须应用到原节点，不能改用自定义批次目标');
@@ -375,7 +385,21 @@
     }
     return receipt;
   }
-  async function recover(id,{signal}={}){return service.recover(id,{signal,beforeRestore:async job=>{if(job.recovered||job.request.parameters?.workflowRecovery){job.recovered=true;if(job.recoveryMode!=='workflow_existing'){job.applicationStatus='awaiting_recovery_application';job.applied=false;}}}});}
+  async function recover(id,{signal,guard,verifyRequest}={}){
+    if(verifyRequest!==undefined&&typeof verifyRequest!=='function')throw Error('恢复请求验证入口无效');
+    if(guard!==undefined&&typeof guard!=='function')throw Error('恢复来源验证入口无效');
+    const check=()=>{if(signal?.aborted)throw signal.reason??new DOMException('恢复已取消','AbortError');guard?.();};
+    check();
+    // TaskService shares concurrent lookups. A new guarded caller must not
+    // join a lookup whose beforeRestore hook belongs to another caller.
+    if((guard||verifyRequest)&&service.recoveries.has(id))throw Error('原任务正在查询，请等待完成后再验证恢复');
+    return service.recover(id,{signal,beforeRestore:async job=>{
+      check();const captured=JSON.stringify(job.request);
+      if(verifyRequest&&await verifyRequest(job.request,job)!==true)throw Error('原任务请求已变化，未应用结果');
+      check();if(JSON.stringify(job.request)!==captured)throw Error('原任务在验证期间已变化，未应用结果');
+      if(job.recovered||job.request.parameters?.workflowRecovery){job.recovered=true;if(job.recoveryMode!=='workflow_existing'){job.applicationStatus='awaiting_recovery_application';job.applied=false;}}
+    }});
+  }
   async function applyRecovered(id,mode,sourceId){
     const job=service.jobs.get(id);if(!job?.recovered)throw Error('请先恢复页面刷新前的任务');
     if(job.request.parameters?.workflowRecovery)throw Error('持久工作流结果只能由原分组恢复到原节点');
@@ -434,7 +458,8 @@
     document.body.append(d);d.oncancel=event=>{if(saving)event.preventDefault();};d.onclose=()=>{key.value='';d.remove();if(returnFocus?.isConnected)returnFocus.focus?.();};d.showModal();
     const revision=++viewRevision;serverConfiguration=refreshServerConfiguration();serverConfiguration.then(metadata=>showConfiguration(metadata,revision));
   }
-  function runInPlace(request,{guard,dispatchGuard,type,didApply,patch,apply,applyBatch,beforeApply,onApplied,restoredProposal},{signal,onSubmitted,onPrepared}={}){
+  function runInPlace(request,{guard,dispatchGuard,verifyRequest,type,didApply,patch,apply,applyBatch,beforeApply,onApplied,restoredProposal},{signal,onSubmitted,onPrepared}={}){
+    if(verifyRequest!==undefined&&typeof verifyRequest!=='function')throw Error('结果请求验证入口无效');
     const projectId=(beforeApply||onApplied)?app.projectIdentity().id:undefined;
     let abort;const checkedGuard=()=>{if(signal?.aborted)throw new DOMException('Aborted','AbortError');if(projectId!==undefined&&app.projectIdentity().id!==projectId)throw Error('工作流项目已变化');guard();};
     const checkedDispatchGuard=()=>{checkedGuard();dispatchGuard?.();};
@@ -442,7 +467,7 @@
       checkedDispatchGuard();
       let acknowledge,failAcknowledgement;
       const receipt=new Promise((ready,failed)=>{acknowledge=ready;failAcknowledgement=failed;});receipt.catch(()=>{});
-      const job=submitJob(request,{beforeDispatch:checkedDispatchGuard,beforeDispatchReady:()=>receipt,beforeTransportReady:async()=>{checkedDispatchGuard();await onPrepared?.(job);checkedDispatchGuard();}});inPlace.set(job.id,{guard:checkedGuard,type,didApply,patch,apply,applyBatch,beforeApply,onApplied,restoredProposal,projectId,resolve,reject});
+      const job=submitJob(request,{beforeDispatch:checkedDispatchGuard,beforeDispatchReady:()=>receipt,beforeTransportReady:async()=>{checkedDispatchGuard();await onPrepared?.(job);checkedDispatchGuard();}});inPlace.set(job.id,{guard:checkedGuard,verifyRequest,type,didApply,patch,apply,applyBatch,beforeApply,onApplied,restoredProposal,projectId,resolve,reject});
       const failed=error=>{failAcknowledgement(error);reject(error);service.cancel(job.id);};
       try{Promise.resolve(onSubmitted?.(job)).then(acknowledge,failed);}catch(error){failed(error);return;}
       abort=()=>service.cancel(job.id);signal?.addEventListener('abort',abort,{once:true});if(signal?.aborted)abort();

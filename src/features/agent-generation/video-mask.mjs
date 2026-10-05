@@ -12,8 +12,8 @@ export function captureAgentVideoMaskApproval(args,{app,signal}={}){
  const nodes=app.getState().nodes,node=nodes.find(value=>value.id===args.nodeId),referenceNode=args.kind==='video.replace'?nodes.find(value=>value.id===args.referenceIds?.[0]):null;
  if(node?.type!=='video'||!sourceOf(node))throw Error('视频蒙层编辑需要真实来源视频节点');
  const reference=referenceNode?{nodeId:referenceNode.id,url:referenceNode.fullImage||referenceNode.image}:undefined;
- const bound=sourceGuard(app,node,{signal,sourceOf,maskAsset:node.videoMask?.asset??null,reference,referenceNode}),metadata=metadataOf(node,referenceNode);
- const guard=()=>{bound();if(metadataOf(node,referenceNode)!==metadata)throw Error('已确认的视频蒙层或替换图片选区已变化，请重新提交');};guard();return guard;
+ const bound=sourceGuard(app,node,{signal,sourceOf,maskAsset:node.videoMask?.asset??null,reference,referenceNode}),metadata=metadataOf(node,referenceNode),argumentsSnapshot=JSON.stringify(args);
+ const guard=(candidate=args)=>{bound();if(metadataOf(node,referenceNode)!==metadata)throw Error('已确认的视频蒙层或替换图片选区已变化，请重新提交');if(JSON.stringify(candidate)!==argumentsSnapshot)throw Error('已确认的视频蒙层编辑参数已变化，请重新提交');};guard();return guard;
 }
 
 async function readSavedMask(asset,{localAssets,fetchImpl,signal,guard}){
@@ -36,7 +36,7 @@ async function readSavedMask(asset,{localAssets,fetchImpl,signal,guard}){
 // temporal mask; it never segments a rectangle or substitutes a single frame.
 export async function submitAgentVideoMask(args,{app,api,localAssets=globalThis.LocalAssets,fetchImpl=(...values)=>fetch(...values),signal,onSubmitted,approvedConfiguration,approvalGuard}={}){
  if(!agentVideoMaskKinds.includes(args.kind)||args.prompt!==''||Object.keys(args).some(key=>!['kind','nodeId','prompt','referenceIds','count'].includes(key))||args.count!==undefined&&args.count!==1)throw Error('视频蒙层编辑只接受固定单结果及空提示词，不忽略额外参数');
- if(typeof approvalGuard!=='function')throw Error('视频蒙层编辑缺少审批来源守卫');approvalGuard();
+ if(typeof approvalGuard!=='function')throw Error('视频蒙层编辑缺少审批来源守卫');approvalGuard(args);
  const node=app.getState().nodes.find(value=>value.id===args.nodeId),source=sourceOf(node),saved=node?.videoMask;
  if(node?.type!=='video'||!source)throw Error('视频蒙层编辑需要真实来源视频节点');
  if(node.trim!=null)throw Error('当前trim选段不受支持，请先保存为实际视频或使用合法clip后重新识别蒙层');
@@ -51,7 +51,7 @@ export async function submitAgentVideoMask(args,{app,api,localAssets=globalThis.
  const reference=referenceNode?{nodeId:referenceNode.id,url:referenceNode.fullImage||referenceNode.image}:undefined;
  const bound=sourceGuard(app,node,{signal,sourceOf,maskAsset:saved.asset,reference,referenceNode});
  const snapshot=()=>metadataOf(node,referenceNode),metadata=snapshot();
- const guard=()=>{approvalGuard();bound();if(snapshot()!==metadata)throw Error('保存蒙层或替换图片选区已变化，请重新提交');};
+ const guard=()=>{approvalGuard(args);bound();if(snapshot()!==metadata)throw Error('保存蒙层或替换图片选区已变化，请重新提交');};
  if(typeof approvedConfiguration!=='string'||typeof api.configurationSnapshot!=='function')throw Error('视频蒙层编辑缺少已批准供应商配置的派发守卫');
  if(approvedConfiguration==='null')return {nodeId:node.id,status:'configuration_required',error:'无法确认视频蒙层编辑供应商配置，请连接已配置的任务服务后重新提交'};
  // TaskService validates sources synchronously before/after input preparation

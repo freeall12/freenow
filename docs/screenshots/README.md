@@ -139,3 +139,12 @@ ElevenLabs Music 的正式参数、生成、播放和刷新已完成浏览器交
 四张均通过当前标签的CDP原生JPEG截图取得完整页面像素，没有viewport覆盖、缩放修改或生成式修图。各origin保留当时实际浏览器缩放，未将异常放大的常规截图冒充正常画幅。QA控制数据及图像均为公开合成素材；没有私人会话或Key。
 
 复现先运行`node scripts/build-agent-video-mask-fixture.cjs`或`node src/features/video-mask/qa/native-server.cjs`，使用不同session的隔离数据库；具体交互和供应商边界见[本批验收](../LOCAL-VIDEO-MASK-AGENT-20261005.md)。
+
+## 2026-10-05 皮肤编辑与 Agent
+
+| 文件 | 来源与实际范围 |
+| --- | --- |
+| [正式皮肤编辑结果和面板](image-skin-result-panel-20261005.jpg) | `src/features/image-skin/qa/server.cjs` 的pipeline/agent隔离宿主，正式增强节点、原400×176控件；PNG是合成供应商回复，不代表皮肤效果 |
+| [Agent皮肤审批](agent-skin-approval-20261005.jpg) | 同页真实Agent确认卡：重度警告、完整来源、新增强节点及网关条件；确认前零POST，批准后验证持久回执和真实本地归档 |
+
+两图均从原生完整截图按实测DOM坐标矩形裁出，保留完整控件及邻近内容。没有修改CSS/viewport、拼接或生成式修图；原截图因浏览器缩放附带大面积空白。源图、回复、任务与会话均为隔离合成数据，无真实Key或用户素材。[本批实机记录](../LOCAL-SKIN-AGENT-20261005.md)。

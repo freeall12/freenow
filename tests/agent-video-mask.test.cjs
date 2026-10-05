@@ -82,3 +82,29 @@ test('approved configuration persists through availability, mask/media preparati
 });
 
 test('fresh task service recovers original persisted ID and outputs using GET only',async t=>{const f=await fixture(t);await f.execute(input,{mode:'auto'});const original=await f.settled(),reloaded=new TaskService();reloaded.setProvider(f.service.provider);const restored=await reloaded.recover(f.persisted.submittedTaskId);assert.equal(restored.id,original.id);assert.equal(restored.recovered,true);assert.equal(restored.status,'succeeded');assert.deepEqual(restored.request.parameters.sourceClip,{start:1,end:5});assert.equal(f.posts.length,1);assert.equal(f.state.nodes.length,3);});
+
+async function actualApprovalFixture({initial=null,refreshGate,configurationGate}={}){
+ let current=initial==='missing'?{...config,configured:false,missing:['GENERATION_API_KEY']}:initial,reads=0,project='qa-project';
+ const routing=await import('../src/features/node-composer/provider-configuration.mjs'),localProvider={},service={provider:localProvider,jobs:new Map()};
+ const configContext={AbortSignal,structuredClone,serverConfigured:false,serverConfigurationSnapshot:null,serverConfigurationRevision:0,localProvider,service,providerConfigurationReady:Promise.resolve(routing),taskNativeConfigurations:new Map(),taskConfigurationIds:new Map(),fetch:async url=>{assert.equal(url,'/api/generation/config');reads++;if(reads>1&&refreshGate)await refreshGate.promise;return Response.json(current);}};
+ const configStart=ui.indexOf('  function refreshServerConfiguration('),configEnd=ui.indexOf('  function submitJob(',configStart);
+ vm.runInNewContext(ui.slice(configStart,configEnd)+'\nthis.api={availability,configuration,configurationSnapshot};',configContext);
+ assert.deepEqual(await configContext.api.configuration(),current);current=config;
+ const controller=new AbortController(),source={id:'source',type:'video',video:'asset:video',clip:{start:1,end:5},videoMask:{source:'asset:video',clip:'{"start":1,"end":5}',asset:'asset:mask',time:2,width:320,height:180,duration:8}},replacement={id:'replacement',type:'image',image:'asset:thumbnail',fullImage:'asset:full'},state={nodes:[source,replacement],edges:[]},app={getState:()=>state,projectIdentity:()=>({id:project})},run={},d={activeRun:null};d.activeRun=run;let active=d;
+ const api={...configContext.api,configuration:async()=>{const value=await configContext.api.configuration();if(configurationGate)await configurationGate.promise;return value;},runInPlace:()=>assert.fail('approval must not create tasks')};
+ const context={app,call:{name:'generation_submit',args:structuredClone(input)},runController:controller,d,run,draft:()=>active,window:{GenerationAPI:api,LocalAssets:{url:()=>assert.fail('approval must not read media')}},DOMException,modules:name=>import(path.join(root,name))};
+ const start=client.indexOf("     if(call.name==='generation_submit'&&['video.erase','video.replace'].includes(call.args.kind)){"),end=client.indexOf("     if(call.name==='generation_submit'&&call.args.kind==='image.relight'){",start),fragment=client.slice(start,end).replace(/await import\('([^']+)'\)/g,(_all,name)=>'await modules('+JSON.stringify(name)+')');
+ vm.runInNewContext('async function prepare(){let videoMaskNotice,videoMaskConfiguration,videoMaskApprovalGuard;'+fragment+'return {videoMaskNotice,videoMaskConfiguration,videoMaskApprovalGuard};}',context);
+ return {prepare:context.prepare,source,replacement,state,controller,call:context.call,service,get reads(){return reads;},setProject:value=>project=value,switchChat:()=>active={},switchRun:()=>d.activeRun={},snapshot:configContext.api.configurationSnapshot};
+}
+test('actual video-mask approval refreshes null or missing cached configuration before disclosure',async()=>{
+ for(const initial of [null,'missing']){const f=await actualApprovalFixture({initial}),approved=await f.prepare();assert.deepEqual(JSON.parse(approved.videoMaskConfiguration),config);assert.deepEqual(f.snapshot(),config);assert.equal(f.reads,2);assert.match(approved.videoMaskNotice,/独立替代.*Wan VACE/);assert.equal(f.service.jobs.size,0);}
+});
+test('actual video-mask approval guards arguments, source and active conversation at each configuration await',async()=>{
+ for(const phase of ['refreshGate','configurationGate'])for(const mutation of ['same-id','source','clip','mask','replacement','project','chat','run','arguments','cancel']){
+  const gate=deferred(),f=await actualApprovalFixture({[phase]:gate}),pending=f.prepare();await tick();
+  if(mutation==='same-id')f.state.nodes[0]={...f.source};else if(mutation==='source')f.source.video='asset:changed';else if(mutation==='clip')f.source.clip.end=6;else if(mutation==='mask')f.source.videoMask.time=3;else if(mutation==='replacement')f.replacement.fullImage='asset:changed';else if(mutation==='project')f.setProject('other');else if(mutation==='chat')f.switchChat();else if(mutation==='run')f.switchRun();else if(mutation==='arguments')f.call.args.kind='video.erase';else f.controller.abort();
+  gate.resolve();await assert.rejects(pending);assert.equal(f.service.jobs.size,0);
+ }
+ const f=await actualApprovalFixture();f.switchChat();await assert.rejects(f.prepare(),{name:'AbortError'});assert.equal(f.reads,1,'changed conversation must fail before configuration refresh');
+});
