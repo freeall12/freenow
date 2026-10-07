@@ -5,22 +5,26 @@ const path = require('node:path');
 const os = require('node:os');
 const {randomUUID} = require('node:crypto');
 const {createDesktopFilesBridge} = require('./files-bridge.cjs');
+const {createExternalAgentBridge} = require('./external-agent.cjs');
 const {ORIGIN, PORT, PARTITION, serverEnvironment, isLocalNavigation, providerTemplate} = require('./runtime-config.cjs');
 
 const filesQa = !app.isPackaged && process.argv.includes('--freenow-files-qa');
-const qaDirectory = filesQa ? require('node:fs').mkdtempSync(path.join(os.tmpdir(), 'freenow-desktop-files-qa-')) : null;
-if (qaDirectory) {
+const sourceMode = !app.isPackaged && process.argv.includes('--freenow-source');
+const externalAgentQa = !app.isPackaged && process.argv.includes('--freenow-external-agent-qa');
+const externalQaOptions = externalAgentQa ? require('./external-agent-qa.cjs').externalAgentQaOptions(process.argv, os.tmpdir()) : null;
+const qaDirectory = externalQaOptions?.directory || (filesQa ? require('node:fs').realpathSync(require('node:fs').mkdtempSync(path.join(os.tmpdir(), 'freenow-desktop-qa-'))) : null);
+if (filesQa) {
   const local = require('node:fs'); local.mkdirSync(path.join(qaDirectory, 'authorized'));
   local.writeFileSync(path.join(qaDirectory, 'authorized/one.txt'), 'QA one\n'); local.writeFileSync(path.join(qaDirectory, 'authorized/two.txt'), 'QA two\n');
   console.log('Desktop files QA folder: ' + path.join(qaDirectory, 'authorized'));
 }
 app.setName('freenow');
 app.setPath('userData', qaDirectory || path.join(app.getPath('appData'), 'freenow-desktop'));
-let window, backend, stopping, quitAllowed = false, backendReady = false;
+let window, backend, externalAgent, stopping, quitAllowed = false, backendReady = false;
 let windowCloseAllowed = false, transition;
 let everEditable = false;
 let pageCommitted = false, initialLoadFailed = false, closingInput = false;
-const runtimeRoot = () => app.isPackaged ? path.join(process.resourcesPath, 'runtime') : filesQa ? path.resolve(__dirname, '..') : path.resolve(__dirname, '../build/desktop/runtime');
+const runtimeRoot = () => app.isPackaged ? path.join(process.resourcesPath, 'runtime') : filesQa || sourceMode ? path.resolve(__dirname, '..') : path.resolve(__dirname, '../build/desktop/runtime');
 const providerFile = () => path.join(app.getPath('userData'), 'providers.env');
 const showError = message => dialog.showErrorBox('freenow', message);
 const fileRequests = new Map();
@@ -38,7 +42,7 @@ const desktopFiles = createDesktopFilesBridge({ipcMain, dialog, getWindow: () =>
 async function startBackend() {
   const dataDirectory = app.getPath('userData');
   await fs.mkdir(dataDirectory, {recursive: true, mode: 0o700});
-  try {await fs.writeFile(providerFile(), providerTemplate(await fs.readFile(path.join(runtimeRoot(), filesQa ? '.env.example' : 'provider.env.example'), 'utf8')), {flag: 'wx', mode: 0o600});}
+  try {await fs.writeFile(providerFile(), providerTemplate(await fs.readFile(path.join(runtimeRoot(), filesQa || sourceMode ? '.env.example' : 'provider.env.example'), 'utf8')), {flag: 'wx', mode: 0o600});}
   catch (error) {if (error.code !== 'EEXIST') throw error;}
   const stat = await fs.lstat(providerFile());
   if (!stat.isFile() || stat.isSymbolicLink() || stat.size > 256 * 1024) throw Error('接口配置必须是小于256KB的本地普通文件。');
@@ -73,7 +77,8 @@ async function startBackend() {
 }
 async function stopBackend() {
   if (stopping) return stopping;
-  if (!backend) return;
+  const closingExternal = externalAgent?.close({keepHandler: true}); externalAgent = undefined;
+  if (!backend) return closingExternal;
   stopping = new Promise((resolve, reject) => {
     const child = backend;
     let timeout, forced = false;
@@ -88,7 +93,7 @@ async function stopBackend() {
       if (code === 0 || forced) resolve();
       else reject(Object.assign(Error('本地后台关闭未确认'), {code: 'desktop_shutdown_unconfirmed'}));
     });
-    child.postMessage({type: 'freenow-shutdown'});
+    Promise.resolve(closingExternal).then(() => {if (backend !== child) resolve(); else child.postMessage({type: 'freenow-shutdown'});}, reject);
   });
   return stopping;
 }
@@ -158,6 +163,8 @@ function createWindow() {
   window.webContents.on('did-navigate', (_event, url) => {if (isLocalNavigation(url)) pageCommitted = true;});
   window.webContents.on('will-navigate', (event, url) => {event.preventDefault(); if (isLocalNavigation(url)) void prepareTransition(owner => owner.loadURL(url));});
   window.webContents.on('will-attach-webview', event => event.preventDefault());
+  window.webContents.on('did-start-navigation', (_event, _url, _inPlace, isMainFrame) => {if (isMainFrame) externalAgent?.invalidate();});
+  window.webContents.on('render-process-gone', () => externalAgent?.invalidate());
   window.webContents.on('will-prevent-unload', event => {
     // Keep the original canvas open when it reports unfinished edits.
     const result = dialog.showMessageBoxSync(window, {type: 'warning', buttons: ['留在画布', '仍然关闭'], defaultId: 0, cancelId: 0, message: '画布仍有未确认的保存，继续关闭可能丢失修改。'});
@@ -175,19 +182,24 @@ function createWindow() {
     void prepareTransition(async owner => {await stopBackend(); destroySavedWindow(owner);}, {closing: true});
   });
   window.once('ready-to-show', () => window.show());
-  window.on('closed', () => {void desktopFiles.revoke().catch(() => {}); window = undefined;});
+  window.on('closed', () => {externalAgent?.invalidate(); void desktopFiles.revoke().catch(() => {}); window = undefined;});
   Menu.setApplicationMenu(Menu.buildFromTemplate([
     {label: 'freenow', submenu: [{role: 'about'}, {type: 'separator'}, {label: '模型接口配置…', click: openProviderFile}, {label: '授权 Agent 整理本地文件夹…', click: () => desktopFiles.authorize().catch(error => showError(error.message))}, {label: '撤销本地文件夹授权', click: () => desktopFiles.revoke().catch(error => showError(error.message))}, {label: '查看文件操作回执', click: async () => {try {const state = await desktopFiles.status(); await dialog.showMessageBox(window, {type: 'info', buttons: ['关闭'], message: state.authorized ? state.displayPath : '尚未授权文件夹', detail: state.batches.map(p => `${p.batchId} · ${p.status} · ${p.reason || ''} · 回滚异常 ${p.rollbackErrors.length}`).join('\n') || '暂无操作批次'});} catch (error) {showError(error.message);}}}, {label: '打开数据目录', click: () => shell.openPath(app.getPath('userData'))}, {type: 'separator'}, {role: 'hide'}, {role: 'quit'}]},
     {role: 'editMenu'},
+    {label: 'Agent', submenu: [{label: '连接外部 Agent…', click: () => externalAgent?.openPanel()}]},
     {label: '视图', submenu: [{label: '重新加载', accelerator: 'CmdOrCtrl+R', click: () => prepareTransition(owner => owner.webContents.reload())}, {role: 'toggleDevTools'}, {role: 'resetZoom'}, {role: 'zoomIn'}, {role: 'zoomOut'}, {role: 'togglefullscreen'}]},
     {role: 'windowMenu'},
   ]));
-  window.loadURL(ORIGIN + (filesQa ? '/src/features/desktop-files/qa/index.html' : '')).then(() => {pageCommitted = true;}).catch(() => {initialLoadFailed = true; showError('本地画布未能加载。请检查后台是否正常运行。');});
+  window.loadURL(ORIGIN + (filesQa ? '/src/features/desktop-files/qa/index.html' : externalQaOptions?.project ? '/?project=' + encodeURIComponent(externalQaOptions.project) : '')).then(() => {pageCommitted = true;}).catch(() => {initialLoadFailed = true; showError('本地画布未能加载。请检查后台是否正常运行。');});
 }
 if (!app.requestSingleInstanceLock()) app.quit();
 else {
   app.on('second-instance', () => {if (window?.isMinimized()) window.restore(); window?.focus();});
-  app.whenReady().then(async () => {await startBackend(); createWindow();}).catch(async () => {showError(`freenow 启动失败。请检查端口 ${PORT}、providers.env 和数据目录；没有连接其他本地项目。`); await stopBackend().catch(() => showError('本地后台关闭未确认，请在下次启动查询原任务并检查数据目录。')); quitAllowed = true; app.quit();});
+  app.whenReady().then(async () => {
+    await startBackend();
+    externalAgent = createExternalAgentBridge({ipcMain, dialog, getWindow: () => window, isAvailable: () => backendReady && !transition && !closingInput, directory: path.join(app.getPath('userData'), 'external-agent'), runtimeRoot: runtimeRoot(), executable: process.execPath});
+    await externalAgent.start(); createWindow();
+  }).catch(async () => {showError(`freenow 启动失败。请检查端口 ${PORT}、providers.env 和数据目录；没有连接其他本地项目。`); await stopBackend().catch(() => showError('本地后台关闭未确认，请在下次启动查询原任务并检查数据目录。')); quitAllowed = true; app.quit();});
   app.on('activate', () => {if (backendReady && !window) createWindow();});
   app.on('window-all-closed', () => app.quit());
   app.on('before-quit', event => {

@@ -10,7 +10,9 @@
 
 2026-10-08 菜单/片场/应用/桌面补充：[画布菜单](canvas-command-menu-audit-20261008.md)开关、Tab/回焦、真实焦点导航与文本创建已实机验；撤销/重做需主画布焦点，dock `+` 焦点不响应。[GLB片场v2标签](STUDIO-V2-PANEL-KEYBOARD-20261008.md)方向键/首尾、Tab进入及修饰键/右键保护已接通并实机验证。[人物情绪](../src/features/agent-apps/ACTOR-EMOTION.md)确认等待保存、关闭失败保页及刷新恢复已验真实灰模和一次交接；全部鼠标路径、严格350ms内确认及完整失败重试组合仍未验。[桌面单目录文件整理](DESKTOP-FILES-20261008.md)已实现并在最新源码Electron验原生授权/三项确认、有效单项取消与目录移动拒绝；仅普通文件移动/重命名，这项源码功能不在已公开642d3db Alpha内。完整SDK/实机回滚及恶意祖先路径TOCTOU仍开放。
 
-**仍缺实际实现：** [外部Agent MCP](research/EXTERNAL-AGENT-MCP-GAP-20261008.md)的传输、客户端授权和工作区绑定；现有iframe Apps/Responses工具不能替代，stdio/私有broker只是提案。安装包0.4.81第三代`ThreeDWorkspace`导演/entity菜单也仍缺本地独立生产入口与来源身份/事务映射；当前GLB v2标签验收不能关闭该缺口，亦未将这些非营销功能排除范围。
+同日新增：[帮助五菜单与离线教程](CANVAS-HELP-20261008.md)、原始手势GIF和21行快捷键面板已实现，实机开关/回焦/章节与窄屏目录已验；[快捷键接线](CANVAS-SHORTCUTS-20261008.md)累计10项专项，取消后残留AbortSignal已修，Cmd+A→G→Z、J开关/输入区让出、I→Escape实机通过。全部断点/帮助正文、真实麦克风/转写、硬件触控板与全部组合仍未验。
+
+[本机外部Agent MCP第一阶段](../src/features/external-agent/README.md)已实现stdio/私有socket、逐客户端原生批准与当前项目元数据绑定；累计21项定向通过，真实桌面生产链读取两工具、刷新撤权、pending焦点/Tab循环及最新关闭守卫正常退出已验。不能再列为完全未实现；[先前研究](research/EXTERNAL-AGENT-MCP-GAP-20261008.md)保留的是当时缺口及官方远端服务来源。**仍缺实际实现：** 外部写入/生成/结果回填、媒体像素/素材库/OS文件、OAuth/云端HTTP连接器；独立第三方Agent完整配置仍未验，当前源码接入不在旧Alpha包内。官方导演工作区和独立GLB编辑器并存；本地V3领域内核在实施，独立生产Workspace/菜单仍未交付，GLB v2标签验收不能关闭该缺口。V3是本项目代际名而非官方产品3.0，见[实现映射](research/STUDIO-V3-IMPLEMENTATION-MAP-20261008.md)；非营销功能仍在范围内。
 
 2026-10-08 补充：[音频空白拖动](AUDIO-PLAYER-GESTURES-20261008.md)、[普通节点直接标题编辑](../src/features/canvas-node-titles/README.md)和[搜索焦点 Enter](CANVAS-SEARCH-KEYBOARD-20261008.md)已接入并按各自范围实机验证，不能继续列为未实现。标题控件首次选中才创建，减少 DOM 开销但不证明整体 FPS。模板编辑器已有本标签页草稿和冲突保护，保存失败保留/实际回读已验；刷新恢复仍仅有定向检查，[来源复查](research/agent-template-source-followup-20261008.md)未新增92份精确正文。
 

@@ -44,6 +44,8 @@ pnpm desktop:dev
 
 The desktop uses `127.0.0.1:4183` and a separate user data directory. Its backend reads `providers.env`; FFmpeg / FFprobe remain external requirements. The command prepares a separate runtime directory: recognized old staging is archived automatically, while unrecognized directories are not overwritten. See the [desktop guide](docs/DESKTOP.md) for the rules and version limits.
 
+Current source adds [local external-agent MCP access](src/features/external-agent/README.md) and [authorized-folder organization](docs/DESKTOP-FILES-20261008.md), both requiring native approval. The published Alpha does not include these additions. MCP access supports clients that can start a local stdio process and reads only current canvas metadata; writes, generation/result application, media/assets, and cloud HTTP connectors are not implemented.
+
 ## Features
 
 | Workspace | Implemented capabilities | Requirements and limits |
@@ -54,8 +56,11 @@ The desktop uses `127.0.0.1:4183` and a separate user data directory. Its backen
 | 3D studio | GLB, SPZ Gaussian Splatting, LOD, object/camera transforms, camera motion, photos, short video, save/recovery | Local WebGL; Gaussian scenes cannot be fully exported as GLB |
 | Creative agent | Canvas/studio tools, attachments, skills, creative apps, read-only subtasks, DAG orchestration | A model supporting the required Responses API and tool calls |
 | Workflows and recovery | Dependency execution, durable receipts, original-task queries, explicit continuation, save guards | Unknown outcomes are not automatically resubmitted |
+| External agent (desktop source) | Local MCP connection, native approval, two current-canvas metadata tools, reload revocation | Local stdio clients; no writes, generation, media, or cloud connectors; not included in the published Alpha |
 
 Model menus, adapter implementations, and app registrations describe different scopes. Real provider output quality requires separate validation. [Detailed features and adapters](docs/FEATURES.md) · [Verification evidence](docs/VERIFICATION-INDEX.md)
+
+Canvas help provides local updates, an offline guide, agent connection, feedback, and shortcuts. The [help and original gesture GIFs](docs/CANVAS-HELP-20261008.md) and [actual shortcut mapping](docs/CANVAS-SHORTCUTS-20261008.md) document verified behavior. Real microphone/transcription and every hardware-input combination remain unverified.
 
 ## Minimal API setup
 

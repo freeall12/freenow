@@ -12,10 +12,11 @@ freenow 是本地 AI 创作工作台：无限画布、图片/音视频工具、3
 | 下载、运行或构建 Electron 桌面预发布 | [macOS arm64 Alpha](https://github.com/freeall12/freenow/releases/tag/v0.1.0-alpha.1)、[桌面指南](DESKTOP.md)；固定 4183、独立用户目录、外部 FFmpeg，未签名/公证；ZIP、包内后台和实际安装包退出重开恢复已核验 |
 | 用桌面源码整理授权文件夹 | [原生授权、整批确认与回执](DESKTOP-FILES-20261008.md)；仅子目录创建和普通文件移动/重命名，不在现有 Alpha 包内 |
 | 新建与切换画布项目 | [画布项目](CANVAS-PROJECTS.md) |
+| 使用画布帮助、离线教程与快捷键 | [五项帮助入口](CANVAS-HELP-20261008.md)、[实际快捷键与验证](CANVAS-SHORTCUTS-20261008.md) |
 | 使用图片、视频、音频或 3D 生成 | [多供应商配置](MULTI-PROVIDER-SETUP.md)、[功能与适配器](FEATURES.md) |
 | 把本地 MP4 交给 Ark 生成、延长或重拍 | [独立 fal 发布配置](ARK-LOCAL-VIDEO-PUBLICATION-20261008.md)，需要独立 fal Key 与显式型号映射；不会复用 Ark Key |
 | 连接创作 Agent | [Agent API](AGENT-API.md)、[本地编辑工具](AGENT-LOCAL-EDITING-20261003.md)、[片场控制](AGENT-STUDIO-LOCAL-CONTROLS.md) |
-| 让外部 Agent 连接 freenow | [外部 MCP 缺口与提案](research/EXTERNAL-AGENT-MCP-GAP-20261008.md)；当前没有外部 MCP 传输/客户端授权，内嵌 Apps 不代表外部连接 |
+| 让外部 Agent 读取当前画布 | [桌面源码MCP连接与原生批准](../src/features/external-agent/README.md)；本机stdio、两项只读元数据工具，不含写入/生成/素材/云连接器或现有Alpha包 |
 | 理解数据位置、迁移和恢复 | [本地数据与运行](LOCAL-STORES-AND-RUNTIME-20261003.md)、[素材库容量与冲突](LIBRARY-LOCAL-CAPACITY-20261005.md)、[Agent 存储](AGENT-STORAGE.md) |
 | 找真实界面及复现方法 | [截图索引](screenshots/README.md)、[验收证据索引](VERIFICATION-INDEX.md) |
 
@@ -27,6 +28,7 @@ freenow 是本地 AI 创作工作台：无限画布、图片/音视频工具、3
 | 修改生成路由、预检或结果归档 | [生成网关](GENERATION-GATEWAY.md)、[路由合同](generation-routing-contract.md)、[预检](GENERATION-PREFLIGHT-READINESS-20261003.md)、[媒体归档](GENERATION-MEDIA-MATERIALIZER-20261003.md) |
 | 修改 Agent 检查点或继续执行 | [服务端会话](AGENT-SESSION-STORE.md)、[存储](AGENT-STORAGE.md)、[恢复合同](agent-stored-continuation.md) |
 | 修改内嵌创作应用 | [本地生成合同](agent-apps-local-generation-contract.md)、[应用目录与历史](HISTORICAL-APPS-AND-NATIVE-TTS-20261003.md) |
+| 核对导演工作区与GLB片场的版本边界 | [下一代实现映射](research/STUDIO-V3-IMPLEMENTATION-MAP-20261008.md)；官方两入口并存，本地领域内核实施中，不等于独立生产Workspace交付 |
 | 核对出站和公开文件边界 | [运行边界](LOCAL-RUNTIME-BOUNDARIES-20261003.md)、[依赖审计](RUNTIME-DEPENDENCY-AUDIT-20261003.md)、[公开仓库检查](PUBLIC-REPOSITORY-AUDIT-20261004.md) |
 | 理解许可与第三方资源 | [第三方来源](THIRD-PARTY-RESOURCES.md)；当前没有覆盖全部内容的统一许可证 |
 
@@ -40,6 +42,8 @@ freenow 是本地 AI 创作工作台：无限画布、图片/音视频工具、3
 **本批验证：** [音频空白拖动](AUDIO-PLAYER-GESTURES-20261008.md)、[普通节点标题](../src/features/canvas-node-titles/README.md)、[搜索焦点确认](CANVAS-SEARCH-KEYBOARD-20261008.md)已按各自范围完成 Computer Use；标题控件懒创建减少未选中节点 DOM。[模板草稿](research/agent-template-source-followup-20261008.md)的失败保留与真实保存回读已验，刷新恢复仍只有定向检查。前批[桌面 Alpha](releases/DESKTOP-ALPHA-VERIFICATION-20261007.md)已公开且实际包退出重开恢复通过。范围见[当前状态](STATUS.md)，专项记录不等于全站已完成。
 
 同批新增[画布菜单](canvas-command-menu-audit-20261008.md)、[GLB 片场 v2 标签](STUDIO-V2-PANEL-KEYBOARD-20261008.md)、[人物情绪确认/关闭](../src/features/agent-apps/ACTOR-EMOTION.md)和[桌面源码文件整理](DESKTOP-FILES-20261008.md)的定向及实机证据；完整范围与限制见[验收索引](VERIFICATION-INDEX.md)，图片来源见[截图索引](screenshots/README.md)。
+
+[帮助与离线教程](CANVAS-HELP-20261008.md)、[实际快捷键](CANVAS-SHORTCUTS-20261008.md)及[本机外部MCP只读连接](../src/features/external-agent/README.md)已补当前源码实机记录；后者贯通原生批准、生产画布元数据读取和刷新撤权，不能推广成写操作、云端连接器或商业Agent产品全部配置已验。
 
 ## 文档组织约定
 

@@ -1,4 +1,5 @@
 import {icons} from './icons.mjs';
+import {canvasOwned} from '../canvas-shortcuts/scope.mjs';
 import {token, splitPrompt, replaceMark, detections, point} from './model.mjs';
 import {paintPrompt, readPrompt, bindPrompt} from './prompt.mjs';
 import {previewTooltips} from '../world-node/preview-tooltips.mjs';
@@ -149,13 +150,14 @@ export function active() {return !!session;}
 document.addEventListener('canvas:render', draw);
 document.addEventListener('pointerdown', event => {if (!event.target.closest('.focus-candidates,.focus-mark-actions')) closeMenu();});
 document.addEventListener('keydown', event => {
-  if (event.target.closest('input,textarea,[contenteditable="true"]')) return;
-  if (event.code === 'Space') space = true;
+  if (!canvasOwned(event, document, {allowFocus: true})) return;
+  if (event.code === 'Space' && !event.altKey && !event.shiftKey) space = true;
   if (session && event.key === 'Escape') {event.preventDefault(); event.stopImmediatePropagation(); finish();}
-  else if (!session && (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'i') {event.preventDefault(); event.stopImmediatePropagation(); const selected = app.getState().selected; if (selected.length !== 1) app.notify('请选择一个图片或视频节点'); else toggle(selected[0]);}
+  else if (!session && !event.repeat && !event.altKey && !event.shiftKey && (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'i') {event.preventDefault(); event.stopImmediatePropagation(); const selected = app.getState().selected; if (selected.length !== 1) app.notify('请选择一个图片或视频节点'); else toggle(selected[0]);}
 }, true);
 document.addEventListener('keyup', event => {if(event.code==='Space')space=false;});
 window.addEventListener('blur',()=>{space=false;});
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')space=false;});
 window.addEventListener('resize',()=>session?.navigation.update());
 previewTooltips(document.body, {selector: '[data-focus-tooltip]', className: 'image-panorama-tooltip'});
 

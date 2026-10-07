@@ -7,4 +7,10 @@ if (location.origin === 'http://127.0.0.1:4183' && window === window.top) {
     invoke(method, args, requestId) {return ipcRenderer.invoke('freenow:desktop-files', {method, args, ...(requestId ? {requestId} : {})});},
     cancel(requestId) {return ipcRenderer.invoke('freenow:desktop-files', {method: 'cancel-request', requestId});},
   }));
+  const listen = (channel, callback) => {const listener = (_event, value) => callback(value); ipcRenderer.on(channel, listener); return () => ipcRenderer.removeListener(channel, listener);};
+  contextBridge.exposeInMainWorld('FreenowExternalAgent', Object.freeze({
+    invoke(method, args = {}) {return ipcRenderer.invoke('freenow:external-agent', {method, args});},
+    onRequest(callback) {return listen('freenow:external-agent:request', callback);},
+    onOpen(callback) {return listen('freenow:external-agent:open', callback);},
+  }));
 }

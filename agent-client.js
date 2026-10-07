@@ -526,6 +526,10 @@
   open();if(unsaved)notice('已切回画布对话，但本地存储未完成；请保留页面并检查存储空间。');
  }
  import('./src/features/agent-composer/shortcuts.mjs').then(({installAgentShortcut})=>installAgentShortcut(toggle)).catch(error=>notice('Agent快捷键加载失败：'+error.message));
+ import('./src/features/canvas-shortcuts/voice-hold.mjs').then(({installVoiceHold})=>installVoiceHold({
+  async start({signal,isCurrent}){await Promise.all([conversationReady,composerReady,window.CanvasLibrary?.ready?.()]);if(signal.aborted||pageLeaving||appTransition||!isCurrent())return false;open();return panel?voice({signal}):false;},
+  isRecording:()=>window.VoiceInput?.recording===true,finish:()=>window.VoiceInput.finish(),onError:error=>notice(error.message||String(error))
+ })).catch(error=>notice('语音快捷键加载失败：'+error.message));
  // Official welcome DOM and fresh-session card layout: reference/agent-welcome-official-dom-20261002.json.
  let welcomeModule=null,offset=0;
  import('./src/features/agent-welcome/suggestions.mjs').then(module=>{welcomeModule=module;if(panel&&!draft().messages.length)render();}).catch(error=>notice('创作建议加载失败：'+error.message));
@@ -644,7 +648,7 @@
   if(action==='skill-file'||action==='skill-folder'){const {readSkillPackage}=await import('./src/features/agent-manager/skill-package.mjs');return attachmentUploadModule.chooseFiles({accept:'.md,.markdown,text/markdown,text/x-markdown',multiple:action==='skill-folder',directory:action==='skill-folder',onError:error=>{if(document.querySelector('#skill-manager'))window.dispatchEvent(new CustomEvent('agent-skill-import-error',{detail:error}));else notice(error);},onFiles:files=>track(async()=>{const result=await readSkillPackage(files,{directory:action==='skill-folder',existing:[...(await catalog()),...customSkills()]});const {updatePersonalSkill}=await import('./src/features/agent-manager/skill-commit.mjs');await updatePersonalSkill({skill:result.skill,builtinNames:(await catalog()).map(skill=>skill.name)});window.dispatchEvent(new Event('agent-skills-changed'));const message='技能「'+result.skill.name+'」上传成功'+(result.skipped?'；已跳过 '+result.skipped+' 个非 Markdown 文件':'');if(document.querySelector('#skill-manager'))window.dispatchEvent(new CustomEvent('agent-skill-import-notice',{detail:message}));else{await selectAttachmentSkill(result.skill.name,nodeId);notice(message+'并添加到对话');}})});}
 
  }
- function voice(){const trigger=panel.querySelector('.agent-composer-footer [aria-label="语音输入"]'),target=composerEditor?.dom,d=draft();if(!target)return;window.VoiceInput.bind(trigger,{target,getValue:()=>composerEditor.getText(),setValue:value=>composerEditor.setText(value),isCurrent:()=>draft().id===d.id,mount:panel.querySelector('.agent-composer-footer')});trigger.click();}
+ function voice({signal}={}){const trigger=panel.querySelector('.agent-composer-footer [aria-label="语音输入"]'),target=composerEditor?.dom,d=draft();if(!target)return;window.VoiceInput.bind(trigger,{target,getValue:()=>composerEditor.getText(),setValue:value=>composerEditor.setText(value),isCurrent:()=>draft().id===d.id,mount:panel.querySelector('.agent-composer-footer'),signal});return trigger.onclick();}
 
  async function request(path,data,signal,{chat=draft(),seenCallIds}={}){
   const capturedRun=chat.activeRun;

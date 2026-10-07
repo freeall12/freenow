@@ -1,0 +1,8 @@
+.external-agent-dialog{box-sizing:border-box;width:min(680px,calc(100vw - 48px));max-height:calc(100vh - 64px);overflow:auto;margin:auto;padding:24px;background:#202020;color:#eee;border:1px solid #505050;border-radius:12px;font:14px/1.6 system-ui,sans-serif}
+.external-agent-dialog::backdrop{background:#0009}
+.external-agent-dialog header{display:flex;align-items:center;justify-content:space-between;gap:20px}
+.external-agent-dialog h2{margin:0;font-size:21px}.external-agent-dialog h3{font-size:15px;margin:22px 0 8px}
+.external-agent-dialog p{margin:14px 0}.external-agent-boundary{color:#b9b9b9;font-size:13px}
+.external-agent-dialog label{display:block;font-size:13px}.external-agent-dialog textarea{box-sizing:border-box;display:block;width:100%;resize:vertical;margin:8px 0 12px;padding:12px;background:#151515;color:#eee;border:1px solid #555;border-radius:5px;font:12px/1.5 ui-monospace,monospace;white-space:pre}
+.external-agent-dialog button{padding:7px 12px;border:1px solid #616161;border-radius:5px;color:#eee;background:#303030;font:inherit;cursor:pointer}.external-agent-dialog button:hover{background:#424242}.external-agent-dialog button:disabled{opacity:.5;cursor:default}.external-agent-dialog button:focus-visible{outline:2px solid #ebeee6;outline-offset:3px}
+.external-agent-client{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px 0;border-bottom:1px solid #444}.external-agent-client>div{min-width:0}.external-agent-client strong{display:block;overflow-wrap:anywhere}.external-agent-client small{display:block;color:#aaa}.external-agent-client button{flex-shrink:0}.external-agent-notice{min-height:24px;color:#dadbcf}

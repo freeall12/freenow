@@ -7,7 +7,7 @@ const settle = async () => {for (let i = 0; i < 4; i++) await new Promise(setImm
 const event = () => ({defaultPrevented: false, preventDefault() {this.defaultPrevented = true;}});
 
 async function boot({loadFails = false, renderer = {}, lifecycleSaved = false, backendExitCode = 0, backendExitGate, probeFails = false, navigateBeforeFailure = false} = {}) {
-  const observations = {quit: false, reloads: 0, dialogs: [], errors: [], shutdowns: 0};
+  const observations = {quit: false, reloads: 0, dialogs: [], errors: [], shutdowns: 0, externalCloses: 0};
   const lifecycle = await import('../src/features/desktop/lifecycle.mjs');
   const document = {querySelector: () => null, body: {inert: false}};
   renderer.document = document;
@@ -74,7 +74,9 @@ async function boot({loadFails = false, renderer = {}, lifecycleSaved = false, b
   const fsPromises = {mkdir: async () => {}, writeFile: async () => {}, lstat: async () => ({isFile: () => true, isSymbolicLink: () => false, size: 0}), readFile: async () => ''};
   const context = {
     __dirname: directory, process, console, setTimeout, clearTimeout,
-    require: name => name === 'electron' ? electron : name === 'node:fs/promises' ? fsPromises : name.startsWith('./') ? require(path.join(directory, name)) : require(name),
+    // Socket transport has its own real IPC/stdio acceptance. This fixture
+    // isolates main's save/close sequencing without using a stale built runtime.
+    require: name => name === 'electron' ? electron : name === 'node:fs/promises' ? fsPromises : name === './external-agent.cjs' ? {createExternalAgentBridge: () => ({start: async () => {}, invalidate() {}, openPanel() {}, close: async () => {observations.externalCloses++;}})} : name.startsWith('./') ? require(path.join(directory, name)) : require(name),
   };
   vm.runInNewContext(fs.readFileSync(path.join(directory, 'main.cjs'), 'utf8'), context, {filename: 'desktop/main.cjs'});
   await settle();
@@ -89,6 +91,7 @@ test('a first navigation failure with no editing instance can retry and Quit nor
   assert.equal(observations.reloads, 1); assert.equal(owner.isDestroyed(), false);
   app.quit(); await settle();
   assert.equal(owner.isDestroyed(), true); assert.equal(observations.shutdowns, 1); assert.equal(observations.quit, true);
+  assert.equal(observations.externalCloses, 1);
 });
 
 test('an existing CanvasApp with rejected lifecycle persistence remains open on reload and Quit', async () => {
@@ -96,6 +99,7 @@ test('an existing CanvasApp with rejected lifecycle persistence remains open on 
   await reload(); await settle(); app.quit(); await settle();
   assert.equal(observations.reloads, 0); assert.equal(owner.isDestroyed(), false);
   assert.equal(observations.shutdowns, 0); assert.equal(observations.quit, false);
+  assert.equal(observations.externalCloses, 0, 'Rejected save must preserve the active external transport');
   assert.ok(observations.dialogs.length >= 2);
 });
 

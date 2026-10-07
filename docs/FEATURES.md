@@ -20,10 +20,11 @@ freenow 是本地 AI 创作工作台（AI infinite canvas）。本文说明已�
 | Agent | 工具循环、画布/片场控制、技能、附件、创作应用、只读子任务/DAG 编排 | [接口](AGENT-API.md)、[工作流目录](AGENT-WORKFLOW-INVENTORY-20261003.md)；22 个版本 URI / 20 个功能族是登记范围，不是验收率 |
 | 工作流与恢复 | 分组依赖执行、持久回执、原任务查询、显式继续、来源与项目归属保护 | [预检](GENERATION-PREFLIGHT-READINESS-20261003.md)、[恢复](LOCAL-RECOVERY-AND-INTERACTIONS-20261003.md)；未知状态不自动重新提交 |
 | 桌面文件整理（当前源码） | 六个Agent工具、原生单目录授权/整批确认、子目录创建和普通文件移动/重命名、持久回执 | [源码指南与实机证据](DESKTOP-FILES-20261008.md)；未纳入现有Alpha包，拒绝目录移动，完整SDK/实机回滚与恶意路径竞态仍有限制 |
+| 外部Agent连接（桌面源码） | 本机MCP stdio/私有socket、原生批准、两项当前画布元数据只读工具、刷新撤权 | [实际配置与权限](../src/features/external-agent/README.md)；未纳入现有Alpha包，不含写入/生成/媒体/素材/云端HTTP连接器 |
 
 Sonilo Music、Product Kit 与导演批注的本地验证见[整批证据](LOCAL-SONILO-AGENT-AND-HISTORY-20261005.md)。固定音频/模拟响应证明本机调用、保存和播放，不能证明真实供应商生成质量。
 
-当前[画布菜单](canvas-command-menu-audit-20261008.md)、[GLB片场v2标签](STUDIO-V2-PANEL-KEYBOARD-20261008.md)与[人物情绪确认/关闭](../src/features/agent-apps/ACTOR-EMOTION.md)已有定向和实机证据；逐项边界见[验收索引](VERIFICATION-INDEX.md)。外部Agent MCP传输/授权尚未实现，内部Responses工具与iframe Apps不能替代[外部连接](research/EXTERNAL-AGENT-MCP-GAP-20261008.md)；安装包第三代导演/entity菜单仍需独立入口及身份/事务映射。
+当前[画布菜单](canvas-command-menu-audit-20261008.md)、[GLB片场v2标签](STUDIO-V2-PANEL-KEYBOARD-20261008.md)与[人物情绪确认/关闭](../src/features/agent-apps/ACTOR-EMOTION.md)已有定向和实机证据；[帮助五菜单/离线教程](CANVAS-HELP-20261008.md)及[快捷键接线](CANVAS-SHORTCUTS-20261008.md)已按当前范围实机核对，真实麦克风/转写仍未验。逐项边界见[验收索引](VERIFICATION-INDEX.md)。官方导演/GLB工作区并存，本地拟建V3的纯领域内核在实施，独立生产Workspace尚未交付，见[下一代映射](research/STUDIO-V3-IMPLEMENTATION-MAP-20261008.md)；不能用GLB v2验收代替。
 
 **本批专项验收完成：** Sonilo SFX 原生接入通过 20 项定向检查与 4 项受影响 Music 回归，SFX 本批浏览器操作已验。Agent 调色本轮 10 项 runtime/派生回归及保存、交接重试、实际 PNG、刷新重开通过；macOS ARM64 安装包已通过文件、包内后台、原生 WebGL 与片场退出重开恢复验证，[Alpha 预发布已公开](https://github.com/freeall12/freenow/releases/tag/v0.1.0-alpha.1)。专项完成不等于全站或真实供应商 Key/质量验收完成。见[SFX 合同](SONILO-SFX-NATIVE-20261005.md)、[SFX UI 记录](SONILO-SFX-UI-QA-20261005.md)、[调色交互](AGENT-COLOR-ADJUST-INTERACTIONS-20261005.md)和[当前状态](STATUS.md)。
 
@@ -66,7 +67,7 @@ Sonilo Music、Product Kit 与导演批注的本地验证见[整批证据](LOCAL
 
 ## 桌面运行
 
-Electron 外壳提供独立窗口、用户目录和本机后台，桌面包版本 `0.1.0-alpha.1`，固定4183；macOS arm64 ZIP、包内后台、实际包原生WebGL与片场退出重开恢复已核验，[Alpha预发布已公开](https://github.com/freeall12/freenow/releases/tag/v0.1.0-alpha.1)，构建来源642d3db。当前源码文件整理新增能力尚未纳入该包。它沿用本表的供应商与功能边界，FFmpeg / FFprobe需外部安装。[启动与配置](DESKTOP.md) · [安装包验证](releases/DESKTOP-ALPHA-VERIFICATION-20261007.md)
+Electron 外壳提供独立窗口、用户目录和本机后台，桌面包版本 `0.1.0-alpha.1`，固定4183；macOS arm64 ZIP、包内后台、实际包原生WebGL与片场退出重开恢复已核验，[Alpha预发布已公开](https://github.com/freeall12/freenow/releases/tag/v0.1.0-alpha.1)，构建来源642d3db。当前源码的文件整理、帮助/快捷键及外部只读MCP新增能力尚未纳入该包。它沿用本表的供应商与功能边界，FFmpeg / FFprobe需外部安装。[启动与配置](DESKTOP.md) · [安装包验证](releases/DESKTOP-ALPHA-VERIFICATION-20261007.md)
 
 ## 状态与历史
 

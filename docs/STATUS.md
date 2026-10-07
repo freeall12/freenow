@@ -26,10 +26,15 @@
 ## 本批：菜单、片场标签、人物情绪与桌面文件
 
 - 画布添加菜单实际开关、Tab 离开关闭、Shift+Tab/Escape 回焦、悬停后从真实焦点导航和真实文本创建已验。主画布焦点下 ⌘Z 删除、⌘⇧Z 恢复同 ID 文本；dock 的 `+` 焦点下不响应画布撤销，不能推广为任意焦点可撤销。旧视频当前历史、fullImage来源与hover→Enter/Space视觉高亮执行已补修，最终52项定向检查通过（新增17项）。最后实机补验hover视频→Enter新增真实video、hover图片→Space新增真实image，均关闭回焦且画布未滚动/外部尝试为0；旧来源历史单独浏览器与上传、下载、PNG剪贴板读回仍未验。[菜单核验](canvas-command-menu-audit-20261008.md)
-- 当前 GLB 片场 v2 接通单一 Tab 停留、左右循环/首尾键和标签/面板关联；17 项面板与 3 项真实 GLB QA 检查通过。当前主壳真实大场景已验拍摄↔场景、Home/End、Tab 进入面板再进首镜头，以及修饰键/Down/右键不切换。安装包第三代导演/entity 菜单仍缺独立入口与身份/事务映射，不能用 v2 验收替代。[片场标签与版本边界](STUDIO-V2-PANEL-KEYBOARD-20261008.md)
+- 当前 GLB 片场 v2 接通单一 Tab 停留、左右循环/首尾键和标签/面板关联；17 项面板与 3 项真实 GLB QA 检查通过。当前主壳真实大场景已验拍摄↔场景、Home/End、Tab 进入面板再进首镜头，以及修饰键/Down/右键不切换。官方导演工作区与独立GLB编辑器并存，V3是本项目拟建代际名称；本地纯领域内核仍在实施，独立生产Workspace/菜单尚未交付，不能用v2验收替代。[片场标签](STUDIO-V2-PANEL-KEYBOARD-20261008.md) · [下一代实现映射](research/STUDIO-V3-IMPLEMENTATION-MAP-20261008.md)
 - 人物情绪原嵌套应用接通确认等待真实保存及关闭失败保页，4 项确认、5 项关闭和4项资源完整性检查通过。生产 controller/host/runtime QA 实际生成512×512灰模指导图，AE2 face=-65~-65~68 与图片 SHA 一致，guides=1/replies=1；800ms慢保存、关闭失败后原卡重试与刷新恢复强度62/悲伤87%/恐惧13%已验。原HTML SHA不变；鼠标全路径、严格350ms内确认及灰模/消息失败完整重试组合未验。[人物情绪合同](../src/features/agent-apps/ACTOR-EMOTION.md)
 - 桌面源码新增六个 Agent 文件工具、原生单目录授权/整批确认和 journal，只创建子目录及移动/重命名普通文件；15项专项与18项相关检查通过。重启最新 source QA 后实机确认3项、两份7字节文件SHA保持；最新单项取消回执 completed=0且目标未创建，目录移动预览阻断且实际未移动。撤销授权后 authorized=false且列表明确阻断，正常⌘Q退出已验。未知批次重启不重放有定向检查，重启journal尚未实机验；恶意祖先路径并发替换仍有 TOCTOU 窗口，完整 Agent SDK/实机回滚未验。这项源码功能不在已发布642d3db Alpha包内。[文件整理与限制](DESKTOP-FILES-20261008.md)
-- 官方“连接 Agent”是独立远端账户级 MCP 服务；本地 iframe MCP Apps 和内部 Responses 工具不等于外部 MCP。当前外部传输、客户端授权及工作区连接未实现；桌面 stdio/私有 broker 仅为提案。[外部 Agent MCP 缺口](research/EXTERNAL-AGENT-MCP-GAP-20261008.md)
+
+## 本批：帮助、快捷键与外部只读 MCP
+
+- 帮助菜单五项已接本地更新、离线教程、外部Agent连接、本地反馈和快捷键；现场SVG与两张原始GIF按来源保留，运行时只读本地资源。5项初始定向及新增隐藏dialog回归通过；实机已验21行两列快捷键/GIF解码、Escape回焦、二次点击关闭和教程新标签/窄屏目录/章节同步。教程两张公开截图改为模块内原字节资产，打包白名单/字节核对通过，实际章节图片解码为1447×1566和1280×720；未重建Alpha，不是官方全部帮助正文或全部断点验收。[帮助与离线教程](CANVAS-HELP-20261008.md)
+- 快捷键补齐Cmd/Ctrl+G堆叠、Command滚轮缩放、长按V/再次V语音入口，并保护输入法、编辑区、上层弹层及生命周期；累计10项专项通过（原9项及新增1项），取消后同按钮再点的残留AbortSignal已修，新增及受影响语音3项通过。主画布实际Cmd+A→G→Z保持原图片ID、J开关/输入框让出、图片I→Escape已验。V仍只用合成Recorder/转写回归，真实麦克风、硬件触控板和全部组合未验。[快捷键接线](CANVAS-SHORTCUTS-20261008.md)
+- 当前桌面源码已实现本机stdio/私有socket的外部MCP只读连接，两项`workspace_status`/`canvas_read`只返回获批当前画布元数据。累计21项定向通过；真实Electron stdio→socket→main/preload→CanvasApp链经原生批准返回1节点/0边，revision绑定，Cmd+R后旧客户端撤权已验。待批准客户端轮询焦点及动态Tab/Shift+Tab循环实机通过；最新关闭守卫实例正常Cmd+Q退出0、日志为空并释放4183，未重新授权读取。浏览器版无本机通道；写入、生成/回填、媒体/素材/文件、OAuth和云端HTTP连接器仍未接入，独立第三方Agent产品配置未验。这项源码功能不在642d3db Alpha包内。[实际连接与权限](../src/features/external-agent/README.md)；[先前缺口研究](research/EXTERNAL-AGENT-MCP-GAP-20261008.md)保留官方远端账户级服务的区别。
 
 ## 前批：SFX / 调色专项验收与桌面预发布
 
