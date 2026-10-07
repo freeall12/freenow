@@ -6,9 +6,11 @@ import {disposeModel} from '../studio-v2/model-io.mjs';
 import {spatialBounds} from '../world-node/splat-io.mjs';
 import {CAMERA_OPTICS_DEFAULTS, applyCameraOptics} from './camera-optics.mjs';
 import {applyEntityTransform, planRotationToCamera} from './transform-coordinates.mjs';
+import {createCameraMarker} from './camera-marker.mjs';
 
 const error = (code, message) => Object.assign(Error(message), {code});
 const xyz = value => [value.x, value.y, value.z];
+const vector = value => ({x: value.x, y: value.y, z: value.z});
 function clipHasMotion(clip) {
   return clip.tracks.some(track => {const stride = track.getValueSize(); for (let index = stride; index < track.values.length; index++) if (Math.abs(track.values[index] - track.values[index % stride]) > 1e-5) return true; return false;});
 }
@@ -17,7 +19,7 @@ export function applyTransform(root, transform) {
   root.position.set(...xyz(transform.position)); root.rotation.set(...xyz(transform.rotation), transform.rotation.order || 'XYZ'); root.scale.set(...xyz(transform.scale)); root.updateMatrixWorld(true);
 }
 export function readTransform(root) {return {position: {x: root.position.x, y: root.position.y, z: root.position.z}, rotation: {x: root.rotation.x, y: root.rotation.y, z: root.rotation.z, order: root.rotation.order}, scale: {x: root.scale.x, y: root.scale.y, z: root.scale.z}};}
-export function createRenderGraph({scene, loader = createAssetLoader(), getFence = () => null, isCurrent = () => true, onStatus = () => {}, onInvalidate = () => {}, onAttach = async () => {}, onDetach = () => {}}) {
+export function createRenderGraph({scene, loader = createAssetLoader(), getFence = () => null, isCurrent = () => true, onStatus = () => {}, onInvalidate = () => {}, onAttach = async () => {}, onDetach = () => {}, isTransformPreview = () => false}) {
   const content = new THREE.Group(), worldRoot = new THREE.Group(), entityRoot = new THREE.Group(), helpers = new THREE.Group();
   content.name = 'V3 authoritative render content'; worldRoot.name = 'V3 source world'; entityRoot.name = 'V3 entities'; helpers.name = 'V3 helpers'; helpers.userData.helper = helpers.userData.captureExcluded = true;
   content.add(worldRoot, entityRoot); scene.add(content, helpers);
@@ -29,7 +31,7 @@ export function createRenderGraph({scene, loader = createAssetLoader(), getFence
     if (!record || record.disposed) return; record.disposed = true; record.abort.abort(error('studio_v3_render_cancelled', '渲染目标已变化'));
     record.root?.removeFromParent(); record.camera?.removeFromParent(); record.cameraHelper?.removeFromParent();
     record.mixer?.stopAllAction(); if (record.mixer) record.mixer.uncacheRoot(record.asset.root);
-    record.cameraHelper?.dispose(); onDetach(record);
+    record.cameraMarker?.dispose(); onDetach(record);
     // Clay removes texture references from materials. Restore those owned
     // references before the loader's disposer walks them, including on failure.
     for (const [material, original] of record.materialOriginals || []) for (const key of ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'emissiveMap']) if (Object.hasOwn(original, key)) material[key] = original[key];
@@ -37,6 +39,7 @@ export function createRenderGraph({scene, loader = createAssetLoader(), getFence
   }
   function removeEntity(id) {const record = entities.get(id); entities.delete(id); disposeRecord(record);}
   function material(record) {
+    if (record.definition.kind === 'camera') return;
     const definition = record.definition, color = definition.color || (definition.kind === 'actor' ? '#d0a552' : null);
     const key = JSON.stringify([color, definition.materialMode]); if (key === record.materialKey) return; record.materialKey = key;
     record.asset.root.traverse(object => {for (const mat of object.material ? Array.isArray(object.material) ? object.material : [object.material] : []) {
@@ -75,40 +78,39 @@ export function createRenderGraph({scene, loader = createAssetLoader(), getFence
     applyCameraOptics(record.camera, config || CAMERA_OPTICS_DEFAULTS);
     // Imported snapshots can predate reducer pose synchronization. The model
     // represents the same optical camera even while that snapshot is unchanged.
-    record.root.position.copy(record.camera.position); record.root.rotation.copy(record.camera.rotation); record.root.updateMatrixWorld(true);
+    if (!isTransformPreview(record.id)) {record.root.position.copy(record.camera.position); record.root.rotation.copy(record.camera.rotation); record.root.updateMatrixWorld(true);}
     record.camera.updateProjectionMatrix(); record.camera.updateMatrixWorld(true);
-    if (!record.cameraHelper) {record.cameraHelper = new THREE.CameraHelper(record.camera); record.cameraHelper.userData.helper = record.cameraHelper.userData.captureExcluded = true; helpers.add(record.cameraHelper);}
-    record.cameraHelper.visible = record.state.visible; record.cameraHelper.update();
+    record.camera.layers.enable(4);
+    record.cameraMarker.update({camera: {...config, position: vector(record.camera.position), rotation: {...vector(record.camera.rotation), order: record.camera.rotation.order}, fov: record.camera.fov, frameAspectRatio: record.camera.aspect}, color: record.definition.color ?? null, visible: record.state.visible, transformPreviewActive: isTransformPreview(record.id)});
   }
   function targets() {
     const positionOf = target => target?.kind === 'point' ? new THREE.Vector3(...xyz(target.position)) : target?.mode === 'point' ? new THREE.Vector3(...xyz(target.target)) : target?.entityId && entities.get(target.entityId)?.root?.getWorldPosition(new THREE.Vector3());
     for (const record of entities.values()) if (record.status === 'ready') {
+      if (record.cameraMarker && isTransformPreview(record.id)) continue;
       const target = record.definition.kind === 'camera' ? record.state.camera?.lookAt : record.state.lookTarget;
       const point = positionOf(target); if (!point) continue;
-      if (record.camera) {record.camera.lookAt(point); record.camera.updateMatrixWorld(true); record.root.quaternion.copy(record.camera.quaternion); record.root.updateMatrixWorld(true); record.cameraHelper?.update();}
+      if (record.camera) {record.camera.lookAt(point); record.camera.updateMatrixWorld(true); record.cameraMarker.update({camera: {...record.state.camera, position: vector(record.camera.position), rotation: {...vector(record.camera.rotation), order: record.camera.rotation.order}, fov: record.camera.fov, frameAspectRatio: record.camera.aspect}});}
       else record.root.lookAt(point);
     }
   }
   function apply(record) {
     if (!record.root || record.kind === 'source') return;
-    applyTransform(record.root, applyEntityTransform(record.definition.kind, record.state)); record.root.visible = record.state.visible;
+    if (!record.cameraMarker || !isTransformPreview(record.id)) applyTransform(record.root, applyEntityTransform(record.definition.kind, record.state)); record.root.visible = record.state.visible;
     Object.assign(record.root.userData, {entityId: record.id, entityKind: record.definition.kind, locked: ['actor', 'prop'].includes(record.definition.kind) && record.definition.locked === true, captureExcluded: record.definition.kind === 'camera', renderPending: record.status !== 'ready'});
-    record.root.name = record.definition.label; material(record); pose(record); camera(record);
+    if (!record.cameraMarker) record.root.name = record.definition.label; material(record); pose(record); camera(record);
   }
   function prepare(record, asset) {
     record.asset = asset; record.materialOriginals = new Map(); record.root = new THREE.Group(); record.root.name = record.kind === 'source' ? 'V3 source model' : record.definition.label;
-    record.root.add(asset.root);
-    if (record.kind === 'entity' && asset.format === 'glb') {
-      if (record.definition.kind === 'camera') asset.root.rotation.y += Math.PI / 2;
+    if (record.kind === 'entity' && record.definition.kind === 'camera') {
+      record.cameraMarker = createCameraMarker({assetRoot: asset.root, entityId: record.id, color: record.definition.color});
+      record.root = record.cameraMarker.root; record.cameraHelper = record.cameraMarker.frustumRoot;
+    } else record.root.add(asset.root);
+    if (record.kind === 'entity' && record.definition.kind !== 'camera' && asset.format === 'glb') {
       const box = new THREE.Box3().setFromObject(asset.root), size = box.getSize(new THREE.Vector3());
       if (record.definition.kind === 'actor') asset.root.scale.multiplyScalar(1.7 / Math.max(size.y, .001));
-      else if (record.definition.kind === 'camera') asset.root.scale.multiplyScalar(.25 / Math.max(size.x, size.y, size.z, .001));
       asset.root.updateMatrixWorld(true); box.setFromObject(asset.root); const center = box.getCenter(new THREE.Vector3());
       const anchor = record.assetDescriptor.presentationAnchor || (record.definition.kind === 'camera' ? 'center' : 'bottom');
       asset.root.position.x -= center.x; asset.root.position.z -= center.z; asset.root.position.y -= anchor === 'center' ? center.y : box.min.y;
-      // Official TH keeps the 0.25 m editor body behind the optical origin.
-      // Centering a double-sided body at the lens puts navigation inside it.
-      if (record.definition.kind === 'camera') asset.root.position.z += .13;
     }
     record.root.userData.renderPending = true; record.root.visible = false;
     (record.kind === 'source' ? worldRoot : entityRoot).add(record.root);

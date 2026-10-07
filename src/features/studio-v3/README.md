@@ -23,6 +23,11 @@
 | `transform-coordinates.mjs` | 人物领域／渲染与摄像机plan／optical双向转换、heading反射与quaternion等价判断 |
 | `control-session.mjs` / `control-hud.mjs` | 人物／道具真实操控、支撑与碰撞、输入租约、一笔事务完成／还原及官方主操作工具条 |
 | `camera-create.mjs` / `viewfinder-optics.mjs` | 地面命中和当前视角创建、独立临时取景相机及画幅／镜头参数 |
+| `camera-marker.mjs` | 原GLB身体／材质、短视锥、layer5、独立拾取／outline目标与真实身体pivot |
+| `camera-navigation.mjs` | 摄像机Quaternion三维飞行、惯性／滚轮／Alt支点、输入隔离与按需tick |
+| `camera-edit-session.mjs` / `camera-history-adapter.mjs` | 作者事务、checkpoint、viewport lease、来源围栏和真实领域history接线 |
+| `camera-control-hud.mjs` / `camera-control-hud.css` | 原光学工具、画幅菜单、log滑尺／弹簧、对焦和失败回执交互 |
+| `camera-capture.mjs` | 真实PNG、LocalAssets、连接画布图片、受守卫保存及同照片重试 |
 | `runtime.mjs` / `render-graph.mjs` | 真实 Three 场景、GLB/SPZ、人物 clip、相机、Orbit/正交视图和事务变换 |
 | `asset-loader.mjs` / `surface-hit.mjs` | 有界本地素材读取/解码/取消，站面与直接拾取基础 |
 | `icons.mjs` / `menus.mjs` / CSS | 官方图标与布局、单活动菜单和嵌套子菜单、坐标夹紧、键盘/分层Escape回焦与退出动效 |
@@ -35,11 +40,19 @@
 
 主线实机刷新回读revision23：绿色Sitting人物X=1.5、Y=0.005886657753309876，摄像机位置1.5/1.6/5、50mm/9:16、FOV39.597752709049864；真实竖幅预览已验。非当前状态复制后revision26为4实体/2角色/4setup，副本ID独立；基准创建及继承全局删除后revision32为4实体/3角色/4setup，未引用第三角色按单实体删除合同保留。确认菜单Escape回父删除按钮、“保留状态”、连续两次删除/撤销/重做、最后状态删除/撤销，以及Delete/Backspace/G/L/⌘Z不穿透均已验。空`ground:{}`导致NaN的失败轮次已排除，有限地面缺省0修复后刷新重验成功。[最终实机、截图与专项范围](../../../docs/STUDIO-V3-ENTITIES-20261008.md)
 
-本批runtime光学/取景11项、落地5项、状态7项、集成守卫5项通过；同lane连续redo新增3项，跨lane冲突仍阻断。其他光学、属性与嵌套菜单专项按上述证据页分别记录，不合计为全量重跑。Spark已接景深参数，真实Gaussian景深视觉仍未验；普通GLB无虚化。六色/道具材质与九姿态没有覆盖全部浏览器鼠标路径，官方操控模式、完整摄像机放置/viewfinder、平面放置租约、时间、生成、拍摄和完整Agent仍缺；P1不能标为全部完成，旧Alpha不包含这些增量。
+前批runtime光学/取景11项、落地5项、状态7项、集成守卫5项通过；同lane连续redo新增3项，跨lane冲突仍阻断。其他光学、属性与嵌套菜单专项按上述证据页分别记录，不合计为全量重跑。六色/道具材质与九姿态没有覆盖全部浏览器鼠标路径，P1不能标为全部完成，旧Alpha不包含这些增量。操控／创建与摄像机拍摄的当前补齐范围见下。
+
+## 摄像机接管与拍摄增量
+
+当前生产入口已接三维飞行、0.8s／0.55s进入返回、光学滑尺、完成／还原和拍摄checkpoint，摄像机helper采用原材质／短视锥／layer与身体pivot。快门真实PNG→LocalAssets→连接画布图片→受守卫保存，重试保留同照片，接管排除全部camera marker。GLB隐藏不具备能力的景深工具，Spark已有光圈／点对焦参数但真实像素未验。
+
+实机验证滑尺ArrowRight只改焦距不改pose；400mm与拖动后还原完整states，revision不变。两笔照片保存失败时锁非重试HUD，并保护恢复视图／选择／关闭入口；顶部或快门重试均不重复图片。最终刷新revision6、五张763×1356照片同ID并全部解码成功。完整源证据、模块合同、分批检查范围和截图见[摄像机接管与拍摄验收](../../../docs/STUDIO-V3-CAMERA-POSSESSION-20261008.md)。
+
+仍缺完整身体轮廓pass、4K离屏JPEG、Saved Views／历史照片、时间／关键帧、完整平面图、生成UI与完整V3 Agent编排。领域schema字段和只读Agent接口不能代替这些功能；不声称完整官方工作区验收。
 
 ## 数据约束
 
-上述实体批次之后，已接入人物／道具操控、地面放置和当前视角取景创建；早期缺口以[操控与创建最终增量证据](../../../docs/STUDIO-V3-CONTROLS-20261008.md)为准。实机最终revision6为5实体、1角色、2setup，保留90°／Standing和35mm／9:16；新建镜头遮挡及空操控保存状态已修复。摄影机possession、时间编辑、完整helper与复杂光学滑尺仍缺，不称完整官方取景器或P1全部完成。
+上述实体批次之后，已接入人物／道具操控、地面放置和当前视角取景创建；早期缺口以[操控与创建最终增量证据](../../../docs/STUDIO-V3-CONTROLS-20261008.md)和上面的摄像机增量为准。该创建项目实机最终revision6为5实体、1角色、2setup，保留90°／Standing和35mm／9:16；摄像机拍摄另用独立项目，不混合两组revision与实体计数。新建镜头遮挡及空操控保存状态已修复，不称完整官方取景器或P1全部完成。
 
 内存 envelope 为 `{schemaVersion:4,scenePlay:{id,worldNodeId,worldSpace,environment,editSessions},capturedPhotos,worldGenerationTasks}`。新领域构造器保留官方默认 ID：`stage-default`、`setup-default`、`setup:state-1`；其他 stage 的基准 ID 是 `setup:${stageId}:default`。
 

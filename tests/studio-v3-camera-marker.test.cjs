@@ -8,8 +8,8 @@ test('real camera GLB stays behind the optical origin after current-view creatio
     import('../src/features/studio-v3/render-graph.mjs'), import('../src/features/studio-v3/schema.mjs'),
     import('../src/features/studio-v3/entity-actions.mjs')
   ]);
-  // Node decodes the embedded PNG metadata only. The browser evidence covers
-  // actual texture rendering; this regression checks the real mesh geometry.
+  // Node decodes embedded PNG metadata only. This checks real GLB geometry;
+  // it does not verify rendered texture appearance.
   const previous = {self: global.self, createImageBitmap: global.createImageBitmap, ProgressEvent: global.ProgressEvent};
   global.self = global;
   global.ProgressEvent = class extends Event {constructor(type, fields) {super(type); Object.assign(this, fields);}};
@@ -24,7 +24,9 @@ test('real camera GLB stays behind the optical origin after current-view creatio
   t.after(() => graph.dispose());
   await graph.sync(state);
   const record = graph.entity('camera'); assert.equal(record.status, 'ready');
-  const bounds = new THREE.Box3().setFromObject(record.asset.root), size = bounds.getSize(new THREE.Vector3());
+  assert(record.cameraMarker, 'ready camera must own its editor marker');
+  assert.equal(record.root, record.cameraMarker.transformRoot);
+  const bounds = new THREE.Box3().setFromObject(record.cameraMarker.iconRoot), size = bounds.getSize(new THREE.Vector3());
   assert(Math.abs(Math.max(size.x, size.y, size.z) - .25) < 1e-6);
   assert(Math.abs(bounds.getCenter(new THREE.Vector3()).z - .13) < 1e-6);
   assert(bounds.min.z > 0, 'editor body must stay behind a camera looking down local -Z');
@@ -33,5 +35,6 @@ test('real camera GLB stays behind the optical origin after current-view creatio
   assert.equal(record.camera.aspect, 9 / 16);
   assert(Math.abs(record.camera.getFocalLength() - 35) < 1e-6);
   const ray = new THREE.Raycaster(record.camera.position, new THREE.Vector3(0, 0, -1));
-  assert.equal(ray.intersectObject(record.root, true).length, 0, 'lens ray must not intersect its own body');
+  ray.layers.set(5); // Actually test editor-body meshes on their helper layer.
+  assert.equal(ray.intersectObject(record.cameraMarker.pickTarget, true).length, 0, 'lens ray must not intersect its own body');
 });

@@ -1,5 +1,7 @@
 # Studio V3 Three 运行时
 
+当前生产集成已接[摄像机接管与拍摄](../../../docs/STUDIO-V3-CAMERA-POSSESSION-20261008.md)：navigation／edit-session／history adapter组成三维飞行、光学、viewport lease和checkpoint；camera-capture在运行时之外编码PNG、写LocalAssets和画布节点。真实浏览器已验保存重试、五张照片刷新解码与镜头回读。下面的运行时专项范围仍按各模块独立记录，不能代表完整工作区或全站验收。
+
 `runtime.mjs` 把领域层的完整 schema 4 envelope 渲染为 Three 场景。渲染内容由 `world-space.mjs` 的 `renderSetup()` 决定：先合并共享基底，再加入独立状态实体。运行时使用 V3 实体 ID，不读取或改写 V2 studio 数据。
 
 ## 接入

@@ -1,0 +1,37 @@
+.studio-v3 .sv3-camera-control-hud {position:relative;gap:6px;pointer-events:auto;overflow:visible}
+.studio-v3 .sv3-camera-control-hud[hidden],.studio-v3 .sv3-camera-hud-feedback[hidden] {display:none}
+.studio-v3 .sv3-camera-ruler[hidden],.studio-v3 .sv3-camera-focus[hidden] {display:none}
+.studio-v3 .sv3-camera-ratio-button {width:96px;min-width:96px;justify-content:center;gap:6px;color:rgba(255,255,255,.84)}
+.studio-v3 .sv3-camera-ratio-icon {display:block;flex-shrink:0;opacity:.75}
+.studio-v3 .sv3-camera-ratio-chevron {display:flex;transform:rotate(90deg)}
+.studio-v3 .sv3-camera-ratio-menu {padding:8px;min-width:min(288px,calc(100vw - 16px));max-height:360px;overflow:auto}
+.studio-v3 .sv3-camera-ratio-grid {display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:4px}
+.studio-v3 .sv3-camera-ratio-grid+.sv3-camera-ratio-grid {margin-top:8px;padding-top:4px}
+.studio-v3 .sv3-camera-ratio-option {display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;min-width:0;height:56px;padding:0 4px;border:0;border-radius:8px;background:transparent;color:rgba(255,255,255,.72);font:inherit;transition:background-color 150ms,color 150ms}
+.studio-v3 .sv3-camera-ratio-option span {font-size:11px;line-height:1;white-space:nowrap;font-variant-numeric:tabular-nums}
+.studio-v3 .sv3-camera-ratio-option:hover,.studio-v3 .sv3-camera-ratio-option:focus-visible {background:rgba(255,255,255,.08);color:#fff;outline:none}
+.studio-v3 .sv3-camera-ratio-option[aria-pressed=true] {background:rgba(255,255,255,.12);color:#fff}
+.studio-v3 .sv3-camera-ruler {position:relative;display:flex;align-items:center;flex-shrink:0;gap:2px;height:40px;min-width:0;border:0;margin:0;padding:0;color:rgba(255,255,255,.84)}
+.studio-v3 .sv3-camera-visually-hidden {position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+.studio-v3 .sv3-camera-ruler-window {position:relative;height:40px;flex-shrink:0;touch-action:none;user-select:none;overflow:hidden;cursor:ew-resize;mask-image:linear-gradient(to right,transparent 0,#000 14px,#000 calc(100% - 14px),transparent);-webkit-mask-image:linear-gradient(to right,transparent 0,#000 14px,#000 calc(100% - 14px),transparent)}
+.studio-v3 .sv3-camera-ruler-track {position:absolute;left:0;top:16px;height:8px;will-change:transform}
+.studio-v3 .sv3-camera-ruler-preset {position:absolute;top:0;width:2px;height:8px;padding:0;border:0;background:transparent;cursor:pointer}
+.studio-v3 .sv3-camera-ruler-preset span {display:block;width:2px;height:8px;border-radius:999px;background:rgba(255,255,255,.35)}
+.studio-v3 .sv3-camera-ruler-minor {position:absolute;top:1.5px;width:2px;height:5px;border-radius:999px;background:rgba(255,255,255,.22);pointer-events:none}
+.studio-v3 .sv3-camera-ruler-indicator {position:absolute;top:14px;width:2px;height:12px;border-radius:999px;background:#fbbf24;pointer-events:none;z-index:3}
+.studio-v3 .sv3-camera-ruler-readout {display:block;padding-right:8px;color:rgba(255,255,255,.85);text-align:left;font-size:14px;font-weight:500;font-variant-numeric:tabular-nums;white-space:nowrap;pointer-events:none}
+.studio-v3 .sv3-camera-ruler-accessible {position:absolute;inset:0;pointer-events:none;outline:none}
+.studio-v3 .sv3-camera-ruler-window:focus-within {outline:1px solid rgba(255,255,255,.4);outline-offset:-1px}
+.studio-v3 .sv3-camera-ruler-terminal {position:absolute;top:1.5px;width:5px;height:5px;padding:0;border:0;border-radius:999px;background:rgba(255,255,255,.38);cursor:pointer}
+.studio-v3 .sv3-camera-ruler-terminal-readout {height:40px;padding:0;border:0;background:transparent;font:inherit;cursor:pointer}
+.studio-v3 .sv3-camera-ruler-terminal-readout[aria-pressed=true] {color:#fbbf24}
+.studio-v3 .sv3-camera-ruler:disabled {opacity:.45}
+.studio-v3 .sv3-camera-shutter-graphic {position:relative;display:flex;align-items:center;justify-content:center;width:20px;height:20px;transition:opacity 150ms}
+.studio-v3 .sv3-camera-shutter-ring {position:absolute;width:20px;height:20px;border:2px solid currentColor;border-radius:50%;box-sizing:border-box}
+.studio-v3 .sv3-camera-shutter-center {position:absolute;width:12px;height:12px;border-radius:50%;background:currentColor;pointer-events:none}
+.studio-v3 .sv3-camera-shutter[data-capturing=true] .sv3-camera-shutter-graphic {opacity:.7}
+.studio-v3 .sv3-camera-control-hud [data-camera-finish=true] {background:rgba(255,255,255,.1);color:rgba(255,255,255,.92)}
+.studio-v3 .sv3-camera-control-hud [data-camera-finish=true]:hover {background:rgba(255,255,255,.14)}
+.studio-v3 .sv3-camera-hud-feedback {position:absolute;bottom:calc(100% + 12px);left:50%;transform:translateX(-50%);max-width:min(540px,90vw);width:max-content;padding:10px 16px;border-radius:16px;background:rgba(38,38,38,.85);color:#ffbfaf;font-size:12px;line-height:1.5;white-space:normal}
+@media(max-width:760px) {.studio-v3 .sv3-camera-control-hud [data-camera-finish=true]>span,.studio-v3 .sv3-camera-control-hud button[aria-label="还原并退出"]>span {display:none}.studio-v3 .sv3-camera-control-hud .sv3-separator {margin:0 2px}.studio-v3 .sv3-camera-control-hud {gap:4px}}
+@media(prefers-reduced-motion:reduce) {.studio-v3 .sv3-camera-shutter-graphic {transition:none}}

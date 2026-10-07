@@ -11,6 +11,7 @@ freenow 是本地 AI 创作工作台：无限画布、图片/音视频工具、3
 | 安装、启动与最小配置 | [项目首页](../README.md#快速开始)、[环境变量字段](../.env.example) |
 | 下载、运行或构建 Electron 桌面预发布 | [macOS arm64 Alpha](https://github.com/freeall12/freenow/releases/tag/v0.1.0-alpha.1)、[桌面指南](DESKTOP.md)；固定 4183、独立用户目录、外部 FFmpeg，未签名/公证；ZIP、包内后台和实际安装包退出重开恢复已核验 |
 | 用桌面源码整理授权文件夹 | [原生授权、整批确认与回执](DESKTOP-FILES-20261008.md)；仅子目录创建和普通文件移动/重命名，不在现有 Alpha 包内 |
+| 操控导演片场摄像机并拍摄到画布 | [三维飞行、光学滑尺、完成/还原和照片重试](STUDIO-V3-CAMERA-POSSESSION-20261008.md)；当前源码，PNG保存/刷新已验，不在现有Alpha包内 |
 | 新建与切换画布项目 | [画布项目](CANVAS-PROJECTS.md) |
 | 使用画布帮助、离线教程与快捷键 | [五项帮助入口](CANVAS-HELP-20261008.md)、[实际快捷键与验证](CANVAS-SHORTCUTS-20261008.md) |
 | 使用图片、视频、音频或 3D 生成 | [多供应商配置](MULTI-PROVIDER-SETUP.md)、[功能与适配器](FEATURES.md) |

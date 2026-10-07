@@ -1,12 +1,13 @@
 <!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>导演片场生产链验收 · freenow</title>
 <style>html,body{margin:0;height:100%;background:#181818;color:#ddd;font:13px system-ui}header{height:42px;display:flex;align-items:center;gap:8px;padding:0 12px}button{background:#303030;color:#eee;border:1px solid #555;border-radius:6px;padding:5px 10px;cursor:pointer}button:disabled{opacity:.4}iframe{display:block;border:0;width:100%;height:calc(100% - 42px)}output{margin-left:auto;font-size:11px;max-width:40%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}</style>
-<header><button id="empty" disabled>新建空导演片场</button><button id="source" disabled>预览本地模型并进入片场</button><button id="read" disabled>检查保存数据</button><button id="fail" disabled>注入一次保存失败</button><output id="status">读取独立公开验收项目…</output></header>
+<header><button id="empty" disabled>新建空导演片场</button><button id="source" disabled>预览本地模型并进入片场</button><button id="read" disabled>检查保存数据</button><button id="fail" disabled>注入一次保存失败</button><button id="photo-fail" disabled>注入一次照片保存失败</button><output id="key-status" aria-label="键盘输入诊断"></output><output id="status">读取独立公开验收项目…</output></header>
 <iframe title="真实无限画布" id="app"></iframe>
 <script type="module">
-const frame=document.querySelector('iframe'),out=document.querySelector('output'),params=new URL(location.href).searchParams;
+const frame=document.querySelector('iframe'),out=document.querySelector('#status'),params=new URL(location.href).searchParams;
 const project=params.get('project')||'qa-director-public-1008';
 let sourceId,ready=false;
+const keyStatus=document.querySelector('#key-status');keyStatus.hidden=!params.has('inspectInput');
 const buttons=[...document.querySelectorAll('button')];
 const work=async action=>{buttons.forEach(button=>button.disabled=true);try{await action();}catch(error){out.textContent=error.message;}finally{buttons.forEach(button=>button.disabled=!ready);}};
 frame.onload=async()=>{
@@ -17,6 +18,7 @@ frame.onload=async()=>{
     }
     await new Promise(resolve=>setTimeout(resolve,100));
   }
+  if(params.has('inspectInput'))child.document.addEventListener('keydown',event=>queueMicrotask(()=>{keyStatus.textContent=JSON.stringify({key:event.key,code:event.code,target:event.target.getAttribute?.('role')||event.target.tagName,prevented:event.defaultPrevented});}),true);
   buttons.forEach(button=>button.disabled=!ready);out.textContent=ready?'生产入口已就绪；仅公开本地模型，零供应商调用':'生产入口未就绪';
 };
 document.querySelector('#empty').onclick=()=>work(async()=>{const result=await frame.contentWindow.StudioAPI.createDirector();out.textContent='打开真实导演片场 · '+result.nodeId;});
@@ -34,7 +36,7 @@ document.querySelector('#source').onclick=()=>work(async()=>{
 document.querySelector('#read').onclick=()=>work(async()=>{
   const child=frame.contentWindow;if(child.StudioAPI.active?.session)await child.StudioAPI.active.session.flush();await child.CanvasApp.saveProject();await child.CanvasStore.flush();
   const saved=await child.CanvasStore.load(),directors=saved.nodes.filter(node=>node.studioV3),owner=directors.at(-1),space=owner?.studioV3.state.scenePlay.worldSpace;
-  out.textContent=JSON.stringify({directors:directors.length,revision:owner?.studioV3.revision,entities:space?.entities.length,roles:space?.characterRoles.length,setups:space?.setups.length,source:owner?.studioV3.sourceBinding.sourceKind,activeSetupId:space?.activeSetupId,
+  out.textContent=JSON.stringify({images:saved.nodes.filter(node=>node.provenance?.sceneVersion===3).map(node=>({id:node.id,captureId:node.provenance.captureId,asset:node.image,width:node.pixelWidth,height:node.pixelHeight,cameraId:node.provenance.sourceCameraEntityId})),capturedPhotos:owner?.studioV3.state.capturedPhotos.length,views:space?.views.length,directors:directors.length,revision:owner?.studioV3.revision,entities:space?.entities.length,roles:space?.characterRoles.length,setups:space?.setups.length,source:owner?.studioV3.sourceBinding.sourceKind,activeSetupId:space?.activeSetupId,
     objects:space?.entities.map(entity=>({id:entity.id,name:entity.label,roleId:entity.roleId,color:entity.color,materialMode:entity.materialMode})),
     states:space?.setups.map(setup=>({id:setup.id,name:setup.label,kind:setup.kind,entities:setup.entityStates.map(value=>({id:value.entityId,position:value.transform.position,rotation:value.transform.rotation,pose:value.pose,visible:value.visible,...(value.camera?{opticalPosition:value.camera.position,opticalRotation:value.camera.rotation,optics:{focalLength:value.camera.focalLength,fov:value.camera.fov,frameAspectRatio:value.camera.frameAspectRatio,apertureFNumber:value.camera.apertureFNumber,depthOfFieldMode:value.camera.depthOfFieldMode}}:{})}))}))});
 });
@@ -42,6 +44,13 @@ document.querySelector('#fail').onclick=()=>{
   const child=frame.contentWindow,save=child.CanvasStore.save.bind(child.CanvasStore);let restored=false;
   child.CanvasStore.save=(...args)=>{if(!restored){restored=true;child.CanvasStore.save=save;return Promise.reject(Object.assign(Error('验收注入：存储空间不足'),{name:'QuotaExceededError'}));}return save(...args);};
   out.textContent='仅下一次真实保存边界注入失败；请编辑后尝试关闭';
+};
+document.querySelector('#photo-fail').onclick=()=>{
+  const child=frame.contentWindow,save=child.CanvasStore.save.bind(child.CanvasStore);let remaining=2;
+  // createConnected autosaves before the explicit guarded photo save. Reject
+  // both calls in this disposable QA project to exercise the retained receipt.
+  child.CanvasStore.save=(...args)=>{if(remaining-- > 0){if(remaining===0)child.CanvasStore.save=save;return Promise.reject(Object.assign(Error('验收注入：照片保存空间不足'),{name:'QuotaExceededError'}));}return save(...args);};
+  out.textContent='仅阻断图片自动保存与最终保存；再次拍摄重试同一照片';
 };
 // A project must exist before the production page loads it. Never overwrite an
 // existing record; refresh exercises the same real IndexedDB saved document.
