@@ -2,7 +2,7 @@
 
 本地 `video.extend` 现有独立适配实现官方 Toolbar 的**参考生成**流程，协议名为 `ark-video-extend-reference`，必须显式使用 `capabilityMode: prompt_simulation`。这表示方向、连续性和不重复原片是提示词要求；不是原生时序参数或生成质量保证。文件名保留任务约定的 NATIVE，实际协议及能力声明不称作 native extend。
 
-**不能只填 Key 就把本地视频发给 Ark。** 当前 Ark 视频合同只列公网 URL 和 `asset://<ASSET_ID>`；本适配仅支持不含凭据的公网 HTTPS 视频，未实现公网素材发布或 Ark 资产库。`asset:`、`blob:`、本地 `/api/...` 和 MP4 data URI 均拒绝。现有本地裁片会变为内联 MP4，裁片验证成功不表示可提交 Ark。正式界面应在读取、裁片之前提示这个条件；不能传整片公网 URL 冒充本地选区，也不能将 Files API 的 `file.id` 当作 Asset ID。
+**不能只填 Ark Key 就把本地视频发给 Ark。** 10 月 5 日适配仅支持不含凭据的公网 HTTPS 视频；10 月 8 日已新增[显式独立 fal CDN 发布](ARK-LOCAL-VIDEO-PUBLICATION-20261008.md)。对应映射必须添加 `videoUploadProvider` 并引用独立 fal Key，本地素材/选区经实际 MP4 准备和完整解码后发布公网 URL；未配时仍在读取/裁片前阻断。没有接入 Ark 资产库，也不能传整片公网 URL 冒充选区或将 Files API 的 `file.id` 当作 Asset ID。
 
 另一个只读调查已记录[Ark 本地视频传输证据](ARK-LOCAL-VIDEO-TRANSPORT-20261005.md)：Files 的二进制上传服务于 Responses/Chat 理解合同；CreateAsset 则需要 AK/SK、已授权素材组和公网来源 URL。因此这两条公开路径都不能据此声称“只填 Ark API Key 即可把本地视频上传用于生成”。
 

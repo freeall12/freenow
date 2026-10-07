@@ -19,6 +19,7 @@
 - 普通图片/视频/音频/文本/世界标题接通选中编辑、防抖、Enter/失焦提交、Escape、非空与来源守卫。实际音频标题提交后焦点回节点，立即撤销/重做和刷新已验；控件首次选中才创建，5000 个未选中节点新增编辑 DOM 为 0，100 轮切选不继续增加，20 项专项检查通过。真实系统 IME、全部类型/缩放仍未验。[标题模块](../src/features/canvas-node-titles/README.md)
 - 搜索 Enter 统一确认高亮，14 项定向回归通过；分类/其他结果/清除焦点三条 Computer Use 路径均确认图片 B，空结果、两级 Escape 和回焦已验。没有重跑全库测试或宣称整体 FPS 提升。[搜索记录](CANVAS-SEARCH-KEYBOARD-20261008.md)
 - 创意 HTML 编辑器新增本标签页草稿、明确恢复/放弃和版本冲突保护，待决定时锁正文及保存；21 项专项检查通过。实机保存失败保留、关闭提示与 revision 2 / 122 字符实际 IndexedDB 回读已验；控制层自动取消 beforeunload，刷新恢复仅有定向检查。92 份精确模板新增正文仍为 0。[来源与草稿](research/agent-template-source-followup-20261008.md)
+- Ark 普通生成、延长与重拍新增显式本地 MP4 发布通道，必须配置 `videoUploadProvider` 和独立 fal Key；32 MiB 来源完整解码后上传，再向 Ark 传公网 HTTPS。准备阶段和原任务 ID 持久保存，unknown 不重传/重提，结果完整解码再归档；115 项定向检查通过，含真实 MP4、网关同库重启和归档。实机延长/重拍缺发布配置提示与禁用、重拍读取前失败已验；启用发布的 UI 全状态与真实供应商未验，不能写成只填 Ark Key 即可。[配置与范围](ARK-LOCAL-VIDEO-PUBLICATION-20261008.md)
 
 [交互清点](INTERACTION-CHECK-20261008.md)与[实际截图](screenshots/README.md)区分本批源码、实机和未验范围。
 

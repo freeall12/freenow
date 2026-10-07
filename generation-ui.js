@@ -113,7 +113,7 @@
     if(panorama?.isNativePanoramaRequest(request)){
       panoramaMedia||=import('./src/features/image-generation/panorama-media.mjs');
       request=await (await panoramaMedia).preparePanoramaMedia(request,{signal,localAssets:window.LocalAssets,baseUrl:document.baseURI,nativeConfiguration,validateSources});
-    }else if(request.kind!=='video.depth')request=await media.prepareGenerationMediaRequest(request,{signal,localAssets:window.LocalAssets,baseUrl:document.baseURI,nativeConfiguration,validateSources});
+    }else if(request.kind!=='video.depth')request=await media.prepareGenerationMediaRequest(request,{signal,localAssets:window.LocalAssets,baseUrl:document.baseURI,nativeConfiguration,validateSources,onVideoPublication:hint=>app.notify(hint)});
     validateSources();
     const submission=resultSubmissions.get(jobId);
     if(submission&&!draftGuards.has(jobId)){
@@ -473,6 +473,8 @@
       const operations=new Set(rows.map(row=>row.kind)),ready=new Set(rows.filter(row=>row.configured).map(row=>row.kind));
       summary.textContent='查看各项能力配置 · '+ready.size+'/'+operations.size+' 项配置就绪';
       for(const row of rows)list.append(el('p','',row.operation+(metadata?.protocol==='routed'?' · '+(row.provider||'未选择服务商'):'')+' · '+labels[row.state]+(row.missing.length?' · 缺少 '+row.missing.join('、'):'')));
+      const configurations=metadata?.protocol==='routed'?Object.entries(metadata.providers||{}):[['',metadata]];
+      for(const [id,configuration]of configurations)for(const [model,profile]of Object.entries(configuration?.capabilities?.videoUpload||{}))if(configuration.configured&&profile.transport==='fal-public-https'&&profile.publication==='public'&&typeof model==='string'&&model.length<=200)list.append(el('p','api-readiness-note',(id?id+' · ':'')+model+'：本地 MP4 将先发布到 fal 公网 HTTPS，再交给 Ark；需要独立 fal Key，限 32 MiB、24–30 FPS。生成结果保存到本机。'));
       list.append(el('p','api-readiness-note','配置就绪表示已设置路由、模型与 Key。真实模型权限、参数限制及生成结果仍须实测；通用任务网关需实现相应功能。'));
     };
     const url=el('input');url.type='url';url.placeholder='https://your-task-gateway.example/api';url.setAttribute('aria-label','API 基础地址');

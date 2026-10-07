@@ -37,9 +37,9 @@ Sonilo Music、Product Kit 与导演批注的本地验证见[整批证据](LOCAL
 | `openai-relight-native` | 完整图片重新打光；面板与 Agent 共用全部五组参数 | [打光编辑](OPENAI-RELIGHT-NATIVE.md)，显式参数提示词编辑；不保证物理光照或输出与来源同尺寸 |
 | `magnific-native` | Magnific Precision V2 完整图片放大、四参数面板与 Agent | [原生配置](MAGNIFIC-NATIVE-20261005.md)，本机原图直传；JPEG/WebP 结果需 FFmpeg，真实效果待 Key 验收 |
 | `skin-tasks-v1` | 皮肤编辑三档、增强节点版本与 Agent 审批 | [专用网关](SKIN-EDITOR-PROVIDER-20261005.md)，需实际实现合同的外部服务器；不是 Enhancor 原生适配，仅填其 Key 不可用 |
-| `ark-native` | 火山方舟视频任务 | [Ark](ARK-VIDEO.md) |
-| `ark-video-extend-reference` | 工具栏延长镜头：片头/片尾、4–30秒、连续性与参考 | [延长镜头](VIDEO-EXTEND-NATIVE-20261005.md)，明确为参考生成；本地视频另需公网发布通道 |
-| `ark-video-reshoot-edit` | 视频重拍：分镜、四种镜头模式与提示词编译 | [重拍](VIDEO-RESHOOT-EDIT-20261005.md)，实验性提示词模拟；Ark Key 外还需要独立 HTTPS 视频 |
+| `ark-native` | 火山方舟视频任务 | [Ark](ARK-VIDEO.md)；本地 MP4 可显式配置[独立 fal 发布](ARK-LOCAL-VIDEO-PUBLICATION-20261008.md) |
+| `ark-video-extend-reference` | 工具栏延长镜头：片头/片尾、4–30秒、连续性与参考 | [延长镜头](VIDEO-EXTEND-NATIVE-20261005.md)，明确为参考生成；本地视频须另配[独立 fal 发布](ARK-LOCAL-VIDEO-PUBLICATION-20261008.md) |
+| `ark-video-reshoot-edit` | 视频重拍：分镜、四种镜头模式与提示词编译 | [重拍](VIDEO-RESHOOT-EDIT-20261005.md)，实验性提示词模拟；本地视频须另配[独立 fal 发布](ARK-LOCAL-VIDEO-PUBLICATION-20261008.md) |
 | `fal-video-depth-native` | 普通视频节点与 Agent 视频深度转换 | [深度](VIDEO-DEPTH-NATIVE-20261005.md) / [节点入口](VIDEO-DEPTH-NODE-ENTRY-20261005.md)，完整 MP4、原尺寸/时长、1–2 个灰度结果；需 FFmpeg，支持多变体/铺开/堆叠 |
 | `openai-panorama-edit-native` | 旧版 3D 片场全景局部编辑 | [局部编辑](OPENAI-PANORAMA-EDIT-NATIVE-20261005.md)，2048×1024 全景、可见凸四角选区；透视蒙版编辑后本地回投，硬边接缝与效果待验 |
 | `fal-panorama-native` | 单张图片 → Hunyuan World Panorama | [全景](PANORAMA-NATIVE-20261005.md)，固定 2:1、单结果、原生尺寸；当前后端仅接受实际 PNG 像素，非区域编辑 |

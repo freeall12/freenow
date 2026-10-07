@@ -5,19 +5,23 @@ import {prepareWorkflowInputs,assertWorkflowRequestBudget} from '../agent-workfl
 import {resolveProviderConfiguration,requestModelAlias} from './provider-configuration.mjs';
 import {prepareMinimaxNativeInputs,assertMinimaxNativeMedia} from '../video-generation/minimax-native.mjs';
 import {assertVideoReferenceDurations} from '../video-generation/reference-validation.mjs';
+import {assertArkVideoPublication,arkVideoPublication,arkLocalVideo} from '../video-generation/ark-upload.mjs';
 
 // Subject/library IDs name immutable submitted assets, not live canvas nodes. Canvas
 // identity checks belong to the submit-time host guard, never synthetic subject IDs.
 export async function prepareGenerationMediaRequest(request,{
   signal,localAssets=globalThis.LocalAssets,baseUrl=globalThis.document?.baseURI,
   resolveMedia=createWorkflowMediaResolver({localAssets,baseUrl}),transport=prepareWorkflowInputs,
-  nativeConfiguration,validateSources=()=>{}
+  nativeConfiguration,validateSources=()=>{},onVideoPublication=()=>{}
 }={}){
   if(!['image.generate','video.generate'].includes(request.kind))return request;
   nativeConfiguration=resolveProviderConfiguration(nativeConfiguration,request);
   const check=()=>{if(signal?.aborted)throw signal.reason??new DOMException('素材准备已取消','AbortError');validateSources();};
   check();
   let prepared=prepareGenerationRequest(structuredClone(request));
+  if(prepared.kind==='video.generate')assertArkVideoPublication(nativeConfiguration,prepared,{baseUrl});
+  const publication=arkVideoPublication(nativeConfiguration,prepared);
+  if(prepared.kind==='video.generate'&&publication.enabled&&prepared.inputs?.some(input=>input.type==='video'&&arkLocalVideo(input.url,baseUrl)))onVideoPublication(publication.hint+' 生成结果将保存到本机。');
   const minimaxNative=prepared.kind==='video.generate'&&nativeConfiguration?.protocol==='minimax-native';
   const minimaxProfile=minimaxNative?nativeConfiguration.capabilities?.video?.[requestModelAlias(prepared)]:undefined;
   if(minimaxNative){

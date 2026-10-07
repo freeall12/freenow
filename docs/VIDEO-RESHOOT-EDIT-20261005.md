@@ -43,7 +43,7 @@
 
 只有一个 source_video；实际时长/尺寸由 `prepareReshootMedia` 解码读取，计划时长必须与真实素材一致。来源选段在通用 tasks-v1 路径必须先裁成实际视频，附上与真实时长一致的 sourceRange；不发送整片替代选段。未知参数、缺失起止相机、短段运镜、重复 segmentId、非连续计划、隐藏指令及不支持的清晰度/声音在 POST 前拒绝。全 unchanged 属于无操作计划，前端与适配器均拒绝且不发 POST。Ark 使用 -1 输出时长，不将供应商返回的整数时长编造为实际媒体元数据。
 
-Ark 当前 generation 视频只接受已发布 HTTPS 视频；本地 asset/blob/data 视频和未经上传的选段明确阻断。Ark Files 理解接口不等同于 generation 视频上传，因此这里不能声称本地视频仅填 Ark Key 就能使用。详见 `ARK-LOCAL-VIDEO-TRANSPORT-20261005.md`。
+Ark generation 视频仍使用已发布 HTTPS。10 月 8 日新增[显式独立 fal CDN 发布](ARK-LOCAL-VIDEO-PUBLICATION-20261008.md)：对应映射配置 `videoUploadProvider` 与独立 fal Key 后，可准备本地 asset/blob/data 视频和实际选段，经完整 MP4 解码后上传；未配时明确阻断。Ark Files 理解接口不等同于 generation 视频上传，本地视频仍不能仅填 Ark Key 使用。[原传输核对](ARK-LOCAL-VIDEO-TRANSPORT-20261005.md)
 
 ## 前端保护与恢复
 

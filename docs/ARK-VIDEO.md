@@ -17,6 +17,8 @@ GENERATION_MODEL_MAP={"seedance-2.0":{"kind":"video.generate","model":"doubao-se
 
 原生 Ark 协议只支持视频生成。图片、文字、音频生成、视频解析、视频增强、蒙层编辑、3D 等操作需要对应原生适配或 `tasks-v1` 服务。
 
+多供应商模式另支持显式 `videoUploadProvider:"fal"`：引用独立 fal Key，将本地实际 MP4 完整解码并发布至公网 HTTPS 后交给 Ark。没有这一配置仍拒绝本地视频；单供应商的上述最小配置不会启用上传。预算、配置和原任务恢复见[本地视频发布](ARK-LOCAL-VIDEO-PUBLICATION-20261008.md)，不能将 Ark Files 理解接口当作生成视频上传。
+
 ## 完整模型能力契约
 
 映射的键是 UI 的稳定模型 ID，不是 Ark 的物理 ID：`seedance-2.0`、`seedance-2.0-mini`、`seedance-2.0-fast`、`seedance-2.5`、`seedance-2.5-draft`。每个条目必须包含 `kind: "video.generate"`、真实 `model` 与非空 `modes`。样片 UI ID 可映射到与普通 Seedance 2.5 相同的物理型号。

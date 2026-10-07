@@ -9,6 +9,7 @@
 | [音频节点手势](AUDIO-PLAYER-GESTURES-20261008.md) / [普通标题模块](../src/features/canvas-node-titles/README.md) | 正式上传 WAV、空白拖动/波形定位、标题 Enter/Escape/立即撤销重做、刷新；11 项音频与 20 项标题专项；5000 未选中节点零编辑 DOM，非整体 FPS 结论 |
 | [搜索键盘](CANVAS-SEARCH-KEYBOARD-20261008.md) / [交互清点](INTERACTION-CHECK-20261008.md) | 官方根 Enter 事件、14 项定向回归；分类/结果/清除焦点、空结果、两级 Escape/回焦实机，真实系统 IME 未验 |
 | [模板来源与草稿](research/agent-template-source-followup-20261008.md) | 92 份正文仍缺；21 项草稿/原来源回归；失败保留和 revision 2 真实回读已验，刷新恢复被控制层 beforeunload 取消，仅定向检查 |
+| [Ark 本地 MP4 发布](ARK-LOCAL-VIDEO-PUBLICATION-20261008.md) | 独立 fal Key、全来源解码、公网 HTTPS、原 ID 只读恢复与结果归档；115 项定向检查，实际媒体/网关重启；实机延长/重拍缺发布条件与阻断，启用发布 UI/真实供应商未验 |
 
 ## 2026-10-07 前批入口
 

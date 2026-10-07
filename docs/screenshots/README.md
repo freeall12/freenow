@@ -22,6 +22,13 @@
 
 三张为实际 1280×720 / DPR 2 页面完整视口 JPEG，CDP `Page.captureScreenshot`，未改变视口、样式、裁切或拼接。素材均为合成公开测试数据；无真实 Key、模型调用或原站请求。本机 4173 属于另一个项目，本批只使用独立 freenow 4195 服务。定向回归与尚未验收范围见[交互清点](../INTERACTION-CHECK-20261008.md)。
 
+| Ark 配置界面 | 实际范围 |
+| --- | --- |
+| [延长上传配置](ark-extension-publication-config-20261008.jpg) | 正式延长面板，合成 Ark metadata 未启用 `videoUpload`；独立 fal Key / `videoUploadProvider` 条件可见且确认禁用，POST/准备 hook/裁片均 0。QA 审计区域遮挡面板左部。 |
+| [重拍上传配置](ark-reshoot-publication-config-20261008.jpg) | 正式重拍面板的 8 秒合成视频分镜、镜头控制及上传条件，生成禁用；关闭后正式 TaskService 前置检查明确失败，POST/裁片/生成媒体读取 0，准备 hook 1。 |
+
+两张为 CUA 直接完整视口 JPEG，无裁切、视口/样式变更或模型调用；QA 审计控件覆盖部分页面，不作为一比一视觉证据，也不证明启用发布后的完整流程。[配置、合同与边界](../ARK-LOCAL-VIDEO-PUBLICATION-20261008.md)
+
 ## 2026-10-07 最终 macOS arm64 安装包重开
 
 | 文件 | 实际内容与来源 |

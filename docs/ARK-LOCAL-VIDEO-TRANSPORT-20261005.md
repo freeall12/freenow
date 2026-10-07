@@ -1,5 +1,7 @@
 # Ark 本地视频传输核对（2026-10-05）
 
+2026-10-08 增量：已有[显式独立 fal CDN 发布](ARK-LOCAL-VIDEO-PUBLICATION-20261008.md)，覆盖普通生成、延长和重拍。本调查保留 Ark 单 Key / Files / Asset 的原合同边界；新增通道须另配 `videoUploadProvider` 与 fal Key，不意味着 Ark 单 Key 能直接接本地视频。
+
 当前公开合同无法证明「仅填写 Ark Key，上传任意本地视频，再直接用于 Seedance 视频生成」可用。Ark Files API 支持同一 API Key 上传本地二进制视频，但返回的 File ID 用于多模态理解。视频生成接口只明确支持公网视频 URL 或 `asset://<ASSET_ID>`；不能把 File ID 当成 Asset ID，也不能据 Files API 存在宣称本地视频延长已接通。
 
 本次只读获取官方公开正文及 SDK，没有读取账户、真实 Key，没有上传媒体或调用模型。此文记录的是公开接口合同，不是供应商账号或真实生成验收。

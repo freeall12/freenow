@@ -1,11 +1,7 @@
 import {providerConfigurationStatus,resolveProviderConfiguration,requestModelAlias} from '../node-composer/provider-configuration.mjs';
+import {arkVideoPublication,arkLocalVideo,arkPublicVideo as publicVideo} from '../video-generation/ark-upload.mjs';
 
 const fail=message=>Object.assign(Error(message),{code:'unsupported_generation',providerDispatched:false});
-function publicVideo(value){
-  let url;try{url=new URL(value);}catch{return false;}
-  const host=url.hostname.toLowerCase();
-  return url.protocol==='https:'&&!url.username&&!url.password&&!host.includes(':')&&!['localhost','0.0.0.0'].includes(host)&&!host.endsWith('.local')&&!host.endsWith('.localhost')&&!/^(0|10|127|169\.254|192\.168)\./.test(host)&&!/^172\.(1[6-9]|2\d|3[01])\./.test(host);
-}
 
 export function extensionRequestState(metadata,request,{prepared=false}={}){
   const availability=providerConfigurationStatus(metadata,request);
@@ -14,7 +10,8 @@ export function extensionRequestState(metadata,request,{prepared=false}={}){
   if(selected.protocol!=='ark-video-extend-reference')return {ready:true,reason:'',hint:''};
   const p=request.parameters??{},entry=selected.capabilities?.videoExtend?.models?.[requestModelAlias(request)],profile=entry?.profile;
   const resolution=p.resolution??entry?.resolution,audio=p.generateAudio??entry?.generateAudio;
-  const hint='参考生成 · '+requestModelAlias(request)+' · '+resolution+' · '+(audio===undefined?'声音按供应商默认':audio?'有声':'无声')+'；只生成新增片段，原片保留。';
+  const publication=arkVideoPublication(metadata,request);
+  const hint='参考生成 · '+requestModelAlias(request)+' · '+resolution+' · '+(audio===undefined?'声音按供应商默认':audio?'有声':'无声')+'；只生成新增片段，原片保留。'+publication.hint;
   const reject=reason=>({ready:false,reason,hint});
   if(!profile||!Array.isArray(profile.durations)||!Array.isArray(profile.resolutions)||p.capabilityMode!=='prompt_simulation')return reject('延长镜头须显式配置参考生成能力，请检查模型映射');
   if(!profile.durations.includes(p.duration))return reject('当前模型支持的新增时长为 '+profile.durations.join(' / ')+' 秒；请修改时长或服务端模型能力配置');
@@ -33,7 +30,7 @@ export function extensionRequestState(metadata,request,{prepared=false}={}){
   }
   // Ark's documented Files API is for understanding, not a binary-to-public-URL
   // upload for generation. Fail before decoding/cutting local video, not after it.
-  if(inputs.some(input=>input.type==='video'&&(!publicVideo(input.url)||input.clip!=null||input.trim!=null||input.sourceClip!=null))||p.sourceClip!=null)return reject('当前 Ark 延长接口需要已发布的独立 HTTPS 视频；本地视频及裁片尚需接入媒体上传，仅配置 Ark Key 不足以使用。');
+  if(inputs.some(input=>input.type==='video'&&(!publicVideo(input.url)&&!(publication.enabled&&arkLocalVideo(input.url))||!publication.enabled&&(input.clip!=null||input.trim!=null||input.sourceClip!=null)))||p.sourceClip!=null&&!publication.enabled)return reject('当前 Ark 延长接口需要已发布的独立 HTTPS 视频；本地视频及裁片的媒体上传须明确配置 videoUploadProvider 与独立 fal Key，仅配置 Ark Key 不足以使用。');
   if(prepared&&inputs.filter(input=>input.type==='video').some(input=>{
     const {width,height}=input,seconds=input.duration??input.durationMs/1000,range=input.sourceRange;
     return ![width,height].every(value=>Number.isSafeInteger(value)&&value>=300&&value<=6000)||width/height<.4||width/height>2.5||width*height<407696||width*height>8295044||input.durationMs!==undefined&&Math.abs(input.durationMs/1000-seconds)>.001||range&&(!Number.isFinite(range.start)||!Number.isFinite(range.end)||range.start<0||range.end<=range.start||Math.abs(range.end-range.start-seconds)>.1);

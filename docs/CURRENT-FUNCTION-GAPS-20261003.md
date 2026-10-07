@@ -10,6 +10,8 @@
 
 2026-10-08 补充：[音频空白拖动](AUDIO-PLAYER-GESTURES-20261008.md)、[普通节点直接标题编辑](../src/features/canvas-node-titles/README.md)和[搜索焦点 Enter](CANVAS-SEARCH-KEYBOARD-20261008.md)已接入并按各自范围实机验证，不能继续列为未实现。标题控件首次选中才创建，减少 DOM 开销但不证明整体 FPS。模板编辑器已有本标签页草稿和冲突保护，保存失败保留/实际回读已验；刷新恢复仍仅有定向检查，[来源复查](research/agent-template-source-followup-20261008.md)未新增92份精确正文。
 
+同日：[Ark 本地 MP4 传输](ARK-LOCAL-VIDEO-PUBLICATION-20261008.md)现已实现显式独立 fal CDN 发布，覆盖普通生成、延长和重拍；115 项定向检查包含原任务恢复、实际完整解码和本地结果归档。缺发布条件的延长/重拍提示与禁用已实机核对；启用发布后的完整 UI、真实账号/CDN 生命周期及模型效果仍开放。必须另配 `videoUploadProvider` 和 fal Key，不能宣称只填 Ark Key 即可。下方 10 月 5 日的“公网传输待接”是历史依据，以此补充为准。
+
 2026-10-07 补充：[Sonilo 原生 SFX](SONILO-SFX-NATIVE-20261005.md)已实现文字/完整视频音效及连续分段，20 项定向检查和 4 项受影响 Music 回归通过；不能再将“原生 SFX 未接入”当作当前缺口。8秒视频与0.5秒Agent文字音效已实机播放、刷新恢复；全部非法操作组合与真实账号/音质仍待验，stems、语音保留、ducking 未实现。[本批状态](STATUS.md)区分源码与实际界面范围。
 
 2026-10-05 / 1005p补充：[Sonilo原生Music](SONILO-NATIVE-20261005.md)现已按完整官方开发者合同实现本地MP4直传、文字/视频音乐、精确分段与多变体，不再将“Sonilo音乐/分段”列为未实现。正式节点/Agent、媒体归档、历史第二项、缺配置零提交和同库重开已有[本批实机证据](LOCAL-SONILO-AGENT-AND-HISTORY-20261005.md)。该批时 Sonilo SFX/stems/语音保留/ducking及真实供应商仍开放；SFX 当前接入见上方 2026-10-07 补充。Product Kit、Director Markup保存/交接/关闭与长历史DOM更新亦已补齐并定向验证，不能等同全部状态或视觉验收。

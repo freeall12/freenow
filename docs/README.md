@@ -12,6 +12,7 @@ freenow 是本地 AI 创作工作台：无限画布、图片/音视频工具、3
 | 下载、运行或构建 Electron 桌面预发布 | [macOS arm64 Alpha](https://github.com/freeall12/freenow/releases/tag/v0.1.0-alpha.1)、[桌面指南](DESKTOP.md)；固定 4183、独立用户目录、外部 FFmpeg，未签名/公证；ZIP、包内后台和实际安装包退出重开恢复已核验 |
 | 新建与切换画布项目 | [画布项目](CANVAS-PROJECTS.md) |
 | 使用图片、视频、音频或 3D 生成 | [多供应商配置](MULTI-PROVIDER-SETUP.md)、[功能与适配器](FEATURES.md) |
+| 把本地 MP4 交给 Ark 生成、延长或重拍 | [独立 fal 发布配置](ARK-LOCAL-VIDEO-PUBLICATION-20261008.md)，需要独立 fal Key 与显式型号映射；不会复用 Ark Key |
 | 连接创作 Agent | [Agent API](AGENT-API.md)、[本地编辑工具](AGENT-LOCAL-EDITING-20261003.md)、[片场控制](AGENT-STUDIO-LOCAL-CONTROLS.md) |
 | 理解数据位置、迁移和恢复 | [本地数据与运行](LOCAL-STORES-AND-RUNTIME-20261003.md)、[素材库容量与冲突](LIBRARY-LOCAL-CAPACITY-20261005.md)、[Agent 存储](AGENT-STORAGE.md) |
 | 找真实界面及复现方法 | [截图索引](screenshots/README.md)、[验收证据索引](VERIFICATION-INDEX.md) |

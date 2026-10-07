@@ -3,6 +3,7 @@ const {createHash}=require('node:crypto');
 const path=require('node:path');
 const {createOpenAINativeProvider}=require('./generation-openai.cjs');
 const {createArkProvider}=require('./generation-ark.cjs');
+const {createArkVideoMediaProvider,arkVideoUploadConfiguration}=require('./generation-ark-video-media.cjs');
 const {createFalProvider}=require('./generation-fal.cjs');
 const {createTripoProvider}=require('./generation-tripo.cjs');
 const {createMiniMaxProvider}=require('./generation-minimax.cjs');
@@ -110,13 +111,18 @@ function createTasksProvider({baseUrl='',apiKey='',modelMap,fetchImpl=fetch,allo
  return {configured,fingerprint,metadata,prepare,submit,poll,cancel,generate};
 }
 
-function createGenerationRouter({providers={},routes={},fetchImpl=fetch,localPort,preparationDirectory,videoDepthDirectory,magnificDownloadImpl,videoDepthDownloadImpl,soniloDownloadImpl}={}){
+function createGenerationRouter({providers={},routes={},fetchImpl=fetch,localPort,preparationDirectory,videoDepthDirectory,magnificDownloadImpl,videoDepthDownloadImpl,soniloDownloadImpl,arkVideoMediaOptions}={}){
  fetchImpl=protectGenerationFetch(fetchImpl);
  let instances={},normalized={},configurationError=null;
  try{
   if(typeof providers==='string')providers=JSON.parse(providers);if(typeof routes==='string')routes=JSON.parse(routes);
   if(!object(providers)||!object(routes)||Object.keys(providers).length>100||Object.keys(routes).length>100)throw Error();
-  for(const [id,config]of Object.entries(providers)){
+  for(const [id,originalConfig]of Object.entries(providers)){
+   let config=originalConfig,videoUploads={};
+   if(['ark-native','ark-video-extend-reference','ark-video-reshoot-edit'].includes(config?.protocol)){
+    const uploadConfiguration=arkVideoUploadConfiguration(config.modelMap,providers);
+    config={...config,modelMap:uploadConfiguration.modelMap};videoUploads=uploadConfiguration.uploads;
+   }
    if(!providerPattern.test(id)||!object(config)||!['tasks-v1','openai-native','ark-native','fal-native','tripo-native','minimax-native','elevenlabs-native','marble-native','minimax-music-native','fal-video-native','elevenlabs-sound-native','elevenlabs-music-native','mureka-native','seed-audio-native','sonilo-native','fal-video-audio-native','ark-video-extend-reference','ark-video-reshoot-edit','fal-panorama-native','fal-video-depth-native','openai-panorama-edit-native','fal-video-mask-native','openai-masked-edit-native','openai-relight-native','skin-tasks-v1','magnific-native'].includes(config.protocol)||Object.keys(config).some(key=>!['protocol','baseUrl','apiKey','modelMap','client'].includes(key))||['baseUrl','apiKey'].some(key=>config[key]!==undefined&&typeof config[key]!=='string'))throw Error();
    if(config.baseUrl)tasksEndpoint(config.baseUrl,{localPort});if(config.client?.baseURL)tasksEndpoint(config.client.baseURL,{localPort});
    const provider=(config.protocol==='skin-tasks-v1'?options=>createSkinTasksProvider({...options,transport:createTasksProvider({...options,maxResponseBytes:64*1024*1024,rejectCredentialEcho:true})}):config.protocol==='openai-native'?createOpenAINativeProvider:config.protocol==='ark-native'?createArkProvider:config.protocol==='fal-native'?createFalProvider:config.protocol==='tripo-native'?createTripoProvider:config.protocol==='minimax-native'?createMiniMaxProvider:config.protocol==='elevenlabs-native'?createElevenLabsProvider:config.protocol==='marble-native'?createMarbleProvider:config.protocol==='minimax-music-native'?createMiniMaxMusicProvider:config.protocol==='fal-video-native'?createFalVideoProvider:config.protocol==='elevenlabs-sound-native'?createElevenLabsSoundProvider:config.protocol==='elevenlabs-music-native'?createElevenLabsMusicProvider:config.protocol==='mureka-native'?createMurekaProvider:config.protocol==='seed-audio-native'?createSeedAudioProvider:config.protocol==='sonilo-native'?createSoniloProvider:config.protocol==='fal-video-audio-native'?createVideoAudioProvider:config.protocol==='ark-video-extend-reference'?createVideoExtendProvider:config.protocol==='ark-video-reshoot-edit'?createVideoReshootProvider:config.protocol==='fal-panorama-native'?createPanoramaProvider:config.protocol==='fal-video-depth-native'?createVideoDepthProvider:config.protocol==='openai-panorama-edit-native'?createOpenAIPanoramaEditProvider:config.protocol==='fal-video-mask-native'?createVideoMaskProvider:config.protocol==='openai-masked-edit-native'?createOpenAIMaskedEditProvider:config.protocol==='openai-relight-native'?createOpenAIRelightProvider:config.protocol==='magnific-native'?createMagnificProvider:createTasksProvider)({...config,fetchImpl,localPort,...(config.protocol==='magnific-native'?{downloadImpl:magnificDownloadImpl}:{}),...(config.protocol==='sonilo-native'?{download:soniloDownloadImpl}:{}),...(config.protocol==='fal-video-depth-native'?{download:videoDepthDownloadImpl,...(videoDepthDirectory?{directory:path.join(videoDepthDirectory,id)}:{})}:{}),...(config.protocol==='fal-video-mask-native'&&preparationDirectory?{directory:path.join(preparationDirectory,id)}:{})});
@@ -127,7 +133,7 @@ function createGenerationRouter({providers={},routes={},fetchImpl=fetch,localPor
      return [alias,{kind:entry.kind,...typeof label==='string'&&label.trim()&&label.length<=80?{label}:{}}];
     }))}};
    }
-   instances[id]=provider;
+   instances[id]=Object.keys(videoUploads).length?createArkVideoMediaProvider({provider,uploads:videoUploads,apiKey:config.apiKey,directory:path.join(preparationDirectory||path.join(__dirname,'.ark-video-preparation'),'ark-'+id),...arkVideoMediaOptions}):provider;
   }
   for(const [kind,route]of Object.entries(routes)){
    if(!kindPattern.test(kind))throw Error();

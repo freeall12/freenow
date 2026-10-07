@@ -11,6 +11,7 @@ function rejectCredentials(value){if(!value||typeof value!=='object')return;for(
 function canonical(value){if(value===null||['string','boolean'].includes(typeof value))return JSON.stringify(value);if(typeof value==='number'&&Number.isFinite(value))return JSON.stringify(value);if(Array.isArray(value))return '['+value.map(canonical).join(',')+']';if(value&&typeof value==='object')return '{'+Object.keys(value).sort().map(key=>JSON.stringify(key)+':'+canonical(value[key])).join(',')+'}';throw failure('生成请求必须为 JSON 数据','invalid_request');}
 const digest=value=>createHash('sha256').update(typeof value==='string'?value:canonical(value)).digest('hex');
 const PREPARATION_PROTOCOL='fal-video-mask-native';
+const PREPARATION_KINDS={'fal-video-mask-native':['video.erase','video.replace'],'ark-native':['video.generate'],'ark-video-extend-reference':['video.extend'],'ark-video-reshoot-edit':['video.reshoot']};
 const PREPARATION_FAILURE_CODES=new Set(['unsupported_generation','invalid_video_mask_media']);
 const PREPARATION_STAGES={'media-preparing':'preparing','media-ready':'ready','upload-initiating':'dispatching','upload-initiated':'confirmed',uploading:'dispatching',uploaded:'confirmed','generation-dispatching':'dispatching','generation-accepted':'confirmed',unknown:'unknown'};
 const UUID=/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i;
@@ -22,7 +23,7 @@ function preparationObject(value,required,optional=[]){
 }
 function checkedPreparationState(value,request){
  const state=preparationObject(value,['version','protocol','preparationId','kind','stage','status','requestHash'],['routing']);
- if(state.version!==1||state.protocol!==PREPARATION_PROTOCOL||typeof state.preparationId!=='string'||!UUID.test(state.preparationId)||!['video.erase','video.replace'].includes(state.kind)||state.kind!==request.kind||typeof state.stage!=='string'||!Object.hasOwn(PREPARATION_STAGES,state.stage)||PREPARATION_STAGES[state.stage]!==state.status||typeof state.requestHash!=='string'||!/^[a-f0-9]{64}$/.test(state.requestHash)||state.requestHash!==digest(request))throw failure('生成素材准备记录身份无效','invalid_preparation_state');
+ if(state.version!==1||!Object.hasOwn(PREPARATION_KINDS,state.protocol)||!PREPARATION_KINDS[state.protocol].includes(state.kind)||typeof state.preparationId!=='string'||!UUID.test(state.preparationId)||state.kind!==request.kind||typeof state.stage!=='string'||!Object.hasOwn(PREPARATION_STAGES,state.stage)||PREPARATION_STAGES[state.stage]!==state.status||typeof state.requestHash!=='string'||!/^[a-f0-9]{64}$/.test(state.requestHash)||state.requestHash!==digest(request))throw failure('生成素材准备记录身份无效','invalid_preparation_state');
  if(state.routing!==undefined){
   const routing=preparationObject(state.routing,['providerId','providerFingerprint']);
   if(typeof routing.providerId!=='string'||!/^[A-Za-z][A-Za-z0-9_-]{0,63}$/.test(routing.providerId)||typeof routing.providerFingerprint!=='string'||!/^[a-f0-9]{64}$/.test(routing.providerFingerprint))throw failure('生成素材准备供应商身份无效','invalid_preparation_state');
@@ -206,6 +207,7 @@ function createDurableGenerationService({directory,store=null,baseUrl='',apiKey=
   // Only a trusted in-process native adapter can attest that its asynchronous
   // video decode failed before upload. Remote gateway bodies cannot set this.
   if(protocol==='sonilo-native'&&selected(job)?.provider&&job.request.kind==='audio.generate'&&error.code==='sonilo_preparation_failed')return {...job,status:'failed',code:error.code,error:'Sonilo 来源未通过本地预上传校验；尚未上传或提交模型生成',providerDispatched:false,recovery:{reason:error.code,retryableLookup:false}};
+  if(['ark-native','ark-video-extend-reference','ark-video-reshoot-edit'].includes(protocol)&&selected(job)?.provider&&error.code==='ark_video_preparation_failed')return {...job,status:'failed',code:error.code,error:'Ark 视频未通过本地实际字节校验；尚未上传或提交生成',providerDispatched:false,recovery:{reason:error.code,retryableLookup:false}};
   if(protocol!==PREPARATION_PROTOCOL||!['video.erase','video.replace'].includes(job.request.kind)||!PREPARATION_FAILURE_CODES.has(error.code))return null;
   // The trusted native provider attests that generation was not dispatched.
   // Upload checkpoints remain private evidence and are never erased by this flag.

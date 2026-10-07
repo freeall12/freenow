@@ -1,6 +1,6 @@
 # 多供应商配置与验收
 
-更新：2026-10-05。图片、视频、音频、文字、识别和分镜解析可以同时使用不同服务。此路由是本地实现，不代表已获得 TapNow 后端设计；未使用真实 Key 验收供应商。SPZ 本地显示另使用已获批准的 Spark 渲染器。
+更新：2026-10-08。图片、视频、音频、文字、识别和分镜解析可以同时使用不同服务。此路由是本地实现，不代表已获得 TapNow 后端设计；未使用真实 Key 验收供应商。SPZ 本地显示另使用已获批准的 Spark 渲染器。
 
 ## 配置
 
@@ -102,7 +102,7 @@ VIDEO_AUDIO_MODEL_MAP='{"sonilo-sfx":{"kind":"audio.generate","model":"fal-ai/th
 
 延长镜头使用 `ark-video-extend-reference`，`video.extend.models.seedance-2.5` 路由、`ARK_API_KEY` 以及 `capabilityMode:prompt_simulation` 的精确映射；完整profile示例见 [`.env.example`](../.env.example)。源视频的分辨率和声音按能力预检，显式参数不静默降级。方向、4–30秒和四类连续性使用官方工具栏参考生成语义，效果仍需真实模型确认。
 
-**Ark 本地视频还需要公网素材发布通道，单填 Key 不足。** 当前前端在读取本地视频或裁片前即禁用提交；公开 Files API 的 ID不能替代视频生成需要的URL/Asset ID。[延长镜头合同](VIDEO-EXTEND-NATIVE-20261005.md) · [本地传输调查](ARK-LOCAL-VIDEO-TRANSPORT-20261005.md)
+**Ark 本地视频需要显式独立发布配置，单填 Ark Key 不足。** 可在对应 Ark 型号映射中添加 `videoUploadProvider:"fal"`，引用 `GENERATION_PROVIDERS` 中的 fal 原生提供方及独立 `FAL_KEY`；同一通道覆盖普通视频生成、延长和重拍。实际 MP4 完整解码后发布至 fal 公网 HTTPS，Ark Key 不会送给 fal；缺配置时仍在生成素材读取/裁片前阻断。当前每个输入/结果最多 32 MiB，来源 24–30 FPS、2–30 秒，重拍至少 4 秒；完整配置、持久恢复与其他预算见[本地发布指南](ARK-LOCAL-VIDEO-PUBLICATION-20261008.md)。公开 Files API 的 ID不能替代视频生成的 URL/Asset ID。[延长镜头合同](VIDEO-EXTEND-NATIVE-20261005.md) · [原传输调查](ARK-LOCAL-VIDEO-TRANSPORT-20261005.md)
 
 两组示例已由生产配置读取器及路由执行零网络dry-run；本机HTTP媒体验收见[本批记录](LOCAL-VIDEO-TOOLS-STORAGE-BRAND-20261005.md)。不代表真实供应商Key、账号资格或模型质量已验。
 
