@@ -2,7 +2,7 @@
 
 freenow Desktop 用 Electron 窗口运行现有无限画布、媒体编辑器、3D 片场和 Agent，并在应用内启动独立的本机 Node.js 后台。它沿用现有功能与供应商合同；桌面外壳不增加模型、付费账号权限或全站验收承诺。
 
-**当前桌面版本：`0.1.0-alpha.1`。目标为 macOS Apple Silicon（arm64）的 unsigned ZIP。Electron 开发窗口已实际运行，新的打包产物仍在验收，尚未提供可下载发布包。** 根项目版本仍为 `0.1.0`。实际发布成功后才补下载链接与文件校验值。
+**当前桌面版本：`0.1.0-alpha.1`。目标为 macOS Apple Silicon（arm64）的 unsigned ZIP。Electron 开发窗口已实际运行，新的打包产物仍在验收，尚未提供可下载发布包。** 根项目版本仍为 `0.1.0`。实际发布成功后才补下载链接；[构建与核验记录](releases/DESKTOP-ALPHA-VERIFICATION-20261007.md)提供本次字节和SHA-256。
 
 [项目首页](../README.md) · [当前状态](STATUS.md) · [开发指南](DEVELOPMENT-GUIDE.md)
 

@@ -1,0 +1,22 @@
+{
+  "version": "0.1.0-alpha.1",
+  "sourceCommit": "71cbf410daf902e060b589405165fe0dab4bdc38",
+  "zip": "freenow-0.1.0-alpha.1-mac-arm64.zip",
+  "zipBytes": 729976742,
+  "zipSha256": "16708fc778a53e8a52f32c056b3b3da900ada18df47fec34f827dd8369b8dff3",
+  "zipEntries": 7137,
+  "runtimeFiles": 6196,
+  "runtimeBytes": 694800807,
+  "asarEntries": 3,
+  "privatePathsFound": 0,
+  "emptyDefaultsMatch": true,
+  "manifestHashesMatch": true,
+  "desktopEntriesMatch": true,
+  "ffmpegBundled": false,
+  "developerSigned": false,
+  "electronExecutableAdHoc": true,
+  "notarized": false,
+  "zipRequiredFilesPresent": true,
+  "zipManifestMatchesApp": true,
+  "nativePackagedAppVerified": false
+}

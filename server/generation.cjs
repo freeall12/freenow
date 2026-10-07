@@ -105,7 +105,7 @@ function createGenerationGateway({baseUrl = '', apiKey = '', fetchImpl = fetch, 
       ...(job.error ? {error: job.code==='media_localization_failed'?(mediaRecoveryError||'生成已完成，素材保存失败；请重新取回素材'):job.status === 'unknown' ? '生成状态尚未确认，请查询恢复；不会自动重新生成' : job.status === 'configuration_required' ? '请检查服务端生成 API 协议、地址、Key 与真实模型映射后重启服务' : localError|| (job.code==='request_preparation_failed'?'当前生成参数或操作不受适配器支持，尚未提交模型':'生成服务请求失败，请检查供应商配置或重试')} : {})};
   }
   return {
-    get configured(){return sessionConfiguration?sessionConfiguration.metadata().configured:configured;},ready,close:async()=>{await service.close?.();await mediaHttp?.close();await mediaStore?.close();},
+    get configured(){return sessionConfiguration?sessionConfiguration.metadata().configured:configured;},ready,close:async()=>{await require('./shutdown.cjs').closeInOrder([()=>service.close?.(),()=>mediaHttp?.close(),()=>mediaStore?.close()]);},
     async handle(req, res, pathname, {json, body}) {
       await ready;
       prune();

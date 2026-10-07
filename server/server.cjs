@@ -1,5 +1,6 @@
 'use strict';
 const http=require('node:http'),fs=require('node:fs'),path=require('node:path');
+const {closeInOrder}=require('./shutdown.cjs');
 const dataRoot=process.env.FREENOW_DATA_DIR?path.resolve(process.env.FREENOW_DATA_DIR):__dirname;
 const {processMedia}=require('./media.cjs');
 const {isPublicStaticPath}=require('./static-public-path.cjs');
@@ -115,7 +116,7 @@ Promise.all([generation.ready,runtime.ready,videoSegmentation.ready]).then(()=>s
 })).catch(async()=>{console.error('Local task stores unavailable; server was not started.');await Promise.allSettled([runtime.close(),agentSessionStore.close(),generation.close(),videoSegmentation.close?.()]);process.exitCode=1;});
 
 let closing=false;
-async function closeLocalServer(exitCode=0){if(closing)return;closing=true;server.close();voiceCatalog.close();try{await runtime.close();await agentSessionStore.close();await generation.close();await videoSegmentation.close?.();process.exit(exitCode);}catch{console.error('Local task shutdown could not confirm persistence.');process.exit(1);}}
+async function closeLocalServer(exitCode=0){if(closing)return;closing=true;server.close();try{await closeInOrder([()=>voiceCatalog.close(),()=>runtime.close(),()=>agentSessionStore.close(),()=>generation.close(),()=>videoSegmentation.close?.()]);process.exit(exitCode);}catch{console.error('Local task shutdown could not confirm persistence.');process.exit(1);}}
 for(const event of ['SIGTERM','SIGINT'])process.once(event,()=>void closeLocalServer());
 process.parentPort?.on('message',event=>{if(event.data?.type==='freenow-shutdown')void closeLocalServer();});
 server.once('error',()=>{console.error('Local listener unavailable; no existing listener was reused.');void closeLocalServer(1);});

@@ -91,3 +91,36 @@ test('desktop close waits for scene persistence after Agent edits and restores t
   assert.deepEqual(events, ['agent-saved', 'scene-close', 'scene-saved', 'navigate', 'store', 'scene-reopened', 'agent-reopened']);
   assert.equal(target.StudioAPI.active, scene); assert.equal(panel, true); assert.equal(target.document.body.inert, false);
 });
+
+test('desktop close holds input frozen until explicit resume and restores it on persistence rejection', async () => {
+  const {prepareDesktopClose, resumeDesktopPage} = await import('../src/features/desktop/lifecycle.mjs');
+  const storageCommit = deferred();
+  let focusRestores = 0, rejectStorage = false;
+  const target = {
+    document: {body: {inert: false}, querySelector: () => null, activeElement: {isConnected: true, blur() {}, focus() {focusRestores++;}}},
+    CanvasApp: {saveProject: async () => {}, getState: () => ({nodes: []})},
+    CanvasProjects: {prepareNavigation: async () => {}},
+    CanvasStore: {flush: async () => {await storageCommit.promise; if (rejectStorage) throw Error('final storage rejected');}},
+    AgentUI: {close: async () => true},
+  };
+  const closing = prepareDesktopClose(target, {keepInputFrozen: true});
+  await tick(); assert.equal(target.document.body.inert, true);
+  storageCommit.resolve(); assert.equal(await closing, true);
+  assert.equal(target.document.body.inert, true); assert.equal(focusRestores, 0);
+  resumeDesktopPage(target);
+  assert.equal(target.document.body.inert, false); assert.equal(focusRestores, 1);
+  resumeDesktopPage(target); assert.equal(focusRestores, 1);
+
+  target.document.body.inert = true;
+  await prepareDesktopClose(target, {keepInputFrozen: true}); resumeDesktopPage(target);
+  assert.equal(target.document.body.inert, true); assert.equal(focusRestores, 1);
+
+  target.document.body.inert = false; rejectStorage = true;
+  await assert.rejects(prepareDesktopClose(target, {keepInputFrozen: true}), /final storage rejected/);
+  assert.equal(target.document.body.inert, false); assert.equal(focusRestores, 2);
+  resumeDesktopPage(target); assert.equal(focusRestores, 2);
+
+  rejectStorage = false;
+  await prepareDesktopClose(target, {keepInputFrozen: false});
+  assert.equal(target.document.body.inert, false); assert.equal(focusRestores, 3);
+});

@@ -1,8 +1,9 @@
 const pending = new WeakMap();
+const frozenPages = new WeakMap();
 
 // The desktop asks only for storage acknowledgement. Existing app close and
 // navigation guards retain unresolved handoffs and reject uncommitted edits.
-export function prepareDesktopClose(target = globalThis.window) {
+export function prepareDesktopClose(target = globalThis.window, {keepInputFrozen = false} = {}) {
   if (!target || typeof target !== 'object') return Promise.reject(Error('画布页面尚未就绪，请稍后重试。'));
   if (pending.has(target)) return pending.get(target);
   const work = Promise.resolve().then(async () => {
@@ -17,7 +18,7 @@ export function prepareDesktopClose(target = globalThis.window) {
     const studio = target.StudioAPI, scene = studio?.active;
     const sceneNode = scene && CanvasApp.getState?.().nodes.find(node => node.id === scene.nodeId);
     const projectId = CanvasProjects.id?.();
-    let sceneClosed = false;
+    let sceneClosed = false, succeeded = false;
     body.inert = true;
     try {
       focused?.blur?.();
@@ -40,6 +41,8 @@ export function prepareDesktopClose(target = globalThis.window) {
       }
       await CanvasProjects.prepareNavigation();
       await CanvasStore.flush();
+      succeeded = true;
+      if (keepInputFrozen) frozenPages.set(target, {wasInert, focused});
       return true;
     } catch (error) {
       // A later storage guard can fail after GPU disposal. Reopen only the
@@ -56,10 +59,20 @@ export function prepareDesktopClose(target = globalThis.window) {
       if (panelWasOpen && !document.querySelector('#agent-panel')) AgentUI.open?.();
       throw error;
     } finally {
-      body.inert = wasInert;
-      if (!wasInert && focused?.isConnected) focused.focus?.({preventScroll: true});
+      if (!succeeded || !keepInputFrozen) {
+        body.inert = wasInert;
+        if (!wasInert && focused?.isConnected) focused.focus?.({preventScroll: true});
+      }
     }
   }).finally(() => { if (pending.get(target) === work) pending.delete(target); });
   pending.set(target, work);
   return work;
+}
+
+export function resumeDesktopPage(target = globalThis.window) {
+  const previous = frozenPages.get(target);
+  if (!previous) return;
+  frozenPages.delete(target);
+  if (target.document?.body) target.document.body.inert = previous.wasInert;
+  if (!previous.wasInert && previous.focused?.isConnected) previous.focused.focus?.({preventScroll: true});
 }
