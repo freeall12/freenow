@@ -22,7 +22,7 @@ freenow 是本地 AI 创作工作台（AI infinite canvas）。本文说明已�
 
 Sonilo Music、Product Kit 与导演批注的本地验证见[整批证据](LOCAL-SONILO-AGENT-AND-HISTORY-20261005.md)。固定音频/模拟响应证明本机调用、保存和播放，不能证明真实供应商生成质量。
 
-**本批专项验收完成：** Sonilo SFX 原生接入通过 20 项定向检查与 4 项受影响 Music 回归，SFX 本批浏览器操作已验。Agent 调色本轮 10 项 runtime/派生回归及保存、交接重试、实际 PNG、刷新重开通过；桌面新打包产物仍在验收。专项完成不等于全站或真实供应商 Key/质量验收完成。见[SFX 合同](SONILO-SFX-NATIVE-20261005.md)、[SFX UI 记录](SONILO-SFX-UI-QA-20261005.md)、[调色交互](AGENT-COLOR-ADJUST-INTERACTIONS-20261005.md)和[当前状态](STATUS.md)。
+**本批专项验收完成：** Sonilo SFX 原生接入通过 20 项定向检查与 4 项受影响 Music 回归，SFX 本批浏览器操作已验。Agent 调色本轮 10 项 runtime/派生回归及保存、交接重试、实际 PNG、刷新重开通过；macOS ARM64 安装包已通过文件、包内后台、原生 WebGL 与片场退出重开恢复验证，[Alpha 预发布已公开](https://github.com/freeall12/freenow/releases/tag/v0.1.0-alpha.1)。专项完成不等于全站或真实供应商 Key/质量验收完成。见[SFX 合同](SONILO-SFX-NATIVE-20261005.md)、[SFX UI 记录](SONILO-SFX-UI-QA-20261005.md)、[调色交互](AGENT-COLOR-ADJUST-INTERACTIONS-20261005.md)和[当前状态](STATUS.md)。
 
 ## 独立供应商适配器
 

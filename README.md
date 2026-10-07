@@ -4,23 +4,23 @@
 
 **freenow 是在本机运行的 AI 无限画布（AI infinite canvas），把文本、图片、视频、音频、3D 片场和创作 Agent 放在同一个工作区。** 导入素材、连接节点、编辑内容，再按需接入独立模型供应商。项目和生成结果保存在本机。
 
-适合个人创作者和开发者试验素材到分镜、镜头与媒体产出的创作流程。当前包版本为 **0.1.0，开发中**；功能接入与专项验证不代表全站验收完成。
+适合个人创作者和开发者试验素材到分镜、镜头与媒体产出的创作流程。源码包版本为 **0.1.0，开发中**；桌面 **0.1.0-alpha.1** 已作为 macOS Apple Silicon 预发布公开。功能接入与专项验证不代表全站验收完成。
 
-[快速开始](#快速开始) · [功能](#可以做什么) · [API 配置](#最小-api-配置) · [文档](docs/README.md) · [状态](docs/STATUS.md) · [贡献](#开发与贡献)
+[下载 macOS arm64 Alpha](https://github.com/freeall12/freenow/releases/tag/v0.1.0-alpha.1) · [快速开始](#快速开始) · [功能](#可以做什么) · [API 配置](#最小-api-配置) · [文档](docs/README.md) · [状态](docs/STATUS.md) · [贡献](#开发与贡献)
 
 ## 界面预览
 
-以下三张是 freenow 当前品牌的真实本地界面。首图为 Electron 开发外壳运行正式 WebGL 片场，不代表安装包验收；后两图来自隔离 QA 中复用的正式模块与仓库 GLB。未调用生成模型。更多画布、图片编辑器、音视频和 Agent 的历史截图及来源见[截图与复现](docs/screenshots/README.md)。
+真实本地界面展示混合媒体画布、桌面 3D 片场和 GLB 模型预览。演示使用本地测试素材，未调用生成模型；操作记录与验证范围见[截图与复现](docs/screenshots/README.md)。
 
-![freenow Electron 开发窗口中的真实 WebGL 片场、立方体与对象变换控件](docs/screenshots/freenow-desktop-studio-20261007.jpg)
+![freenow 无限画布中的文本、3D 片场、本地图片、播放到 8 秒的视频与合成旋律音频](docs/screenshots/freenow-canvas-workflow-20261007.jpg)
 
-| 3D 片场与 Agent 输入 | 本地 GLB 模型预览 |
+| 桌面 3D 片场 | 本地 GLB 模型预览 |
 | --- | --- |
-| ![freenow 3D 片场中的创作 Agent 输入界面](docs/screenshots/freenow-studio-agent-brand-20261005.jpg) | ![freenow 本地自行车 GLB 模型、环境和取景控件](docs/screenshots/freenow-local-model-preview-20261005.jpg) |
+| ![freenow macOS arm64 安装包重开后的 WebGL 片场，立方体位置 X=1.25](docs/screenshots/freenow-desktop-packaged-restart-20261007.jpg) | ![freenow 本地自行车 GLB 模型、环境和取景控件](docs/screenshots/freenow-local-model-preview-20261005.jpg) |
 
 ## 快速开始
 
-推荐 **Node.js 22 LTS、pnpm**。本地视频裁切、封装及部分媒体处理还需要 **FFmpeg / FFprobe**。浏览器源码启动如下；Electron 桌面版本 `0.1.0-alpha.1` 的 macOS arm64 ZIP 已构建并完成文件/包内后台核验，原生窗口验收待完成，Release 仍为草稿。[桌面指南](docs/DESKTOP.md)
+推荐 **Node.js 22 LTS、pnpm**。本地视频裁切、封装及部分媒体处理还需要 **FFmpeg / FFprobe**。以下从源码启动浏览器版本；也可[下载 macOS arm64 Alpha](https://github.com/freeall12/freenow/releases/tag/v0.1.0-alpha.1)，桌面包内置 Node.js，但尚未签名、公证。安装与配置见[桌面指南](docs/DESKTOP.md)。
 
 ```sh
 git clone https://github.com/freeall12/freenow.git

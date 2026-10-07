@@ -1,0 +1,8 @@
+从 0 做一个本地版 TapNow：freenow。
+
+今天：无限画布＋文本/图片/视频/音频/3D 片场节点，补齐连接与保存恢复，优化画布性能。
+
+代码公开，macOS Alpha 已发布，模型接口独立配置。仍在迭代。
+https://github.com/freeall12/freenow
+
+你更想要 Agent 自动编排，还是 3D 分镜？

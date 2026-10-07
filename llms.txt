@@ -6,9 +6,11 @@ The package version is 0.1.0 and the project is in development. Implemented adap
 
 ## Getting started
 
+- [macOS arm64 Alpha release](https://github.com/freeall12/freenow/releases/tag/v0.1.0-alpha.1): Published 0.1.0-alpha.1 ZIP and checksum. Alpha scope, external FFmpeg, no real-provider quality validation, and third-party rights limits remain.
+
 - [English README](https://github.com/freeall12/freenow/blob/main/README.en.md): Product definition, source startup, API configuration, storage, FAQ, and license boundaries.
 - [中文 README](https://github.com/freeall12/freenow/blob/main/README.md): 本地 AI 创作工作台、启动、配置与当前边界。
-- [Desktop guide](https://github.com/freeall12/freenow/blob/main/docs/DESKTOP.md): Electron source startup, isolated data and provider configuration, and unsigned macOS arm64 prerelease limits; artifact and bundled-backend checks passed, but native-window verification is pending and the release remains a draft.
+- [Desktop guide](https://github.com/freeall12/freenow/blob/main/docs/DESKTOP.md): Electron source startup, isolated data and provider configuration, and unsigned macOS arm64 prerelease limits; artifact, bundled-backend, and native-window checks passed, including quit/reopen and saved 3D-transform recovery; desktop 0.1.0-alpha.1 is published as a macOS arm64 prerelease, unsigned and not notarized. FFmpeg / FFprobe are not bundled.
 - [Documentation guide](https://github.com/freeall12/freenow/blob/main/docs/README.md): Task-oriented documentation index. Detailed documents are primarily in Chinese.
 
 ## Capabilities and configuration
@@ -21,10 +23,11 @@ The package version is 0.1.0 and the project is in development. Implemented adap
 
 ## Evidence and boundaries
 
+- [Desktop artifact verification](https://github.com/freeall12/freenow/blob/main/docs/releases/DESKTOP-ALPHA-VERIFICATION-20261007.md): Exact runtime source, ZIP size/SHA-256, uploaded digest, bundled server, and packaged-window quit/restart evidence.
 - [Status](https://github.com/freeall12/freenow/blob/main/docs/STATUS.md): Current progress and open validation.
 - [Verification index](https://github.com/freeall12/freenow/blob/main/docs/VERIFICATION-INDEX.md): Per-feature evidence and historical checks. Historical records retain their original scope.
 - [Screenshot sources](https://github.com/freeall12/freenow/blob/main/docs/screenshots/README.md): Real interfaces, reproduction steps, and fixture/model boundaries.
 - [Localization acceptance](https://github.com/freeall12/freenow/blob/main/docs/FREENOW-LOCALIZATION-ACCEPTANCE.md): Local resources, outbound restrictions, storage, and export scope.
 - [Third-party resources](https://github.com/freeall12/freenow/blob/main/docs/THIRD-PARTY-RESOURCES.md): Sources and rights; no blanket MIT license.
 
-Prefer the current product/configuration guides for usage. Use dated records to cite only what those checks actually verified. See repository source and package.json for commands and version; do not infer published desktop downloads, completed provider quality tests, or supported platforms from upstream projects.
+Prefer the current product/configuration guides for usage. Use dated records to cite only what those checks actually verified. See repository source and package.json for commands and version; use the specific freenow release for desktop downloads and platform scope. Do not infer completed provider quality tests or additional supported platforms from upstream projects.

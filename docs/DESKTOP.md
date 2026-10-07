@@ -2,7 +2,7 @@
 
 freenow Desktop 用 Electron 窗口运行现有无限画布、媒体编辑器、3D 片场和 Agent，并在应用内启动独立的本机 Node.js 后台。它沿用现有功能与供应商合同；桌面外壳不增加模型、付费账号权限或全站验收承诺。
 
-**当前桌面版本：`0.1.0-alpha.1`。目标为 macOS Apple Silicon（arm64）的 unsigned ZIP。Electron 开发窗口已实际运行，实际6197文件、ZIP及包内后台已核验，原生窗口因Mac锁定待验，Release仍为草稿。** 根项目版本仍为 `0.1.0`。实际发布成功后才补下载链接；[构建与核验记录](releases/DESKTOP-ALPHA-VERIFICATION-20261007.md)提供本次字节和SHA-256。
+**当前桌面版本：`0.1.0-alpha.1`。目标为 macOS Apple Silicon（arm64）的 unsigned ZIP。实际 6197 文件、ZIP、包内后台及安装包窗口已核验；片场内退出、后台端口释放、重新打开并恢复变换通过。[macOS arm64 Alpha 已公开发布](https://github.com/freeall12/freenow/releases/tag/v0.1.0-alpha.1)。** 根项目版本仍为 `0.1.0`。从 [v0.1.0-alpha.1 Release](https://github.com/freeall12/freenow/releases/tag/v0.1.0-alpha.1) 下载 ZIP 与校验文件；[构建与核验记录](releases/DESKTOP-ALPHA-VERIFICATION-20261007.md)提供本次字节和SHA-256。
 
 [项目首页](../README.md) · [当前状态](STATUS.md) · [开发指南](DEVELOPMENT-GUIDE.md)
 
@@ -27,11 +27,22 @@ pnpm desktop:dev
 pnpm desktop:pack
 ```
 
-此命令同样先准备资源，再按 `desktop/electron-builder.cjs` 构建 macOS arm64 ZIP。输出目录为 `build/release/`，目标文件名为 `freenow-0.1.0-alpha.1-mac-arm64.zip`。当前配置不签名、不公证、不自动发布；本次ZIP已完成文件及包内后台核验，原生窗口验收与公开发布仍待完成。
+此命令同样先准备资源，再按 `desktop/electron-builder.cjs` 构建 macOS arm64 ZIP。输出目录为 `build/release/`，目标文件名为 `freenow-0.1.0-alpha.1-mac-arm64.zip`。当前配置不签名、不公证、不自动发布；本次 ZIP 已完成文件、包内后台与原生窗口验收，[v0.1.0-alpha.1 prerelease 已发布](https://github.com/freeall12/freenow/releases/tag/v0.1.0-alpha.1)。
 
-正式产物确认后，安装方式是解压 ZIP，将 `freenow.app` 放入 Applications 后打开。unsigned / 未公证预发布包可能触发 macOS 的来源验证提示；发布页应同时提供真实来源、校验值和本版本限制。当前不提供其他 CPU、Windows、Linux、自动更新、DMG 或商店分发承诺。
+安装方式是解压 ZIP，将 `freenow.app` 放入 Applications 后打开。unsigned / 未公证预发布包可能触发 macOS 的来源验证提示；发布页应同时提供真实来源、校验值和本版本限制。当前不提供其他 CPU、Windows、Linux、自动更新、DMG 或商店分发承诺。
 
 打包的 Electron 包含运行窗口与后台所需运行时；**FFmpeg / FFprobe 不随包附带**。本地裁切、封装、部分转码与生成媒体处理需要另外安装，或在接口配置中设置 `FFMPEG_PATH`、`FFPROBE_PATH`。默认后台工具路径包含 `/opt/homebrew/bin` 和 `/usr/local/bin`。
+
+## 本版本文件与校验
+
+| 字段 | 本次产物 |
+| --- | --- |
+| ZIP | `freenow-0.1.0-alpha.1-mac-arm64.zip` |
+| 大小 | 729,978,385 字节 |
+| SHA-256 | `42dc247b909a8e7a2f0322f75c00e6ec212917491ea730426d1cf83f21bf821f` |
+| 运行源码 | `642d3db5c156ae82b0ee33f253fad2756ffe015a` |
+
+ZIP 上传状态已由 GitHub 确认为 `uploaded`，远端 digest 与本地校验值相同。[公开 prerelease](https://github.com/freeall12/freenow/releases/tag/v0.1.0-alpha.1)已发布；[完整核验](releases/DESKTOP-ALPHA-VERIFICATION-20261007.md)记录文件、包内服务与实际窗口范围。文件审核不能代替所有功能或干净设备安装测试。
 
 ## 模型接口配置
 
@@ -77,11 +88,13 @@ pnpm desktop:pack
 | 关闭或刷新被阻止 | 先处理图片编辑器、语音或技能表单；检查 Agent / 片场自己的保存与交接错误后重试 |
 | 桌面中找不到浏览器项目 | 两者存储隔离，不是数据被覆盖；回原浏览器入口确认并导出 |
 
-## 开发窗口截图
+## 安装包窗口与重开恢复
 
-![Electron 开发外壳中的 freenow 真实 WebGL 片场和立方体控件](screenshots/freenow-desktop-studio-20261007.jpg)
+![freenow 实际 macOS arm64 安装包重开后的 WebGL 片场，立方体位置 X=1.25](screenshots/freenow-desktop-packaged-restart-20261007.jpg)
 
-该图记录 2026-10-07 的实际开发 Electron 窗口与正式片场。它证明这一开发外壳中的渲染，不代表 ZIP 安装包、签名公证、所有功能或跨设备验收。[截图来源](screenshots/README.md)
+2026-10-07 实际打开 `build/release/mac-arm64/freenow.app`，已有本地立方体恢复；将 X 从 0 改为 1.25，Tab 提交。在片场内 Cmd+Q 直接退出后，4183 已释放。重新打开同一 app，再进片场选中立方体，界面与 AX 回读 X=1.25、Y=0.5、Z=0，WebGL 正常渲染。未调用生成模型。
+
+[开发外壳截图](screenshots/freenow-desktop-studio-20261007.jpg)保留前次开发运行记录，以上是最终包窗口的独立验收；不等于签名公证、跨设备或全功能验证。[截图来源](screenshots/README.md)
 
 ## 代码与验收边界
 

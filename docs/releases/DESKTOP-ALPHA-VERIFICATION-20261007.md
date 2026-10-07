@@ -35,4 +35,15 @@ node scripts/audit-desktop-artifact.cjs
 
 Electron开发外壳已实机验证创建3D片场、添加立方体、真实WebGL与变换面板、回画布和退出释放4183，见[开发外壳截图](../screenshots/freenow-desktop-studio-20261007.jpg)。该图不是重新构建安装包的验收。
 
-**安装包窗口验收待完成：** Computer Use尝试打开实际`.app`时Mac锁定，工具要求用户手动解锁。原生安装包的片场内直接退出、重启恢复和最后变换回读仍未记录；发布草稿不能当作已完成发布。
+2026-10-07 Computer Use 已打开实际 `build/release/mac-arm64/freenow.app`。运行包仍来自本页记录的 `642d3db5c156ae82b0ee33f253fad2756ffe015a`，没有用开发 Electron 窗口代替。
+
+1. 打开已保存的片场，本地立方体恢复并在真实 WebGL 中显示。
+2. 位置 X 从 0 修改为 1.25，Tab 提交。
+3. 保持在片场内 Cmd+Q 直接退出，退出后确认 4183 释放。
+4. 再次打开同一 `.app`，进入片场并选择立方体；AX 回读位置 X=1.25、Y=0.5、Z=0，真实 WebGL 与对象面板一致。
+
+[安装包重开与持久变换截图](../screenshots/freenow-desktop-packaged-restart-20261007.jpg)。这证明实际包的片场保存、正常退出、后台释放和重开恢复；没有调用真实模型，也不代表全部功能、跨设备、长时间运行或干净设备安装验收。
+
+## 上传与发布
+
+GitHub Release 资产核对结果：ZIP `state=uploaded`，729,978,385 字节，远端 digest 为 `42dc247b909a8e7a2f0322f75c00e6ec212917491ea730426d1cf83f21bf821f`，与本地 SHA-256 相同。2026-10-07 主任务将 Release 从草稿改为公开 prerelease，`gh release edit` 返回成功（退出 0），最终链接：[v0.1.0-alpha.1](https://github.com/freeall12/freenow/releases/tag/v0.1.0-alpha.1)。上传完整性与发布状态均已核对，保留 Alpha、Unsigned/未公证、外部 FFmpeg、全站与真实 Key 未验及许可边界。

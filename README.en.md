@@ -4,23 +4,23 @@
 
 **freenow is an AI infinite canvas that runs on your computer, bringing text, images, video, audio, a 3D studio, and a creative agent into one workspace.** Import assets, connect nodes, edit locally, and configure independent model providers when you need AI generation. Projects and generated outputs are stored locally.
 
-For individual creators and developers exploring asset, storyboard, shot, and media workflows. The package version is **0.1.0, in development**. Implemented integrations and focused checks do not mean every page and interaction has passed acceptance.
+For individual creators and developers exploring asset, storyboard, shot, and media workflows. The source package version is **0.1.0, in development**. Desktop **0.1.0-alpha.1** is publicly available as a macOS Apple Silicon prerelease. Implemented integrations and focused checks do not mean every page and interaction has passed acceptance.
 
-[Quick start](#quick-start) · [Features](#features) · [API setup](#minimal-api-setup) · [Docs](docs/README.md) · [Status](docs/STATUS.md) · [Contributing](#development-and-contributing)
+[Download macOS arm64 Alpha](https://github.com/freeall12/freenow/releases/tag/v0.1.0-alpha.1) · [Quick start](#quick-start) · [Features](#features) · [API setup](#minimal-api-setup) · [Docs](docs/README.md) · [Status](docs/STATUS.md) · [Contributing](#development-and-contributing)
 
 ## Screenshots
 
-These three images show real local interfaces with the current freenow branding. The first is a production WebGL studio running in the Electron development shell; it is not packaged-app acceptance. The other two use production modules and a repository GLB in isolated QA hosts. No generation model was called. More canvas, image editor, media, and agent captures are available in the [screenshot and reproduction index](docs/screenshots/README.md); older captures may show earlier branding.
+Real local interfaces show the mixed-media canvas, desktop 3D studio, and GLB model preview. The demo uses local test assets without calling a generation model. See [screenshot sources and reproduction](docs/screenshots/README.md) for the operations and verification scope.
 
-![freenow Electron development window showing the real WebGL studio, a cube, and object transform controls](docs/screenshots/freenow-desktop-studio-20261007.jpg)
+![freenow infinite canvas with text, a 3D studio, a local image, video played to 8 seconds, and a synthetic melody audio node](docs/screenshots/freenow-canvas-workflow-20261007.jpg)
 
-| 3D studio and agent input | Local GLB model preview |
+| Desktop 3D studio | Local GLB model preview |
 | --- | --- |
-| ![freenow creative agent input in the WebGL 3D studio](docs/screenshots/freenow-studio-agent-brand-20261005.jpg) | ![freenow local bicycle GLB preview with environment and capture controls](docs/screenshots/freenow-local-model-preview-20261005.jpg) |
+| ![freenow macOS arm64 packaged WebGL studio after restart with cube position X=1.25](docs/screenshots/freenow-desktop-packaged-restart-20261007.jpg) | ![freenow local bicycle GLB preview with environment and capture controls](docs/screenshots/freenow-local-model-preview-20261005.jpg) |
 
 ## Quick start
 
-Recommended: **Node.js 22 LTS and pnpm**. Local video trimming, encoding, and some media processing also require **FFmpeg / FFprobe**. Start the browser version from source below. The Electron desktop version `0.1.0-alpha.1` has passed macOS arm64 artifact and bundled-backend checks; native-window verification is pending and the release remains a draft. [Desktop guide](docs/DESKTOP.md)
+Recommended: **Node.js 22 LTS and pnpm**. Local video trimming, encoding, and some media processing also require **FFmpeg / FFprobe**. Start the browser version from source below, or [download the macOS arm64 Alpha](https://github.com/freeall12/freenow/releases/tag/v0.1.0-alpha.1). The desktop package includes Node.js but is unsigned and not notarized. See the [desktop guide](docs/DESKTOP.md) for installation and configuration.
 
 ```sh
 git clone https://github.com/freeall12/freenow.git
