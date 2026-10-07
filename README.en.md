@@ -58,7 +58,9 @@ Current source adds [local external-agent MCP access](src/features/external-agen
 | Workflows and recovery | Dependency execution, durable receipts, original-task queries, explicit continuation, save guards | Unknown outcomes are not automatically resubmitted |
 | External agent (desktop source) | Local MCP connection, native approval, two current-canvas metadata tools, reload revocation | Local stdio clients; no writes, generation, media, or cloud connectors; not included in the published Alpha |
 
-The source also includes a [director workspace V3](docs/STUDIO-V3-PRODUCTION-20261008.md) under development: local model sources, actors/cameras/props, baseline and independent states, basic transforms, and guarded persistence are integrated. Full timeline, generation, capture, and agent orchestration remain incomplete. The current Alpha does not include this batch.
+The source also includes a [director workspace V3](docs/STUDIO-V3-PRODUCTION-20261008.md) under development: local model sources, actors/cameras/props, baseline and independent states, basic transforms, and guarded persistence are integrated. The [entity and camera batch](docs/STUDIO-V3-ENTITIES-20261008.md) adds nine actor poses, instance colors, state duplication/deletion, camera optics and correctly proportioned previews, with save/reopen verification. Full control modes, timeline, generation, capture, and agent orchestration remain incomplete. The current Alpha does not include this batch.
+
+![freenow director workspace with a saved and reopened 50mm 9:16 camera preview](docs/screenshots/20261008-studio-entities/camera-portrait-preview.png)
 
 Model menus, adapter implementations, and app registrations describe different scopes. Real provider output quality requires separate validation. [Detailed features and adapters](docs/FEATURES.md) · [Verification evidence](docs/VERIFICATION-INDEX.md)
 

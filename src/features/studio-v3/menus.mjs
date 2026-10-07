@@ -1,6 +1,7 @@
 /**
  * Scoped Studio menu controller. It owns only DOM, focus and dismissal.
- * contentFactory({ close, contains }) returns a DOM node; actions own domain mutations.
+ * contentFactory({ close, contains }) returns a DOM node with optional dispose().
+ * Nested menus retain their parent; actions own domain mutations.
  */
 export function createMenus({ root, onError } = {}) {
   if (!root?.ownerDocument) throw new TypeError('Studio menu root must be a DOM element');
@@ -18,33 +19,81 @@ export function createMenus({ root, onError } = {}) {
     target.addEventListener(type, handler, options);
     removers.push(() => target.removeEventListener(type, handler, options));
   };
-  const contains = target => !!active?.surface.contains(target);
-  const isOpen = () => active !== null;
+  const chain = () => {
+    const states = [];
+    for (let state = active; state; state = state.parent) states.unshift(state);
+    return states;
+  };
+  const live = state => !state.closed && chain().includes(state);
+  const owner = target => chain().find(state => state.surface.contains(target));
+  const contains = target => { validate(); return !!owner(target); };
+  const isOpen = () => { validate(); return active !== null; };
+  const report = error => { if (onError) onError(error); else throw error; };
 
-  function close({ restoreFocus = true } = {}) {
-    const state = active;
-    if (!state) return false;
-    active = null;
-    window.clearTimeout(state.enterTimer);
-    state.observer?.disconnect();
-    state.anchor?.setAttribute('aria-expanded', 'false');
-    if (state.anchor?.getAttribute('aria-controls') === state.id) state.anchor.removeAttribute('aria-controls');
-    state.surface.dataset.exiting = 'true';
-    state.surface.dataset.visible = 'false';
-    state.surface.inert = true;
-    state.surface.setAttribute('aria-hidden', 'true');
-    state.surface.style.pointerEvents = 'none';
-    const remove = () => {
-      window.clearTimeout(state.exitTimer);
-      state.layer.remove();
-      exits.delete(state);
-    };
-    state.remove = remove;
-    exits.add(state);
-    if (reduced()) remove();
-    else state.exitTimer = window.setTimeout(remove, 160);
-    if (restoreFocus && state.origin?.isConnected) state.origin.focus({ preventScroll: true });
+  function disposeContent(state, errors) {
+    if (!state.content || state.contentDisposed) return;
+    state.contentDisposed = true;
+    try { state.content.dispose?.(); } catch (error) { errors.push(error); }
+  }
+
+  function closeFrom(state, restoreFocus = true) {
+    if (!state || !live(state)) return false;
+    const closing = [];
+    for (let child = active; child; child = child.parent) {
+      closing.push(child);
+      if (child === state) break;
+    }
+    active = state.parent;
+    const errors = [];
+    for (const child of closing) {
+      child.closed = true;
+      window.clearTimeout(child.enterTimer);
+      child.observer?.disconnect();
+      if (child.anchor?.getAttribute('aria-controls') === child.id) {
+        child.anchor.setAttribute('aria-expanded', 'false');
+        child.anchor.removeAttribute('aria-controls');
+      }
+      child.surface.dataset.exiting = 'true';
+      child.surface.dataset.visible = 'false';
+      child.surface.inert = true;
+      child.surface.setAttribute('aria-hidden', 'true');
+      child.surface.style.pointerEvents = 'none';
+      child.positionLayer.style.pointerEvents = 'none';
+      child.remove = () => {
+        window.clearTimeout(child.exitTimer);
+        child.layer.remove();
+        exits.delete(child);
+      };
+      exits.add(child);
+      if (reduced()) child.remove();
+      else child.exitTimer = window.setTimeout(child.remove, 160);
+      disposeContent(child, errors);
+    }
+    if (restoreFocus && active === state.parent && state.origin?.isConnected) state.origin.focus({ preventScroll: true });
+    for (const error of errors) report(error);
     return true;
+  }
+
+  function close({ restoreFocus = true, all = false } = {}) {
+    return closeFrom(all ? chain()[0] : active, restoreFocus);
+  }
+
+  function closeDescendants(state) {
+    const states = chain();
+    const child = states[states.indexOf(state) + 1];
+    if (child) closeFrom(child, false);
+  }
+
+  function validate() {
+    for (const state of chain()) {
+      if (!state.mounted) continue;
+      if (!root.isConnected || !root.contains(state.layer) || !state.layer.contains(state.surface) || !state.surface.isConnected ||
+          (state.anchor && (!state.anchor.isConnected || !root.contains(state.anchor))) ||
+          (state.parent && !state.parent.surface.contains(state.anchor))) {
+        closeFrom(state, false);
+        break;
+      }
+    }
   }
 
   function place(state, position, options) {
@@ -84,15 +133,18 @@ export function createMenus({ root, onError } = {}) {
     state.surface.style.maxHeight = `${Math.max(0, Math.floor(available))}px`;
   }
 
-  function open(position, anchor, contentFactory, options = {}) {
+  function open(position, anchor, contentFactory, options = {}, parent = null) {
     if (disposed) throw new Error('Studio menu controller is disposed');
     if (typeof contentFactory !== 'function') throw new TypeError('Menu contentFactory must be a function');
     const origin = anchor ?? document.activeElement;
-    close({ restoreFocus: false });
+    if (!parent) close({ restoreFocus: false, all: true });
+    if (!root.isConnected || (anchor && (anchor.ownerDocument !== document || !anchor.isConnected || !root.contains(anchor))) ||
+        (parent && (!live(parent) || !parent.surface.contains(anchor)))) return null;
     const portal = document.createElement('div');
     portal.className = 'studio-v3 sv3-portal';
     const layer = document.createElement('div');
     layer.className = 'sv3-pointer-menu';
+    if (parent) layer.style.zIndex = '96';
     const surface = document.createElement('div');
     surface.className = 'sv3-menu sv3-motion';
     surface.id = `studio-v3-menu-${++sequence}`;
@@ -102,27 +154,45 @@ export function createMenus({ root, onError } = {}) {
     if (options.width) surface.style.width = typeof options.width === 'number' ? `${options.width}px` : options.width;
     layer.append(surface);
     portal.append(layer);
-    const state = { layer: portal, surface, positionLayer: layer, anchor, origin, id: surface.id };
+    const state = { layer: portal, surface, positionLayer: layer, anchor, origin, id: surface.id, parent, closed: false, mounted: false };
     // Position and animation use separate elements; stale detached actions cannot execute.
     surface.addEventListener('click', event => {
-      if (active !== state) { event.preventDefault(); event.stopImmediatePropagation(); }
+      validate();
+      if (!live(state)) { event.preventDefault(); event.stopImmediatePropagation(); }
+      else closeDescendants(state);
     }, true);
     surface.addEventListener('pointerdown', event => event.stopPropagation());
     active = state;
     try {
-      const node = contentFactory({ close: options => active === state ? close(options) : false, contains: target => active === state && contains(target) });
+      const node = contentFactory({
+        close: ({ restoreFocus = true } = {}) => { validate(); return closeFrom(state, restoreFocus); },
+        contains: target => {
+          validate();
+          const states = chain(), index = states.indexOf(state);
+          return index >= 0 && states.slice(index).some(child => child.surface.contains(target));
+        }
+      });
+      state.content = node;
       if (!node?.nodeType || node.ownerDocument !== document) throw new TypeError('Menu factory must return a DOM node from the same document');
+      if (!live(state)) {
+        const errors = []; disposeContent(state, errors);
+        for (const error of errors) report(error);
+        return null;
+      }
       surface.append(node);
       for (const button of surface.querySelectorAll('button')) {
         if (!button.hasAttribute('role')) button.setAttribute('role', 'menuitem');
       }
-      if (active !== state) return null;
       // Same scoped root coordinate system as official body Portal, without global CSS.
       root.append(portal);
+      state.mounted = true;
+      validate();
+      if (!live(state)) return null;
       place({ ...state, layer }, position, options);
       if (window.ResizeObserver) {
         state.observer = new window.ResizeObserver(() => {
-          if (active === state) place({ ...state, layer }, position, options);
+          validate();
+          if (live(state)) place({ ...state, layer }, position, options);
         });
         state.observer.observe(surface);
       }
@@ -130,38 +200,65 @@ export function createMenus({ root, onError } = {}) {
       anchor?.setAttribute('aria-expanded', 'true');
       anchor?.setAttribute('aria-controls', state.id);
       state.enterTimer = window.setTimeout(() => {
-        if (active === state) surface.dataset.visible = 'true';
+        validate();
+        if (live(state)) surface.dataset.visible = 'true';
       }, 0);
       const focusTarget = surface.querySelector('input:not(:disabled),textarea:not(:disabled),[autofocus],button:not(:disabled)');
       (focusTarget ?? surface).focus({ preventScroll: true });
       return surface;
     } catch (error) {
-      close({ restoreFocus: true });
+      const errors = [];
+      try { closeFrom(state); } catch (cleanupError) { errors.push(cleanupError); }
+      disposeContent(state, errors);
       portal.remove();
-      if (onError) { onError(error); return null; }
-      throw error;
+      report(error);
+      for (const cleanupError of errors) report(cleanupError);
+      return null;
     }
   }
 
   const toggle = (anchor, factory, options) => {
     if (!anchor?.getBoundingClientRect) throw new TypeError('Menu anchor must be a DOM element');
-    if (active?.anchor === anchor) { close(); return null; }
+    validate();
+    if (chain()[0]?.anchor === anchor) { close({ all: true }); return null; }
     return open({ kind: 'anchor' }, anchor, factory, options);
   };
   const openAt = ({ x, y }, factory, options) => {
     if (!Number.isFinite(x) || !Number.isFinite(y)) throw new TypeError('Pointer menu coordinates must be finite');
     return open({ kind: 'point', x, y }, null, factory, options);
   };
+  const openNested = (anchor, factory, options) => {
+    if (disposed) throw new Error('Studio menu controller is disposed');
+    if (!anchor?.getBoundingClientRect) throw new TypeError('Menu anchor must be a DOM element');
+    validate();
+    const parent = owner(anchor);
+    if (!parent || !anchor.isConnected) return null;
+    closeDescendants(parent);
+    validate();
+    return open({ kind: 'anchor' }, anchor, factory, options, parent);
+  };
   listen(document, 'pointerdown', event => {
-    if (active && !contains(event.target) && !active.anchor?.contains(event.target)) close();
+    validate();
+    const parent = owner(event.target);
+    if (parent) closeDescendants(parent);
+    else if (active && !chain()[0].anchor?.contains(event.target)) close({ all: true });
   }, true);
   listen(document, 'focusin', event => {
-    if (active && !contains(event.target) && !active.anchor?.contains(event.target)) close({ restoreFocus: false });
+    validate();
+    const parent = owner(event.target);
+    if (parent) closeDescendants(parent);
+    else if (active && !chain()[0].anchor?.contains(event.target)) close({ restoreFocus: false, all: true });
   });
-  listen(document, 'wheel', event => { if (active && !contains(event.target)) close(); }, { capture: true, passive: true });
-  listen(window, 'resize', () => close());
-  listen(window, 'blur', () => close());
+  listen(document, 'wheel', event => { if (active && !contains(event.target)) close({ all: true }); }, { capture: true, passive: true });
+  listen(window, 'resize', () => close({ all: true }));
+  listen(window, 'blur', () => close({ all: true }));
+  if (window.MutationObserver) {
+    const observer = new window.MutationObserver(validate);
+    observer.observe(document, { childList: true, subtree: true });
+    removers.push(() => observer.disconnect());
+  }
   listen(document, 'keydown', event => {
+    validate();
     if (!active || event.defaultPrevented || event.isComposing || event.keyCode === 229 || event.key === 'Process') return;
     if (editable(event.target)) return;
     if (!contains(event.target) && event.target !== active.anchor && event.target !== document.body) return;
@@ -178,11 +275,14 @@ export function createMenus({ root, onError } = {}) {
     buttons[next].scrollIntoView?.({ block: 'nearest' });
   }, true);
   const dispose = () => {
-    close({ restoreFocus: false });
+    if (disposed) return;
     disposed = true;
-    for (const state of exits) state.remove();
-    for (const remove of removers) remove();
-    removers.length = 0;
+    try { close({ restoreFocus: false, all: true }); }
+    finally {
+      for (const state of exits) state.remove();
+      for (const remove of removers) remove();
+      removers.length = 0;
+    }
   };
-  return { toggle, openAt, close, isOpen, contains, dispose };
+  return { toggle, openAt, openNested, close, isOpen, contains, dispose };
 }

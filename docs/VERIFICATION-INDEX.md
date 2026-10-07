@@ -13,7 +13,8 @@
 | [画布命令与媒体菜单](canvas-command-menu-audit-20261008.md) | 最终52项定向（新增17）；当前主壳QA开关/Tab/回焦、导航/创建、主画布焦点撤销重做同ID，以及hover视频→Enter/图片→Space真实创建/关闭/回焦已实机；旧视频/fullImage历史单独浏览器、上传/下载/PNG读回未验 |
 | [片场 v2 标签键盘](STUDIO-V2-PANEL-KEYBOARD-20261008.md) / [下一代实现映射](research/STUDIO-V3-IMPLEMENTATION-MAP-20261008.md) | 17 项面板 + 3 项真实 GLB QA；主壳大场景左右循环/首尾、Tab进面板/首镜头、修饰键/Down/右键保护实机；官方导演/GLB并存，与V3生产增量分别验收 |
 | [V3生产入口与保存](STUDIO-V3-PRODUCTION-20261008.md) / [模块合同](../src/features/studio-v3/README.md) | 实际entry/CanvasApp/CanvasStore防迟写保存/Three GLB与SPZ运行时、官方图标布局及P0/P1子集；实机刷新4实体/X=2、基准角色只读、注入Quota失败关闭保页/保存重试/撤销重做/IDB rev10实体5；公开GLB导入→独立owner/source绑定保留原source，刷新与真实键盘提交改名/X1.5后关闭IDB rev3，排除只改输入DOM轮次；Escape回焦 |
-| 同批V3定向检查与边界 | 联合真实CanvasApp/CanvasStore/session受控IDB10/10、画布持久30/30、Transform取消/换选20/20、菜单10/10、改名4/4，未合计或宣称全部新重跑；P1光学/全局删除UI、P2放置租约及P3–P6仍不完整，Agent read/select/undo未实机；无官方紧凑存档支持，旧Alpha未包含 |
+| 前批V3定向检查与边界 | 联合真实CanvasApp/CanvasStore/session受控IDB10/10、画布持久30/30、Transform取消/换选20/20、菜单10/10、改名4/4，未合计或宣称全部新重跑；无官方紧凑存档支持，旧Alpha未包含 |
+| [V3实体、状态与镜头](STUDIO-V3-ENTITIES-20261008.md) | 刷新rev23绿色Sitting/真实落地/50mm9:16FOV39.598、letterbox/Escape；非当前状态复制独立ID/rev26，基准创建/继承全局删除/rev32、未引用角色保留；确认菜单回焦/保留/快捷键隔离、连续删除undo/redo、末状态删除与undo实机。runtime11/11、drop5/5、setup7/7、guard5/5、同lane新增3项分别通过；空groundNaN修复后重验。P1未全，GaussianDOF视觉/九姿态鼠标全态未验，GLB无虚化，完整操控/camera placement/viewfinder/时间/生成/拍摄/Agent仍缺 |
 | [人物情绪确认与关闭](../src/features/agent-apps/ACTOR-EMOTION.md) | 4 项确认 + 5 项关闭 + 4 项资源检查；原嵌套应用实际512×512灰模/AE2/SHA、800ms慢保存、关闭失败保页重试及刷新62/87%/13%；鼠标全路径、严格350ms与完整失败组合未验 |
 | [桌面文件整理](DESKTOP-FILES-20261008.md) | 15 项专项 + 18 项相关；最新源码 Electron 原生授权/确认3项、7字节/SHA回读、有效单项取消0/未创建、目录移动拒绝与撤销授权后列表阻断、正常⌘Q退出；不在已发布Alpha内，SDK/重启journal/实机回滚与恶意TOCTOU边界保留 |
 | [帮助与离线教程](CANVAS-HELP-20261008.md) | 五项本地入口、现场SVG/原始GIF；5项初始定向及隐藏dialog新增回归；实机快捷键21行/GIF、640×606面板、Escape/二次关闭、教程新标签/窄屏章节切换；模块内两图打包白名单/原字节与自然尺寸通过，无新包验收，全部正文/断点未验 |

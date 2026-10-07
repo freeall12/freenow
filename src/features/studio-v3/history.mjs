@@ -6,7 +6,7 @@ export const HISTORY_LIMIT = 50;
 export const setupLane = setupId => `setup:${setupId}`;
 const emptyLane = () => ({undoStack: [], redoStack: []});
 
-// Mirrors S1/Ja/Sf: one active transaction, independent lanes, globally ordered conflicts.
+// Adapted from S1/Ja/Sf: one active transaction, independent lanes, globally ordered conflicts.
 export function createHistory(initialState, {createId = () => `world-history:${crypto.randomUUID()}`, now = Date.now} = {}) {
   assertState(initialState);
   let state = clone(initialState), history = {lanes: {world: emptyLane()}, nextSequence: 1}, active = null;
@@ -20,7 +20,9 @@ export function createHistory(initialState, {createId = () => `world-history:${c
     return lane;
   };
   const getLane = lane => Object.hasOwn(history.lanes, lane) ? history.lanes[lane] : emptyLane();
-  const conflict = record => Object.values(history.lanes).some(lane => lane.undoStack.some(other =>
+  // A lane replays in stack order; an earlier redo's fresh sequence must not
+  // block its next redo. Fresh sequences still fence overlapping other lanes.
+  const conflict = record => Object.entries(history.lanes).some(([id, lane]) => id !== record.lane && lane.undoStack.some(other =>
     other.id !== record.id && other.sequence > record.sequence && touchesOverlap(other.touched, record.touched)));
   const availability = (requested, direction) => {
     if (active) return {ok: false, reason: 'transaction-active'};

@@ -1,0 +1,23 @@
+/* Inspector fields inherit the extracted Studio surface, menu rows and colors. */
+.studio-v3 .sv3-entity-inspector {display:flex;flex-direction:column;gap:12px;text-align:left}
+.studio-v3 .sv3-inspector-heading {display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0}
+.studio-v3 .sv3-inspector-heading strong {font-size:14px;font-weight:500}
+.studio-v3 .sv3-inspector-group {border:0;border-top:1px solid rgba(255,255,255,.08);padding:10px 0 0;margin:0;min-width:0}
+.studio-v3 .sv3-inspector-group legend {font-size:12px;padding:0 6px 0 0;color:#aaa}
+.studio-v3 .sv3-entity-inspector .sv3-fields {margin:0;gap:6px}
+.studio-v3 .sv3-inspector-row {display:flex;align-items:center;gap:8px;justify-content:space-between;min-width:0;font-size:12px;color:#bbb;padding:4px 0}
+.studio-v3 .sv3-inspector-row input[type=number],.studio-v3 .sv3-inspector-row select {height:30px;background:#343434;color:#fff;border:0;border-radius:6px;padding:4px 7px;font:inherit;min-width:0;width:110px}
+.studio-v3 .sv3-inspector-row input[type=checkbox] {accent-color:#e7d57b;width:16px;height:16px}
+.studio-v3 .sv3-inspector-palette {display:flex;gap:4px;flex-wrap:wrap}
+.studio-v3 .sv3-inspector-swatch {display:flex;align-items:center;justify-content:center;height:32px;min-width:28px;padding:3px;border:1px solid transparent;border-radius:8px;background:transparent;color:#aaa;font:inherit;font-size:11px}
+.studio-v3 .sv3-inspector-swatch span {width:16px;height:16px;border-radius:50%;box-shadow:0 0 0 1px rgba(255,255,255,.16) inset}
+.studio-v3 .sv3-inspector-swatch[aria-pressed=true],.studio-v3 .sv3-entity-inspector .sv3-menu-row[aria-pressed=true] {background:rgba(255,255,255,.1);color:#efd77a}
+.studio-v3 .sv3-inspector-swatch:hover {background:rgba(255,255,255,.08)}
+.studio-v3 .sv3-inspector-poses {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:2px}
+.studio-v3 .sv3-inspector-poses .sv3-menu-row {min-width:0;white-space:normal;min-height:32px}
+.studio-v3 .sv3-inspector-group-label {font-size:11px;color:#999;padding:4px 6px 6px}
+.studio-v3 .sv3-inspector-group-label:not(:first-child) {margin-top:8px}
+.studio-v3 .sv3-inspector-note {font-size:11px;color:#999;line-height:1.6;white-space:normal}
+.studio-v3 .sv3-entity-inspector :disabled {opacity:.38;cursor:default}
+.studio-v3 .sv3-entity-inspector input:focus-visible,.studio-v3 .sv3-entity-inspector select:focus-visible,.studio-v3 .sv3-inspector-swatch:focus-visible {outline:1px solid rgba(255,255,255,.55);outline-offset:2px}
+@media(max-width:440px) {.studio-v3 .sv3-inspector-row {flex-wrap:wrap}.studio-v3 .sv3-inspector-row input[type=number],.studio-v3 .sv3-inspector-row select {width:100px}.studio-v3 .sv3-inspector-poses .sv3-menu-row {font-size:12px}}

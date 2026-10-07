@@ -26,7 +26,8 @@ test('additional actor instance reuses same-stage role and rejects duplicate/new
 });
 test('camera creation writes real camera GLB and schema optics with transform and camera pose synchronized', async () => {
   const f = await fixture(), result = reduce(f, f.state, {type: 'create', kind: 'camera', id: 'camera-a', transform: {position: {x: 3, z: 5}}, camera: {fov: 42, focalLength: 50}}), camera = control(f, result.state, 'camera-a');
-  assert.equal(camera.definition.asset.sourceUrl, '/assets/studio/camera.glb');assert.equal(camera.definition.asset.presentationAnchor, 'center');assert.deepEqual(camera.setupState.camera.position, camera.setupState.transform.position);assert.equal(camera.setupState.camera.fov, 42);assert.equal(camera.setupState.camera.focalLength, 50);assert.equal(camera.setupState.camera.frameAspectRatio, 16 / 9);assert.equal(camera.setupState.camera.apertureFNumber, 2.8);
+  const {focalLengthToFov} = await import('../src/features/studio-v3/camera-optics.mjs');
+  assert.equal(camera.definition.asset.sourceUrl, '/assets/studio/camera.glb');assert.equal(camera.definition.asset.presentationAnchor, 'center');assert.deepEqual(camera.setupState.camera.position, camera.setupState.transform.position);assert.equal(camera.setupState.camera.fov, focalLengthToFov(50, 16 / 9));assert.equal(camera.setupState.camera.focalLength, 50);assert.equal(camera.setupState.camera.frameAspectRatio, 16 / 9);assert.equal(camera.setupState.camera.apertureFNumber, 11);
 });
 test('local sample prop uses exact studioLibrary model URL, bottom anchor and original scale, rejecting arbitrary asset substitutes', async () => {
   const f = await fixture(), result = reduce(f, f.state, {type: 'create', kind: 'prop', id: 'chair-a', assetId: 'chair-office'}), prop = control(f, result.state, 'chair-a');
@@ -78,8 +79,8 @@ test('global camera removal clears source view/output/reference targets, held/lo
   const removed = reduce(f, state, {type: 'remove', entityId: 'camera-a', mode: 'global'}, 104), w = space(removed.state), actor = control(f, removed.state, 'actor-a').setupState;
   assert.equal(removed.lane, 'world');assert.deepEqual(w.views, []);assert.deepEqual(w.outputs, []);assert.deepEqual(w.references[0].targets, []);assert.deepEqual(w.setups[1].temporal.tracks, []);assert.deepEqual(actor.lookTarget, {kind: 'none'});assert.equal(Object.hasOwn(actor, 'heldEntityId'), false);assert.equal(w.activeViewId, null);assert.equal(space(state).entities.length, 2);
 });
-test('baseline local removal is denied; explicit global removal cascades without writing independent override', async () => {
-  const f = await fixture(), state = createActor(f, f.state, {setupId: 'setup-default'}).state, denied = reduce(f, state, {type: 'remove', entityId: 'actor-a', mode: 'local'});assert.equal(denied.reason, 'baseline-readonly');assert.equal(denied.state, state);
+test('inherited baseline local removal routes owning baseline to global cascade without writing independent override', async () => {
+  const f = await fixture(), state = createActor(f, f.state, {setupId: 'setup-default'}).state, inherited = reduce(f, state, {type: 'remove', entityId: 'actor-a', mode: 'local'});assert.equal(inherited.ok, true);assert.equal(inherited.removal, 'global');assert.equal(inherited.lane, 'world');assert.equal(space(inherited.state).entities.length, 0);
   const removed = reduce(f, state, {type: 'remove', entityId: 'actor-a', mode: 'global'});assert.equal(removed.lane, 'world');assert.equal(space(removed.state).entities.length, 0);assert.equal(space(removed.state).setups[1].entityStates.length, 0);
 });
 test('clone has unique instance ID and copied pose/asset, retains role, and never duplicates old tracks', async () => {
@@ -106,7 +107,7 @@ test('no-op update preserves state identity and returned lanes work with indepen
 test('camera optics-only edit preserves existing authoritative optical pose and partial optical pose merges that same camera', async () => {
   const f = await fixture();let state = reduce(f, f.state, {type: 'create', kind: 'camera', id: 'camera-a'}).state;
   const original = control(f, state, 'camera-a').setupState.camera;state = f.world.patchEntityState(state, 'setup:state-1', 'camera-a', {camera: {...original, position: {x: 9, y: 2, z: 4}}}, 102);
-  const updated = reduce(f, state, {type: 'update', entityId: 'camera-a', patch: {camera: {fov: 65}}}, 103), local = control(f, updated.state, 'camera-a').setupState;assert.deepEqual(local.camera.position, {x: 9, y: 2, z: 4});assert.deepEqual(local.transform.position, {x: 0, y: 0, z: 0});
+  const updated = reduce(f, state, {type: 'update', entityId: 'camera-a', patch: {camera: {fov: 65}}}, 103), local = control(f, updated.state, 'camera-a').setupState;assert.deepEqual(local.camera.position, {x: 9, y: 2, z: 4});assert.deepEqual(local.transform.position, local.camera.position);
   const opticalMoved = reduce(f, updated.state, {type: 'update', entityId: 'camera-a', patch: {camera: {position: {z: 6}}}}, 104), moved = control(f, opticalMoved.state, 'camera-a').setupState;assert.deepEqual(moved.camera.position, {x: 9, y: 2, z: 6});assert.deepEqual(moved.camera.position, moved.transform.position);
 });
 test('existing-role creation and clone refuse a role ID as the instance ID', async () => {

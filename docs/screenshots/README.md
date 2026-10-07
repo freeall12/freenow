@@ -1,5 +1,17 @@
 # 功能截图与复现
 
+## 2026-10-08 导演片场实体与镜头
+
+本地 4196 的真实生产工作区，公开人物／餐椅模型，模型 Key 为空。原始截图和两次真实存档回读集中在 `20261008-studio-entities/`，没有修图或模型生成。
+
+| 截图 | 范围 |
+| --- | --- |
+| [人物属性与落地](20261008-studio-entities/actor-pose-ground.png) | 实际绿色 Sitting、坐标和属性；九姿态有实际 GLB／DOM 专项，未把全部鼠标路径算已验 |
+| [状态删除确认](20261008-studio-entities/state-delete-confirm.png) | 父菜单保留、子确认和官方文案；Escape／保留／确认／最后状态与撤销重做实机通过 |
+| [50mm 竖幅镜头](20261008-studio-entities/camera-portrait-preview.png) | 保存刷新后的真实 9:16 预览与黑边；普通 GLB 没有景深虚化 |
+
+具体操作、最终 revision 32 及尚未实现的功能见[本批实体与镜头验收](../STUDIO-V3-ENTITIES-20261008.md)。
+
 ## 2026-10-07 生产画布与节点入口
 
 | 文件 | 实际内容与来源 |

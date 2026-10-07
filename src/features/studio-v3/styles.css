@@ -17,6 +17,20 @@
 .studio-v3 .sv3-field input,.studio-v3 .sv3-field select {height:30px;width:100%;background:#343434;color:#fff;border:0;border-radius:6px;padding:4px 7px;font:inherit}
 .studio-v3 .sv3-selection-name {max-width:160px}
 .studio-v3 .sv3-state-list {padding:6px}
+.studio-v3 .sv3-state-row .sv3-state-label {width:208px;min-width:100px;flex:1}
+.studio-v3 .sv3-state-actions {display:flex;flex-shrink:0;gap:2px;padding-right:4px}
+.studio-v3 .sv3-state-actions svg {width:14px;height:14px}
+.studio-v3 .sv3-state-confirm {padding:10px;border-radius:10px;background:rgba(255,255,255,.07)}
+.studio-v3 .sv3-state-confirm strong {display:block;font-size:14px;font-weight:500;line-height:20px;overflow-wrap:anywhere}
+.studio-v3 .sv3-state-confirm p {margin:8px 0 12px;font-size:12px;line-height:20px;color:rgba(255,255,255,.6)}
+.studio-v3 .sv3-confirm-actions {display:flex;justify-content:flex-end;gap:4px}
+.studio-v3 .sv3-confirm-actions .sv3-button {height:32px;min-width:0;border-radius:8px;font-size:12px}
+.studio-v3 .sv3-confirm-actions .sv3-button:last-child {color:#ffaaa0;background:rgba(255,100,80,.1)}
+.studio-v3 .sv3-entity-menu {min-width:240px}
+.studio-v3 .sv3-entity-name {display:flex;align-items:center;gap:12px;padding:4px 10px 8px;color:rgba(255,255,255,.5);font-size:12px}
+.studio-v3 .sv3-entity-name .sv3-rename-input {width:140px;font-size:13px}
+.studio-v3 .sv3-menu-row:disabled {color:rgba(255,255,255,.25);cursor:not-allowed;background:transparent}
+.studio-v3 .sv3-menu-row[data-destructive=true] {color:#ffaaa0}
 .studio-v3 .sv3-menu-row svg {width:16px;height:16px}
 .studio-v3 .sv3-controls-help {padding:10px 16px;max-width:300px;line-height:1.8;color:#bbb}
 .studio-v3 .sv3-field select {font-size:12px}

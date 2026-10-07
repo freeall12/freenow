@@ -7,6 +7,9 @@ import {reduceEntityAction, resolveEntityControl} from './entity-actions.mjs';
 import {createMenus} from './menus.mjs';
 import {el, button, renameInput} from './dom.mjs';
 import {studioLibrary} from '../../../studio-library-data.mjs';
+import {createEntityInspector} from './entity-inspector.mjs';
+import {cloneIndependentSetup, removeIndependentSetup} from './setup-actions.mjs';
+import {resolveDropPlacement} from './drop-placement.mjs';
 
 for (const name of ['official-layout.css', 'styles.css']) {
   const link = document.createElement('link'); link.rel = 'stylesheet'; link.href = new URL(name, import.meta.url); document.head.append(link);
@@ -21,11 +24,12 @@ export async function open(node) {
   const root = el('section', 'studio-v3 sv3-workspace'); root.ariaLabel = '导演片场'; root.tabIndex = -1;
   root.setAttribute('role', 'dialog'); root.setAttribute('aria-modal', 'true'); root.dataset.keyboardScope = 'local-tool';
   const canvas = el('canvas', 'sv3-render'); canvas.tabIndex = 0; canvas.ariaLabel = '3D 场景：拖动旋转，滚轮缩放，点击选择实体';
+  const previewFrame = el('div', 'sv3-frame'); previewFrame.hidden = true; previewFrame.setAttribute('aria-hidden', 'true');
   const top = el('header', 'sv3-topbar'), left = el('div', 'sv3-top-left'), center = el('div', 'sv3-top-center'), right = el('div', 'sv3-top-right');
   const dock = el('footer', 'sv3-dock'), leading = el('div', 'sv3-dock-leading'), middle = el('div', 'sv3-dock-center'), trailing = el('div', 'sv3-dock-trailing'), upper = el('div', 'sv3-dock-upper');
   const toastHost = el('div', 'sv3-dock-toast'), toast = el('div', 'sv3-status'); toast.hidden = true; toast.setAttribute('role', 'status'); toastHost.append(toast);
   const mainActions = el('div', 'sv3-action-cluster'), stateCapsule = el('div', 'sv3-surface'), viewCapsule = el('div', 'sv3-surface');
-  top.append(left, center, right); middle.append(mainActions); dock.append(leading, middle, trailing, upper, toastHost); root.append(canvas, top, dock);
+  top.append(left, center, right); middle.append(mainActions); dock.append(leading, middle, trailing, upper, toastHost); root.append(canvas, previewFrame, top, dock);
   document.body.append(root); document.body.classList.add('studio-active');
   const instance = {nodeId: node.id, version: 3}; active = instance;
   let alive = true, closing = null, session, runtime, observer, lastSync = Promise.resolve(), selected = null, lastLane = 'world', previousIndependent = null, toastTimer;
@@ -41,10 +45,15 @@ export async function open(node) {
   const menus = createMenus({root, onError: error => notice(error.message, true)});
   const state = () => session.getState(), space = () => state().scenePlay.worldSpace;
   const currentSetup = () => space().setups.find(setup => setup.id === space().activeSetupId);
+  const groundHeight = () => Number.isFinite(state().scenePlay.environment.ground.y) ? state().scenePlay.environment.ground.y : 0;
   const control = () => selected ? resolveEntityControl(state(), {entityId: selected}) : null;
   const row = (name, label, action, options = {}) => button(name, label, safe(action), {className: 'sv3-menu-row', text: label, ...options});
   const menu = (label, rows) => {const list = el('div'); list.ariaLabel = label; list.append(...rows); return list;};
   const select = id => {selected = id; runtime.selectEntity(id); refresh();window.AgentUI?.refreshSceneContext?.();};
+  const updatePreviewFrame = () => {
+    const rect = runtime?.cameraPreviewRect; previewFrame.hidden = !rect;
+    if (rect) Object.assign(previewFrame.style, {left: `${rect.left}px`, top: `${rect.top}px`, width: `${rect.width}px`, height: `${rect.height}px`});
+  };
   const sync = (strict = false) => {
     if (!runtime || !session || !alive) return;
     const pending = runtime.sync(state()).then(() => {
@@ -59,31 +68,45 @@ export async function open(node) {
     if (changed) lastLane = lane; return changed;
   };
   const entityAction = async action => {
+    runtime?.cancelTransform();
     const result = reduceEntityAction(state(), action);
     if (!result.ok) {notice(result.message, true); return result;}
     if (result.changed) {change(() => result.state, '实体编辑', result.lane); await lastSync;}
     if (action.type === 'remove') select(null); else if (result.entityId) select(result.entityId);
     return result;
   };
+  const dropSelected = async id => {
+    runtime.cancelTransform();
+    await lastSync;
+    const c = resolveEntityControl(state(), {entityId: id}), graph = runtime.graph;
+    const meshes = [graph.worldRoot, ...[...graph.entities.values()].filter(record => record.id !== id && record.status === 'ready').map(record => record.root)];
+    const result = resolveDropPlacement({kind: c.definition.kind, object: runtime.entityObject(id), transform: c.setupState?.transform, meshes, groundY: groundHeight()});
+    if (!result) return {ok: false};
+    return entityAction({type: 'update', entityId: id, patch: {transform: result.transform}});
+  };
   const addEntity = async (kind, assetId) => {
     menus.close(); runtime.cancelTransform();
     const id = crypto.randomUUID(), target = runtime.controls.target;
-    const action = {type: 'create', kind, id, transform: {position: {x: target.x, y: 0, z: target.z}}};
+    const action = {type: 'create', kind, id, transform: {position: {x: target.x, y: groundHeight() + (kind === 'camera' ? 1.6 : 0), z: target.z}}};
     if (kind === 'actor') action.roleId = crypto.randomUUID();
     if (assetId) action.assetId = assetId;
     await entityAction(action); runtime.focusEntity(id);
   };
   const switchSetup = id => {
-    runtime.cancelTransform(); menus.close(); selected = null;
+    runtime.cancelTransform(); menus.close({all: true}); selected = null;
     if (currentSetup().kind === 'independent') previousIndependent = currentSetup().id;
     change(value => setActiveSetup(value, id), '切换状态', 'world', false);
   };
-  const addState = (duplicate = false) => {
+  const addState = (duplicate = false, sourceId = currentSetup().id) => {
     runtime.cancelTransform();
-    const now = Date.now(), id = crypto.randomUUID(), current = currentSetup();
-    const setup = createIndependentSetup({id, stageId: current.stageId, label: `状态 ${space().setups.filter(item => item.kind === 'independent' && item.stageId === current.stageId).length + 1}`, now});
-    if (duplicate && current.kind === 'independent') {setup.entityStates = structuredClone(current.entityStates); if (current.temporal) setup.temporal = structuredClone(current.temporal);}
-    selected = null; change(value => addSetup(value, setup, {activate: true}), duplicate ? '复制状态' : '新增状态'); menus.close();
+    const now = Date.now(), current = currentSetup();
+    selected = null;
+    if (duplicate) change(value => cloneIndependentSetup(value, sourceId, {createId: () => crypto.randomUUID(), now}), '复制状态');
+    else {
+      const setup = createIndependentSetup({id: crypto.randomUUID(), stageId: current.stageId, label: `状态 ${space().setups.filter(item => item.kind === 'independent' && item.stageId === current.stageId).length + 1}`, now});
+      change(value => addSetup(value, setup, {activate: true}), '新增状态');
+    }
+    menus.close({all: true});
   };
   const rename = (anchor, value, apply) => {
     menus.close({restoreFocus: false});
@@ -95,18 +118,30 @@ export async function open(node) {
       queueMicrotask(() => {input.focus(); input.select();}); return input;
     }, {label: '重命名'});
   };
+  const confirmStateRemoval = (anchor, setup) => menus.openNested(anchor, ({close}) => {
+    const panel = el('div', 'sv3-state-confirm');
+    panel.append(el('strong', '', `删除“${setup.label}”？`), el('p', '', '同时删除其中的角色、对象、摄像机和动画'));
+    const actions = el('div', 'sv3-confirm-actions');
+    actions.append(button(null, '保留状态', () => close(), {text: '保留状态'}), button('delete', '删除状态', safe(() => {
+      runtime.cancelTransform();
+      change(value => removeIndependentSetup(value, setup.id, {replacementId: crypto.randomUUID()}), '删除状态');
+      selected = null; menus.close({all: true}); refresh();
+    }), {text: '删除状态'})); panel.append(actions); return panel;
+  }, {label: '删除状态确认', placement: 'top', align: 'end', offset: 6, width: 280});
   const showStates = () => menus.toggle(stateButton, () => {
     const list = el('div', 'sv3-state-list');
     for (const setup of space().setups.filter(item => item.stageId === space().activeStageId && item.kind === 'independent')) {
-      const item = row(setup.id === currentSetup().id ? 'check' : null, setup.label, () => switchSetup(setup.id)); item.dataset.active = String(setup.id === currentSetup().id); list.append(item);
+      const group = el('div', 'sv3-state-row');
+      const item = row(setup.id === currentSetup().id ? 'check' : null, setup.label, () => switchSetup(setup.id)); item.classList.add('sv3-state-label'); item.dataset.active = String(setup.id === currentSetup().id);
+      const actions = el('div', 'sv3-state-actions');
+      const copy = button('clone', `复制状态：${setup.label}`, safe(() => addState(true, setup.id)), {className: 'sv3-mini-button'});
+      const edit = button('rename', `重命名状态：${setup.label}`, () => rename(stateButton, setup.label, label => change(value => {
+        const next = structuredClone(value); next.scenePlay.worldSpace.setups.find(item => item.id === setup.id).label = label; assertState(next); return next;
+      }, '状态重命名')), {className: 'sv3-mini-button'});
+      const remove = button('delete', `删除状态：${setup.label}`, () => confirmStateRemoval(remove, setup), {className: 'sv3-mini-button'});
+      actions.append(copy, edit, remove); group.append(item, actions); list.append(group);
     }
-    list.append(row('add', '新增状态', () => addState()), row('clone', '复制当前状态', () => addState(true)), row('settings', '编辑场景基准', () => switchSetup(baselineId(space().activeStageId))));
-    if (currentSetup().kind === 'independent') list.append(row('rename', '重命名当前状态', () => {
-      const setupId = currentSetup().id;
-      rename(stateButton, currentSetup().label, label => change(value => {
-        const next = structuredClone(value); next.scenePlay.worldSpace.setups.find(item => item.id === setupId).label = label; assertState(next); return next;
-      }, '状态重命名'));
-    }));
+    list.append(row('add', '新增状态', () => addState()), row('settings', '编辑场景基准', () => switchSetup(baselineId(space().activeStageId))));
     return list;
   }, {label: '状态', placement: 'top'});
   const showObjects = anchor => menus.toggle(anchor, () => {
@@ -128,45 +163,53 @@ export async function open(node) {
     }
     return list;
   }, {label: '道具库', width: 490});
-  const showInspector = anchor => menus.toggle(anchor, () => {
-    const c = control(), panel = el('div', 'sv3-inspector'); if (!c?.setupState) return panel;
-    panel.append(el('div', '', c.definition.label));
-    const locked = c.locked || c.baselineReadOnly;
-    for (const [field, label] of [['position', '位置'], ['rotation', '旋转'], ['scale', '缩放']]) {
-      panel.append(el('h4', '', label)); const fields = el('div', 'sv3-fields');
-      for (const axis of ['x', 'y', 'z']) {
-        const labelNode = el('label', 'sv3-field', axis.toUpperCase()), input = el('input'); input.type = 'number'; input.step = field === 'rotation' ? '1' : '.1';
-        input.value = String(field === 'rotation' ? c.setupState.transform[field][axis] * 180 / Math.PI : c.setupState.transform[field][axis]); input.disabled = locked;
-        let accepted=input.value;
-        input.addEventListener('keydown',event=>{if(event.key==='Escape'&&!event.isComposing&&event.keyCode!==229){event.preventDefault();event.stopPropagation();input.value=accepted;menus.close();}});
-        input.ariaLabel = `${label} ${axis.toUpperCase()}`; input.onchange = safe(async() => {
-          const value = Number(input.value); if (!Number.isFinite(value) || field === 'scale' && value === 0) throw Error('请输入有效数值，缩放不能为零');
-          const result=await entityAction({type: 'update', entityId: c.definition.id, patch: {transform: {[field]: {[axis]: field === 'rotation' ? value * Math.PI / 180 : value}}}});if(result.ok)accepted=input.value;
-        }); labelNode.append(input); fields.append(labelNode);
-      }
-      panel.append(fields);
-    }
-    if (c.definition.kind === 'actor') {
-      const pose = el('select'); pose.ariaLabel = '人物姿态'; pose.disabled = locked;
-      for (const [value, label] of [['Standing', '站立'], ['Idle', '待机'], ['Sitting', '坐姿'], ['Crouching', '蹲姿'], ['Kneeling', '跪姿'], ['Walking', '行走'], ['Running', '奔跑']]) pose.append(new Option(label, value));
-      pose.value = c.setupState.pose || 'Standing'; pose.onchange = safe(() => entityAction({type: 'update', entityId: c.definition.id, patch: {pose: pose.value}})); panel.append(pose);
-      pose.addEventListener('keydown',event=>{if(event.key==='Escape'&&!event.isComposing){event.preventDefault();event.stopPropagation();menus.close();}});
-    }
-    if (c.baselineReadOnly) panel.append(row('settings', '前往场景基准编辑', () => switchSetup(c.ownerSetupId)));
-    return panel;
-  }, {label: '实体属性', width: 440});
+  const showInspector = anchor => menus.toggle(anchor, ({close}) => createEntityInspector({
+    control, applyAction: entityAction, onError: error => notice(error.message, true), close,
+    onEditBaseline: () => switchSetup(control().ownerSetupId), depthOfFieldRendered: runtime.depthOfFieldSupported
+  }), {label: '实体属性', width: 440});
+  const removeSelected = () => selected && entityAction({type: 'remove', entityId: selected, mode: 'local'});
   const showEntityMenu = (point, anchor) => {
     const c = control(); if (!c) return;
-    const list = () => menu('实体操作', [
-      row('rename', '重命名', () => rename(selectionButton, c.definition.label, label => entityAction({type: 'update', entityId: c.definition.id, patch: {label}}))),
-      row('clone', '副本', () => {menus.close(); return entityAction({type: 'clone', entityId: c.definition.id, newId: crypto.randomUUID(), transform: {position: {x: c.setupState.transform.position.x + 1}}});}),
-      row(c.locked ? 'unlock' : 'lock', c.locked ? '解锁' : '锁定', () => {menus.close(); return entityAction({type: 'update', entityId: c.definition.id, patch: {locked: !c.locked}});}),
-      row('settings', '属性', () => {menus.close(); showInspector(selectionButton);}),
-      row('delete', '从当前状态移除', () => {menus.close(); return entityAction({type: 'remove', entityId: c.definition.id, mode: 'local'});})
-    ]);
-    if (point) menus.openAt(point, list, {label: '实体操作'}); else menus.toggle(anchor, list, {label: '实体操作'});
+    const list = ({close}) => {
+      const content = el('div', 'sv3-entity-menu'), nameRow = el('label', 'sv3-entity-name', '名称'), name = el('input', 'sv3-rename-input');
+      name.ariaLabel = '名称'; name.value = c.definition.label; name.maxLength = 120; nameRow.append(name); content.append(nameRow, el('div', 'sv3-menu-divider'));
+      let accepted = c.definition.label, skipBlur = false, disposed = false, pending = false;
+      content.dispose = () => {disposed = true;};
+      name.addEventListener('keydown', event => {
+        event.stopPropagation(); if (event.isComposing || event.keyCode === 229) return;
+        if (event.key === 'Enter') {event.preventDefault(); name.blur();}
+        if (event.key === 'Escape') {event.preventDefault(); skipBlur = true; name.value = accepted; name.blur();}
+      });
+      name.addEventListener('blur', safe(async () => {
+        if (skipBlur) {skipBlur = false; return;}
+        if (disposed || pending) return;
+        const label = name.value.trim(); if (!label || label === accepted) {name.value = accepted; return;}
+        pending = true; name.readOnly = true;
+        try {const result = await entityAction({type: 'update', entityId: c.definition.id, patch: {label}}); if (result.ok) accepted = label;}
+        finally {pending = false; name.readOnly = false; name.value = accepted;}
+      }));
+      const actionRow = (icon, label, action, shortcut) => {
+        const item = row(icon, label, async () => {close(); await action();});
+        if (shortcut) item.append(el('span', 'sv3-menu-shortcut', shortcut)); content.append(item); return item;
+      };
+      if (c.definition.kind !== 'camera') {
+        actionRow('focus', '聚焦', () => runtime.focusEntity(c.definition.id), 'F');
+        actionRow('dropGround', '落到地面', () => dropSelected(c.definition.id), 'G');
+      }
+      actionRow('reset', '恢复初始摆放', () => entityAction({type: 'restore-placement', entityId: c.definition.id}));
+      content.append(el('div', 'sv3-menu-divider'));
+      actionRow('clone', '复制', () => entityAction({type: 'clone', entityId: c.definition.id, newId: crypto.randomUUID()}));
+      if (c.canToggleLock) {
+        const lock = actionRow(c.locked ? 'unlock' : 'lock', c.locked ? '解锁' : '锁定', () => entityAction({type: 'update', entityId: c.definition.id, patch: {locked: !c.locked}}), c.lockDisabled ? null : 'L');
+        lock.disabled = c.lockDisabled; if (c.lockDisabled) content.append(el('div', 'sv3-menu-description', '有动画的对象不能锁定'));
+      }
+      content.append(el('div', 'sv3-menu-divider'));
+      actionRow('delete', '从场景移除', () => entityAction({type: 'remove', entityId: c.definition.id, mode: 'local'}), 'Del / ⌫').dataset.destructive = 'true';
+      return content;
+    };
+    if (point) menus.openAt(point, list, {label: '实体操作'}); else menus.toggle(anchor, list, {label: '实体操作', placement: 'top'});
   };
-  const back = button('back', '返回画布', safe(() => instance.close())); const home = button('restoreHome', '恢复初始视图', safe(() => {runtime.controls.target.set(0, 1, 0); runtime.orbitCamera.position.set(7, 6, 9); runtime.orbitCamera.lookAt(runtime.controls.target); runtime.controls.update(); runtime.render();}));
+  const back = button('back', '返回画布', safe(() => instance.close())); const home = button('restoreHome', '恢复初始视图', safe(() => {runtime.setView('orbit'); runtime.controls.target.set(0, 1, 0); runtime.orbitCamera.position.set(7, 6, 9); runtime.orbitCamera.lookAt(runtime.controls.target); runtime.controls.update(); runtime.render(); refresh();}));
   const help = button('controls', '控制说明', () => menus.toggle(help, () => el('div', 'sv3-controls-help', '拖动鼠标旋转视角；右键拖动平移；滚轮缩放。点击实体后可移动、旋转、缩放。F 聚焦，Esc 取消当前编辑，⌘/Ctrl Z 撤销。'), {label: '控制说明', placement: 'bottom'}));
   const topSurface = el('div', 'sv3-surface'); topSurface.append(back, home, help); left.append(topSurface);
   const wordmark = el('div', 'sv3-wordmark'), logo = el('img'); logo.src = '/assets/branding/freenow-mark.svg'; logo.alt = 'freenow'; wordmark.append(logo); center.append(wordmark);
@@ -189,7 +232,9 @@ export async function open(node) {
   const orbit = button('onSet', '3D 视图', safe(() => {runtime.setView('orbit'); refresh();}), {text: '3D'}), plan = button('topView', '俯视图', safe(() => {runtime.setView('plan'); refresh();}), {text: '俯视图'}); viewCapsule.append(orbit, plan); trailing.append(viewCapsule);
   const selectionTools = el('div', 'sv3-capsule'), selectionButton = button('object', '实体操作', () => showEntityMenu(null, selectionButton), {text: ''}); selectionButton.classList.add('sv3-selection-name');
   const transformButtons = ['translate', 'rotate', 'scale'].map((mode, index) => button(['control', 'rotateRight', 'redistribute'][index], ['移动', '旋转', '缩放'][index], safe(() => runtime.attachTransform(selected, mode)), {text: ['移动', '旋转', '缩放'][index]}));
-  const inspectorButton = button('settings', '实体属性', () => showInspector(inspectorButton)); selectionTools.append(selectionButton, ...transformButtons, inspectorButton); upper.append(selectionTools);
+  const inspectorButton = button('settings', '实体属性', () => showInspector(inspectorButton));
+  const cameraPreview = button('camera', '预览摄像机', safe(() => {runtime.previewCamera(selected); refresh();}));
+  selectionTools.append(selectionButton, ...transformButtons, inspectorButton, cameraPreview); upper.append(selectionTools);
   async function replay(redo) {
     runtime.cancelTransform(); menus.close();
     const result = redo ? session.history.redo(lastLane) : session.history.undo(lastLane);
@@ -198,12 +243,15 @@ export async function open(node) {
   function refresh() {
     if (!session || !runtime || !alive) return;
     const status = session.getStatus(), setup = currentSetup();
+    cameraButton.disabled = setup.kind === 'scene-baseline'; cameraButton.title = cameraButton.disabled ? '请先选择或新建独立状态，再添加摄像机。' : '添加摄像机';
     stateButton.querySelector('span').textContent = setup.label; leaveBaseline.hidden = setup.kind !== 'scene-baseline';
     saveStatus.textContent = status.status === 'failed' ? '保存失败 · 重试' : status.status === 'saving' ? '保存中' : status.dirty ? '待保存' : '已保存'; saveStatus.disabled = status.status === 'saving';
     orbit.dataset.active = String(runtime.view === 'orbit'); plan.dataset.active = String(runtime.view === 'plan');
+    updatePreviewFrame();
     if (selected && !renderSetup(state()).entityStates.some(item => item.entityId === selected)) selected = null;
     selectionTools.hidden = !selected;
-    const c = control(); if (c) {selectionButton.textContent = c.definition.label; for (const item of transformButtons) item.disabled = c.locked || c.baselineReadOnly;}
+    const c = control(); cameraPreview.hidden = !c || c.definition.kind !== 'camera';
+    if (c) {selectionButton.textContent = c.definition.label; for (const item of transformButtons) item.disabled = c.locked || c.baselineReadOnly || runtime.view === 'camera';}
     undo.disabled = !session.history.getUndoAvailability(lastLane).ok; redo.disabled = !session.history.getRedoAvailability(lastLane).ok;
   }
   instance.read = () => {
@@ -246,6 +294,7 @@ export async function open(node) {
       onChange: sync, onStatus: status => {refresh(); if (status.error) notice('保存失败，修改已保留：' + status.error.message, true);}});
     runtime = createStudioV3Runtime({canvas, getState: state, getSourceResource: () => readSourceResource(app, node.id),
       getFence: () => session.getFence(), isCurrent: () => alive && session.isCurrent(),
+      onInvalidate: updatePreviewFrame,
       onStatus: report => {const key = `${report.kind}:${report.id}`; if (report.status === 'failed') {notices.set(key, report.error); notice(report.error, true);} else if (report.status === 'ready') notices.delete(key);},
       onTransform: event => {
         if (event.phase === 'begin') {const c = control(); if (!c || c.baselineReadOnly || c.locked) throw Error('请先切换到实体所属状态并解锁'); lastLane = c.stateLane; if (!session.history.begin(lastLane, '实体变换', {kind: 'world-space'})) throw Error('请先完成当前编辑');}
@@ -261,10 +310,13 @@ export async function open(node) {
     canvas.addEventListener('contextmenu', event => {event.preventDefault(); const hit = runtime.hitEntity(event); if (hit) {select(hit.entityId); showEntityMenu({x: event.clientX, y: event.clientY});}});
     root.addEventListener('keydown', event => {
       event.stopPropagation(); if (event.isComposing || event.keyCode === 229 || event.target.closest('input,textarea,select,[contenteditable]')) return;
-      if (event.key === 'Escape') {event.preventDefault(); if (menus.isOpen()) menus.close(); else if (runtime.cancelTransform()) {} else if (selected) select(null); else safe(() => instance.close())();}
+      if (event.defaultPrevented || menus.isOpen()) return;
+      if (event.key === 'Escape') {event.preventDefault(); if (menus.isOpen()) menus.close(); else if (runtime.view === 'camera') {runtime.clearCameraPreview(); refresh();} else if (runtime.cancelTransform()) {} else if (selected) select(null); else safe(() => instance.close())();}
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'z') {event.preventDefault(); safe(() => replay(event.shiftKey))();}
       if (event.key.toLowerCase() === 'f' && selected) {event.preventDefault(); runtime.focusEntity(selected);}
-      if (['Delete', 'Backspace'].includes(event.key) && selected && !event.metaKey && !event.ctrlKey) {event.preventDefault(); safe(() => entityAction({type: 'remove', entityId: selected, mode: 'local'}))();}
+      if (event.key.toLowerCase() === 'g' && selected && !event.metaKey && !event.ctrlKey) {event.preventDefault(); safe(() => dropSelected(selected))();}
+      if (event.key.toLowerCase() === 'l' && selected && !event.metaKey && !event.ctrlKey) {const c = control(); if (c?.canToggleLock) {event.preventDefault(); safe(() => entityAction({type: 'update', entityId: selected, patch: {locked: !c.locked}}))();}}
+      if (['Delete', 'Backspace'].includes(event.key) && selected && !event.metaKey && !event.ctrlKey) {event.preventDefault(); safe(removeSelected)();}
     });
     await sync(true);
     if (!alive || active !== instance || !session.isCurrent()) throw Error('导演片场会话已变化');

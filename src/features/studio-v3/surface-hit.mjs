@@ -6,16 +6,17 @@ export function visibleSurface(object) {
   return true;
 }
 function candidates(roots) {const values = []; for (const root of roots || []) root.traverse(object => {if (visibleSurface(object)) values.push(object);}); return [...new Set(values)];}
-function normalOf(hit) {
+function normalOf(hit, directionNormal = false) {
   if (!hit.face?.normal) return null;
+  if (directionNormal) return hit.face.normal.clone().transformDirection(hit.object.matrixWorld).normalize();
   return hit.face.normal.clone().applyMatrix3(new THREE.Matrix3().getNormalMatrix(hit.object.matrixWorld)).normalize();
 }
 const vector = value => ({x: value.x, y: value.y, z: value.z});
-function intersections(ray, meshes, colliders) {
+function intersections(ray, meshes, colliders, directionNormal = false) {
   const hits = [];
   for (const [roots, source] of [[meshes, 'mesh'], [colliders, 'collider']]) {
     for (const root of roots || []) root.updateWorldMatrix(true, true);
-    for (const hit of ray.intersectObjects(candidates(roots), false)) {const normal = normalOf(hit); if (normal && Number.isFinite(hit.distance) && hit.distance >= 0) hits.push({point: hit.point, normal, source, distance: hit.distance, object: hit.object});}
+    for (const hit of ray.intersectObjects(candidates(roots), false)) {const normal = normalOf(hit, directionNormal); if (normal && Number.isFinite(hit.distance) && hit.distance >= 0) hits.push({point: hit.point, normal, source, distance: hit.distance, object: hit.object});}
   }
   return hits.sort((a, b) => a.distance - b.distance);
 }
@@ -39,6 +40,23 @@ export function supportSurface(position, {meshes = [], colliders = [], groundY =
   const hits = intersections(ray, meshes, colliders).filter(hit => hit.normal.y >= minNormalY);
   if (groundFallback && groundY <= height && groundY >= minY) hits.push({point: new THREE.Vector3(position.x, groundY, position.z), normal: new THREE.Vector3(0, 1, 0), source: 'ground-plane', distance: height - groundY});
   hits.sort((a, b) => b.point.y - a.point.y); return result(hits[0]);
+}
+/** Director placement prefers the highest support below the current base;
+ * when every support is above it, the lowest one raises the object safely.
+ * The 3 cm allowance is a preference, not a clipping plane for the rays. */
+export function placementSupport(points, {meshes = [], colliders = [], groundY = 0, referenceY, minNormalY = .65, allowance = .03} = {}) {
+  if (!points?.length || !Number.isFinite(referenceY) || !Number.isFinite(groundY)) return null;
+  const values = [{point: new THREE.Vector3(points[0].x, groundY, points[0].z), normal: new THREE.Vector3(0, 1, 0), source: 'ground-plane', distance: 0}];
+  for (const [roots, source] of [[colliders, 'collider'], [meshes, 'mesh']]) {
+    const bounds = new THREE.Box3(); for (const root of roots) bounds.expandByObject(root); if (bounds.isEmpty()) continue;
+    const height = bounds.max.y + 10, far = Math.max(1, bounds.max.y - bounds.min.y) + 20;
+    for (const point of points) {
+      const ray = new THREE.Raycaster(new THREE.Vector3(point.x, height, point.z), new THREE.Vector3(0, -1, 0), 0, far);
+      values.push(...intersections(ray, source === 'mesh' ? roots : [], source === 'collider' ? roots : [], true).filter(hit => hit.normal.y >= minNormalY));
+    }
+  }
+  const below = values.filter(hit => hit.point.y <= referenceY + allowance);
+  return result(below.length ? below.sort((a, b) => b.point.y - a.point.y)[0] : values.sort((a, b) => a.point.y - b.point.y)[0]);
 }
 export function surfaceHit(ray, options = {}) {
   if (options.mode !== 'support-surface') return directSurface(ray, options);

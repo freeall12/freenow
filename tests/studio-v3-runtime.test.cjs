@@ -34,7 +34,9 @@ test('pose, visibility, locking and separate camera optics synchronize without r
   const camera = {position: {x: 4, y: 5, z: 6}, rotation: {x: .1, y: .2, z: .3}, fov: 37, focalLength: 48, frameAspectRatio: 2.35, apertureFNumber: 2.8, focusDistance: 8};
   f.state = f.domain.patchEntityState(f.state, 'setup:state-1', 'camera', {camera}, 3); await graph.sync(f.state);
   assert.equal(graph.entity('actor').root, root); assert.equal(loads, 2); assert.equal(root.visible, false); assert.equal(root.userData.locked, true); assert.equal(graph.entity('actor').pose, 'Idle');
-  const lens = graph.entity('camera').camera; assert.deepEqual(lens.position.toArray(), [4, 5, 6]); assert.equal(lens.fov, 37); assert.equal(lens.aspect, 2.35); assert.deepEqual(lens.userData.studioV3Optics, camera);
+  const {focalLengthToFov, normalizeCameraOptics} = await import('../src/features/studio-v3/camera-optics.mjs');
+  const lens = graph.entity('camera').camera; assert.deepEqual(lens.position.toArray(), [4, 5, 6]); assert.equal(lens.fov, focalLengthToFov(48, 2.35)); assert.equal(lens.aspect, 2.35); assert.deepEqual(lens.userData.studioV3Optics, normalizeCameraOptics(camera));
+  assert.deepEqual(graph.entity('camera').root.position.toArray(), lens.position.toArray());assert.deepEqual(graph.entity('camera').root.quaternion.toArray(), lens.quaternion.toArray());
   assert(graph.entity('camera').root.userData.captureExcluded); assert(graph.entity('camera').cameraHelper.userData.captureExcluded); graph.dispose();
 });
 test('async session changes release late results and never publish a stale or failed ghost', async () => {

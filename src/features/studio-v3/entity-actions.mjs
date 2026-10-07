@@ -1,8 +1,9 @@
 import {studioLibrary} from '../../../studio-library-data.mjs';
 import {assertJson, clone, defined, isRecord, requireDomain, same} from './invariants.mjs';
-import {assertState, baselineId, createActorFromRole, createEntity, createRole, createSetupState} from './schema.mjs';
+import {assertCamera, assertState, baselineId, createActorFromRole, createEntity, createRole, createSetupState} from './schema.mjs';
 import {addEntity, addRole, patchEntity, patchEntityState, removeEntity, removeEntityFromSetup} from './world-space.mjs';
 import {setupLane} from './history.mjs';
+import {CAMERA_OPTICS_DEFAULTS, cameraOpticsPatch} from './camera-optics.mjs';
 
 const definitionFields = ['label', 'color', 'locked', 'materialMode'];
 const stateFields = ['transform', 'visible', 'pose', 'camera', 'lookTarget', 'heldEntityId', 'path'];
@@ -19,6 +20,8 @@ function setupOf(state, setupId) {
 function uniqueId(space, id, collection = 'entities') {
   text(id, 'entityAction.id');requireDomain(!space[collection].some(item => item.id === id), 'entityAction.id', 'ID already exists', 'duplicate-id');
 }
+const lockable = entity => ['actor', 'prop'].includes(entity.kind);
+const animated = (space, entityId) => space.setups.some(setup => setup.temporal?.tracks.some(track => track.owner.entityId === entityId && track.keys.length > 0));
 
 /** Baseline state wins over an independent setup. Definition edits are world
  * edits even while that shared state is read-only in the independent setup. */
@@ -28,8 +31,9 @@ export function resolveEntityControl(state, {entityId, setupId} = {}) {
   requireDomain(definition.stageId === setup.stageId, 'entityAction.entityId', 'entity belongs to another stage', 'cross-stage');
   const baseline = space.setups.find(item => item.id === baselineId(setup.stageId));
   const shared = baseline.entityStates.find(item => item.entityId === entityId), local = setup.entityStates.find(item => item.entityId === entityId), ownerSetupId = shared ? baseline.id : local ? setup.id : null;
+  const hasAnimation = animated(space, entityId), locked = lockable(definition) && definition.locked === true;
   return {definition: clone(definition), setupState: shared || local ? clone(shared || local) : null, setupId: setup.id, ownerSetupId,
-    baselineReadOnly: !!shared && setup.id !== baseline.id, locked: definition.locked === true,
+    baselineReadOnly: !!shared && setup.id !== baseline.id, locked, animated: hasAnimation, canToggleLock: lockable(definition), lockDisabled: lockable(definition) && hasAnimation && !locked,
     definitionLane: 'world', stateLane: ownerSetupId === baseline.id ? 'world' : setupLane(setup.id)};
 }
 function result(previous, state, lane, extra = {}) {
@@ -39,6 +43,9 @@ function unavailable(state, control, reason = 'baseline-readonly') {
   return {ok: false, state, changed: false, reason, lane: control.stateLane, suggestedLane: control.stateLane,
     suggestedSetupId: reason === 'baseline-readonly' ? control.ownerSetupId : control.setupId,
     message: reason === 'baseline-readonly' ? '此实体属于场景基准，请切换到场景基准后编辑。' : '此实体在当前状态中没有实例，请先切换到包含它的状态。'};
+}
+function denied(state, reason, message) {
+  return {ok: false, state, changed: false, reason, lane: 'world', suggestedLane: 'world', message};
 }
 function mergeTransform(previous, patch) {
   fields(patch, ['position', 'rotation', 'scale'], 'entityAction.transform');
@@ -56,7 +63,7 @@ function statePatch(previous, patch, kind) {
   if (next.transform) next.transform = mergeTransform(previous.transform, next.transform);
   if (kind === 'camera' && (next.camera || next.transform)) {
     fields(next.camera || {}, ['position', 'rotation', 'fov', 'frameAspectRatio', 'focalLength', 'apertureFNumber', 'depthOfFieldMode', 'focusDistance', 'focus', 'lookAt'], 'entityAction.camera');
-    const camera = {...clone(previous.camera || {position: previous.transform.position, rotation: previous.transform.rotation, fov: 50}), ...next.camera};
+    const camera = cameraOpticsPatch(previous.camera || {...CAMERA_OPTICS_DEFAULTS, position: previous.transform.position, rotation: previous.transform.rotation}, next.camera || {});
     const transform = next.transform || clone(previous.transform);
     // The renderer uses camera pose first. Keep the entity icon and optical
     // camera in agreement; contradictory dual inputs must not silently win.
@@ -67,6 +74,7 @@ function statePatch(previous, patch, kind) {
         if (patch.transform?.[field]) requireDomain(same(transform[field], camera[field]), `entityAction.camera.${field}`, 'camera and transform pose disagree');
         transform[field] = clone(camera[field]);
       } else if (patch.transform?.[field]) camera[field] = clone(transform[field]);
+      else transform[field] = clone(camera[field]);
     }
     next.camera = camera;next.transform = transform;
   }
@@ -101,10 +109,10 @@ function create(state, action, now) {
     const sample = action.kind === 'prop' ? libraryAsset(action.assetId) : {asset: {sourceUrl: builtin.camera, sourceFormat: 'glb', presentationAnchor: 'center'}, scale: 1};scale = sample.scale;
     entity = createEntity({id: action.id, stageId: setup.stageId, kind: action.kind, label: action.label ?? (sample.label ? `${sample.label} · ${action.assetId}` : label), asset: sample.asset, color: action.color, now});
   }
-  if (action.locked !== undefined) {requireDomain(typeof action.locked === 'boolean', 'entityAction.locked', 'must be boolean');entity.locked = action.locked;}
+  if (action.locked !== undefined) {requireDomain(typeof action.locked === 'boolean', 'entityAction.locked', 'must be boolean');requireDomain(lockable(entity), 'entityAction.locked', 'only actor and prop support lock');entity.locked = action.locked;}
   let local = createSetupState(entity.id, now);local.transform.scale = {x: scale, y: scale, z: scale};
   if (action.kind === 'actor') local.pose = action.pose ?? 'Standing';
-  if (action.kind === 'camera') local.camera = {position: clone(local.transform.position), rotation: clone(local.transform.rotation), fov: 50, focalLength: 35, frameAspectRatio: 16 / 9, apertureFNumber: 2.8, depthOfFieldMode: 'aperture', focusDistance: 5};
+  if (action.kind === 'camera') local.camera = {...CAMERA_OPTICS_DEFAULTS, position: clone(local.transform.position), rotation: clone(local.transform.rotation)};
   local = {...local, ...statePatch(local, defined({transform: action.transform, visible: action.visible, pose: action.pose, camera: action.camera}), entity.kind)};
   next = addEntity(next, entity, {setupId: setup.id, setupState: local});return result(state, next, 'world', defined({entityId: entity.id, roleId}));
 }
@@ -113,26 +121,58 @@ function create(state, action, now) {
  * The caller must use returned lane/scope for its history transaction and must
  * enforce runtime ownership, playback and persistence guards separately. */
 export function reduceEntityAction(state, action, {now = Date.now()} = {}) {
-  assertState(state);assertJson(action, 'entityAction');fields(action, ['type', 'kind', 'id', 'roleId', 'existingRoleId', 'setupId', 'label', 'actorGender', 'color', 'assetId', 'transform', 'visible', 'pose', 'camera', 'locked', 'entityId', 'patch', 'mode', 'newId'], 'entityAction');
+  assertState(state);assertJson(action, 'entityAction');fields(action, ['type', 'kind', 'id', 'roleId', 'existingRoleId', 'setupId', 'label', 'actorGender', 'color', 'assetId', 'transform', 'visible', 'pose', 'camera', 'locked', 'entityId', 'patch', 'mode', 'newId', 'fallbackCamera'], 'entityAction');
   requireDomain(Number.isFinite(now) && now >= 0, 'entityAction.now', 'must be a nonnegative timestamp');
   if (action.type === 'create') return create(state, action, now);
-  requireDomain(['update', 'remove', 'clone'].includes(action.type), 'entityAction.type', 'unknown entity action');
-  fields(action, action.type === 'update' ? ['type', 'entityId', 'setupId', 'patch'] : action.type === 'remove' ? ['type', 'entityId', 'setupId', 'mode'] : ['type', 'entityId', 'setupId', 'newId', 'label', 'transform'], 'entityAction');
+  requireDomain(['update', 'remove', 'clone', 'restore-placement'].includes(action.type), 'entityAction.type', 'unknown entity action');
+  fields(action, action.type === 'update' ? ['type', 'entityId', 'setupId', 'patch'] : action.type === 'remove' ? ['type', 'entityId', 'setupId', 'mode'] : action.type === 'restore-placement' ? ['type', 'entityId', 'setupId', 'fallbackCamera'] : ['type', 'entityId', 'setupId', 'newId', 'label', 'transform'], 'entityAction');
   const control = resolveEntityControl(state, action), {space, setup} = setupOf(state, control.setupId), entity = control.definition;
   if (action.type === 'update') {
     fields(action.patch, [...definitionFields, ...stateFields], 'entityAction.patch');
     const definition = Object.fromEntries(Object.entries(action.patch).filter(([key]) => definitionFields.includes(key))), local = Object.fromEntries(Object.entries(action.patch).filter(([key]) => stateFields.includes(key)));
+    if (Object.hasOwn(definition, 'locked')) {
+      requireDomain(typeof definition.locked === 'boolean', 'entityAction.locked', 'must be boolean');
+      if (!control.canToggleLock) return denied(state, 'entity-not-lockable', '只有角色和道具可以锁定。');
+      // Official Ul/R2 scans every setup, not merely the active one. Empty
+      // tracks are not animation; an already locked object can still unlock.
+      if (definition.locked && !control.locked && control.animated) return denied(state, 'entity-animated', '有动画的对象不能锁定。');
+    }
     if (Object.keys(local).length && (control.baselineReadOnly || !control.setupState)) return unavailable(state, control, control.baselineReadOnly ? 'baseline-readonly' : 'entity-not-in-setup');
     if (control.locked && ['transform', 'pose', 'camera', 'path', 'lookTarget', 'heldEntityId'].some(key => Object.hasOwn(local, key))) return {ok: false, state, changed: false, reason: 'entity-locked', lane: 'world', suggestedLane: 'world', message: '实体已锁定，请先解锁后编辑。'};
     let next = state;
+    if (definition.color === null) {
+      // The official default-material action removes the instance override;
+      // roles retain their shared appearance and null is never persisted.
+      delete definition.color;
+      if (Object.hasOwn(entity, 'color')) {
+        next = clone(next); const target = next.scenePlay.worldSpace.entities.find(item => item.id === entity.id);
+        delete target.color; target.updatedAt = now; assertState(next);
+      }
+    }
     if (Object.keys(definition).length) next = patchEntity(next, entity.id, definition, now);
     if (Object.keys(local).length) next = patchEntityState(next, control.ownerSetupId, entity.id, statePatch(control.setupState, local, entity.kind), now);
-    return result(state, next, Object.keys(definition).length ? 'world' : control.stateLane, {entityId: entity.id});
+    return result(state, next, Object.keys(definition).length || Object.hasOwn(action.patch, 'color') ? 'world' : control.stateLane, {entityId: entity.id});
+  }
+  if (action.type === 'restore-placement') {
+    if (control.baselineReadOnly || !control.setupState) return unavailable(state, control, control.baselineReadOnly ? 'baseline-readonly' : 'entity-not-in-setup');
+    requireDomain(entity.kind === 'camera' || action.fallbackCamera === undefined, 'entityAction.fallbackCamera', 'only camera restore supports navigation fallback');
+    // la() restores identity, not a creation/baseline snapshot. Camera restore
+    // changes only its pose to the official 1.6m position, retaining optics.
+    const transform = createSetupState(entity.id, now).transform, patch = {transform};
+    if (entity.kind === 'camera') {
+      const previous = control.setupState.camera ?? action.fallbackCamera;
+      if (!previous) return denied(state, 'camera-state-unavailable', '缺少镜头参数，请提供当前导航相机参数后重试。');
+      assertCamera(previous, 'entityAction.fallbackCamera');transform.position.y = 1.6;
+      patch.camera = {...clone(previous), position: clone(transform.position), rotation: {...clone(transform.rotation), order: 'XYZ'}};
+    }
+    const next = patchEntityState(state, control.ownerSetupId, entity.id, patch, now);return result(state, next, control.stateLane, {entityId: entity.id});
   }
   if (action.type === 'remove') {
     requireDomain(['local', 'global'].includes(action.mode), 'entityAction.mode', 'explicit local or global removal is required');
-    if (action.mode === 'local' && (control.baselineReadOnly || !control.setupState)) return unavailable(state, control, control.baselineReadOnly ? 'baseline-readonly' : 'entity-not-in-setup');
-    const next = action.mode === 'global' ? removeEntity(state, entity.id, now) : removeEntityFromSetup(state, entity.id, setup.id, now);
+    if (action.mode === 'local' && !control.setupState) return unavailable(state, control, 'entity-not-in-setup');
+    // wy resolves inherited baseline ownership before m1 dispatches to Qc. This
+    // is deletion routing, not permission to author an independent override.
+    const next = action.mode === 'global' ? removeEntity(state, entity.id, now) : removeEntityFromSetup(state, entity.id, control.ownerSetupId, now);
     const global = action.mode === 'global' || !next.scenePlay.worldSpace.entities.some(item => item.id === entity.id);
     return result(state, next, global ? 'world' : control.stateLane, {entityId: entity.id, removal: global ? 'global' : 'local'});
   }

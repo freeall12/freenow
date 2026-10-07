@@ -16,11 +16,23 @@
 | `session.mjs` | 可供消费者直接使用的领域历史代理、change/getState/getFence、自动保存与关闭守卫 |
 | `source.mjs` | 明确空片场或资源来源、独立 owner 标记、读取来源快照 |
 | `entry.mjs` / `dom.mjs` | 生产工作区、实体/状态 UI、数字属性、异步重命名、保存和关闭生命周期 |
+| `camera-optics.mjs` | 焦距/画幅与FOV换算、光圈/对焦配置、Three相机投影，以及显式Spark景深参数；普通GLB本身不具备虚化渲染 |
+| `entity-inspector.mjs` / `inspector.css` | 实体位置/旋转/缩放、颜色/材质、原GLB姿态与摄像机光学属性；真实编辑草稿、IME、基准只读/锁定与错误回执保护 |
+| `setup-actions.mjs` | 独立状态复制/删除，克隆私有实体/角色/view与关联引用，保留共享基准；删除最后独立状态时创建空替代状态 |
+| `drop-placement.mjs` | 基于真实对象包围盒与站面命中的actor/prop落地变换，排除自身模型后计算支撑；不代表完整放置输入租约 |
 | `runtime.mjs` / `render-graph.mjs` | 真实 Three 场景、GLB/SPZ、人物 clip、相机、Orbit/正交视图和事务变换 |
 | `asset-loader.mjs` / `surface-hit.mjs` | 有界本地素材读取/解码/取消，站面与直接拾取基础 |
-| `icons.mjs` / `menus.mjs` / CSS | 官方图标与布局、单活动菜单、坐标夹紧、键盘/回焦与退出动效 |
+| `icons.mjs` / `menus.mjs` / CSS | 官方图标与布局、单活动菜单和嵌套子菜单、坐标夹紧、键盘/分层Escape回焦与退出动效 |
 
 内部模块由 `studio.mjs` 路由，只有明确 `studioV3` 标记进入新工作区。V3 Agent 目前仅暴露 `read/select/undo`，其余明确拒绝。
+
+## 实体、状态与镜头增量
+
+属性面板已接实体颜色/材质、原GLB九姿态及镜头焦距/画幅/光圈/对焦。状态可复制非当前状态并生成独立实体/角色/view ID，删除有嵌套确认；最后独立状态删除后自动建立空状态。落地使用真实模型包围盒与支撑命中，恢复摄像机摆放使用Y=1.6并保留光学。摄像机实体的只读预览使用真实投影和居中黑边，Escape返回原视图；这不等于完整官方viewfinder/摄像机创建流程。
+
+主线实机刷新回读revision23：绿色Sitting人物X=1.5、Y=0.005886657753309876，摄像机位置1.5/1.6/5、50mm/9:16、FOV39.597752709049864；真实竖幅预览已验。非当前状态复制后revision26为4实体/2角色/4setup，副本ID独立；基准创建及继承全局删除后revision32为4实体/3角色/4setup，未引用第三角色按单实体删除合同保留。确认菜单Escape回父删除按钮、“保留状态”、连续两次删除/撤销/重做、最后状态删除/撤销，以及Delete/Backspace/G/L/⌘Z不穿透均已验。空`ground:{}`导致NaN的失败轮次已排除，有限地面缺省0修复后刷新重验成功。[最终实机、截图与专项范围](../../../docs/STUDIO-V3-ENTITIES-20261008.md)
+
+本批runtime光学/取景11项、落地5项、状态7项、集成守卫5项通过；同lane连续redo新增3项，跨lane冲突仍阻断。其他光学、属性与嵌套菜单专项按上述证据页分别记录，不合计为全量重跑。Spark已接景深参数，真实Gaussian景深视觉仍未验；普通GLB无虚化。六色/道具材质与九姿态没有覆盖全部浏览器鼠标路径，官方操控模式、完整摄像机放置/viewfinder、平面放置租约、时间、生成、拍摄和完整Agent仍缺；P1不能标为全部完成，旧Alpha不包含这些增量。
 
 ## 数据约束
 
@@ -60,7 +72,7 @@ history.undo(lane); // {ok:true}，或 {ok:false,reason:'empty'|'conflict'|'tran
 
 preview 是临时域变化，不产生历史；commit 计算逐项差异，无变化返回 false、不耗 sequence；cancel 精确恢复开始状态、不改任何 lane。每条历史记录包含 forward/inverse patch、lane、label、时间戳、sequence 与 touched，不保存整个场景 before/after。只有活动事务临时持有开始快照，这是取消与计算差异所需。
 
-撤销/重做检查所有已应用 lane：存在更新且触及相同环境/空间/entity/setup/view 等数据的记录，则返回 conflict。局部 setup state 修改只写对应 setup；两个 setup 修改同一个 entity definition 的各自状态仍可以分别撤销。创建/删除的生命周期依赖会额外阻止悬空关系，例如后来创建 actor 使用 role、后来选择新 stage、后来设置 lookTarget 引用新实体。环境 scope 由 `{kind:'environment',fields:[...]}` 指定；环境任意字段间保持官方保守冲突语义。
+撤销/重做检查其他已应用 lane：存在更新且触及相同环境/空间/entity/setup/view 等数据的记录，则返回 conflict。同lane按自身栈顺序重放，不把前一次redo获得的新sequence当成下一次redo的冲突；这是本地连续重做修复，不写成已证实的官方新行为，跨lane的重叠和生命周期依赖仍保留。局部 setup state 修改只写对应 setup；两个 setup 修改同一个 entity definition 的各自状态仍可以分别撤销。创建/删除的生命周期依赖会额外阻止悬空关系，例如后来创建 actor 使用 role、后来选择新 stage、后来设置 lookTarget 引用新实体。环境 scope 由 `{kind:'environment',fields:[...]}` 指定；环境任意字段间保持官方保守冲突语义。
 
 新 commit 仅清空本 lane redo，redo 得到新的全局 sequence。history getters 返回拷贝，外部修改不会改私有状态或记录。active transaction 期间禁止 clear，先 commit/cancel。
 

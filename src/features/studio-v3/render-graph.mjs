@@ -4,6 +4,7 @@ import {renderSetup} from './world-space.mjs';
 import {createAssetLoader, BUILTIN_ASSETS} from './asset-loader.mjs';
 import {disposeModel} from '../studio-v2/model-io.mjs';
 import {spatialBounds} from '../world-node/splat-io.mjs';
+import {CAMERA_OPTICS_DEFAULTS, applyCameraOptics} from './camera-optics.mjs';
 
 const error = (code, message) => Object.assign(Error(message), {code});
 const xyz = value => [value.x, value.y, value.z];
@@ -60,14 +61,13 @@ export function createRenderGraph({scene, loader = createAssetLoader(), getFence
   function camera(record) {
     if (record.definition.kind !== 'camera') return;
     const config = record.state.camera, transform = record.state.transform;
-    record.camera ||= new THREE.PerspectiveCamera(50, 16 / 9, .01, 10000);
+    record.camera ||= new THREE.PerspectiveCamera(CAMERA_OPTICS_DEFAULTS.fov, CAMERA_OPTICS_DEFAULTS.frameAspectRatio, .1, 1000);
     record.camera.userData.captureExcluded = true;
     record.camera.position.set(...xyz(config?.position || transform.position)); record.camera.rotation.set(...xyz(config?.rotation || transform.rotation), config?.rotation?.order || transform.rotation.order || 'XYZ');
-    record.camera.fov = config?.fov || 50; record.camera.aspect = config?.frameAspectRatio || 16 / 9;
-    if (config?.focalLength) record.camera.setFocalLength(config.focalLength);
-    // The explicit field is authoritative when both focal length and fov exist.
-    if (config?.fov) record.camera.fov = config.fov;
-    record.camera.userData.studioV3Optics = config ? structuredClone(config) : null;
+    applyCameraOptics(record.camera, config || CAMERA_OPTICS_DEFAULTS);
+    // Imported snapshots can predate reducer pose synchronization. The model
+    // represents the same optical camera even while that snapshot is unchanged.
+    record.root.position.copy(record.camera.position); record.root.rotation.copy(record.camera.rotation); record.root.updateMatrixWorld(true);
     record.camera.updateProjectionMatrix(); record.camera.updateMatrixWorld(true);
     if (!record.cameraHelper) {record.cameraHelper = new THREE.CameraHelper(record.camera); record.cameraHelper.userData.helper = record.cameraHelper.userData.captureExcluded = true; helpers.add(record.cameraHelper);}
     record.cameraHelper.visible = record.state.visible; record.cameraHelper.update();
@@ -77,14 +77,14 @@ export function createRenderGraph({scene, loader = createAssetLoader(), getFence
     for (const record of entities.values()) if (record.status === 'ready') {
       const target = record.definition.kind === 'camera' ? record.state.camera?.lookAt : record.state.lookTarget;
       const point = positionOf(target); if (!point) continue;
-      if (record.camera) {record.camera.lookAt(point); record.camera.updateMatrixWorld(true); record.cameraHelper?.update();}
+      if (record.camera) {record.camera.lookAt(point); record.camera.updateMatrixWorld(true); record.root.quaternion.copy(record.camera.quaternion); record.root.updateMatrixWorld(true); record.cameraHelper?.update();}
       else record.root.lookAt(point);
     }
   }
   function apply(record) {
     if (!record.root || record.kind === 'source') return;
     applyTransform(record.root, record.state.transform); record.root.visible = record.state.visible;
-    Object.assign(record.root.userData, {entityId: record.id, entityKind: record.definition.kind, locked: !!record.definition.locked, captureExcluded: record.definition.kind === 'camera', renderPending: record.status !== 'ready'});
+    Object.assign(record.root.userData, {entityId: record.id, entityKind: record.definition.kind, locked: ['actor', 'prop'].includes(record.definition.kind) && record.definition.locked === true, captureExcluded: record.definition.kind === 'camera', renderPending: record.status !== 'ready'});
     record.root.name = record.definition.label; material(record); pose(record); camera(record);
   }
   function prepare(record, asset) {
