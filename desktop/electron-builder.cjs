@@ -3,7 +3,9 @@ module.exports = {
   appId: 'org.freenow.desktop',
   productName: 'freenow',
   directories: {app: 'desktop', output: 'build/release'},
-  files: ['main.cjs', 'runtime-config.cjs', 'package.json'],
+  // Runtime modules are independently inventoried below. Do not duplicate
+  // the workspace's frontend dependencies in ASAR via pnpm's collector.
+  files: ['main.cjs', 'runtime-config.cjs', 'package.json', '!node_modules{,/**/*}'],
   // electron-builder filters a FileSet's root node_modules directory. Copy
   // each allowlisted module from its own root so the loopback server and
   // browser import map resolve the same runtime files as development.
