@@ -8,11 +8,11 @@ const active=()=>window.StudioAPI?.active?.runtime;
 let nodeId=null,prepared=false,assetBytes=null,error='',lastAction=null,lastPanelFocus=null,observer=null;
 const counts={allCalls:0,panelCalls:0,allCatalogMs:0,panelCatalogMs:0};
 const section=()=>document.querySelector('.studio-v2-root section[aria-label="片场设置"]');
-function focusData(element){return element?{tag:element.tagName,label:element.getAttribute('aria-label')||element.textContent?.trim().slice(0,70)||'',className:element.className,objectId:element.dataset.objectId||null,parentId:element.dataset.parentId||null,expanded:element.getAttribute('aria-expanded')}:null;}
+function focusData(element){return element?{tag:element.tagName,label:element.getAttribute('aria-label')||element.textContent?.trim().slice(0,70)||'',className:element.className,objectId:element.dataset.objectId||null,parentId:element.dataset.parentId||null,expanded:element.getAttribute('aria-expanded'),role:element.getAttribute('role'),id:element.id||null,tabIndex:element.tabIndex}:null;}
 function read(){
   const runtime=active(),setting=section(),focused=document.activeElement;
   if(setting?.contains(focused)||focused===runtime?.renderer.domElement)lastPanelFocus=focusData(focused);
-  return {namespace:fixture.namespace,synthetic:true,prepared,nodeId,assetBytes,loadStatus:runtime?.loadStatus,catalog:{...counts},lastAction,dom:{shotRows:setting?.querySelectorAll('.'+c.shotRow).length||0,motionRows:setting?.querySelectorAll('.'+c.clipRow).length||0,modelRows:setting?.querySelectorAll('.'+c.treeSelect+'[data-parent-id="qa-panel-models"]').length||0,modelMore:!!setting?.querySelector('.'+c.moreObjects+'[data-parent-id="qa-panel-models"]'),modelExpanded:setting?.querySelector('.'+c.treeExpand+'[data-object-id="qa-panel-models"]')?.getAttribute('aria-expanded')},activeElement:focusData(focused),lastPanelFocus,shotId:runtime?.shotId,motionIndex:runtime?.motionIndex,selectedId:runtime?.selected?.userData.studioId||null,externalAttempts:fixture.externalAttempts,blockedAPIs:fixture.blockedAPIs,error};
+  return {namespace:fixture.namespace,synthetic:true,prepared,nodeId,assetBytes,loadStatus:runtime?.loadStatus,catalog:{...counts},lastAction,dom:{tabs:[...(setting?.querySelectorAll('[role="tab"]')||[])].map(tab=>({label:tab.textContent,selected:tab.getAttribute('aria-selected'),tabIndex:tab.tabIndex,id:tab.id,controls:tab.getAttribute('aria-controls')})),panels:[...(setting?.querySelectorAll('[role="tabpanel"]')||[])].map(panel=>({id:panel.id,hidden:panel.hidden,labelledBy:panel.getAttribute('aria-labelledby')})),shotRows:setting?.querySelectorAll('.'+c.shotRow).length||0,motionRows:setting?.querySelectorAll('.'+c.clipRow).length||0,modelRows:setting?.querySelectorAll('.'+c.treeSelect+'[data-parent-id="qa-panel-models"]').length||0,modelMore:!!setting?.querySelector('.'+c.moreObjects+'[data-parent-id="qa-panel-models"]'),modelExpanded:setting?.querySelector('.'+c.treeExpand+'[data-object-id="qa-panel-models"]')?.getAttribute('aria-expanded')},activeElement:focusData(focused),lastPanelFocus,shotId:runtime?.shotId,motionIndex:runtime?.motionIndex,selectedId:runtime?.selected?.userData.studioId||null,externalAttempts:fixture.externalAttempts,blockedAPIs:fixture.blockedAPIs,error};
 }
 function refresh(){output.textContent=JSON.stringify(read(),null,2);}
 function reset(){Object.assign(counts,{allCalls:0,panelCalls:0,allCatalogMs:0,panelCatalogMs:0});}
@@ -24,7 +24,7 @@ function instrument(runtime){
     const fromPanel=new Error().stack?.includes('/scene-panel.mjs:'),start=performance.now();counts.allCalls++;if(fromPanel)counts.panelCalls++;
     try{return original();}finally{const duration=performance.now()-start;counts.allCatalogMs+=duration;if(fromPanel)counts.panelCatalogMs+=duration;}
   };runtime.scenePanelQAInstrumented=true;
-  observer?.disconnect();observer=new MutationObserver(()=>refresh());observer.observe(runtime.renderer.domElement.closest('.studio-v2-root'),{childList:true,subtree:true,attributes:true,attributeFilter:['aria-pressed','aria-expanded']});
+  observer?.disconnect();observer=new MutationObserver(()=>refresh());observer.observe(runtime.renderer.domElement.closest('.studio-v2-root'),{childList:true,subtree:true,attributes:true,attributeFilter:['aria-pressed','aria-expanded','aria-selected','tabindex','hidden']});
 }
 function formalTab(label){const tab=[...(section()?.querySelectorAll('button.'+c.panelTab)||[])].find(button=>button.textContent===label);if(!tab)throw Error('请先准备真实片场');tab.click();}
 function formalAction(label,selector){const target=section()?.querySelector(selector);if(!target)throw Error('没有找到正式控件：'+label);const start=performance.now();target.focus({preventScroll:true});target.click();lastAction={label,scope:'正式控件同步 click；不含 GPU 帧或异步保存',synchronousMs:performance.now()-start};}
@@ -35,6 +35,7 @@ button('准备并打开真实大场景',async()=>{
 });
 button('测一次正式拍摄页刷新',()=>{reset();const start=performance.now();formalTab('拍摄');lastAction={label:'正式拍摄页刷新',scope:'正式 tab 同步 click；不含 GPU 帧',synchronousMs:performance.now()-start};});
 button('打开正式场景页',()=>formalTab('场景'));
+button('聚焦正式拍摄标签，随后用键盘',()=>{const tab=section()?.querySelector('[role="tab"][data-tab="shooting"]');if(!tab)throw Error('请先准备真实片场');tab.focus({preventScroll:true});});
 button('展开/收起正式模型组',()=>formalAction('模型组展开/收起','.'+c.treeExpand+'[data-object-id="qa-panel-models"]'));
 button('正式模型组显示更多一次',()=>formalAction('模型组显示更多','.'+c.moreObjects+'[data-parent-id="qa-panel-models"]'));
 button('选择正式镜头120',()=>formalAction('选择镜头120','.'+c.shotRow+'[aria-label="选择镜头 QA 镜头 120 · 1 段运镜"]'));

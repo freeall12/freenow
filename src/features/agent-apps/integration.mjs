@@ -285,6 +285,6 @@ export function createAppController({getContext,onQueuePrompt,onSaveState,getAct
   }).catch(error=>{if(closeToken===token)cancelClose();onError(error.message);throw error;});closeWork=work;return work;
  }
  function reset(){cancelClose();for(const record of [...records.values()])dispose(record);}
- const hasPendingCloseApps=()=>[...records.values()].some(record=>['ui://tapnow/performance-rhythm@v3','ui://tapnow/story-room@v1','ui://tapnow/character-blocking@v3','ui://tapnow/cutlist-review@v1','ui://tapnow/product-kit@v1','ui://tapnow/director-markup@v1','ui://tapnow/color-adjust@v2'].includes(record.resourceUri)&&!record.disposed);
+ const hasPendingCloseApps=()=>[...records.values()].some(record=>['ui://tapnow/performance-rhythm@v3','ui://tapnow/story-room@v1','ui://tapnow/character-blocking@v3','ui://tapnow/cutlist-review@v1','ui://tapnow/product-kit@v1','ui://tapnow/director-markup@v1','ui://tapnow/color-adjust@v2','ui://tapnow/actor-emotion@v1'].includes(record.resourceUri)&&!record.disposed);
  return {render,prune,reset,prepareToClose,cancelClose,hasPendingCloseApps};
 }

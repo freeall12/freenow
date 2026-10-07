@@ -8,10 +8,12 @@ function embeddedGlb(source) {
   const texture=json.images[0],view=json.bufferViews[texture.bufferView],image=bytes.subarray(binStart+(view.byteOffset||0),binStart+(view.byteOffset||0)+view.byteLength);
   return {bytes,json,image};
 }
-test('actor-only SHA-bound derivative changes exactly one official loader selection and preserves captured source bytes',async()=>{
+test('actor-only SHA-bound derivative changes only loader, confirmation persistence and close lifecycle, preserving captured source bytes',async()=>{
   const m=await modulePromise,localized=await m.localizeActorEmotionResources(html,'actor-emotion','v1');
   assert.equal(crypto.createHash('sha256').update(fs.readFileSync(path)).digest('hex'),m.actorEmotionReferenceSha256);
-  assert.equal(html.split(original).length,2);assert.equal(localized,html.replace(original,local));assert.equal(fs.readFileSync(path,'utf8'),html);
+  const confirmation='await JK();try{const D=await gb(RD,g,Gg,A);',savedConfirmation='await JK();try{rB!==null&&(clearTimeout(rB),rB=null);await FK(IT(g));const D=await gb(RD,g,Gg,A);';
+  const {localLifecycleScript}=await import('../src/features/agent-apps/local-lifecycle.mjs'),startup='Qb();</script>',bridge='async function actorCloseFlush(){if(!RD||!zA)return false;SB();if(rB!==null){clearTimeout(rB);rB=null}await FK(IT(zA));return true}'+localLifecycleScript({root:'PM',flush:'actorCloseFlush()',busy:'hg'});
+  assert.equal(html.split(original).length,2);assert.equal(html.split(confirmation).length,2);assert.equal(html.split(startup).length,2);assert.equal(localized,html.replace(original,local).replace(confirmation,savedConfirmation).replace(startup,bridge+startup));assert.equal(fs.readFileSync(path,'utf8'),html);
   assert.equal(await m.localizeActorEmotionResources(html,'director-markup','v1'),html);
   await assert.rejects(m.localizeActorEmotionResources(html,'actor-emotion','v2'));
   await assert.rejects(m.localizeActorEmotionResources(html+'\n','actor-emotion','v1'));

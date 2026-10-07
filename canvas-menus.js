@@ -44,7 +44,10 @@
   }
   const variants = n => n.type==='image'&&window.ImageHistory?.hasHistory(n)?window.ImageHistory.variants(n):n.type==='video'&&window.VideoHistory?window.VideoHistory.variants(n):n.versions || window.VERSION_DATA?.[n.id] || [];
   async function applyHistory(n) {
-    const expected=JSON.stringify(n),projectId=app.projectIdentity?.().id,legacy=variants(n);
+    const expected=JSON.stringify(n),projectId=app.projectIdentity?.().id;
+    // Legacy editor media lives outside the node. Supply it as the current
+    // option without mutating the node that the async history guard watches.
+    const legacy=n.type==='video'&&!n.video&&primaryMedia(n)?[{video:primaryMedia(n),poster:n.image,width:n.videoMetadata?.width,height:n.videoMetadata?.height,duration:n.videoMetadata?.duration,clip:n.clip},...variants(n)]:variants(n);
     const {applyNodeHistory}=await import('./src/features/node-history-expansion/runtime.mjs');
     return applyNodeHistory(n,{app,legacy,expected,projectId});
   }
@@ -69,6 +72,7 @@
     const png=(async()=>{const bitmap=await createImageBitmap(await mediaBlob(n));try {const c=document.createElement('canvas');c.width=bitmap.width;c.height=bitmap.height;c.getContext('2d').drawImage(bitmap,0,0);return await new Promise((resolve,reject)=>c.toBlob(b=>b?resolve(b):reject(Error('图片编码失败')),'image/png'));}finally{bitmap.close();}})();
     await navigator.clipboard.write([new ClipboardItem({'image/png':png})]);app.notify('图片已复制到剪贴板');
   }
+  const primaryMedia = n => n.type==='image'?(n.fullImage||n.image):n.type==='video'?(n.video||window.EDITOR_DATA?.nodes[n.id]?.video):n.type==='audio'?n.audio:null;
   function node(x,y) {
     const state=app.getState(),picked=state.nodes.filter(n=>state.selected.includes(n.id)),n=picked[0];if(!n)return;
     const blocked=picked.some(n=>n.type==='studio'),items=[];
@@ -77,15 +81,15 @@
     else if(!blocked){
       const ids=window.CanvasGroups.descendants(state.nodes,state.selected),savable=state.nodes.some(v=>ids.has(v.id)&&(v.image||v.fullImage||v.audio||v.video||window.EDITOR_DATA?.nodes[v.id]?.video||v.type==='text'&&v.content?.trim()));
       items.push({label:'保存到素材库',run:savable?()=>app.saveSelection():null},null);
-      if(picked.length===1&&['image','video'].includes(n.type)&&(n.image||n.video)){
+      if(picked.length===1&&['image','video'].includes(n.type)&&primaryMedia(n)){
         items.push({label:'应用所有历史',run:()=>applyHistory(n)});
         if(variants(n).length>1)items.push({label:'删除其他版本',run:()=>keepMain(n)});
       }
-      const downloadable=n.type==='text'?n.content?.trim():n.type==='video'?(n.video||window.EDITOR_DATA?.nodes[n.id]?.video):n.type==='audio'?n.audio:n.type==='image'&&(n.fullImage||n.image);
+      const downloadable=n.type==='text'?n.content?.trim():primaryMedia(n);
       if(picked.length===1&&downloadable)items.push({label:'下载',run:()=>download(n)},null);
     }
     items.push({label:'复制',key:'⌘C',run:blocked?null:copy},{label:'粘贴',key:'⌘V',run:!blocked&&copied?()=>paste({x,y}):null},{label:'副本',run:blocked?null:()=>app.duplicate()},null,{label:'删除',key:'⌫,del',run:()=>app.remove(picked.map(n=>n.id))},null);
-    if(picked.length===1&&n.type==='image'&&n.image)items.push({label:'复制到剪贴板',run:()=>copyImage(n)},null);
+    if(picked.length===1&&n.type==='image'&&primaryMedia(n))items.push({label:'复制到剪贴板',run:()=>copyImage(n)},null);
     items.push({label:'反馈问题',run:()=>window.FeedbackAPI.open(picked.map(n=>n.id))});show(x,y,items);
   }
   // Geometry reads after world/style writes force synchronous layout. Observe

@@ -17,7 +17,15 @@ async function openDatabase() {
   database=await new Promise((resolve,reject)=>{const request=indexedDB.open('tapnow-qa-actor-emotion-v1',1);request.onupgradeneeded=()=>{request.result.createObjectStore('sessions');request.result.createObjectStore('assets');};request.onsuccess=()=>{request.result.onversionchange=()=>request.result.close();resolve(request.result);};request.onerror=()=>reject(request.error);request.onblocked=()=>reject(Error('验收存储被旧页面阻塞'));});
 }
 function read(store,key) {return new Promise((resolve,reject)=>{const transaction=database.transaction(store,'readonly'),request=transaction.objectStore(store).get(key);transaction.oncomplete=()=>resolve(request.result);transaction.onerror=transaction.onabort=()=>reject(transaction.error||request.error||Error('验收读取失败'));});}
-function write(store,key,value) {return new Promise((resolve,reject)=>{const transaction=database.transaction(store,'readwrite');transaction.objectStore(store).put(value,key);transaction.oncomplete=()=>resolve();transaction.onerror=transaction.onabort=()=>reject(transaction.error||Error('验收事务提交失败'));});}
+async function write(store,key,value) {
+  // Fault controls apply only to this page's labelled QA session adapter. Real
+  // production persistence and the captured iframe are never replaced.
+  if(store==='sessions'){
+    if(document.getElementById('save-delay').checked)await new Promise(resolve=>setTimeout(resolve,800));
+    if(document.getElementById('save-failure').checked)throw Error('验收会话保存失败');
+  }
+  return new Promise((resolve,reject)=>{const transaction=database.transaction(store,'readwrite');transaction.objectStore(store).put(value,key);transaction.oncomplete=()=>resolve();transaction.onerror=transaction.onabort=()=>reject(transaction.error||Error('验收事务提交失败'));});
+}
 function save() {return write('sessions','current',structuredClone({chat,graph}));}
 const assetUrls=new Map(),localAssets={
   async put(blob) {const id='asset:'+crypto.randomUUID();await write('assets',id,blob);return id;},
