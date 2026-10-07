@@ -6,4 +6,9 @@
 .agent-template-source-editor .agent-template-discard[hidden]{display:none}
 .agent-template-source-editor .agent-template-discard{display:flex;flex-direction:column;gap:8px;border-top:1px solid #ffffff1f;padding-top:12px}
 .agent-template-source-editor .agent-template-discard p{margin:0;font-size:13px}
+.agent-template-source-editor .agent-template-draft-recovery[hidden]{display:none}
+.agent-template-source-editor .agent-template-draft-recovery{display:flex;flex-direction:column;gap:8px;border-top:1px solid #ffffff1f;padding-top:12px}
+.agent-template-source-editor .agent-template-draft-recovery p{margin:0;font-size:13px;line-height:1.5}
+.agent-template-source-editor .agent-template-draft-recovery pre{margin:0;padding:8px;max-height:110px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;background:#0f0f0f;font:12px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace}
+.agent-template-source-editor .agent-template-draft-recovery [hidden]{display:none}
 @media(max-width:640px){.agent-template-source-editor{inset:2vh 2vw;width:96vw;height:96vh;flex-direction:column}.agent-template-source-editor>aside{width:100%;min-width:0;max-width:none;gap:8px;padding:12px;border-right:0;border-bottom:1px solid #ffffff1f}.agent-template-source-editor .agent-html-disclaimer{padding-top:8px}.agent-template-source-editor .agent-html-actions{margin:0;padding:0;gap:8px}.agent-template-source-editor .agent-artifact-status{padding:0}.agent-template-source-editor .agent-html-main{height:auto;min-height:180px;padding:12px}}

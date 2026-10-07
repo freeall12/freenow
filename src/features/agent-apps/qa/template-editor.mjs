@@ -49,7 +49,7 @@ async function createSyntheticSession() {
   };
   guard();
   return {
-    read() { guard(); return {...metadata(current), content: current.content}; },
+    read() { guard(); return {...metadata(current), content: current.content, draft_scope: namespace}; },
     async save({content, title = current.title}) {
       guard(); if (saving) throw Error('合成正文正在保存'); saving = true;
       let committed = false;
@@ -59,7 +59,7 @@ async function createSyntheticSession() {
         if (latest.revision !== current.revision) throw Error('自由 HTML 已更新，请保留草稿并重新打开最新版本');
         const saved = await store.write({artifact_path: artifactPath, title, content_type: 'html', content, expected_revision: current.revision}, {guard});
         committed = true; current = {...current, ...saved, content}; guard();
-        return {...metadata(current), content: current.content};
+        return {...metadata(current), content: current.content, draft_scope: namespace};
       } catch (error) {
         if (committed) throw Error('合成 HTML 已实际保存，但编辑来源随后失效：' + error.message);
         throw error;
@@ -102,6 +102,15 @@ $('open').onclick = async () => {
 };
 $('read').onclick = () => record('manual-readback');
 $('reload').onclick = () => location.reload();
+$('advance').onclick = async () => {
+  if (editor?.element.isConnected) return;
+  try {
+    const file = await store.get(artifactPath);
+    await store.write({artifact_path: artifactPath, title: file.title, content_type: 'html',
+      content: file.content + '\n<!-- 合成外部更新 ' + (file.revision + 1) + ' -->', expected_revision: file.revision});
+    await record('external-revision-written');
+  } catch (error) { await record('external-revision-error', {message: error.message}); }
+};
 $('fail').onchange = () => setFailure($('fail').checked);
 $('invalid').onchange = () => setInvalid($('invalid').checked);
 window.addEventListener('pagehide', () => { leaving = true; eventStore.close(); });

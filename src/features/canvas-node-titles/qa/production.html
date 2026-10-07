@@ -1,0 +1,6 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>普通节点标题 · 生产入口验收</title>
+<style>body{margin:0;background:#171717;color:#ddd;font:13px system-ui}header{padding:12px 16px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}button,a{background:#333;color:#ddd;padding:7px 11px;border:1px solid #555;border-radius:5px;text-decoration:none;cursor:pointer}button:disabled{opacity:.4}#status{min-width:200px}iframe{border:0;width:100%;height:calc(100vh - 105px);display:block}details{position:fixed;right:12px;bottom:12px;background:#252525;border:1px solid #555;padding:10px;max-width:520px;max-height:50vh;overflow:auto}pre{white-space:pre-wrap}small{color:#aaa}</style></head><body>
+<header><button id="create">创建独立验收画布</button><button id="run" disabled>运行生产入口检查</button><span id="status" role="status">验收仅写入新建 QA 项目</span><a id="open" hidden target="_blank">打开该生产画布</a><div id="types"></div><small>人工验收：选择节点后直接点击标题；中文 IME、拖选、滚轮、Enter/Escape/失焦及刷新。</small></header>
+<iframe id="frame" title="生产画布"></iframe><details open><summary>检查结果与项目标识</summary><pre id="log"></pre></details>
+<script src="/canvas-store.js"></script><script type="module" src="./production.mjs"></script></body></html>

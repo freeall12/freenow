@@ -12,9 +12,10 @@ body{margin:24px;background:#eeeae3;color:#282823;font:14px system-ui}main{max-w
 <button id="open">打开合成 HTML 编辑器</button>
 <button id="read">实际回读已保存正文</button>
 <button id="reload">刷新页面核对持久化</button>
+<button id="advance">写入新的合成已保存版本</button>
 <label><input id="fail" type="checkbox">保存失败</label>
 <label><input id="invalid" type="checkbox">让当前来源失效</label>
-<p>编辑后保存，再实际回读或刷新。修改后按 Escape / 点击外部，应提示继续编辑或放弃；失败保存应保留草稿。来源恢复后，需要重新打开编辑器。</p>
+<p>修改但不保存后刷新，再打开编辑器，应显示待恢复草稿且保存正文不变；需明确恢复与保存。刷新后先写入新的合成已保存版本，再打开，应提示旧版本冲突。修改后按 Escape / 点击外部，应提示继续编辑或放弃；失败保存应保留草稿。来源恢复后，需要重新打开编辑器。</p>
 <pre id="receipt" aria-live="polite">正在读取独立验收数据库…</pre>
 </main>
 <script type="module" src="./template-editor.mjs"></script>

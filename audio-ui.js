@@ -45,8 +45,15 @@
   function animate(){draw();if(!audio.paused)frame=requestAnimationFrame(animate);}
   audio.onplay=()=>{play.innerHTML=icon('pause');play.setAttribute('aria-label','暂停音频');cancelAnimationFrame(frame);animate();};audio.onpause=audio.onended=()=>{play.innerHTML=icon('play');play.setAttribute('aria-label','播放音频');cancelAnimationFrame(frame);draw();};audio.onloadedmetadata=()=>{duration=audio.duration;draw();};audio.ontimeupdate=draw;audio.onerror=()=>{error.textContent='音频无法播放，请检查文件格式或重新上传';error.hidden=false;};
   const point=e=>{const r=wave.getBoundingClientRect();return (e.clientX-r.left)/r.width*duration;};
-  wave.onpointerdown=e=>{if(options.seekable===false)return;e.preventDefault();dragging=true;resume=!audio.paused;audio.pause();wave.setPointerCapture(e.pointerId);seek(point(e));};wave.onpointermove=e=>{if(dragging)seek(point(e));};wave.onpointerup=wave.onpointercancel=()=>{dragging=false;if(resume)audio.play().catch(()=>{});};wave.onkeydown=e=>{if(options.seekable===false)return;if(['ArrowLeft','ArrowRight','Home','End'].includes(e.key)){e.preventDefault();seek(e.key==='Home'?0:e.key==='End'?duration:audio.currentTime+(e.key==='ArrowLeft'?-1:1));}else if(e.code==='Space'){e.preventDefault();play.click();}};
-  wrap.onpointerdown=e=>{if(options.dragSurface&&!e.target.closest('button'))return;e.stopPropagation();if(e.target.closest('button')||e.target===wave)return;if(nodeId&&!app.getState().selected.includes(nodeId))app.select(nodeId);};wrap.onkeydown=e=>e.stopPropagation();wrap.ondblclick=e=>e.stopPropagation();
+  wave.onpointerdown=e=>{if(options.seekable===false||e.button!==0)return;e.preventDefault();dragging=true;resume=!audio.paused;audio.pause();wave.setPointerCapture(e.pointerId);seek(point(e));};wave.onpointermove=e=>{if(dragging)seek(point(e));};wave.onpointerup=wave.onpointercancel=()=>{dragging=false;if(resume)audio.play().catch(()=>{});};wave.onkeydown=e=>{if(options.seekable===false)return;if(['ArrowLeft','ArrowRight','Home','End'].includes(e.key)){e.preventDefault();seek(e.key==='Home'?0:e.key==='End'?duration:audio.currentTime+(e.key==='ArrowLeft'?-1:1));}else if(e.code==='Space'){e.preventDefault();play.click();}};
+  wrap.onpointerdown=e=>{
+   const control=e.target.closest('button'),scrubbing=e.target===wave&&options.seekable!==false&&e.button===0;
+   // Official node players reserve waveform/buttons, while their surrounding
+   // surface bubbles to the canvas drag/pan gesture. Preview players stay local.
+   if(options.dragSurface&&!control&&!scrubbing)return;
+   e.stopPropagation();if(control||scrubbing)return;
+   if(nodeId&&!app.getState().selected.includes(nodeId))app.select(nodeId);
+  };wrap.onkeydown=e=>e.stopPropagation();wrap.ondblclick=e=>e.stopPropagation();
   if(options.interactive===false)controls.querySelectorAll('button').forEach(b=>b.disabled=true);if(options.pauseOnLeave)wrap.onpointerleave=()=>audio.pause();
   const observer=new ResizeObserver(draw);observer.observe(wave);
   window.LocalAssets.url(src).then(url=>{if(!disposed)audio.src=url;}).catch(e=>{error.textContent=e.message;error.hidden=false;});
@@ -234,7 +241,7 @@
    if(pendingOriginalAudio(n)){
     if(!body.querySelector('.audio-source-repair')){const empty=el('div','audio-empty audio-source-repair');empty.append(el('p','','原站音频待导入本地'));const repair=button('导入本地音频',null,()=>repairAudio(n.id));repair.className='audio-upload';repair.onpointerdown=e=>e.stopPropagation();repair.ondblclick=e=>e.stopPropagation();empty.append(repair);body.replaceChildren(empty);}continue;
    }
-   if(n.audio){if(!players.has(n.id)){body.replaceChildren();const p=makePlayer(n.audio,n.id);p.src=n.audio;players.set(n.id,p);body.append(p.wrap);const replace=button('替换音频','import',()=>upload(n));replace.className='audio-upload audio-replace';replace.onpointerdown=e=>e.stopPropagation();replace.ondblclick=e=>e.stopPropagation();body.append(replace);}}else if(!body.querySelector('.audio-empty')){const empty=el('div','audio-empty');empty.innerHTML=icon('music');const uploadButton=button('上传本地音频',null,()=>upload(n));uploadButton.className='audio-upload';uploadButton.onpointerdown=e=>e.stopPropagation();empty.append(uploadButton);body.replaceChildren(empty);}}
+   if(n.audio){if(!players.has(n.id)){body.replaceChildren();const p=makePlayer(n.audio,n.id,{dragSurface:true});p.src=n.audio;players.set(n.id,p);body.append(p.wrap);const replace=button('替换音频','import',()=>upload(n));replace.className='audio-upload audio-replace';replace.onpointerdown=e=>e.stopPropagation();replace.ondblclick=e=>e.stopPropagation();body.append(replace);}}else if(!body.querySelector('.audio-empty')){const empty=el('div','audio-empty');empty.innerHTML=icon('music');const uploadButton=button('上传本地音频',null,()=>upload(n));uploadButton.className='audio-upload';uploadButton.onpointerdown=e=>e.stopPropagation();empty.append(uploadButton);body.replaceChildren(empty);}}
  }
  function render(event){if(event?.detail?.viewportOnly){position();if(current)positionToolbar(app.getState());return;}const state=app.getState();reconcilePlayers(state);
   const n=state.selected.length===1?state.nodes.find(n=>n.id===state.selected[0]&&n.type==='audio'):null;

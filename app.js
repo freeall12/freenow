@@ -69,7 +69,14 @@
   $$('.close').forEach(b=>b.innerHTML=window.UI_ICONS.close);
   // Imported DOM paths preserve the source geometry; edits translate their control points.
   const paths = new Map(edges.map(e => [e.id, e.path?.match(/-?\d*\.?\d+(?:e[-+]?\d+)?/gi)?.map(Number)]));
-  function remember() { if(window.CanvasProjects&&!graphLoaded){notify('画布尚未完成读取，请稍后编辑');throw Error('画布尚未完成读取，不能修改已有项目');}flushGesture();localChanges++; history.push({nodes:clone(nodes), edges:clone(edges)}); if(history.length>60) history.shift(); future=[]; }
+  window.CanvasNodeTitles?.install({document,
+    resolveNode:id=>nodes.find(node=>node.id===id),resolveElement:id=>nodeElements.get(id),
+    projectIdentity:()=>window.CanvasProjects?.id?.()||'canvas',canCommit:()=>graphLoaded&&!graphReadFailed,
+    commit(node,title){remember();node.title=title;syncNodeShell(node,nodeElements.get(node.id));persist();},
+    onError:error=>notify(error.message)
+  });
+  window.addEventListener('beforeunload',event=>{if(window.CanvasNodeTitles?.hasPending()){event.preventDefault();event.returnValue='';}});
+  function remember() { if(window.CanvasProjects&&!graphLoaded){notify('画布尚未完成读取，请稍后编辑');throw Error('画布尚未完成读取，不能修改已有项目');}window.CanvasNodeTitles?.flushAll();flushGesture();localChanges++; history.push({nodes:clone(nodes), edges:clone(edges)}); if(history.length>60) history.shift(); future=[]; }
   function persist({beforeCommit}={}) {
     let pending=null;
     window.CanvasProjects?.markDirty();
@@ -93,6 +100,7 @@
     saved.forEach(p=>{const n=nodes.find(n=>n.id===p.id);if(n && Number.isFinite(p.x) && Number.isFinite(p.y)) Object.assign(n,p);});
   } catch {}
   function undo(redo=false) {
+    window.CanvasNodeTitles?.cancelAll();
     flushGesture();
     window.CanvasConnections?.cancel();window.CanvasConnections?.clearSelection();
     const from=redo?future:history,to=redo?history:future;
@@ -111,13 +119,14 @@
     attributeValue(element,'aria-label',n.title||'图片节点');
     const title=element.querySelector('.node-title'),text=title.querySelector('.title-text'),input=title.querySelector('input');
     if(text&&text.textContent!==n.title)text.textContent=n.title||'';
-    if(input&&document.activeElement!==input&&input.value!==n.title)input.value=n.title||'';
+    if(input&&!title.classList.contains('canvas-node-title')&&document.activeElement!==input&&input.value!==n.title)input.value=n.title||'';
     if(text){let badge=title.querySelector('.restricted');if(n.restricted&&!badge){badge=document.createElement('span');badge.className='restricted';badge.textContent=' · 规格受限';title.append(badge);}else if(!n.restricted)badge?.remove();}
     const image=element.querySelector('.node-body > img');if(image)attributeValue(image,'alt',n.title||'');
     if(n.type==='text')styleValue(element.querySelector('.node-body'),'background-color',n.color||'');
   }
   function removeNodeElement(id) {
     const element=nodeElements.get(id);if(!element)return;
+    window.CanvasNodeTitles?.dispose(element);
     element.querySelectorAll('.node-body > img').forEach(image=>localImageBindings.get(image)?.dispose());
     window.CanvasPilesUI.disposeMediaTree(element);
     element.querySelectorAll('video,audio').forEach(media=>media.pause());
@@ -141,6 +150,7 @@
     const left=document.createElement('button');left.className='port left';left.dataset.port='left';left.textContent='+';left.setAttribute('aria-label','输入连接点');
     const right=left.cloneNode(true);right.className='port right';right.dataset.port='right';right.setAttribute('aria-label','输出连接点');
     el.append(title,body,left,right);if(n.type==='text')window.CanvasTextUI.renderNode(n,el);if(n.type==='studio')window.StudioNode.render(n,el);if(n.type==='world')window.WorldNode?.render(n,el);if(n.type==='group')window.CanvasGroupsUI.renderNode(n,el);if(n.type==='pile')window.CanvasPilesUI.renderNode(n,el,nodes);$('#nodes').insertBefore(el,before);nodeElements.set(n.id,el);nodeRecords.set(n.id,{node:n,content:nodeContentKey(n)});
+    window.CanvasNodeTitles?.bind(n,el);
     window.ImagePanorama?.attach(n,el);
     window.CanvasConnections?.attachNode(n,el);
     el.addEventListener('dblclick',event=>{if(!event.target.closest('.port'))preview(n);});
@@ -243,6 +253,7 @@
         Object.assign(state,{x:n.x,y:n.y,width:n.width,height:n.height,type:n.type,parentId:n.parentId,hidden,picked,css:el.style.cssText,classes:el.className});
       }
       shellDirty.delete(el);
+      window.CanvasNodeTitles?.sync(el,picked);
     }
     // Pile titles are display:none; member/hidden titles cannot be seen. Keep
     // their dirty markers until a full render reveals them at the current scale.
@@ -473,7 +484,7 @@
     projectIdentity:()=>window.CanvasProjects?.current()||{id:'canvas',title:$('#project-title').textContent},
     projectSnapshot:()=>window.CanvasProjects?.snapshot({version:1,nodes,edges},view,history,future)||{version:1,nodes,edges},
     resourceMigrationStatus:()=>resourceMigrationStatus?structuredClone(resourceMigrationStatus):null,
-    async saveProject({beforeCommit}={}){if(!graphLoaded||graphReadFailed)throw Error('画布尚未成功读取，已停止保存以保护已有数据');const check=()=>{if(beforeCommit!==undefined&&typeof beforeCommit!=='function')throw TypeError('画布保存守卫必须为函数');if(beforeCommit&&beforeCommit()!==true)throw Error('画布保存资格已变化，当前修改尚未保存');};flushGesture();check();saveView();const saving=persist({beforeCommit});if(!saving)throw Error('当前画布未能保存，请保留此页面并重试');await saving;await window.CanvasStore.flush();check();},
+    async saveProject({beforeCommit}={}){if(!graphLoaded||graphReadFailed)throw Error('画布尚未成功读取，已停止保存以保护已有数据');const check=()=>{if(beforeCommit!==undefined&&typeof beforeCommit!=='function')throw TypeError('画布保存守卫必须为函数');if(beforeCommit&&beforeCommit()!==true)throw Error('画布保存资格已变化，当前修改尚未保存');};flushGesture();check();window.CanvasNodeTitles?.flushAll({requireSettled:true});saveView();const saving=persist({beforeCommit});if(!saving)throw Error('当前画布未能保存，请保留此页面并重试');await saving;await window.CanvasStore.flush();check();},
     async prepareProjectNavigation(){cancelViewportAnimation();await this.saveProject();},
     async renameProject(name){if(!graphLoaded||graphReadFailed)throw Error('画布尚未成功读取，请稍后重试');window.CanvasProjects.setTitle(name);await this.saveProject();return window.CanvasProjects.current();},
     historyState:()=>({undoCount:history.length,redoCount:future.length}),
@@ -698,7 +709,7 @@
       const validHistory=items=>Array.isArray(items)?items.filter(item=>Array.isArray(item?.nodes)&&Array.isArray(item?.edges)&&item.nodes.every(n=>typeof n.id==='string'&&[n.x,n.y,n.width,n.height].every(Number.isFinite)&&n.width>0&&n.height>0)&&item.edges.every(e=>typeof e.id==='string'&&typeof e.source==='string'&&typeof e.target==='string')).slice(-60):[];
       history=validHistory(saved.history);future=validHistory(saved.future);
     }
-    if(valid&&!localChanges){nodes=saved.nodes;edges=saved.edges;nodes.forEach(n=>{
+    if(valid&&!localChanges){window.CanvasNodeTitles?.cancelAll();nodes=saved.nodes;edges=saved.edges;nodes.forEach(n=>{
       const recovery=n.generationRecovery,recoverable=recovery?.version===1&&recovery.runId===n.generationRun?.runId&&recovery.kind===n.pendingOperation&&recovery.signature===generationSignature(n);
       // Only the unchanged original image preview may recover its seed original.
       // Reused node IDs, replaced media and pending results must keep their source.
@@ -707,6 +718,6 @@
       const identityMatches=(!n.provenance?.mediaSource||n.provenance.mediaSource===seedFullImage)&&['currentSourceFileId','sourceFileId'].every(key=>!n[key]||n[key]===seed?.[key]);
       if(originalPreview&&identityMatches&&!recoverable&&!n.pendingOperation&&!n.generationRun&&!n.fullImage&&seedFullImage&&displayMediaRef(seedFullImage))n.fullImage=seedFullImage;
     });clearOrphanGenerationState({allowRecovery:true});rebuild();}
-    graphLoaded=true;if(localChanges)persist();
-  }).catch(error=>{graphLoaded=false;graphReadFailed=true;storageError(error,'load');});
+    graphLoaded=true;render();if(localChanges)persist();
+  }).catch(error=>{window.CanvasNodeTitles?.cancelAll();graphLoaded=false;graphReadFailed=true;storageError(error,'load');});
 })();

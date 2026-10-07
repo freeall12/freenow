@@ -1,6 +1,6 @@
 # 开发进度
 
-更新：2026-10-07。持续开发中，未完成全站一比一复刻及真实供应商最终验收；不提供缺乏完整分母的“完成百分比”。
+更新：2026-10-08。持续开发中，未完成全站一比一复刻及真实供应商最终验收；不提供缺乏完整分母的“完成百分比”。
 
 ## 已有实现
 
@@ -13,7 +13,16 @@
 | 生成接口 | 多供应商路由及若干原生适配已实现；其余能力保留任务接口 | [配置及每项限制](MULTI-PROVIDER-SETUP.md) |
 | 本地化 | 本地资源/归档、原站出站阻断与显式资源修复已实现 | [验收清单](FREENOW-LOCALIZATION-ACCEPTANCE.md) |
 
-## 本批：SFX / 调色专项验收与桌面预发布
+## 本批：节点手势、标题、搜索与编辑草稿
+
+- 音频节点外围空白恢复直接拖动，波形只处理左键播放定位。正式上传 3 秒 WAV 后实际拖动、播放、撤销/重做、刷新后的本地素材和 240 / 210 坐标保持；11 项手势与相邻播放器检查通过。[音频记录](AUDIO-PLAYER-GESTURES-20261008.md)
+- 普通图片/视频/音频/文本/世界标题接通选中编辑、防抖、Enter/失焦提交、Escape、非空与来源守卫。实际音频标题提交后焦点回节点，立即撤销/重做和刷新已验；控件首次选中才创建，5000 个未选中节点新增编辑 DOM 为 0，100 轮切选不继续增加，20 项专项检查通过。真实系统 IME、全部类型/缩放仍未验。[标题模块](../src/features/canvas-node-titles/README.md)
+- 搜索 Enter 统一确认高亮，14 项定向回归通过；分类/其他结果/清除焦点三条 Computer Use 路径均确认图片 B，空结果、两级 Escape 和回焦已验。没有重跑全库测试或宣称整体 FPS 提升。[搜索记录](CANVAS-SEARCH-KEYBOARD-20261008.md)
+- 创意 HTML 编辑器新增本标签页草稿、明确恢复/放弃和版本冲突保护，待决定时锁正文及保存；21 项专项检查通过。实机保存失败保留、关闭提示与 revision 2 / 122 字符实际 IndexedDB 回读已验；控制层自动取消 beforeunload，刷新恢复仅有定向检查。92 份精确模板新增正文仍为 0。[来源与草稿](research/agent-template-source-followup-20261008.md)
+
+[交互清点](INTERACTION-CHECK-20261008.md)与[实际截图](screenshots/README.md)区分本批源码、实机和未验范围。
+
+## 前批：SFX / 调色专项验收与桌面预发布
 
 - Electron 桌面外壳已接入独立后台、固定 4183、用户目录、`providers.env` 模板、单实例和保存后关闭/刷新。版本 `0.1.0-alpha.1`，开发 Electron 中真实 WebGL 片场已运行，macOS arm64 ZIP 已从642d3db构建，6197个运行文件及包内后台通过核验；实际 `.app` 已通过 Computer Use：片场内 X=1.25 提交、Cmd+Q 退出释放 4183，重开恢复 X=1.25 / Y=0.5 / Z=0。ZIP 上传已核对大小与 digest，[v0.1.0-alpha.1 macOS arm64 prerelease](https://github.com/freeall12/freenow/releases/tag/v0.1.0-alpha.1)已公开发布。FFmpeg / FFprobe 不随包附带。旧 runtime 仅在 manifest 标明 version 1 / dataIncluded false 时自动归档；退出与刷新等待 Agent 及片场正常关闭。[桌面启动与配置](DESKTOP.md)、[安装包重开截图](screenshots/freenow-desktop-packaged-restart-20261007.jpg)、[实际包核验](releases/DESKTOP-ALPHA-VERIFICATION-20261007.md)
 - Sonilo SFX 独立原生接入已完成源码接线，20 项定向检查与 4 项受影响 Music 回归通过；文字音效、完整视频单 WAV 与连续分段分别按官方合同预检。本批浏览器实际修改连续分段边界到 3.5 秒，正式提交 8 秒完整视频和 Agent 0.5 秒文字音效，单 WAV 原生播放及 gateway 重开/刷新恢复通过；缺 Key 后禁用，累计仍为 2 次 POST。其余非法配置的零提交范围依据源码回归；固定正弦波不证明真实供应商音质、Key 或账号资格。[SFX 合同](SONILO-SFX-NATIVE-20261005.md)、[前端与范围](SONILO-SFX-UI-QA-20261005.md)

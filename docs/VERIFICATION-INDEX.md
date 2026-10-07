@@ -2,13 +2,21 @@
 
 本索引承接原文档导航中的分批记录，保留测试范围、真实界面、媒体证据和未验限制。当前产品与配置见[项目首页](../README.md)、[功能与适配器](FEATURES.md)和[文档导航](README.md)。专项文档的历史日期不代表统一发布版本。
 
-## 2026-10-07 本批入口
+## 2026-10-08 本批入口
+
+| 记录 | 验收范围 |
+| --- | --- |
+| [音频节点手势](AUDIO-PLAYER-GESTURES-20261008.md) / [普通标题模块](../src/features/canvas-node-titles/README.md) | 正式上传 WAV、空白拖动/波形定位、标题 Enter/Escape/立即撤销重做、刷新；11 项音频与 20 项标题专项；5000 未选中节点零编辑 DOM，非整体 FPS 结论 |
+| [搜索键盘](CANVAS-SEARCH-KEYBOARD-20261008.md) / [交互清点](INTERACTION-CHECK-20261008.md) | 官方根 Enter 事件、14 项定向回归；分类/结果/清除焦点、空结果、两级 Escape/回焦实机，真实系统 IME 未验 |
+| [模板来源与草稿](research/agent-template-source-followup-20261008.md) | 92 份正文仍缺；21 项草稿/原来源回归；失败保留和 revision 2 真实回读已验，刷新恢复被控制层 beforeunload 取消，仅定向检查 |
+
+## 2026-10-07 前批入口
 
 | 记录 | 验收范围 |
 | --- | --- |
 | [Sonilo SFX 合同](SONILO-SFX-NATIVE-20261005.md) / [正式 UI](SONILO-SFX-UI-QA-20261005.md) | 20 项定向检查与 4 项受影响 Music 回归；本批 CUA 实际编辑分段、8 秒与 0.5 秒 WAV 播放/刷新恢复、缺 Key 禁用且无第三次 POST；真实供应商未验 |
 | [Agent 调色交互](AGENT-COLOR-ADJUST-INTERACTIONS-20261005.md) | 本轮 runtime/派生 10 项，保存失败、context-only 重试、实际 PNG 与刷新重开；非全部视觉/参数组合验收 |
-| [Electron 桌面指南](DESKTOP.md) / [安装包核验](releases/DESKTOP-ALPHA-VERIFICATION-20261007.md) / [开发窗口截图](screenshots/freenow-desktop-studio-20261007.jpg) | 开发外壳真实 WebGL、Agent/片场关闭等待与构建策略；实际6197文件/ASAR/ZIP及包内Node后台已核验；原生窗口因Mac锁定待验，Release草稿，未公开发布 |
+| [Electron 桌面指南](DESKTOP.md) / [安装包核验](releases/DESKTOP-ALPHA-VERIFICATION-20261007.md) / [安装包重开截图](screenshots/freenow-desktop-packaged-restart-20261007.jpg) | 实际6197文件/ASAR/ZIP及包内Node后台已核验；原生包 X=1.25 提交、Cmd+Q 释放 4183、重开恢复已验，macOS arm64 Alpha 已公开；无签名公证，FFmpeg 外部安装 |
 
 ## 分批记录
 

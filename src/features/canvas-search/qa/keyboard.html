@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>节点搜索键盘专项</title>
+  <link rel="stylesheet" href="/src/features/canvas-search/styles.css">
+  <style>
+    body{margin:24px;background:#111;color:#ddd;font:14px/1.6 system-ui}
+    button{background:transparent;color:inherit;font:inherit;cursor:pointer}
+    #search{padding:8px 16px;border:1px solid #555;border-radius:6px}
+    #search-dialog button:focus-visible{outline:2px solid #db943f;outline-offset:-2px}
+    .search-item{text-align:left}pre{white-space:pre-wrap;color:#bbb}
+  </style>
+</head>
+<body>
+  <h1>节点搜索键盘专项</h1>
+  <p>真实搜索 UI 与固定的内存节点。选择只记录 ID，不写主画布或存储、不调用供应商。</p>
+  <button id="search">打开节点搜索</button>
+  <pre id="status" aria-live="polite">尚未确认结果</pre>
+  <ol>
+    <li>打开搜索，点击「图片」，按 ArrowDown、Enter；预期确认 image-b。</li>
+    <li>重开，点击「图片」，按 ArrowDown，再按 6 次 Tab；焦点应在图片 A，高亮仍为图片 B。Enter 应确认 image-b。</li>
+    <li>重开，输入「图片」，按 ArrowDown、Tab；焦点应在清除按钮。Enter 应确认 image-b。</li>
+    <li>重开，点击「音频」，按 Enter；应保留空结果弹层。</li>
+    <li>重开，输入查询后 Escape 清空，再 Escape 关闭；焦点应返回打开按钮。</li>
+  </ol>
+  <dialog id="search-dialog"></dialog>
+  <script src="/ui-icons.js"></script>
+  <script src="/src/features/canvas-search/core.js"></script>
+  <script src="/src/features/canvas-search/icons.js"></script>
+  <script>
+    const nodes = [
+      {id:'image-a',type:'image',title:'图片 A'},
+      {id:'image-b',type:'image',title:'图片 B'},
+      {id:'text-a',type:'text',title:'文本 A',content:'测试内容'},
+    ];
+    const selections = [];
+    window.CanvasApp = {
+      getState: () => ({nodes}),
+      focusNode(id) {
+        selections.push(id);
+        document.querySelector('#status').textContent = '最后确认: ' + id + '\n确认记录: ' + selections.join(', ');
+      },
+    };
+  </script>
+  <script src="/src/features/canvas-search/ui.js"></script>
+</body>
+</html>

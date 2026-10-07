@@ -17,7 +17,7 @@ export function createTemplateEditSession({store, artifact, source, sourceIdenti
   }
   function read() {
     check();
-    return {...metadata(current), content: current.content, receipt_status: receiptStatus};
+    return {...metadata(current), content: current.content, receipt_status: receiptStatus, draft_scope: store.namespace};
   }
   async function save({content, title = current.title}) {
     check();

@@ -23,3 +23,11 @@ dialog.api-dialog{max-height:calc(100dvh - 32px);overflow:auto;overscroll-behavi
 .api-readiness-list{max-height:240px;overflow:auto;overscroll-behavior:contain;padding:0 8px;border:1px solid #ffffff18;border-radius:8px}
 .api-readiness-list>p{margin:8px 0;overflow-wrap:anywhere}
 .api-readiness-note{color:#929292;border-top:1px solid #ffffff18;padding-top:8px}
+
+/* Ordinary titles keep world-width geometry while matching the reference font clamp. */
+.canvas-node-title{pointer-events:auto;height:auto;line-height:1.5;font-size:clamp(calc(12px * var(--scale)),12px,calc(60px * var(--scale)));gap:calc(4px * var(--scale));padding-bottom:calc(8px * var(--scale));overflow:hidden}
+.canvas-node-title svg{width:1em;height:1em}.canvas-node-title .restricted{font-size:inherit}
+.node-title-editor{position:relative;display:block;width:max-content;min-width:0;max-width:100%;flex:0 1 auto;pointer-events:auto}
+.node-title-measure{visibility:hidden;display:block;white-space:pre;pointer-events:none;user-select:none}
+.node-title-input{position:absolute;inset:0;width:100%;min-width:0;height:100%;border:0;background:transparent;color:inherit;font:inherit;line-height:inherit;outline:none;padding:0;border-radius:0;user-select:text;touch-action:auto}
+.node-title-input:focus-visible{outline:none}.node-title-input:disabled{opacity:1;cursor:default}

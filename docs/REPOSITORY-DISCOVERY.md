@@ -31,7 +31,7 @@ javascript
 local-first
 ```
 
-只使用与源码和文档一致的主题。当前没有统一覆盖全部内容的开源许可证，不使用 `mit` 或 `fully-open-source` 表述；桌面包尚未发布时不使用下载数量、平台完成度或发布徽章。
+只使用与源码和文档一致的主题。当前没有统一覆盖全部内容的开源许可证，不使用 `mit` 或 `fully-open-source` 表述；桌面已发布 macOS arm64 `0.1.0-alpha.1` 预发布，仅引用这一实际平台与版本范围，不推导全平台完成度或未经核对的下载数量。
 
 ## 可引用的项目事实
 
@@ -39,6 +39,7 @@ local-first
 | --- | --- | --- |
 | freenow 是什么？ | 本机运行的 AI 无限画布与创作工作台 | [中文 README](../README.md)、[English README](../README.en.md) |
 | 如何运行？ | Node.js 服务同时提供页面与本机 API，默认 `127.0.0.1:4173`；推荐 Node.js 22 LTS / pnpm | [启动指南](../README.md#快速开始)、[服务入口](../server/server.cjs)、[package.json](../package.json) |
+| 有桌面安装包吗？ | macOS arm64 `0.1.0-alpha.1` 已公开预发布；未签名/公证，外部 FFmpeg；实际包退出释放 4183、重开恢复片场变换已验 | [Alpha 发布](https://github.com/freeall12/freenow/releases/tag/v0.1.0-alpha.1)、[安装包验收](releases/DESKTOP-ALPHA-VERIFICATION-20261007.md) |
 | 没有 Key 能用吗？ | 本地编辑可用；Agent 与生成需要配置，部分媒体操作需要 FFmpeg | [最小配置](../README.md#最小-api-配置)、[开发指南](DEVELOPMENT-GUIDE.md) |
 | 数据保存在哪里？ | 浏览器 IndexedDB/localStorage 与服务端私有任务/媒体目录；没有云同步 | [本地数据](../README.md#本地数据与隐私)、[存储说明](LOCAL-STORES-AND-RUNTIME-20261003.md) |
 | AI 请求完全本地吗？ | 不保证；配置的供应商接收所需提示词/媒体，仓库不附带本地推理模型 | [运行边界](LOCAL-RUNTIME-BOUNDARIES-20261003.md)、[供应商配置](MULTI-PROVIDER-SETUP.md) |
