@@ -10,11 +10,11 @@ function productionNodeEditor(editorData,drafts={}){
  return context.editor;
 }
 function harness({ready=true,graph=fixture(),mirrorError,editorData={nodes:{legacy:{video:'legacy.mp4'}}},nodeEditor}={}){
- const saves=[],legacy=[],renders=[],errors=[],pending=[],motion=[],cleanup=[],pileCalls={plan:0,dropTarget:0};let serial=0,load;
+ const saves=[],saveOptions=[],legacy=[],renders=[],errors=[],pending=[],motion=[],cleanup=[],pileCalls={plan:0,dropTarget:0};let serial=0,load;
  const pileCore=require('../canvas-piles.js'),piles={...pileCore,plan(...args){pileCalls.plan++;return pileCore.plan(...args);},dropTarget(...args){pileCalls.dropTarget++;return pileCore.dropTarget(...args);}};
  const root={children:[],getBoundingClientRect:()=>({left:0,top:0,width:1200,height:800}),get firstElementChild(){return this.children[0]||null;},insertBefore(el,before){this.children=this.children.filter(item=>item!==el);const index=before?this.children.indexOf(before):-1;if(index<0)this.children.push(el);else this.children.splice(index,0,el);}};
  let rejectLoad;
- const store={load:()=>new Promise((resolve,reject)=>{load=resolve;rejectLoad=reject;}),save:state=>{saves.push(structuredClone(state));return new Promise((resolve,reject)=>pending.push({resolve,reject}));}};
+ const store={load:()=>new Promise((resolve,reject)=>{load=resolve;rejectLoad=reject;}),save:(state,_id,options)=>{saves.push(structuredClone(state));saveOptions.push(options);return new Promise((resolve,reject)=>pending.push({resolve,reject}));}};
  const notices=[];
  const context=vm.createContext({navigator:{clipboard:{writeText:()=>Promise.resolve()}},fixture:graph,ready,root,renders,errors,cleanup,structuredClone,crypto:{randomUUID:()=>`new-${++serial}`},innerWidth:1200,innerHeight:800,prompt:()=> 'Renamed',localStorage:{setItem:(key,value)=>{if(mirrorError)throw mirrorError;legacy.push({key,value});}},document:{createElement:()=>({dataset:{},setAttribute(){},remove(){notices.splice(notices.indexOf(this),1);}}),body:{append:notice=>notices.push(notice)}},getNotice:()=>notices[0],window:{EDITOR_DATA:editorData,NodeEditor:nodeEditor,CanvasStore:store,CanvasGroups:require('../canvas-groups.js'),CanvasPiles:piles,CanvasText:{config:()=>({prompt:'',model:'text-model'})},CanvasClipboard:{...clipboard,instantiate:(...args)=>clipboard.instantiate(...args,()=>`new-${++serial}`)},CanvasConnections:{cancel(){},clearSelection(){}},CanvasPilesUI:{clearDropTarget:()=>cleanup.push('drop')},PileMotion:{cancel(){},capture(nodes){motion.push('capture');return structuredClone(nodes);},play(){motion.push('play');}}},EDITOR_DATA:editorData});
  // Execute production closure functions, including rebuild, history and hydration;
@@ -22,7 +22,7 @@ function harness({ready=true,graph=fixture(),mirrorError,editorData={nodes:{lega
  vm.runInContext(`
  const clone=value=>structuredClone(value),original=new Map(fixture.nodes.map(node=>[node.id,clone(node)]));
  let nodes=clone(fixture.nodes),edges=clone(fixture.edges),selected=new Set(['a']),history=[],future=[],localChanges=0,graphLoaded=ready,graphReadFailed=false,filter='all',saveRevision=0;
- const view={x:-100.125,y:20.5,scale:.7},nodeElements=new Map(),nodeRecords=new Map(),pathElements=new Map(),generationRuns=new Map();
+ const view={x:-100.125,y:20.5,scale:.7},nodeElements=new Map(),nodeRecords=new Map(),pathElements=new Map(),generationRuns=new Map(),nodeWriteGuards=new Map();
  const $=selector=>selector==='#storage-notice'?getNotice():root,flushGesture=()=>{},notify=()=>{};
  ${named('storageError')}
  const showStorageError=storageError;storageError=(error,operation)=>{errors.push('storage');showStorageError(error,operation);};
@@ -30,7 +30,7 @@ function harness({ready=true,graph=fixture(),mirrorError,editorData={nodes:{lega
  function syncNodeShell(){}
  function makeNode(node,before){const el={id:node.id,dataset:{type:node.type},get nextElementSibling(){return root.children[root.children.indexOf(this)+1]||null;}};root.insertBefore(el,before);nodeElements.set(node.id,el);nodeRecords.set(node.id,{node,content:nodeContentKey(node)});}
  function removeNodeElement(id){const el=nodeElements.get(id);root.children=root.children.filter(item=>item!==el);nodeElements.delete(id);nodeRecords.delete(id);}
- ${['remember','persist','undo','nodeContentKey','rebuild','rebuildAndPersist','clearOrphanGenerationState','generationSignature','rename','duplicate','removeSelected','newNode','addNode'].map(named).join('\n')}
+ ${['remember','captureNodeWriteGuards','persist','undo','nodeContentKey','rebuild','rebuildAndPersist','clearOrphanGenerationState','generationSignature','rename','duplicate','removeSelected','newNode','addNode'].map(named).join('\n')}
  globalThis.api={${[method('captureSelection','pasteGraph('),method('pasteGraph','stack('),method('updateNode','insertGraph('),method('insertGraph','insertAsset('),method('insertAsset','addTypedNode(')].join(',\n')},getState:()=>clone({nodes,edges,selected:[...selected],view}),undo,duplicate,addNode};window.CanvasApp=api;
  globalThis.probe={state:()=>clone({nodes,edges,selected:[...selected],filter,localChanges,graphLoaded}),rename:()=>rename(nodes[0]),remove:removeSelected,history:()=>clone(history),select:ids=>selected=new Set(ids),rebuild};
  probe.rebuild();
@@ -49,8 +49,8 @@ function harness({ready=true,graph=fixture(),mirrorError,editorData={nodes:{lega
  vm.runInContext(`const app=api;let copied=null,pasteAnchor=null,iteration=0,pointer={x:400.25,y:200.75};${menusFunction('copy')}${menusFunction('paste')}window.CanvasMenus={copy,paste};probe.setPointer=point=>pointer=point;probe.clipboard=()=>clone(copied);`,context,{filename:'canvas-menus-clipboard-production-extract.js'});
  const hydration=source.slice(source.indexOf('  window.CanvasStore.load().then'),source.lastIndexOf('\n})();')).trim();
  vm.runInContext(`globalThis.hydration=${hydration}`,context);
- saves.length=legacy.length=renders.length=pending.length=0;
- return {api:context.api,menus:context.window.CanvasMenus,probe:context.probe,pileCalls,saves,legacy,renders,errors,pending,motion,cleanup,notices,load:async value=>{load(value);await context.hydration;},failLoad:async error=>{rejectLoad(error);await context.hydration;},state:()=>structuredClone(context.probe.state())};
+ saves.length=saveOptions.length=legacy.length=renders.length=pending.length=0;
+ return {api:context.api,menus:context.window.CanvasMenus,probe:context.probe,pileCalls,saves,saveOptions,legacy,renders,errors,pending,motion,cleanup,notices,load:async value=>{load(value);await context.hydration;},failLoad:async error=>{rejectLoad(error);await context.hydration;},state:()=>structuredClone(context.probe.state())};
 }
 const graphOf=state=>({nodes:state.nodes,edges:state.edges});
 const near=(actual,expected)=>assert.ok(Math.abs(actual-expected)<1e-8,`${actual} ~= ${expected}`);
@@ -232,4 +232,26 @@ test('production release over many full piles validates once, joins the first el
  assert.equal(f.pileCalls.dropTarget,1);assert.equal(f.pileCalls.plan,0);
  assert.deepEqual(f.state().selected,['pile-24']);assert.equal(f.state().nodes.find(n=>n.id==='pile-24').memberIds.at(-1),'a');
  assert.deepEqual(f.motion,['capture','play']);once(f,()=>f.api.undo());assert.deepEqual(graphOf(f.state()),before);
+});
+
+test('studio publication saves once with captured owner guards; ordinary saves cannot bypass a revoked fence',async()=>{
+ const graph=fixture();graph.nodes[0].type='studio';graph.nodes[0].studioV3={version:3,revision:0};
+ const f=harness({graph});let allowed=true;
+ const unregister=f.api.registerNodeWriteGuard('a',node=>allowed&&node.studioV3.revision===1);
+ const publishing=f.api.publishStudioV3('a',{studioV3:{version:3,revision:1}},{beforeCommit:()=>allowed});
+ assert.equal(f.saves.length,1);assert.equal(f.probe.history().length,0);assert.equal(f.state().nodes[0].studioV3.revision,0);assert.equal(f.saveOptions[0].beforeCommit(),true);
+ f.api.updateNode('b',{title:'Unrelated change'});assert.equal(f.saves.length,2);assert.equal(f.saveOptions[1].beforeCommit(),false);assert.equal(f.probe.history()[0].nodes[0].studioV3.revision,0);
+ allowed=false;assert.throws(unregister,/不能解除/);assert.equal(f.saveOptions[0].beforeCommit(),false);assert.equal(f.saveOptions[1].beforeCommit(),false);
+ f.api.updateNode('b',{title:'Another auto save'});assert.equal(f.saveOptions[2].beforeCommit(),false);
+ f.pending[0].reject(Error('revoked'));await assert.rejects(publishing,/revoked/);
+ assert.equal(f.state().nodes[0].studioV3.revision,0);
+});
+test('studio publication rejects missing ownership and retries failed payload without duplicate history',async()=>{
+ const graph=fixture();graph.nodes[0].type='studio';graph.nodes[0].studioV3={version:3,revision:0};
+ const f=harness({graph}),patch={studioV3:{version:3,revision:1}};
+ await assert.rejects(f.api.publishStudioV3('a',patch,{beforeCommit:()=>true}),/缺少所有权/);assert.equal(f.saves.length,0);
+ f.api.registerNodeWriteGuard('a',()=>true);
+ const first=f.api.publishStudioV3('a',patch,{beforeCommit:()=>true});f.pending[0].reject(Error('disk full'));await assert.rejects(first,/disk full/);
+ const retry=f.api.publishStudioV3('a',patch,{beforeCommit:()=>true});assert.equal(f.probe.history().length,0);assert.equal(f.saves.length,2);
+ f.pending[1].resolve();await retry;assert.equal(f.state().nodes[0].studioV3.revision,1);assert.equal(f.probe.history().length,1);
 });

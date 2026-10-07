@@ -67,6 +67,11 @@
       const complete=!preserveSnapshot&&window.CanvasProjects&&id===currentId()&&!state.project?window.CanvasApp?.projectSnapshot?.():null;
       const snapshot = structuredClone(complete?{...complete,...state}:state),key=keyFor(id);
       if(snapshot.project?.id&&snapshot.project.id!==id)throw Error('画布快照与保存项目不匹配');
+      // Direct feature saves share the same node ownership fence as CanvasApp.
+      // CAS protects other windows; this also prevents same-window autosaves
+      // from persisting a failed or revoked scene publication as part of the graph.
+      const commitGuard=id===currentId()&&window.CanvasApp?.captureSnapshotWriteGuard
+        ?window.CanvasApp.captureSnapshotWriteGuard(snapshot,beforeCommit):beforeCommit;
       const previous=latestSave;
       const ready=window.CanvasProjects?previous.catch(()=>{}).then(()=>database):database;
       latestSave = ready.then(db => new Promise((resolve, reject) => {
@@ -74,8 +79,8 @@
         let conflict=null,nextRevision=null;
         const store=tx.objectStore('documents');
         const canCommit=()=>{
-          if(typeof beforeCommit!=='function')return true;
-          try{if(beforeCommit()===true)return true;conflict=new Error('画布快照已变化，已停止资源迁移以保护当前修改');conflict.name='CanvasSnapshotChangedError';}
+          if(typeof commitGuard!=='function')return true;
+          try{if(commitGuard()===true)return true;conflict=new Error('画布快照已变化，当前修改尚未保存');conflict.name='CanvasSnapshotChangedError';}
           catch(error){conflict=error;}
           tx.abort();return false;
         };

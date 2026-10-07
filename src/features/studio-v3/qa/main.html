@@ -1,0 +1,49 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>导演片场生产链验收 · freenow</title>
+<style>html,body{margin:0;height:100%;background:#181818;color:#ddd;font:13px system-ui}header{height:42px;display:flex;align-items:center;gap:8px;padding:0 12px}button{background:#303030;color:#eee;border:1px solid #555;border-radius:6px;padding:5px 10px;cursor:pointer}button:disabled{opacity:.4}iframe{display:block;border:0;width:100%;height:calc(100% - 42px)}output{margin-left:auto;font-size:11px;max-width:40%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}</style>
+<header><button id="empty" disabled>新建空导演片场</button><button id="source" disabled>预览本地模型并进入片场</button><button id="read" disabled>检查保存数据</button><button id="fail" disabled>注入一次保存失败</button><output id="status">读取独立公开验收项目…</output></header>
+<iframe title="真实无限画布" id="app"></iframe>
+<script type="module">
+const frame=document.querySelector('iframe'),out=document.querySelector('output'),params=new URL(location.href).searchParams;
+const project=params.get('project')||'qa-director-public-1008';
+let sourceId,ready=false;
+const buttons=[...document.querySelectorAll('button')];
+const work=async action=>{buttons.forEach(button=>button.disabled=true);try{await action();}catch(error){out.textContent=error.message;}finally{buttons.forEach(button=>button.disabled=!ready);}};
+frame.onload=async()=>{
+  const child=frame.contentWindow;
+  for(let attempt=0;attempt<100;attempt++){
+    if(child.StudioAPI&&child.CanvasApp){
+      try{await child.CanvasApp.saveProject();await child.CanvasApp.renameProject('公开导演片场验收');ready=true;break;}catch{}
+    }
+    await new Promise(resolve=>setTimeout(resolve,100));
+  }
+  buttons.forEach(button=>button.disabled=!ready);out.textContent=ready?'生产入口已就绪；仅公开本地模型，零供应商调用':'生产入口未就绪';
+};
+document.querySelector('#empty').onclick=()=>work(async()=>{const result=await frame.contentWindow.StudioAPI.createDirector();out.textContent='打开真实导演片场 · '+result.nodeId;});
+document.querySelector('#source').onclick=()=>work(async()=>{
+  const child=frame.contentWindow;if(child.StudioAPI.active)await child.StudioAPI.active.close();
+  let node=child.CanvasApp.getState().nodes.find(node=>node.id===sourceId);
+  if(!node){
+    const response=await child.fetch('/assets/studio/library/chair-dining.glb');if(!response.ok)throw Error('本地公开模型读取失败');
+    const file=new child.File([await response.blob()],'chair-dining.glb',{type:'model/gltf-binary'});
+    node=await child.WorldNode.importAt(file,{x:520,y:320});
+    child.CanvasApp.updateNode(node.id,{outputType:'world',title:'本地餐椅场景'});
+  }
+  sourceId=node.id;await child.CanvasApp.saveProject();await child.WorldNode.preview(sourceId);out.textContent='请点击预览里的“在 3D 片场中使用”';
+});
+document.querySelector('#read').onclick=()=>work(async()=>{
+  const child=frame.contentWindow;if(child.StudioAPI.active?.session)await child.StudioAPI.active.session.flush();await child.CanvasApp.saveProject();await child.CanvasStore.flush();
+  const saved=await child.CanvasStore.load(),directors=saved.nodes.filter(node=>node.studioV3),owner=directors.at(-1),space=owner?.studioV3.state.scenePlay.worldSpace;
+  out.textContent=JSON.stringify({directors:directors.length,revision:owner?.studioV3.revision,entities:space?.entities.length,roles:space?.characterRoles.length,setups:space?.setups.length,source:owner?.studioV3.sourceBinding.sourceKind,objects:space?.entities.map(entity=>({name:entity.label,position:space.setups.flatMap(setup=>setup.entityStates).find(value=>value.entityId===entity.id)?.transform.position}))});
+});
+document.querySelector('#fail').onclick=()=>{
+  const child=frame.contentWindow,save=child.CanvasStore.save.bind(child.CanvasStore);let restored=false;
+  child.CanvasStore.save=(...args)=>{if(!restored){restored=true;child.CanvasStore.save=save;return Promise.reject(Object.assign(Error('验收注入：存储空间不足'),{name:'QuotaExceededError'}));}return save(...args);};
+  out.textContent='仅下一次真实保存边界注入失败；请编辑后尝试关闭';
+};
+// A project must exist before the production page loads it. Never overwrite an
+// existing record; refresh exercises the same real IndexedDB saved document.
+const db=await new Promise((resolve,reject)=>{const request=indexedDB.open('tapnow-canvas-replica',1);request.onupgradeneeded=()=>request.result.createObjectStore('documents');request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error);});
+await new Promise((resolve,reject)=>{const transaction=db.transaction('documents','readwrite'),store=transaction.objectStore('documents'),key='project:'+project,read=store.get(key);read.onsuccess=()=>{if(!read.result){const now=Date.now();store.put({version:1,nodes:[],edges:[],history:[],future:[],view:{x:0,y:0,scale:1},project:{id:project,title:'公开导演片场验收',createdAt:now,updatedAt:now}},key);}};transaction.oncomplete=resolve;transaction.onerror=()=>reject(transaction.error);});
+db.close();frame.src='/?project='+encodeURIComponent(project);
+</script></html>

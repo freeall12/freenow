@@ -1,6 +1,6 @@
-# V3 片场领域基础 · 2026-10-08
+# V3 导演片场 · 2026-10-08
 
-**本目录只实现独立的纯领域内核。P0 生产入口与保存重开闭环未完成，P1–P6 仍未完成。** 没有接入 `studio.mjs`、画布 UI、Three.js 渲染、浏览器存储、生成供应商或 Agent 工具，也没有迁移任何旧节点。V3 是本项目代际名称；参照的 TapNow 0.4.81 导演工作区与官方 V2 独立模型编辑器并存。
+**已接入真实生产画布、IndexedDB 保存和 Three.js 工作区，当前完成 P0/P1 的部分闭环。** 本地模型预览可创建独立导演片场；人物、摄像机、道具、状态、基准、基础变换和失败保存重试已有实机证据。完整导演流程与 P2–P6 尚未完成，见[生产入口验收与截图](../../../docs/STUDIO-V3-PRODUCTION-20261008.md)。V3 是本项目内部代际名称，官方导演工作区与独立 GLB 编辑器并存；现有 v2 节点不隐式迁移。
 
 ## 实现范围
 
@@ -11,8 +11,16 @@
 | `world-space.mjs` | 不修改输入的领域操作；建立舞台/状态/角色/实体/view，实体/状态编辑、基准优先渲染状态合并、设置时间数据、实体全局/当前状态移除、view 移除及级联清理 |
 | `history-patches.mjs` | 集合成员及 setup state 的逐项 forward/inverse patch、setup metadata、环境字段、source/room/active selection 补丁，原子重放与 touched/生命周期依赖 |
 | `history.mjs` | 一个活动事务、preview/commit/cancel、world 与每 setup 的历史 lane、每 lane 50 条记录、全局 sequence、跨 lane undo/redo 冲突 |
+| `ownership.mjs` | 明确 V3 标记、live owner/source 对象身份、project/source snapshot/session/revision 围栏与排队 snapshot gate |
+| `persistence.mjs` | dirty/contentDirty 序列、不可变保存快照、单队列保存/重试和事务延迟 |
+| `session.mjs` | 可供消费者直接使用的领域历史代理、change/getState/getFence、自动保存与关闭守卫 |
+| `source.mjs` | 明确空片场或资源来源、独立 owner 标记、读取来源快照 |
+| `entry.mjs` / `dom.mjs` | 生产工作区、实体/状态 UI、数字属性、异步重命名、保存和关闭生命周期 |
+| `runtime.mjs` / `render-graph.mjs` | 真实 Three 场景、GLB/SPZ、人物 clip、相机、Orbit/正交视图和事务变换 |
+| `asset-loader.mjs` / `surface-hit.mjs` | 有界本地素材读取/解码/取消，站面与直接拾取基础 |
+| `icons.mjs` / `menus.mjs` / CSS | 官方图标与布局、单活动菜单、坐标夹紧、键盘/回焦与退出动效 |
 
-所有导出都是未接入生产的内部模块接口，不构成新公开 API 或工具能力。
+内部模块由 `studio.mjs` 路由，只有明确 `studioV3` 标记进入新工作区。V3 Agent 目前仅暴露 `read/select/undo`，其余明确拒绝。
 
 ## 数据约束
 
@@ -24,7 +32,7 @@ view 必须关联独立状态；sourceCameraEntityId 若存在，必须是同 st
 
 位置/变换使用数值 xyz，Euler 旋转为弧度、camera fov 为角度、时间为整数毫秒。不会把 v2 的 animationIndex/keyIndex 或旧对象数组隐式映射为本领域实体/时间数据。
 
-`assertState` 只接受 schemaVersion 4，拒绝旧版/未来版和不支持字段，不执行迁移或容错丢弃。这里验证的是**展开的内存域**：尚未实现官方紧凑 temporal 序列化（channel key index 等）、官方包的反序列化、云 schema 修复、编辑 session/生成任务/历史照片语义或本地 persistence adapter。因此不能把成功验证一个本地构造状态当作读取任意官方 schema 4 存档的承诺。
+`assertState` 只接受 schemaVersion 4，拒绝旧版/未来版和不支持字段，不执行迁移或容错丢弃。这里验证的是**展开的内存域**：尚未实现官方紧凑 temporal 序列化（channel key index 等）、官方包的反序列化、云 schema 修复或编辑 session/生成任务/历史照片语义。本地保存只存该展开状态，不承诺读取任意官方 schema 4 存档。
 
 ## 事务与错误处理
 
@@ -71,7 +79,7 @@ preview 是临时域变化，不产生历史；commit 计算逐项差异，无�
 
 官方 `a1` 不记录 stages/references/outputs/active selection；但删除 `Qc` 会修改其中部分数据。本地增加这些对象的**逐项补丁**，加入 role/stage/reference/output touched 与生命周期依赖，不把补齐写成官方现有行为。`setup.patchMeta` 还保存 updatedAt，补丁新增/恢复带相邻 ID 锚点与 index fallback，以精确还原时间戳和交错删除项的数组顺序。锚点也是生命周期/位置依赖，后续另一 lane 删除或重排恢复所需锚点时会保守返回 conflict，普通锚点属性编辑不产生位置依赖冲突。真正的集合重排只记录 ID 顺序；没有整场景替换补丁。删除级联原子重放，全部补丁应用后才执行关系校验，避免中间阶段合法恢复顺序被误判为缺失关系。
 
-领域操作不访问源资源、权限、UI mode 或外部网络。未来 runtime 仍须施加 readonly、播放/放置/输入租约、源身份/revision/session fence、关闭保存失败恢复等约束；这里没有替代它们。
+领域操作不访问源资源、权限、UI mode 或外部网络。runtime/session 已施加来源身份/revision/session fence 和关闭保存失败保留；播放/放置/输入租约仍需后续接入，领域基础不能替代它们。
 
 ## 定向验证
 
@@ -86,4 +94,41 @@ node --check src/features/studio-v3/history.mjs
 
 2026-10-08 定向结果：先跑两份领域测试 **39/39 通过**；随后补充 collection.order/插回锚点冲突，按任务要求只跑新增回归 **1/1 通过**（当前共 40 项领域测试）。五个领域模块语法检查通过，最后修改的 history-patches 再次单独检查通过。涵盖非法 schema/JSON、唯一 ID、owner/跨 stage/基准排斥、时间关系、级联删除、cancel/无变化/异常、50 条与 sequence、局部独立撤销、跨 lane 重叠/角色/舞台/选择/实体 target/锚点删除与排序依赖、交错多删顺序恢复、scope 和私有状态隔离。只读交叉审阅指出的数组恢复顺序、active selection/锚点依赖遗漏、非 JSON 数组属性问题均已修复并加入回归。
 
-未跑全仓库测试/构建：没有生产集成、依赖或 bundling 改动。未进行浏览器/桌面操作、截图、模型生成、保存重开或视觉验收。下一步应由独立任务完成 P0 entry/ownership/persistence adapter，再走真实端到端；本轮不宣称 P0 完成交付。
+上述纯领域批次未做浏览器或保存重开验收；后续生产集成已独立完成部分实机闭环，见[生产验收](../../../docs/STUDIO-V3-PRODUCTION-20261008.md)。没有全仓测试、模型生成或全态视觉完成承诺。
+
+## 本地会话与保存契约 · 2026-10-08 增量
+
+持久标记必须为 `studioV3:{version:3,state:<展开 schema4>,revision,sourceBinding:{sourceNodeId,sourceKind,sourceSnapshot}}`。`revision` 是非负安全整数；`worldNodeId` 必须等于目标节点 ID。来源 ID/kind 显式指定，snapshot 为 JSON；没有旧 studio/V2 自动接管或迁移。初次创建标记属于 entry 的职责。
+
+```js
+import {createStudioSession} from './session.mjs';
+
+const session = createStudioSession({
+  nodeId,
+  app: CanvasApp,
+  store: CanvasStore,
+  publishNode: (id, patch, options) => CanvasApp.publishStudioV3(id, patch, options),
+  getSourceSnapshot: (sourceNode, sourceKind) => readSourceSnapshot(sourceNode, sourceKind),
+  onChange: state => runtime.sync(state),
+  onStatus: status => renderSaveStatus(status)
+});
+session.change(state => patchEntity(state, entityId, {label: '桌面道具'}), {
+  lane: 'director', label: 'director.renameEntity'
+});
+await session.flush();
+await session.closeGuard(); // 只有成功才由 UI 关闭页面；失败保留页面并呈现错误。
+```
+
+adapter 必须提供 `app.getState().nodes` 的 live 节点引用、`app.projectIdentity()`（字符串 ID 或 `{id}`）、`app.registerNodeWriteGuard(id, guard)` 返回 unregister。持续 node guard 接受被保存快照内的 `capturedNode`；画布完整保存必须在存储事务内再次调用捕获的 guard，不能只检查保存调用时的 live 节点。会话交接需要替换未来保存捕获的旧 session guard，同时旧排队保存保留旧闭包并拒绝迟到写入。成功关闭时先 unregister、再 release；失败不解除保护。
+
+`publishNode(id,{studioV3}, {beforeCommit})` 应先验证并保存含新 payload 的完整候选画布，在事务内与回执后检查 owner/source/session 和 graph revision，再成功发布 live 节点与画布 history。失败保持原 host/history，只保留 session 私有 dirty。它已经执行保存，会话仅追加 `store.flush()`，不会再调用 `store.save()`。不能用会自动触发无守卫保存的 `updateNode` 代替。会话也兼容替身 adapter 失败后保留 host staged payload：同 revision 重试以及失败后再编辑的较新 payload 都可保存；进程内会话交接继承已发布未确认 payload 为 dirty，避免把失败内存误当已保存。生产默认并不提前发布该 staged payload。
+
+`getState/history/getStatus/getFence` 都返回私有数据的拷贝；history mutation 代理自动标脏。`history.begin/preview/commit/cancel` 支持拖动；preview/cancel 不产生持久脏状态，已有脏状态在活动事务期间延后保存。`change(reducer,{lane,label,scope,content})` 默认内容编辑，`content:false` 用于实际修改领域状态但只影响后台内容的操作。undo/redo 视为内容变化。`getFence` 包含 session/source/project、私有 revision 与 editEpoch，preview/cancel 也更新 epoch，可供 renderer 的异步结果围栏；private 编辑不使已经拥有的较早保存回执失效。
+
+`flush()` 共享单个 promise，循环保存不可变快照，直到最新 dirtySeq 持久化或遇到活动事务。保存中出现新编辑仅确认捕获的 dirty/contentDirty 序列，后续继续保存，不错误清洁。活动事务且存在待保存内容时返回 `{ok:false,reason:'transaction-active'}`；只读返回 `{ok:true,readonly:true}`，不写入。`closeGuard()` 拒绝活动事务、存储失败、来源/owner/session 变化或 flush 后仍未保存内容。打开只读会话时如果存在活动可写会话，明确拒绝 `session-active`，不会抢占可写 lease 或把失败 staged 编辑困在无法保存的只读会话中。
+
+默认自动保存延迟 500ms，可用 `autosaveMs:null` 禁用；`schedule/unschedule` 可注入测试时钟。错误保留 dirty 和 error 状态，通过再次 `flush/closeGuard` 重试；不自动发起云请求或无限重试。UI 观察器异常不能影响保存结果。这里没有替代播放/放置/输入租约、真实 storage CAS、官方 cloud conflict/schema repair 或 beforeunload 保存流程。
+
+revision 达到安全整数上限时，change/transact/commit/undo/redo 在修改已提交 state/history 前拒绝；preview 仍可取消。同步 reducer 导致 owner/source 失效时，已经提交的私有变化仍标 dirty，关闭失败，不会以 clean 状态漏掉编辑。
+
+增量验证：`node --test tests/studio-v3-session.test.cjs` 随 adapter 改为先存储后发布，定向重跑 **27/27**；随后兼容 staged host 失败后新编辑重试与只读不抢占 staged writer，两项回归 **2/2**；最后 revision 上限/同步 reducer 改源回归 **2/2**（当前共 30 项会话测试）。三个会话模块语法检查与 README diff whitespace 检查通过。覆盖事务预览延迟/取消/无变化、dirty/contentDirty、保存中编辑/快照隔离、失败关闭保页/同版和新版重试、来源变化/删除/替换、目标删除/替换、版本/revision/content 变化、项目切换、会话交接、旧排队守卫、只读、undo/redo、自动保存时钟和私有 getter。真实 IndexedDB/生产 entry/浏览器保存重开已由[集成批次](../../../docs/STUDIO-V3-PRODUCTION-20261008.md)独立验收，范围与未完成门槛分开记录。

@@ -58,6 +58,8 @@ Current source adds [local external-agent MCP access](src/features/external-agen
 | Workflows and recovery | Dependency execution, durable receipts, original-task queries, explicit continuation, save guards | Unknown outcomes are not automatically resubmitted |
 | External agent (desktop source) | Local MCP connection, native approval, two current-canvas metadata tools, reload revocation | Local stdio clients; no writes, generation, media, or cloud connectors; not included in the published Alpha |
 
+The source also includes a [director workspace V3](docs/STUDIO-V3-PRODUCTION-20261008.md) under development: local model sources, actors/cameras/props, baseline and independent states, basic transforms, and guarded persistence are integrated. Full timeline, generation, capture, and agent orchestration remain incomplete. The current Alpha does not include this batch.
+
 Model menus, adapter implementations, and app registrations describe different scopes. Real provider output quality requires separate validation. [Detailed features and adapters](docs/FEATURES.md) · [Verification evidence](docs/VERIFICATION-INDEX.md)
 
 Canvas help provides local updates, an offline guide, agent connection, feedback, and shortcuts. The [help and original gesture GIFs](docs/CANVAS-HELP-20261008.md) and [actual shortcut mapping](docs/CANVAS-SHORTCUTS-20261008.md) document verified behavior. Real microphone/transcription and every hardware-input combination remain unverified.

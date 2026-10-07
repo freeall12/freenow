@@ -32,6 +32,7 @@
   }
   const mediaDisplayNode=node=>{if(!['image','video','audio'].includes(node?.type))return node;const source=actionMediaRef(node);return {...node,image:displayMediaRef(node.image)||(node.type==='image'?source:''),fullImage:node.type==='image'?source:displayMediaRef(node.fullImage),video:node.type==='video'?source:displayMediaRef(node.video),audio:displayMediaRef(node.audio),poster:displayMediaRef(node.poster),thumbnail:displayMediaRef(node.thumbnail)};};
   const generationRuns = new Map();
+  const nodeWriteGuards = new Map();
   let searchFocusTimer=0,searchFocusElement=null;
   const initial = !data.nodes.length||window.CanvasProjects&&!window.CanvasProjects.isDefault()?{x:0,y:0,scale:1}:{x: -11821.75458177424, y: 1093.1602809876204, scale: 0.22841067612171173};
   let view = {...initial, x: initial.x + (innerWidth - data.referenceWidth) / 2, y: initial.y + (innerHeight - data.referenceHeight) / 2};
@@ -77,12 +78,20 @@
   });
   window.addEventListener('beforeunload',event=>{if(window.CanvasNodeTitles?.hasPending()){event.preventDefault();event.returnValue='';}});
   function remember() { if(window.CanvasProjects&&!graphLoaded){notify('画布尚未完成读取，请稍后编辑');throw Error('画布尚未完成读取，不能修改已有项目');}window.CanvasNodeTitles?.flushAll();flushGesture();localChanges++; history.push({nodes:clone(nodes), edges:clone(edges)}); if(history.length>60) history.shift(); future=[]; }
+  function captureNodeWriteGuards(snapshot,beforeCommit) {
+    if(beforeCommit!==undefined&&typeof beforeCommit!=='function')throw TypeError('画布保存守卫必须为函数');
+    const captured=[];
+    for(const node of snapshot.nodes||[])for(const guard of nodeWriteGuards.get(node.id)||[])captured.push(()=>guard(node));
+    // Retain the captured functions after unregister. A queued whole-document
+    // save must not bypass the owner/source fence when a scene closes or changes.
+    return ()=>!graphReadFailed&&(!beforeCommit||beforeCommit()===true)&&captured.every(guard=>guard()===true);
+  }
   function persist({beforeCommit}={}) {
     let pending=null;
     window.CanvasProjects?.markDirty();
     if(graphLoaded){
       const revision=++saveRevision;
-      try{pending=window.CanvasStore.save(window.CanvasProjects?.snapshot({version:1,nodes,edges},view,history,future)||{version:1,nodes,edges},undefined,{beforeCommit});pending.then(()=>{
+      try{const snapshot=clone(window.CanvasProjects?.snapshot({version:1,nodes,edges},view,history,future)||{version:1,nodes,edges});pending=window.CanvasStore.save(snapshot,undefined,{beforeCommit:captureNodeWriteGuards(snapshot,beforeCommit)});pending.then(()=>{
         if(revision===saveRevision){$('#storage-notice')?.remove();window.CanvasProjects?.markDirty(false);}
       },error=>{if(revision===saveRevision)storageError(error);});}
       catch(error){storageError(error);}
@@ -155,7 +164,7 @@
     window.CanvasConnections?.attachNode(n,el);
     el.addEventListener('dblclick',event=>{if(!event.target.closest('.port'))preview(n);});
   }
-  function rebuild() {
+  function rebuild({save=true}={}) {
     window.PileMotion.cancel();
     const removedPiles=new Set(window.CanvasPiles.reconcile(nodes));edges=edges.filter(e=>!removedPiles.has(e.source)&&!removedPiles.has(e.target));
     const ids=new Set(nodes.map(n=>n.id));
@@ -179,7 +188,7 @@
       const ids=new Set(edges.map(e=>e.id));for(const [id,path]of pathElements)if(!ids.has(id)){path.remove();pathElements.delete(id);}
       for(const e of edges)if(!pathElements.has(e.id)){const p=document.createElementNS('http://www.w3.org/2000/svg','path');p.dataset.id=e.id;$('#edges').append(p);pathElements.set(e.id,p);}
     }
-    render();if(graphLoaded)persist();
+    render();if(graphLoaded&&save)persist();
   }
   function rebuildAndPersist() {
     rebuild();
@@ -487,6 +496,7 @@
     getState:()=>({nodes,edges,selected:[...selected],view:{...view}}),
     projectIdentity:()=>window.CanvasProjects?.current()||{id:'canvas',title:$('#project-title').textContent},
     projectSnapshot:()=>window.CanvasProjects?.snapshot({version:1,nodes,edges},view,history,future)||{version:1,nodes,edges},
+    captureSnapshotWriteGuard:captureNodeWriteGuards,
     resourceMigrationStatus:()=>resourceMigrationStatus?structuredClone(resourceMigrationStatus):null,
     async saveProject({beforeCommit}={}){if(!graphLoaded||graphReadFailed)throw Error('画布尚未成功读取，已停止保存以保护已有数据');const check=()=>{if(beforeCommit!==undefined&&typeof beforeCommit!=='function')throw TypeError('画布保存守卫必须为函数');if(beforeCommit&&beforeCommit()!==true)throw Error('画布保存资格已变化，当前修改尚未保存');};flushGesture();check();window.CanvasNodeTitles?.flushAll({requireSettled:true});saveView();const saving=persist({beforeCommit});if(!saving)throw Error('当前画布未能保存，请保留此页面并重试');await saving;await window.CanvasStore.flush();check();},
     async prepareProjectNavigation(){cancelViewportAnimation();await this.saveProject();},
@@ -669,6 +679,51 @@
       // Prompt/model changes do not replace media. Keep decoded images, playback,
       // pointer targets and node-local overlays alive while refreshing derived layout.
       if(parametersOnly){render();persist();}else rebuildAndPersist();
+    },
+    registerNodeWriteGuard(id,guard){
+      if(typeof id!=='string'||typeof guard!=='function')throw TypeError('节点保存守卫无效');
+      // A node has one editing lease. A new session replaces future captures;
+      // queued saves retain the superseded callback and still fail its fence.
+      const guards=new Set([guard]);nodeWriteGuards.set(id,guards);
+      return ()=>{
+        const node=nodes.find(item=>item.id===id);
+        if(node&&guard(clone(node))!==true)throw Error('节点保存资格已失效，不能解除未保存数据的保护');
+        guards.delete(guard);if(!guards.size&&nodeWriteGuards.get(id)===guards)nodeWriteGuards.delete(id);
+      };
+    },
+    async publishStudioV3(id,patch,{beforeCommit}={}){
+      if(!graphLoaded||graphReadFailed)throw Error('画布尚未成功读取，已停止片场保存');
+      if(!patch||Object.keys(patch).length!==1||!patch.studioV3||patch.studioV3.version!==3)throw TypeError('片场发布仅接受版本 3 的 studioV3 数据');
+      if(typeof beforeCommit!=='function'||!nodeWriteGuards.get(id)?.size)throw Error('片场保存缺少所有权守卫');
+      const check=()=>{if(beforeCommit()!==true)throw Error('片场所有权或来源已变化，当前修改尚未保存');};
+      flushGesture();window.CanvasNodeTitles?.flushAll({requireSettled:true});check();
+      const node=nodes.find(item=>item.id===id&&item.type==='studio');if(!node)throw Error('片场节点已删除');
+      const changed=JSON.stringify(node.studioV3)!==JSON.stringify(patch.studioV3);
+      const nextHistory=changed?[...history,{nodes:clone(nodes),edges:clone(edges)}].slice(-60):history;
+      const nextNodes=nodes.map(item=>item===node?{...item,studioV3:clone(patch.studioV3)}:item);
+      const snapshot=clone(window.CanvasProjects?.snapshot({version:1,nodes:nextNodes,edges},view,nextHistory,changed?[]:future)||{version:1,nodes:nextNodes,edges});
+      const projectId=window.CanvasProjects?.id?.()||'canvas',hostNodes=nodes,hostEdges=edges,hostChanges=localChanges,revision=++saveRevision;
+      const qualifies=()=>beforeCommit()===true&&(window.CanvasProjects?.id?.()||'canvas')===projectId&&nodes===hostNodes&&edges===hostEdges&&localChanges===hostChanges&&saveRevision===revision;
+      window.CanvasProjects?.markDirty();
+      try{
+        // Publish into memory only after the fenced durable write. A failed
+        // candidate cannot leak into later canvas undo history or direct saves.
+        await window.CanvasStore.save(snapshot,projectId,{preserveSnapshot:true,beforeCommit:captureNodeWriteGuards(snapshot,qualifies)});
+        if(!qualifies())throw Error('画布在片场保存时已变化，请保留此页面并重试');
+        if(changed){node.studioV3=clone(patch.studioV3);history=nextHistory;future=[];localChanges++;rebuild({save:false});}
+        $('#storage-notice')?.remove();window.CanvasProjects?.markDirty(false);return clone(node.studioV3);
+      }catch(error){if(revision===saveRevision)storageError(error);throw error;}
+    },
+    createDirectorNode({sourceId,createStored,title='3D 片场'}={}){
+      if(typeof createStored!=='function')throw TypeError('导演片场需要数据构造器');
+      const source=sourceId?nodes.find(item=>item.id===sourceId):null;
+      if(sourceId&&!source)throw Error('来源节点已删除');
+      const node=newNode('studio',undefined,null,title);
+      if(source){const [position]=window.CanvasGeometry.placeOutputs(source,[{type:'studio',title,width:375,height:250}],nodes);Object.assign(node,position,{sourceId});}
+      node.studioV3=clone(createStored(node,source||node));
+      if(node.studioV3?.version!==3||node.studioV3.state?.scenePlay?.worldNodeId!==node.id)throw Error('导演片场数据与节点所有权不匹配');
+      remember();nodes.push(node);if(source)edges.push({id:crypto.randomUUID(),source:source.id,target:node.id});
+      selected=new Set([node.id]);rebuild();return node;
     },
     insertGraph(graph){
       const ids=new Set(nodes.map(n=>n.id));if(!graph.nodes?.length||graph.nodes.some(n=>ids.has(n.id)||![n.x,n.y,n.width,n.height].every(Number.isFinite)))throw Error('导入节点无效');

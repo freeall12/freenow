@@ -1,0 +1,23 @@
+/* Local accessibility and integration details around the extracted chrome. */
+.studio-v3.sv3-workspace {position:fixed;z-index:1200}
+.studio-v3 .sv3-render {width:100%;height:100%;outline:none}
+.studio-v3 .sv3-status {pointer-events:auto;max-width:min(540px,90vw);padding:10px 16px;border-radius:16px;background:rgba(38,38,38,.85);color:#eee;white-space:normal;line-height:1.5}
+.studio-v3 .sv3-status[hidden] {display:none}
+.studio-v3 .sv3-status[data-error=true] {color:#ffbfaf}
+.studio-v3 .sv3-library {width:min(490px,calc(100vw - 32px));max-height:min(540px,calc(100vh - 160px));padding:12px}
+.studio-v3 .sv3-library h3 {font-size:13px;font-weight:500;margin:8px 4px;color:#b7b7b7}
+.studio-v3 .sv3-library-grid {display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.studio-v3 .sv3-library-item {display:flex;flex-direction:column;align-items:center;gap:5px;padding:6px;border:0;border-radius:12px;background:transparent;color:#eee;font:inherit;min-width:0}
+.studio-v3 .sv3-library-item:hover {background:rgba(255,255,255,.1)}
+.studio-v3 .sv3-library-item img {width:100%;aspect-ratio:1;object-fit:contain;border-radius:8px;background:#262626}
+.studio-v3 .sv3-library-item span {font-size:11px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.studio-v3 .sv3-inspector {padding:12px;width:min(440px,calc(100vw - 32px));max-height:calc(100vh - 144px);overflow:auto}
+.studio-v3 .sv3-fields {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:10px 0}
+.studio-v3 .sv3-field {display:flex;flex-direction:column;gap:6px;font-size:11px;color:#aaa;min-width:0}
+.studio-v3 .sv3-field input,.studio-v3 .sv3-field select {height:30px;width:100%;background:#343434;color:#fff;border:0;border-radius:6px;padding:4px 7px;font:inherit}
+.studio-v3 .sv3-selection-name {max-width:160px}
+.studio-v3 .sv3-state-list {padding:6px}
+.studio-v3 .sv3-menu-row svg {width:16px;height:16px}
+.studio-v3 .sv3-controls-help {padding:10px 16px;max-width:300px;line-height:1.8;color:#bbb}
+.studio-v3 .sv3-field select {font-size:12px}
+@media(max-width:640px){.studio-v3 .sv3-library-grid {grid-template-columns:repeat(3,1fr)}.studio-v3 .sv3-top-center {display:none}.studio-v3 .sv3-dock-center {max-width:calc(100vw - 160px);overflow:auto}.studio-v3 .sv3-selection-name {max-width:80px}}

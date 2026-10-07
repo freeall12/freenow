@@ -144,6 +144,7 @@ export async function download(node, options) {
 
 export async function preview(node, {panoramaUrl = null} = {}) {
   assertReadableMediaSource(panoramaUrl || node.worldResource?.url);
+  const sourceResourceSnapshot=panoramaUrl?null:JSON.stringify(node.worldResource);
   const returnFocus = current?.returnFocus || document.activeElement;
   current?.close();
   const scenePreview = !panoramaUrl && node.outputType === 'world';
@@ -211,10 +212,11 @@ export async function preview(node, {panoramaUrl = null} = {}) {
         enter.disabled = true;
         try {
           if (!app.getState().nodes.some(n => n.id === node.id)) throw Error('来源节点已删除');
-          const draft = panoramaUrl ? (await import('./panorama-stage.mjs')).panoramaStudio(node, panoramaUrl)
-            : {type: 'studio', title: '3D 片场', width: 375, height: 250, studioV2: node.worldResource.format==='spz'?{version:2,splatAssets:[{version:1,format:'spz',url:node.worldResource.url,...node.worldResource.splat,name:node.title}]}:{version: 2, asset: node.worldResource.url}};
+          const draft = panoramaUrl ? (await import('./panorama-stage.mjs')).panoramaStudio(node, panoramaUrl) : null;
+          const director = draft ? null : await import('../studio-v3/source.mjs');
           if (!alive || !app.getState().nodes.some(n => n.id === node.id)) return;
-          const [studio] = app.createConnected(node.id, [draft]);
+          if(!panoramaUrl&&JSON.stringify(app.getState().nodes.find(n=>n.id===node.id)?.worldResource)!==sourceResourceSnapshot)throw Error('来源模型已变化，请重新打开预览后进入片场');
+          const studio = draft ? app.createConnected(node.id, [draft])[0] : director.createDirectorNode(app,node.id);
           close(); await window.StudioAPI.open(studio.id);
         } catch (error) {app.notify(error.message); enter.disabled = false;}
       }
