@@ -10,6 +10,11 @@
 | [搜索键盘](CANVAS-SEARCH-KEYBOARD-20261008.md) / [交互清点](INTERACTION-CHECK-20261008.md) | 官方根 Enter 事件、14 项定向回归；分类/结果/清除焦点、空结果、两级 Escape/回焦实机，真实系统 IME 未验 |
 | [模板来源与草稿](research/agent-template-source-followup-20261008.md) | 92 份正文仍缺；21 项草稿/原来源回归；失败保留和 revision 2 真实回读已验，刷新恢复被控制层 beforeunload 取消，仅定向检查 |
 | [Ark 本地 MP4 发布](ARK-LOCAL-VIDEO-PUBLICATION-20261008.md) | 独立 fal Key、全来源解码、公网 HTTPS、原 ID 只读恢复与结果归档；115 项定向检查，实际媒体/网关重启；实机延长/重拍缺发布条件与阻断，启用发布 UI/真实供应商未验 |
+| [画布命令与媒体菜单](canvas-command-menu-audit-20261008.md) | 最终52项定向（新增17）；当前主壳QA开关/Tab/回焦、导航/创建、主画布焦点撤销重做同ID，以及hover视频→Enter/图片→Space真实创建/关闭/回焦已实机；旧视频/fullImage历史单独浏览器、上传/下载/PNG读回未验 |
+| [片场 v2 标签键盘](STUDIO-V2-PANEL-KEYBOARD-20261008.md) | 17 项面板 + 3 项真实 GLB QA；主壳大场景左右循环/首尾、Tab 进面板与首镜头、修饰键/Down/右键保护实机；第三代工作区入口/身份/事务仍需映射 |
+| [人物情绪确认与关闭](../src/features/agent-apps/ACTOR-EMOTION.md) | 4 项确认 + 5 项关闭 + 4 项资源检查；原嵌套应用实际512×512灰模/AE2/SHA、800ms慢保存、关闭失败保页重试及刷新62/87%/13%；鼠标全路径、严格350ms与完整失败组合未验 |
+| [桌面文件整理](DESKTOP-FILES-20261008.md) | 15 项专项 + 18 项相关；最新源码 Electron 原生授权/确认3项、7字节/SHA回读、有效单项取消0/未创建、目录移动拒绝与撤销授权后列表阻断、正常⌘Q退出；不在已发布Alpha内，SDK/重启journal/实机回滚与恶意TOCTOU边界保留 |
+| [外部 Agent MCP 研究](research/EXTERNAL-AGENT-MCP-GAP-20261008.md) | 官方在线帮助与本地入口分层；当前没有外部 MCP 传输/客户端授权，stdio/broker是提案而非已实现功能 |
 
 ## 2026-10-07 前批入口
 

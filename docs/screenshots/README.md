@@ -29,6 +29,18 @@
 
 两张为 CUA 直接完整视口 JPEG，无裁切、视口/样式变更或模型调用；QA 审计控件覆盖部分页面，不作为一比一视觉证据，也不证明启用发布后的完整流程。[配置、合同与边界](../ARK-LOCAL-VIDEO-PUBLICATION-20261008.md)
 
+## 2026-10-08 画布菜单、片场标签、人物情绪与桌面源码文件整理
+
+| 截图 | 真实页面与范围 |
+| --- | --- |
+| [画布添加菜单与键盘](canvas-command-menu-keyboard-20261008.png) | 当前源码主壳QA，默认1280×720；添加菜单含5种节点、3个辅助工具及上传，背景为真实本地节点。开关/Tab/回焦、画布焦点撤销重做，以及hover视频→Enter/图片→Space真实创建已实机验；旧来源历史、上传/下载/PNG剪贴板读回未单独实机验。无私人素材或原站截图。 |
+| [片场标签与真实 GLB](studio-panel-keyboard-20261008.png) | 从当前 `index.html` 再生成的 freenow 主壳 QA，默认1280×720视口；真实GLB大场景、拍摄/场景标签、WebGL及镜头预览可见。左右循环/首尾、Tab进面板再进首镜头与修饰键/Down/右键保护已实机验；不证明第三代导演工作区已实现。 |
+| [人物情绪关闭与刷新](actor-emotion-close-refresh-20261008.png) | 原嵌套HTML及生产controller/host/runtime的独立QA；正常Tab键盘确认真实512×512灰模，guides=1/replies=1，800ms慢保存、关闭失败保页后重试，刷新恢复强度62、悲伤87%/恐惧13%。未覆盖全部鼠标操作、严格350ms内确认或完整灰模/消息失败重试组合。 |
+| [桌面三项真实结果](desktop-files-local-results-20261008.png) | 重启最新源码Electron QA，原生选择器授权该次临时目录，预览3项并原生确认completed=3；文件回读为`sorted/one.txt`、`renamed.txt`，原7字节/SHA保持且旧文件名消失。不是已发布Alpha包的新增能力。 |
+| [桌面有效单项取消](desktop-files-cancel-receipt-20261008.png) | 同一源码QA的最后fresh单项`mkdir must-not-be-created`，获取完整AX后原生取消，回执cancelled/completed=0且文件系统未创建目标；不使用中间受“用户改变应用”干扰的两项尝试作取消证据。 |
+
+本组是主线实际页面/窗口截图，素材与目录均为本地测试数据；没有真实供应商调用。完整操作、来源和未验范围见[画布菜单](../canvas-command-menu-audit-20261008.md)、[片场标签](../STUDIO-V2-PANEL-KEYBOARD-20261008.md)、[人物情绪](../../src/features/agent-apps/ACTOR-EMOTION.md)和[桌面文件整理](../DESKTOP-FILES-20261008.md)。桌面未知journal不重放有定向依据，尚未实机重启journal；恶意祖先路径TOCTOU及完整Agent SDK/实机回滚仍有限制。
+
 ## 2026-10-07 最终 macOS arm64 安装包重开
 
 | 文件 | 实际内容与来源 |

@@ -23,6 +23,14 @@
 
 [交互清点](INTERACTION-CHECK-20261008.md)与[实际截图](screenshots/README.md)区分本批源码、实机和未验范围。
 
+## 本批：菜单、片场标签、人物情绪与桌面文件
+
+- 画布添加菜单实际开关、Tab 离开关闭、Shift+Tab/Escape 回焦、悬停后从真实焦点导航和真实文本创建已验。主画布焦点下 ⌘Z 删除、⌘⇧Z 恢复同 ID 文本；dock 的 `+` 焦点下不响应画布撤销，不能推广为任意焦点可撤销。旧视频当前历史、fullImage来源与hover→Enter/Space视觉高亮执行已补修，最终52项定向检查通过（新增17项）。最后实机补验hover视频→Enter新增真实video、hover图片→Space新增真实image，均关闭回焦且画布未滚动/外部尝试为0；旧来源历史单独浏览器与上传、下载、PNG剪贴板读回仍未验。[菜单核验](canvas-command-menu-audit-20261008.md)
+- 当前 GLB 片场 v2 接通单一 Tab 停留、左右循环/首尾键和标签/面板关联；17 项面板与 3 项真实 GLB QA 检查通过。当前主壳真实大场景已验拍摄↔场景、Home/End、Tab 进入面板再进首镜头，以及修饰键/Down/右键不切换。安装包第三代导演/entity 菜单仍缺独立入口与身份/事务映射，不能用 v2 验收替代。[片场标签与版本边界](STUDIO-V2-PANEL-KEYBOARD-20261008.md)
+- 人物情绪原嵌套应用接通确认等待真实保存及关闭失败保页，4 项确认、5 项关闭和4项资源完整性检查通过。生产 controller/host/runtime QA 实际生成512×512灰模指导图，AE2 face=-65~-65~68 与图片 SHA 一致，guides=1/replies=1；800ms慢保存、关闭失败后原卡重试与刷新恢复强度62/悲伤87%/恐惧13%已验。原HTML SHA不变；鼠标全路径、严格350ms内确认及灰模/消息失败完整重试组合未验。[人物情绪合同](../src/features/agent-apps/ACTOR-EMOTION.md)
+- 桌面源码新增六个 Agent 文件工具、原生单目录授权/整批确认和 journal，只创建子目录及移动/重命名普通文件；15项专项与18项相关检查通过。重启最新 source QA 后实机确认3项、两份7字节文件SHA保持；最新单项取消回执 completed=0且目标未创建，目录移动预览阻断且实际未移动。撤销授权后 authorized=false且列表明确阻断，正常⌘Q退出已验。未知批次重启不重放有定向检查，重启journal尚未实机验；恶意祖先路径并发替换仍有 TOCTOU 窗口，完整 Agent SDK/实机回滚未验。这项源码功能不在已发布642d3db Alpha包内。[文件整理与限制](DESKTOP-FILES-20261008.md)
+- 官方“连接 Agent”是独立远端账户级 MCP 服务；本地 iframe MCP Apps 和内部 Responses 工具不等于外部 MCP。当前外部传输、客户端授权及工作区连接未实现；桌面 stdio/私有 broker 仅为提案。[外部 Agent MCP 缺口](research/EXTERNAL-AGENT-MCP-GAP-20261008.md)
+
 ## 前批：SFX / 调色专项验收与桌面预发布
 
 - Electron 桌面外壳已接入独立后台、固定 4183、用户目录、`providers.env` 模板、单实例和保存后关闭/刷新。版本 `0.1.0-alpha.1`，开发 Electron 中真实 WebGL 片场已运行，macOS arm64 ZIP 已从642d3db构建，6197个运行文件及包内后台通过核验；实际 `.app` 已通过 Computer Use：片场内 X=1.25 提交、Cmd+Q 退出释放 4183，重开恢复 X=1.25 / Y=0.5 / Z=0。ZIP 上传已核对大小与 digest，[v0.1.0-alpha.1 macOS arm64 prerelease](https://github.com/freeall12/freenow/releases/tag/v0.1.0-alpha.1)已公开发布。FFmpeg / FFprobe 不随包附带。旧 runtime 仅在 manifest 标明 version 1 / dataIncluded false 时自动归档；退出与刷新等待 Agent 及片场正常关闭。[桌面启动与配置](DESKTOP.md)、[安装包重开截图](screenshots/freenow-desktop-packaged-restart-20261007.jpg)、[实际包核验](releases/DESKTOP-ALPHA-VERIFICATION-20261007.md)

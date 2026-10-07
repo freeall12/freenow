@@ -10,10 +10,12 @@ freenow 是本地 AI 创作工作台：无限画布、图片/音视频工具、3
 | --- | --- |
 | 安装、启动与最小配置 | [项目首页](../README.md#快速开始)、[环境变量字段](../.env.example) |
 | 下载、运行或构建 Electron 桌面预发布 | [macOS arm64 Alpha](https://github.com/freeall12/freenow/releases/tag/v0.1.0-alpha.1)、[桌面指南](DESKTOP.md)；固定 4183、独立用户目录、外部 FFmpeg，未签名/公证；ZIP、包内后台和实际安装包退出重开恢复已核验 |
+| 用桌面源码整理授权文件夹 | [原生授权、整批确认与回执](DESKTOP-FILES-20261008.md)；仅子目录创建和普通文件移动/重命名，不在现有 Alpha 包内 |
 | 新建与切换画布项目 | [画布项目](CANVAS-PROJECTS.md) |
 | 使用图片、视频、音频或 3D 生成 | [多供应商配置](MULTI-PROVIDER-SETUP.md)、[功能与适配器](FEATURES.md) |
 | 把本地 MP4 交给 Ark 生成、延长或重拍 | [独立 fal 发布配置](ARK-LOCAL-VIDEO-PUBLICATION-20261008.md)，需要独立 fal Key 与显式型号映射；不会复用 Ark Key |
 | 连接创作 Agent | [Agent API](AGENT-API.md)、[本地编辑工具](AGENT-LOCAL-EDITING-20261003.md)、[片场控制](AGENT-STUDIO-LOCAL-CONTROLS.md) |
+| 让外部 Agent 连接 freenow | [外部 MCP 缺口与提案](research/EXTERNAL-AGENT-MCP-GAP-20261008.md)；当前没有外部 MCP 传输/客户端授权，内嵌 Apps 不代表外部连接 |
 | 理解数据位置、迁移和恢复 | [本地数据与运行](LOCAL-STORES-AND-RUNTIME-20261003.md)、[素材库容量与冲突](LIBRARY-LOCAL-CAPACITY-20261005.md)、[Agent 存储](AGENT-STORAGE.md) |
 | 找真实界面及复现方法 | [截图索引](screenshots/README.md)、[验收证据索引](VERIFICATION-INDEX.md) |
 
@@ -36,6 +38,8 @@ freenow 是本地 AI 创作工作台：无限画布、图片/音视频工具、3
 - [验收证据索引](VERIFICATION-INDEX.md)：分批交互、源码回归、真实本机媒体与模拟供应商的区别。
 
 **本批验证：** [音频空白拖动](AUDIO-PLAYER-GESTURES-20261008.md)、[普通节点标题](../src/features/canvas-node-titles/README.md)、[搜索焦点确认](CANVAS-SEARCH-KEYBOARD-20261008.md)已按各自范围完成 Computer Use；标题控件懒创建减少未选中节点 DOM。[模板草稿](research/agent-template-source-followup-20261008.md)的失败保留与真实保存回读已验，刷新恢复仍只有定向检查。前批[桌面 Alpha](releases/DESKTOP-ALPHA-VERIFICATION-20261007.md)已公开且实际包退出重开恢复通过。范围见[当前状态](STATUS.md)，专项记录不等于全站已完成。
+
+同批新增[画布菜单](canvas-command-menu-audit-20261008.md)、[GLB 片场 v2 标签](STUDIO-V2-PANEL-KEYBOARD-20261008.md)、[人物情绪确认/关闭](../src/features/agent-apps/ACTOR-EMOTION.md)和[桌面源码文件整理](DESKTOP-FILES-20261008.md)的定向及实机证据；完整范围与限制见[验收索引](VERIFICATION-INDEX.md)，图片来源见[截图索引](screenshots/README.md)。
 
 ## 文档组织约定
 

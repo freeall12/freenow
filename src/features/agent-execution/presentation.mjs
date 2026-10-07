@@ -1,3 +1,4 @@
+import {desktopFilesPresentation} from '../desktop-files/presentation.mjs';
 import {segmentationDisclosure} from '../agent-generation/video-segmentation.mjs';
 import {isImageEditorTool,imageEditorPresentation} from './image-editor-presentation.mjs';
 import {depthActions,depthToolDetails,depthTaskState,isDepthTool} from './depth-card.mjs';
@@ -62,6 +63,7 @@ function segmentationOutcomeLabel(trace){
  return labels[result.status]||((result.error||trace.error||trace.status==='error')?'视频识别操作失败':'视频识别结果待核对');
 }
 export function toolPresentation(trace){
+ if(trace.name?.startsWith('desktop_files_'))return desktopFilesPresentation(trace);
  if(isImageEditorTool(trace))return imageEditorPresentation(trace);
  if(isSubjectsTool(trace))return subjectsPresentation(trace);
  if(isVideoTrimTool(trace))return videoTrimPresentation(trace);

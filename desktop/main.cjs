@@ -1,24 +1,44 @@
 'use strict';
-const {app, BrowserWindow, Menu, dialog, session, shell, utilityProcess} = require('electron');
+const {app, BrowserWindow, Menu, dialog, session, shell, utilityProcess, ipcMain} = require('electron');
 const fs = require('node:fs/promises');
 const path = require('node:path');
 const os = require('node:os');
+const {randomUUID} = require('node:crypto');
+const {createDesktopFilesBridge} = require('./files-bridge.cjs');
 const {ORIGIN, PORT, PARTITION, serverEnvironment, isLocalNavigation, providerTemplate} = require('./runtime-config.cjs');
 
+const filesQa = !app.isPackaged && process.argv.includes('--freenow-files-qa');
+const qaDirectory = filesQa ? require('node:fs').mkdtempSync(path.join(os.tmpdir(), 'freenow-desktop-files-qa-')) : null;
+if (qaDirectory) {
+  const local = require('node:fs'); local.mkdirSync(path.join(qaDirectory, 'authorized'));
+  local.writeFileSync(path.join(qaDirectory, 'authorized/one.txt'), 'QA one\n'); local.writeFileSync(path.join(qaDirectory, 'authorized/two.txt'), 'QA two\n');
+  console.log('Desktop files QA folder: ' + path.join(qaDirectory, 'authorized'));
+}
 app.setName('freenow');
-app.setPath('userData', path.join(app.getPath('appData'), 'freenow-desktop'));
+app.setPath('userData', qaDirectory || path.join(app.getPath('appData'), 'freenow-desktop'));
 let window, backend, stopping, quitAllowed = false, backendReady = false;
 let windowCloseAllowed = false, transition;
 let everEditable = false;
 let pageCommitted = false, initialLoadFailed = false, closingInput = false;
-const runtimeRoot = () => app.isPackaged ? path.join(process.resourcesPath, 'runtime') : path.resolve(__dirname, '../build/desktop/runtime');
+const runtimeRoot = () => app.isPackaged ? path.join(process.resourcesPath, 'runtime') : filesQa ? path.resolve(__dirname, '..') : path.resolve(__dirname, '../build/desktop/runtime');
 const providerFile = () => path.join(app.getPath('userData'), 'providers.env');
 const showError = message => dialog.showErrorBox('freenow', message);
+const fileRequests = new Map();
+function requestFiles(input) {
+  if (!backendReady || !backend) return Promise.reject(Error('本地文件后台不可用，未执行。'));
+  const id = randomUUID();
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {fileRequests.delete(id); reject(Error('文件操作回执尚未确认；请查询原批次，不能重复创建。'));}, 60000);
+    fileRequests.set(id, {resolve, reject, timer});
+    backend.postMessage({type: 'freenow-desktop-files', id, ...input});
+  });
+}
+const desktopFiles = createDesktopFilesBridge({ipcMain, dialog, getWindow: () => window, request: requestFiles, qaFolder: qaDirectory && path.join(qaDirectory, 'authorized')});
 
 async function startBackend() {
   const dataDirectory = app.getPath('userData');
   await fs.mkdir(dataDirectory, {recursive: true, mode: 0o700});
-  try {await fs.writeFile(providerFile(), providerTemplate(await fs.readFile(path.join(runtimeRoot(), 'provider.env.example'), 'utf8')), {flag: 'wx', mode: 0o600});}
+  try {await fs.writeFile(providerFile(), providerTemplate(await fs.readFile(path.join(runtimeRoot(), filesQa ? '.env.example' : 'provider.env.example'), 'utf8')), {flag: 'wx', mode: 0o600});}
   catch (error) {if (error.code !== 'EEXIST') throw error;}
   const stat = await fs.lstat(providerFile());
   if (!stat.isFile() || stat.isSymbolicLink() || stat.size > 256 * 1024) throw Error('接口配置必须是小于256KB的本地普通文件。');
@@ -30,9 +50,16 @@ async function startBackend() {
   backend.stdout?.on('data', () => {});
   backend.stderr?.on('data', () => {});
   const child = backend;
+  child.on('message', message => {
+    if (message?.type !== 'freenow-desktop-files-result') return;
+    const pending = fileRequests.get(message.id); if (!pending) return;
+    fileRequests.delete(message.id); clearTimeout(pending.timer);
+    if (message.error) pending.reject(Object.assign(Error(message.error.message), {code: message.error.code})); else pending.resolve(message.result);
+  });
   child.on('exit', () => {
     if (backend !== child) return;
     backend = undefined;
+    for (const pending of fileRequests.values()) {clearTimeout(pending.timer); pending.reject(Error('本地后台已停止；请查询原批次回执，不要重复执行。'));} fileRequests.clear();
     const wasReady = backendReady; backendReady = false;
     if (wasReady && !stopping) showError('本地后台已停止。画布已保留，请先保存或导出当前编辑，再退出重开；不要重复提交尚未确认的生成任务。');
   });
@@ -71,6 +98,7 @@ async function openProviderFile() {
 }
 async function prepareTransition(action, {closing = false} = {}) {
   if (transition || !window || window.isDestroyed()) return;
+  if (desktopFiles.isBusy()) {showError('文件批次正在确认或执行，请等待回执后再关闭或重新加载。'); return;}
   const owner = window;
   closingInput = closing;
   transition = (async () => {
@@ -124,7 +152,7 @@ function createWindow() {
     dialog.showMessageBox(window, {type: 'question', buttons: ['允许麦克风', '取消'], defaultId: 1, cancelId: 1, message: '允许 freenow 使用麦克风进行语音输入？'}).then(result => callback(result.response === 0));
   });
   window = new BrowserWindow({width: 1440, height: 960, minWidth: 900, minHeight: 640, backgroundColor: '#161616', title: 'freenow', show: false, webPreferences: {
-    partition: PARTITION, nodeIntegration: false, contextIsolation: true, sandbox: true, webSecurity: true,
+    preload: path.join(__dirname, 'preload.cjs'), partition: PARTITION, nodeIntegration: false, contextIsolation: true, sandbox: true, webSecurity: true,
   }});
   window.webContents.setWindowOpenHandler(() => ({action: 'deny'}));
   window.webContents.on('did-navigate', (_event, url) => {if (isLocalNavigation(url)) pageCommitted = true;});
@@ -147,14 +175,14 @@ function createWindow() {
     void prepareTransition(async owner => {await stopBackend(); destroySavedWindow(owner);}, {closing: true});
   });
   window.once('ready-to-show', () => window.show());
-  window.on('closed', () => {window = undefined;});
+  window.on('closed', () => {void desktopFiles.revoke().catch(() => {}); window = undefined;});
   Menu.setApplicationMenu(Menu.buildFromTemplate([
-    {label: 'freenow', submenu: [{role: 'about'}, {type: 'separator'}, {label: '模型接口配置…', click: openProviderFile}, {label: '打开数据目录', click: () => shell.openPath(app.getPath('userData'))}, {type: 'separator'}, {role: 'hide'}, {role: 'quit'}]},
+    {label: 'freenow', submenu: [{role: 'about'}, {type: 'separator'}, {label: '模型接口配置…', click: openProviderFile}, {label: '授权 Agent 整理本地文件夹…', click: () => desktopFiles.authorize().catch(error => showError(error.message))}, {label: '撤销本地文件夹授权', click: () => desktopFiles.revoke().catch(error => showError(error.message))}, {label: '查看文件操作回执', click: async () => {try {const state = await desktopFiles.status(); await dialog.showMessageBox(window, {type: 'info', buttons: ['关闭'], message: state.authorized ? state.displayPath : '尚未授权文件夹', detail: state.batches.map(p => `${p.batchId} · ${p.status} · ${p.reason || ''} · 回滚异常 ${p.rollbackErrors.length}`).join('\n') || '暂无操作批次'});} catch (error) {showError(error.message);}}}, {label: '打开数据目录', click: () => shell.openPath(app.getPath('userData'))}, {type: 'separator'}, {role: 'hide'}, {role: 'quit'}]},
     {role: 'editMenu'},
     {label: '视图', submenu: [{label: '重新加载', accelerator: 'CmdOrCtrl+R', click: () => prepareTransition(owner => owner.webContents.reload())}, {role: 'toggleDevTools'}, {role: 'resetZoom'}, {role: 'zoomIn'}, {role: 'zoomOut'}, {role: 'togglefullscreen'}]},
     {role: 'windowMenu'},
   ]));
-  window.loadURL(ORIGIN).then(() => {pageCommitted = true;}).catch(() => {initialLoadFailed = true; showError('本地画布未能加载。请检查后台是否正常运行。');});
+  window.loadURL(ORIGIN + (filesQa ? '/src/features/desktop-files/qa/index.html' : '')).then(() => {pageCommitted = true;}).catch(() => {initialLoadFailed = true; showError('本地画布未能加载。请检查后台是否正常运行。');});
 }
 if (!app.requestSingleInstanceLock()) app.quit();
 else {

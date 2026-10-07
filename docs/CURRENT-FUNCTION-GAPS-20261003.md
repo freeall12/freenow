@@ -8,6 +8,10 @@
 
 ## 已有实现，不重复开发
 
+2026-10-08 菜单/片场/应用/桌面补充：[画布菜单](canvas-command-menu-audit-20261008.md)开关、Tab/回焦、真实焦点导航与文本创建已实机验；撤销/重做需主画布焦点，dock `+` 焦点不响应。[GLB片场v2标签](STUDIO-V2-PANEL-KEYBOARD-20261008.md)方向键/首尾、Tab进入及修饰键/右键保护已接通并实机验证。[人物情绪](../src/features/agent-apps/ACTOR-EMOTION.md)确认等待保存、关闭失败保页及刷新恢复已验真实灰模和一次交接；全部鼠标路径、严格350ms内确认及完整失败重试组合仍未验。[桌面单目录文件整理](DESKTOP-FILES-20261008.md)已实现并在最新源码Electron验原生授权/三项确认、有效单项取消与目录移动拒绝；仅普通文件移动/重命名，这项源码功能不在已公开642d3db Alpha内。完整SDK/实机回滚及恶意祖先路径TOCTOU仍开放。
+
+**仍缺实际实现：** [外部Agent MCP](research/EXTERNAL-AGENT-MCP-GAP-20261008.md)的传输、客户端授权和工作区绑定；现有iframe Apps/Responses工具不能替代，stdio/私有broker只是提案。安装包0.4.81第三代`ThreeDWorkspace`导演/entity菜单也仍缺本地独立生产入口与来源身份/事务映射；当前GLB v2标签验收不能关闭该缺口，亦未将这些非营销功能排除范围。
+
 2026-10-08 补充：[音频空白拖动](AUDIO-PLAYER-GESTURES-20261008.md)、[普通节点直接标题编辑](../src/features/canvas-node-titles/README.md)和[搜索焦点 Enter](CANVAS-SEARCH-KEYBOARD-20261008.md)已接入并按各自范围实机验证，不能继续列为未实现。标题控件首次选中才创建，减少 DOM 开销但不证明整体 FPS。模板编辑器已有本标签页草稿和冲突保护，保存失败保留/实际回读已验；刷新恢复仍仅有定向检查，[来源复查](research/agent-template-source-followup-20261008.md)未新增92份精确正文。
 
 同日：[Ark 本地 MP4 传输](ARK-LOCAL-VIDEO-PUBLICATION-20261008.md)现已实现显式独立 fal CDN 发布，覆盖普通生成、延长和重拍；115 项定向检查包含原任务恢复、实际完整解码和本地结果归档。缺发布条件的延长/重拍提示与禁用已实机核对；启用发布后的完整 UI、真实账号/CDN 生命周期及模型效果仍开放。必须另配 `videoUploadProvider` 和 fal Key，不能宣称只填 Ark Key 即可。下方 10 月 5 日的“公网传输待接”是历史依据，以此补充为准。

@@ -59,7 +59,7 @@ async function boot({loadFails = false, renderer = {}, lifecycleSaved = false, b
     }
   }
   const electron = {
-    app, BrowserWindow,
+    app, BrowserWindow, ipcMain: {handle() {}},
     Menu: {buildFromTemplate: value => value, setApplicationMenu: value => {menu = value;}},
     dialog: {
       showErrorBox: (_title, message) => {observations.errors.push(message);},

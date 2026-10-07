@@ -1,7 +1,9 @@
 'use strict';
 const http=require('node:http'),fs=require('node:fs'),path=require('node:path');
 const {closeInOrder}=require('./shutdown.cjs');
+const {createDesktopFilesService}=require('./desktop-files.cjs');
 const dataRoot=process.env.FREENOW_DATA_DIR?path.resolve(process.env.FREENOW_DATA_DIR):__dirname;
+const desktopFiles=process.parentPort?createDesktopFilesService({directory:path.join(dataRoot,'.desktop-file-batches')}):null;
 const {processMedia}=require('./media.cjs');
 const {isPublicStaticPath}=require('./static-public-path.cjs');
 const {processPlaylist}=require('./playlist.cjs');
@@ -110,13 +112,23 @@ const server=http.createServer(async(req,res)=>{try{
  ].includes(relative))headers['Access-Control-Allow-Origin']='*';
  const range=req.headers.range?.match(/^bytes=(\d+)-(\d*)$/);let start=0,end=stat.size-1,status=200;if(range){start=Number(range[1]);end=range[2]?Math.min(Number(range[2]),end):end;if(start>end||start>=stat.size){res.writeHead(416,{'Content-Range':`bytes */${stat.size}`});return res.end();}status=206;headers['Content-Range']=`bytes ${start}-${end}/${stat.size}`;}headers['Content-Length']=end-start+1;res.writeHead(status,headers);if(req.method==='HEAD')return res.end();fs.createReadStream(file,{start,end}).pipe(res);
  }catch(e){if(!res.headersSent)json(res,e.status===401?401:e.code==='configuration_required'?503:[400,404,409,429,503].includes(e.status)?e.status:400,{error:e.status===401?'模型服务认证失败，请检查服务端 KEY。':e.message||'请求失败',...(e.code?{code:e.code}:{})});else res.end();}});
-Promise.all([generation.ready,runtime.ready,videoSegmentation.ready]).then(()=>server.listen(port,'127.0.0.1',()=>{
+Promise.all([generation.ready,runtime.ready,videoSegmentation.ready,desktopFiles?.ready]).then(()=>server.listen(port,'127.0.0.1',()=>{
  console.log(`freenow: http://localhost:${port} | Agent ${configured?'configured':'requires OPENAI_API_KEY and OPENAI_MODEL'}`);
  process.parentPort?.postMessage({type:'freenow-ready',port});
 })).catch(async()=>{console.error('Local task stores unavailable; server was not started.');await Promise.allSettled([runtime.close(),agentSessionStore.close(),generation.close(),videoSegmentation.close?.()]);process.exitCode=1;});
 
 let closing=false;
-async function closeLocalServer(exitCode=0){if(closing)return;closing=true;server.close();try{await closeInOrder([()=>voiceCatalog.close(),()=>runtime.close(),()=>agentSessionStore.close(),()=>generation.close(),()=>videoSegmentation.close?.()]);process.exit(exitCode);}catch{console.error('Local task shutdown could not confirm persistence.');process.exit(1);}}
+async function closeLocalServer(exitCode=0){if(closing)return;closing=true;server.close();try{await closeInOrder([()=>desktopFiles?.close(),()=>voiceCatalog.close(),()=>runtime.close(),()=>agentSessionStore.close(),()=>generation.close(),()=>videoSegmentation.close?.()]);process.exit(exitCode);}catch{console.error('Local task shutdown could not confirm persistence.');process.exit(1);}}
 for(const event of ['SIGTERM','SIGINT'])process.once(event,()=>void closeLocalServer());
-process.parentPort?.on('message',event=>{if(event.data?.type==='freenow-shutdown')void closeLocalServer();});
+process.parentPort?.on('message',async event=>{
+ const input=event.data;
+ if(input?.type==='freenow-desktop-files'){
+  try{
+   if(!desktopFiles||!['grant','revoke','status','list','preview','read','apply','cancel','recover'].includes(input.method)||typeof input.owner!=='string')throw Error('桌面文件权限无效');
+   const result=await desktopFiles[input.method](input.owner,input.method==='grant'?input.args?.path:input.args);
+   process.parentPort.postMessage({type:'freenow-desktop-files-result',id:input.id,result});
+  }catch(error){process.parentPort.postMessage({type:'freenow-desktop-files-result',id:input.id,error:{code:error.code||'desktop_files_failed',message:error.message||'文件操作失败'}});}
+  return;
+ }
+if(event.data?.type==='freenow-shutdown')void closeLocalServer();});
 server.once('error',()=>{console.error('Local listener unavailable; no existing listener was reused.');void closeLocalServer(1);});

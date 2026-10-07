@@ -325,7 +325,16 @@
   depthHosts.set(chat,host);return host;
  }
  function execute(...args){return track(async()=>{await flushConversation();const result=await executeTool(...args);await flushConversation();return result;});}
- async function executeTool(name,raw,{signal,visualBudget,draftFinalApproval,depthHost,authorizeDepth,onDepthSubmitted,approvedSegmentationConfiguration,segmentationApprovalGuard,onSegmentationCheckpoint,approvedVideoMaskConfiguration,videoMaskApprovalGuard,approvedRelightConfiguration,relightApprovalGuard,approvedSkinConfiguration,skinApprovalGuard,approvedUpscaleConfiguration,upscaleApprovalGuard,cutlistAuthorized=false}={}){const {args:a}=window.AgentTools.parse(name,raw);switch(name){
+ async function executeTool(name,raw,{signal,visualBudget,draftFinalApproval,depthHost,authorizeDepth,onDepthSubmitted,approvedSegmentationConfiguration,segmentationApprovalGuard,onSegmentationCheckpoint,approvedVideoMaskConfiguration,videoMaskApprovalGuard,approvedRelightConfiguration,relightApprovalGuard,approvedSkinConfiguration,skinApprovalGuard,approvedUpscaleConfiguration,upscaleApprovalGuard,cutlistAuthorized=false}={}){const {args:a}=window.AgentTools.parse(name,raw);
+  if(name.startsWith('desktop_files_')){
+   if(!window.FreenowDesktopFiles?.invoke){if(name==='desktop_files_status')return {desktop:false,authorized:false,message:'本地文件夹整理仅在 freenow 桌面版提供。'};throw Error('本地文件夹整理需要 freenow 桌面版和原生目录授权。');}
+   const requestId=crypto.randomUUID(),cancel=()=>{void window.FreenowDesktopFiles.cancel(requestId).catch(()=>{});};
+   if(signal?.aborted)throw new DOMException('本次操作已停止。','AbortError');
+   signal?.addEventListener('abort',cancel,{once:true});
+   try{return await window.FreenowDesktopFiles.invoke({desktop_files_status:'status',desktop_files_authorize:'authorize',desktop_files_list:'list',desktop_files_preview:'preview',desktop_files_apply:'apply',desktop_files_recover:'recover'}[name],a,requestId);}
+   finally{signal?.removeEventListener('abort',cancel);}
+  }
+  switch(name){
   case 'web_search':try{return await request('search',a,signal);}catch(error){if(error.name==='AbortError')throw error;return {error:error.message,code:error.code||'search_failed',status:'failed',sources:[],citations:[]};}
   case 'image_editor_export':{
    imageEditorExporter||=import('./src/features/image-editor/agent-export.mjs').then(({createImageEditorExporter})=>createImageEditorExporter({getCurrent:()=>window.CanvasImageEditor?.current,app,localAssets:window.LocalAssets,download:(blob,filename)=>window.LocalMedia.download(blob,filename)}));
