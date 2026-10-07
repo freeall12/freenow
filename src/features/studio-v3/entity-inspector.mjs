@@ -163,6 +163,7 @@ export function createEntityInspector({control, applyAction, onError = () => {},
   };
   if (read().setupState) {
     for (const [field, label] of [['position', '位置'], ['rotation', '旋转（°）'], ['scale', '缩放']]) {
+      if (field === 'scale' && read().definition.kind === 'camera') continue;
       const rotation = field === 'rotation';
       numbers(label, ['x', 'y', 'z'], axis => read().setupState.transform[field][axis] * (rotation ? 180 / Math.PI : 1), (axis, value) => ({transform: {[field]: {[axis]: value * (rotation ? Math.PI / 180 : 1)}}}), field, rotation ? 1 : 3);
     }

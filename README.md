@@ -58,9 +58,11 @@ pnpm desktop:dev
 | 工作流与恢复 | 依赖执行、持久任务回执、原任务查询、显式继续与保存保护 | 未知状态不自动重复提交 |
 | 外部Agent（桌面源码） | 本机MCP连接、原生批准、两项当前画布元数据只读工具、刷新撤权 | 支持本机stdio客户端；不含写入/生成/媒体或云端连接器，现有Alpha包未包含 |
 
-源码另有正在补齐的[导演片场 V3](docs/STUDIO-V3-PRODUCTION-20261008.md)：本地模型来源、人物/镜头/道具、基准与独立状态、基础变换和可靠保存已经接入。[本批实体与镜头](docs/STUDIO-V3-ENTITIES-20261008.md)增加九姿态、实例颜色、状态复制/删除、光学参数和真实画幅预览，并验证保存重开。完整操控、时间轨道、生成、拍摄和 Agent 编排仍在开发，现有 Alpha 不含此批。
+源码另有正在补齐的[导演片场 V3](docs/STUDIO-V3-PRODUCTION-20261008.md)：本地模型来源、人物/镜头/道具、基准与独立状态、可靠保存及[实体/镜头属性](docs/STUDIO-V3-ENTITIES-20261008.md)已接入。[本批操控与摄像机创建](docs/STUDIO-V3-CONTROLS-20261008.md)新增人物/道具键鼠操控、朝向HUD、完成/还原，以及地面/此处/当前视角创建摄像机和光学预览确认；本批保存刷新回读已验。摄像机接管/飞行、进入跟随过渡、完整平面图、时间、生成、拍摄及Agent编排仍未完成；现有Alpha不含此批。
 
-![freenow 导演片场中保存并重开的 50mm 9:16 镜头预览](docs/screenshots/20261008-studio-entities/camera-portrait-preview.png)
+| 人物操控与朝向 | 当前视角摄像机确认 |
+| --- | --- |
+| ![freenow 导演片场中的人物操控HUD与朝向](docs/screenshots/20261008-studio-controls/actor-heading.jpg) | ![freenow 导演片场中35mm 9:16当前视角的摄像机确认预览](docs/screenshots/20261008-studio-controls/viewfinder-portrait.jpg) |
 
 模型菜单、适配器和应用登记分别说明可选择范围；真实供应商输出质量需单独验证。[详细功能与适配器](docs/FEATURES.md) · [验收证据](docs/VERIFICATION-INDEX.md)
 

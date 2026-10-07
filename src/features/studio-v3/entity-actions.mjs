@@ -4,6 +4,7 @@ import {assertCamera, assertState, baselineId, createActorFromRole, createEntity
 import {addEntity, addRole, patchEntity, patchEntityState, removeEntity, removeEntityFromSetup} from './world-space.mjs';
 import {setupLane} from './history.mjs';
 import {CAMERA_OPTICS_DEFAULTS, cameraOpticsPatch} from './camera-optics.mjs';
+import {planRotationToCamera, cameraRotationToPlan, sameRotation} from './transform-coordinates.mjs';
 
 const definitionFields = ['label', 'color', 'locked', 'materialMode'];
 const stateFields = ['transform', 'visible', 'pose', 'camera', 'lookTarget', 'heldEntityId', 'path'];
@@ -63,18 +64,18 @@ function statePatch(previous, patch, kind) {
   if (next.transform) next.transform = mergeTransform(previous.transform, next.transform);
   if (kind === 'camera' && (next.camera || next.transform)) {
     fields(next.camera || {}, ['position', 'rotation', 'fov', 'frameAspectRatio', 'focalLength', 'apertureFNumber', 'depthOfFieldMode', 'focusDistance', 'focus', 'lookAt'], 'entityAction.camera');
-    const camera = cameraOpticsPatch(previous.camera || {...CAMERA_OPTICS_DEFAULTS, position: previous.transform.position, rotation: previous.transform.rotation}, next.camera || {});
+    const fallback = {...CAMERA_OPTICS_DEFAULTS, position: previous.transform.position, rotation: planRotationToCamera(previous.transform.rotation)};
+    const camera = cameraOpticsPatch(previous.camera || fallback, next.camera || {});
     const transform = next.transform || clone(previous.transform);
     // The renderer uses camera pose first. Keep the entity icon and optical
     // camera in agreement; contradictory dual inputs must not silently win.
     for (const field of ['position', 'rotation']) {
       if (patch.camera?.[field]) {
         fields(patch.camera[field], field === 'rotation' ? ['x', 'y', 'z', 'order'] : ['x', 'y', 'z'], `entityAction.camera.${field}`);
-        camera[field] = {...clone(previous.camera?.[field] || previous.transform[field]), ...clone(patch.camera[field])};
-        if (patch.transform?.[field]) requireDomain(same(transform[field], camera[field]), `entityAction.camera.${field}`, 'camera and transform pose disagree');
-        transform[field] = clone(camera[field]);
-      } else if (patch.transform?.[field]) camera[field] = clone(transform[field]);
-      else transform[field] = clone(camera[field]);
+        camera[field] = {...clone(previous.camera?.[field] || fallback[field]), ...clone(patch.camera[field])};
+        if (patch.transform?.[field]) requireDomain(field === 'rotation' ? sameRotation(planRotationToCamera(transform.rotation), camera.rotation) : same(transform[field], camera[field]), `entityAction.camera.${field}`, 'camera and transform pose disagree');
+        transform[field] = field === 'rotation' ? cameraRotationToPlan(camera.rotation) : clone(camera[field]);
+      } else if (patch.transform?.[field]) camera[field] = field === 'rotation' ? planRotationToCamera(transform.rotation) : clone(transform[field]);
     }
     next.camera = camera;next.transform = transform;
   }
@@ -163,7 +164,7 @@ export function reduceEntityAction(state, action, {now = Date.now()} = {}) {
       const previous = control.setupState.camera ?? action.fallbackCamera;
       if (!previous) return denied(state, 'camera-state-unavailable', '缺少镜头参数，请提供当前导航相机参数后重试。');
       assertCamera(previous, 'entityAction.fallbackCamera');transform.position.y = 1.6;
-      patch.camera = {...clone(previous), position: clone(transform.position), rotation: {...clone(transform.rotation), order: 'XYZ'}};
+      patch.camera = {...clone(previous), position: clone(transform.position), rotation: planRotationToCamera(transform.rotation)};
     }
     const next = patchEntityState(state, control.ownerSetupId, entity.id, patch, now);return result(state, next, control.stateLane, {entityId: entity.id});
   }

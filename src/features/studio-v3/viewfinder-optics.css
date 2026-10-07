@@ -1,0 +1,21 @@
+.studio-v3 .sv3-viewfinder-optics {position:relative;display:flex;align-items:center;gap:6px;height:40px;padding:0 6px;pointer-events:auto;overflow:visible;background:rgba(38,38,38,.92);border-radius:12px;color:rgba(255,255,255,.85)}
+.studio-v3 .sv3-viewfinder-optics .sv3-button {height:32px;min-width:32px;gap:6px;font-size:14px;font-weight:500;white-space:nowrap}
+.studio-v3 .sv3-viewfinder-optics .sv3-viewfinder-ratio {width:96px;justify-content:center}
+.studio-v3 .sv3-viewfinder-readout {font-variant-numeric:tabular-nums}
+.studio-v3 .sv3-viewfinder-chevron {font-size:16px;line-height:1;color:rgba(255,255,255,.5)}
+.studio-v3 .sv3-viewfinder-ratio-icon {display:inline-flex;width:20px;height:20px;align-items:center;justify-content:center;flex:none}
+.studio-v3 .sv3-viewfinder-ratio-icon>span {display:block;border:1.5px solid currentColor;border-radius:2px;box-sizing:border-box}
+.studio-v3 .sv3-viewfinder-menu {padding:8px;max-height:360px;overflow:auto;box-sizing:border-box}
+.studio-v3 .sv3-viewfinder-ratio-grid {display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:4px}
+.studio-v3 .sv3-viewfinder-ratio-grid+.sv3-viewfinder-ratio-grid {border-top:1px solid rgba(255,255,255,.1);margin-top:8px;padding-top:8px}
+.studio-v3 .sv3-viewfinder-option {display:flex;align-items:center;justify-content:center;gap:4px;padding:8px;border:0;border-radius:6px;background:transparent;color:rgba(255,255,255,.75);font:inherit;font-size:12px;cursor:pointer;white-space:nowrap}
+.studio-v3 .sv3-viewfinder-ratio-grid .sv3-viewfinder-option {height:56px;flex-direction:column;padding:4px;font-size:11px}
+.studio-v3 .sv3-viewfinder-option:hover {background:rgba(255,255,255,.08)}
+.studio-v3 .sv3-viewfinder-option[aria-pressed=true] {background:rgba(255,255,255,.12);color:white}
+.studio-v3 .sv3-viewfinder-option:focus-visible,.studio-v3 .sv3-viewfinder-number input:focus-visible {outline:1px solid rgba(255,255,255,.5);outline-offset:-1px}
+.studio-v3 .sv3-viewfinder-option:disabled {opacity:.4;cursor:wait}
+.studio-v3 .sv3-viewfinder-presets {display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px;margin-top:8px}
+.studio-v3 .sv3-viewfinder-lens-menu>.sv3-viewfinder-option {width:100%;margin-top:8px}
+.studio-v3 .sv3-viewfinder-number {display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12px;color:rgba(255,255,255,.65)}
+.studio-v3 .sv3-viewfinder-number input {width:76px;min-width:0;padding:6px 8px;border:1px solid rgba(255,255,255,.1);border-radius:6px;color:white;background:rgba(255,255,255,.05);font:inherit;font-variant-numeric:tabular-nums}
+@media(max-width:440px) {.studio-v3 .sv3-viewfinder-optics {gap:2px;padding:0 4px;max-width:calc(100vw - 16px)}.studio-v3 .sv3-viewfinder-optics .sv3-button {font-size:12px;padding:0 4px}.studio-v3 .sv3-viewfinder-optics .sv3-viewfinder-ratio {width:84px}.studio-v3 .sv3-viewfinder-optics .sv3-separator {margin:0}}

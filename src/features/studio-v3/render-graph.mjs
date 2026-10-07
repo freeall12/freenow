@@ -5,6 +5,7 @@ import {createAssetLoader, BUILTIN_ASSETS} from './asset-loader.mjs';
 import {disposeModel} from '../studio-v2/model-io.mjs';
 import {spatialBounds} from '../world-node/splat-io.mjs';
 import {CAMERA_OPTICS_DEFAULTS, applyCameraOptics} from './camera-optics.mjs';
+import {applyEntityTransform, planRotationToCamera} from './transform-coordinates.mjs';
 
 const error = (code, message) => Object.assign(Error(message), {code});
 const xyz = value => [value.x, value.y, value.z];
@@ -52,10 +53,16 @@ export function createRenderGraph({scene, loader = createAssetLoader(), getFence
   }
   function pose(record) {
     if (record.definition.kind !== 'actor') return;
-    const next = record.state.pose || 'Standing'; if (record.pose === next) return;
+    const authored = record.state.pose || 'Standing', candidates = {idle: ['Idle', 'Standing'], walk: ['Walking', 'Idle', 'Standing'], run: ['Running', 'Walking', 'Idle', 'Standing']}[record.controlMotion?.state];
+    const next = candidates?.find(name => record.asset.animations.some(clip => clip.name === name)) || authored;
+    if (record.pose === next) return;
     const clip = record.asset.animations.find(value => value.name === next);
     if (!clip) throw error('studio_v3_pose_missing', `角色模型没有姿态 ${next}`);
-    record.mixer ||= new THREE.AnimationMixer(record.asset.root); record.mixer.stopAllAction(); record.action = record.mixer.clipAction(clip).reset().play(); record.mixer.update(.001); record.pose = next;
+    record.mixer ||= new THREE.AnimationMixer(record.asset.root);
+    const previous = record.action, transition = record.controlMotion?.transition === 'smooth' ? .18 : 0;
+    if (transition && previous) previous.fadeOut(transition); else record.mixer.stopAllAction();
+    record.action = record.mixer.clipAction(clip).reset().play(); if (transition && previous) record.action.fadeIn(transition);
+    record.mixer.update(.001); record.pose = next;
     record.dynamic = next !== 'Standing' && clip.duration > 0 && clipHasMotion(clip); record.action.paused = !record.dynamic;
   }
   function camera(record) {
@@ -63,7 +70,8 @@ export function createRenderGraph({scene, loader = createAssetLoader(), getFence
     const config = record.state.camera, transform = record.state.transform;
     record.camera ||= new THREE.PerspectiveCamera(CAMERA_OPTICS_DEFAULTS.fov, CAMERA_OPTICS_DEFAULTS.frameAspectRatio, .1, 1000);
     record.camera.userData.captureExcluded = true;
-    record.camera.position.set(...xyz(config?.position || transform.position)); record.camera.rotation.set(...xyz(config?.rotation || transform.rotation), config?.rotation?.order || transform.rotation.order || 'XYZ');
+    const rotation = config?.rotation || planRotationToCamera(transform.rotation);
+    record.camera.position.set(...xyz(config?.position || transform.position)); record.camera.rotation.set(...xyz(rotation), rotation.order || 'XYZ');
     applyCameraOptics(record.camera, config || CAMERA_OPTICS_DEFAULTS);
     // Imported snapshots can predate reducer pose synchronization. The model
     // represents the same optical camera even while that snapshot is unchanged.
@@ -83,7 +91,7 @@ export function createRenderGraph({scene, loader = createAssetLoader(), getFence
   }
   function apply(record) {
     if (!record.root || record.kind === 'source') return;
-    applyTransform(record.root, record.state.transform); record.root.visible = record.state.visible;
+    applyTransform(record.root, applyEntityTransform(record.definition.kind, record.state)); record.root.visible = record.state.visible;
     Object.assign(record.root.userData, {entityId: record.id, entityKind: record.definition.kind, locked: ['actor', 'prop'].includes(record.definition.kind) && record.definition.locked === true, captureExcluded: record.definition.kind === 'camera', renderPending: record.status !== 'ready'});
     record.root.name = record.definition.label; material(record); pose(record); camera(record);
   }
@@ -91,12 +99,16 @@ export function createRenderGraph({scene, loader = createAssetLoader(), getFence
     record.asset = asset; record.materialOriginals = new Map(); record.root = new THREE.Group(); record.root.name = record.kind === 'source' ? 'V3 source model' : record.definition.label;
     record.root.add(asset.root);
     if (record.kind === 'entity' && asset.format === 'glb') {
+      if (record.definition.kind === 'camera') asset.root.rotation.y += Math.PI / 2;
       const box = new THREE.Box3().setFromObject(asset.root), size = box.getSize(new THREE.Vector3());
       if (record.definition.kind === 'actor') asset.root.scale.multiplyScalar(1.7 / Math.max(size.y, .001));
       else if (record.definition.kind === 'camera') asset.root.scale.multiplyScalar(.25 / Math.max(size.x, size.y, size.z, .001));
       asset.root.updateMatrixWorld(true); box.setFromObject(asset.root); const center = box.getCenter(new THREE.Vector3());
       const anchor = record.assetDescriptor.presentationAnchor || (record.definition.kind === 'camera' ? 'center' : 'bottom');
       asset.root.position.x -= center.x; asset.root.position.z -= center.z; asset.root.position.y -= anchor === 'center' ? center.y : box.min.y;
+      // Official TH keeps the 0.25 m editor body behind the optical origin.
+      // Centering a double-sided body at the lens puts navigation inside it.
+      if (record.definition.kind === 'camera') asset.root.position.z += .13;
     }
     record.root.userData.renderPending = true; record.root.visible = false;
     (record.kind === 'source' ? worldRoot : entityRoot).add(record.root);
@@ -153,9 +165,13 @@ export function createRenderGraph({scene, loader = createAssetLoader(), getFence
     return {epoch, stageId: setup.stageId, setupId: setup.id, entities: [...entities.values()].map(record => ({id: record.id, status: record.status, error: record.error?.message || null})), source: source ? {status: source.status, error: source.error?.message || null} : null};
   }
   function retry(id) {const record = id === 'source' ? source : entities.get(id); if (!record || record.status !== 'failed') return false; if (record.kind === 'source') {source = null; disposeRecord(record);} else removeEntity(id); return true;}
+  function setControlMotion(id, motion) {
+    const record = entities.get(id); if (record?.status !== 'ready' || record.definition.kind !== 'actor') return false;
+    record.controlMotion = motion?.state ? {...motion} : null; pose(record); onInvalidate(); return true;
+  }
   const needsAnimation = () => [...entities.values()].some(record => record.status === 'ready' && record.state.visible && record.dynamic);
   function tick(delta) {let animated = false; for (const record of entities.values()) if (record.status === 'ready' && record.state.visible && record.dynamic) {record.mixer.update(delta); record.root.updateMatrixWorld(true); animated = true;} if (animated) targets(); return animated;}
   function bounds(id) {const root = id ? entities.get(id)?.root : content; return root ? spatialBounds(root, undefined, {framing: true}) : null;}
   function dispose() {if (disposed) return; disposed = true; epoch++; for (const id of [...entities.keys()]) removeEntity(id); disposeRecord(source); source = null; content.removeFromParent(); helpers.removeFromParent(); disposeModel(helpers); helpers.clear();}
-  return {content, worldRoot, entityRoot, helpers, entities, sync, retry, tick, needsAnimation, bounds, dispose, entity: id => entities.get(id) || null, get source() {return source;}, get epoch() {return epoch;}};
+  return {content, worldRoot, entityRoot, helpers, entities, sync, retry, tick, needsAnimation, bounds, dispose, setControlMotion, entity: id => entities.get(id) || null, get source() {return source;}, get epoch() {return epoch;}};
 }

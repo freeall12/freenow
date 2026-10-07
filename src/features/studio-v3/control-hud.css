@@ -1,0 +1,23 @@
+/* Official bY action order with the fixed-indicator Xp ruler dimensions. */
+.studio-v3 .sv3-control-hud {position:relative;gap:0;pointer-events:auto;max-width:1040px;overflow:visible}
+.studio-v3 .sv3-control-hud[hidden],.studio-v3 .sv3-control-rotation-group[hidden],.studio-v3 .sv3-control-feedback[hidden] {display:none}
+.studio-v3 .sv3-control-rotation-group {display:flex;align-items:center;min-width:0;gap:4px}
+.studio-v3 .sv3-control-rotation-label {font-size:14px;font-weight:500;color:rgba(255,255,255,.84);padding-left:8px}
+.studio-v3 .sv3-control-rotation {display:flex;align-items:center;width:116px;min-width:116px;height:40px;padding-right:2px;gap:2px}
+.studio-v3 .sv3-control-ruler-window {position:relative;width:74px;height:40px;overflow:hidden;touch-action:none;cursor:ew-resize;mask-image:linear-gradient(to right,transparent 0,#000 14px,#000 calc(100% - 14px),transparent);-webkit-mask-image:linear-gradient(to right,transparent 0,#000 14px,#000 calc(100% - 14px),transparent)}
+.studio-v3 .sv3-control-ruler-track {position:absolute;left:0;top:16px;height:8px;will-change:transform}
+.studio-v3 .sv3-control-ruler-tick {position:absolute;top:1.5px;width:2px;height:5px;border-radius:999px;background:rgba(255,255,255,.22);pointer-events:none}
+.studio-v3 .sv3-control-ruler-preset {position:absolute;top:0;transform:translateX(-1px);width:2px;height:8px;padding:0;border:0;background:transparent;z-index:2;cursor:pointer}
+.studio-v3 .sv3-control-ruler-preset span {display:block;width:2px;height:8px;border-radius:999px;background:rgba(255,255,255,.35)}
+.studio-v3 .sv3-control-ruler-indicator {position:absolute;left:36px;top:14px;width:2px;height:12px;border-radius:999px;background:#fbbf24;pointer-events:none;z-index:4}
+.studio-v3 .sv3-control-heading-range {position:absolute;inset:0;width:74px;height:40px;margin:0;opacity:0;z-index:1;cursor:ew-resize}
+.studio-v3 .sv3-control-ruler-window:focus-within {outline:1px solid rgba(255,255,255,.4);outline-offset:-1px}
+.studio-v3 .sv3-control-readout {display:flex;width:40px;min-width:40px;align-items:center;gap:0;color:rgba(255,255,255,.85);font-size:14px;font-weight:500;font-variant-numeric:tabular-nums}
+.studio-v3 .sv3-control-heading-number {width:30px;min-width:0;border:0;padding:0;background:transparent;color:inherit;font:inherit;text-align:left;appearance:textfield;-moz-appearance:textfield}
+.studio-v3 .sv3-control-heading-number::-webkit-inner-spin-button,.studio-v3 .sv3-control-heading-number::-webkit-outer-spin-button {appearance:none;margin:0}
+.studio-v3 .sv3-control-heading-number:focus-visible {outline:1px solid rgba(255,255,255,.4);outline-offset:2px}
+.studio-v3 .sv3-control-hud [data-control-finish=true] {background:rgba(255,255,255,.1);color:rgba(255,255,255,.92)}
+.studio-v3 .sv3-control-hud [data-control-finish=true]:hover {background:rgba(255,255,255,.14)}
+.studio-v3 .sv3-control-feedback {position:absolute;bottom:calc(100% + 12px);left:50%;transform:translateX(-50%);max-width:min(540px,90vw);width:max-content;padding:10px 16px;background:rgba(38,38,38,.85);border-radius:16px;color:#ffbfaf;font-size:12px;line-height:1.5;white-space:normal;pointer-events:auto}
+@media(max-width:760px) {.studio-v3 .sv3-control-hud .sv3-button>span {display:none}.studio-v3 .sv3-control-hud .sv3-button[data-size=control] {padding:0;min-width:36px;width:36px}.studio-v3 .sv3-control-rotation-label {display:none}}
+@media(max-width:440px) {.studio-v3 .sv3-control-hud {max-width:calc(100vw - 16px)}.studio-v3 .sv3-control-hud .sv3-button[data-size=control] {min-width:30px;width:30px}.studio-v3 .sv3-control-hud .sv3-separator {margin:0 2px}}

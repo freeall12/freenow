@@ -1,0 +1,196 @@
+{
+  "directors": 1,
+  "revision": 6,
+  "entities": 5,
+  "roles": 1,
+  "setups": 2,
+  "source": "empty",
+  "activeSetupId": "setup:state-1",
+  "objects": [
+    {
+      "id": "b54545f6-6915-4ac1-ab7a-4f0fa67da28b",
+      "name": "角色 1",
+      "roleId": "06e82990-431f-410c-81d3-60c12e6adc5b",
+      "color": "#d0a552"
+    },
+    {
+      "id": "3cec6283-394b-46f3-bd38-606e26b54fba",
+      "name": "摄像机 1"
+    },
+    {
+      "id": "9f7bd564-514a-4cfc-8c23-edcbf13f9cdf",
+      "name": "摄像机 2"
+    },
+    {
+      "id": "2b420db4-c2b7-4c30-b47d-7a2729a3b878",
+      "name": "摄像机 3"
+    },
+    {
+      "id": "87efe451-78fb-40ff-9aad-b987c82cb135",
+      "name": "摄像机 4"
+    }
+  ],
+  "states": [
+    {
+      "id": "setup-default",
+      "name": "场景基准",
+      "kind": "scene-baseline",
+      "entities": []
+    },
+    {
+      "id": "setup:state-1",
+      "name": "状态 1",
+      "kind": "independent",
+      "entities": [
+        {
+          "id": "b54545f6-6915-4ac1-ab7a-4f0fa67da28b",
+          "position": {
+            "x": 0,
+            "y": 0.9999451279999999,
+            "z": 0
+          },
+          "rotation": {
+            "x": 0,
+            "y": 1.5707963267948966,
+            "z": 0,
+            "order": "XYZ"
+          },
+          "pose": "Standing",
+          "visible": true
+        },
+        {
+          "id": "3cec6283-394b-46f3-bd38-606e26b54fba",
+          "position": {
+            "x": 2.405147419521396,
+            "y": 2.619501315790743,
+            "z": 3.0923323965275094
+          },
+          "rotation": {
+            "x": -0.5197442002996115,
+            "y": -0.593797279055495,
+            "z": -0.30985295715994793,
+            "order": "XYZ"
+          },
+          "visible": true,
+          "opticalPosition": {
+            "x": 2.405147419521396,
+            "y": 2.619501315790743,
+            "z": 3.0923323965275094
+          },
+          "opticalRotation": {
+            "x": -0.5197442002996117,
+            "y": 0.5937972790554954,
+            "z": 0.30985295715994826,
+            "order": "XYZ"
+          },
+          "optics": {
+            "focalLength": 35,
+            "fov": 54.43222311461495,
+            "frameAspectRatio": 0.5625,
+            "apertureFNumber": 11,
+            "depthOfFieldMode": "deepFocus"
+          }
+        },
+        {
+          "id": "9f7bd564-514a-4cfc-8c23-edcbf13f9cdf",
+          "position": {
+            "x": 2.758444552189509,
+            "y": 1.6,
+            "z": -0.4280990621820546
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0,
+            "order": "XYZ"
+          },
+          "visible": true,
+          "opticalPosition": {
+            "x": 2.758444552189509,
+            "y": 1.6,
+            "z": -0.4280990621820546
+          },
+          "opticalRotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0,
+            "order": "XYZ"
+          },
+          "optics": {
+            "focalLength": 29.65081076881431,
+            "fov": 45,
+            "frameAspectRatio": 0.9770580296896086,
+            "apertureFNumber": 11,
+            "depthOfFieldMode": "deepFocus"
+          }
+        },
+        {
+          "id": "2b420db4-c2b7-4c30-b47d-7a2729a3b878",
+          "position": {
+            "x": 7.000000000000001,
+            "y": 6.000000000000003,
+            "z": 8.999999999999998
+          },
+          "rotation": {
+            "x": -0.5070985043923375,
+            "y": -0.5971083450523124,
+            "z": -0.302760118038634,
+            "order": "XYZ"
+          },
+          "visible": true,
+          "opticalPosition": {
+            "x": 7.000000000000001,
+            "y": 6.000000000000003,
+            "z": 8.999999999999998
+          },
+          "opticalRotation": {
+            "x": -0.5070985043923371,
+            "y": 0.5971083450523114,
+            "z": 0.3027601180386335,
+            "order": "XYZ"
+          },
+          "optics": {
+            "focalLength": 29.65081076881431,
+            "fov": 45,
+            "frameAspectRatio": 0.9770580296896086,
+            "apertureFNumber": 11,
+            "depthOfFieldMode": "deepFocus"
+          }
+        },
+        {
+          "id": "87efe451-78fb-40ff-9aad-b987c82cb135",
+          "position": {
+            "x": 3.6447416302631366,
+            "y": 1.6,
+            "z": 1.3128898151220714
+          },
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0,
+            "order": "XYZ"
+          },
+          "visible": true,
+          "opticalPosition": {
+            "x": 3.6447416302631366,
+            "y": 1.6,
+            "z": 1.3128898151220714
+          },
+          "opticalRotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0,
+            "order": "XYZ"
+          },
+          "optics": {
+            "focalLength": 29.65081076881431,
+            "fov": 45,
+            "frameAspectRatio": 0.9770580296896086,
+            "apertureFNumber": 11,
+            "depthOfFieldMode": "deepFocus"
+          }
+        }
+      ]
+    }
+  ]
+}

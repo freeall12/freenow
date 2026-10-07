@@ -1,5 +1,6 @@
 const test = require('node:test'), assert = require('node:assert/strict'), fs = require('node:fs');
-const modules = Promise.all([import('../src/features/studio-v3/entity-actions.mjs'), import('../src/features/studio-v3/schema.mjs'), import('../src/features/studio-v3/world-space.mjs'), import('../src/features/studio-v3/history.mjs')]);
+let THREE;
+const modules = Promise.all([import('../src/features/studio-v3/entity-actions.mjs'), import('../src/features/studio-v3/schema.mjs'), import('../src/features/studio-v3/world-space.mjs'), import('../src/features/studio-v3/history.mjs'), import('three')]).then(values => {THREE = values[4];return values;});
 async function fixture() {
   const [actions, schema, world, history] = await modules;
   return {actions, schema, world, history, state: schema.createState({worldNodeId: 'entity-action-owner', now: 100})};
@@ -9,6 +10,14 @@ const createActor = (f, state = f.state, extra = {}) => reduce(f, state, {type: 
 const space = state => state.scenePlay.worldSpace;
 const control = (f, state, entityId, setupId) => f.actions.resolveEntityControl(state, {entityId, setupId});
 const domain = (fn, code) => assert.throws(fn, error => error.name === 'StudioDomainError' && (!code || error.code === code));
+const rotationQuaternion = rotation => new THREE.Quaternion().setFromEuler(new THREE.Euler(rotation.x, rotation.y, rotation.z, rotation.order || 'XYZ'));
+const nearQuaternion = (actual, expected) => assert(Math.abs(rotationQuaternion(actual).dot(expected)) > 1 - 1e-10, 'rotations describe different orientations');
+// Independent orientation oracle: reflect projected local -Z heading by
+// left-multiplying a world-Y quaternion; preserve the tilted forward height.
+function reflectedQuaternion(rotation) {
+  const quaternion = rotationQuaternion(rotation), forward = new THREE.Vector3(0, 0, -1).applyQuaternion(quaternion), heading = Math.atan2(forward.x, -forward.z);
+  return new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), 2 * heading).multiply(quaternion);
+}
 
 test('actor creation produces distinct role/instance, actual builtin asset and independent pose state without mutating input', async () => {
   const f = await fixture(), before = structuredClone(f.state), result = createActor(f, f.state, {label: '林岚', actorGender: 'female', color: '#aa9988', transform: {position: {x: 2}}});
@@ -63,9 +72,28 @@ test('locked entity motion remains unchanged until explicit world unlock; visibi
 test('camera pose updates work in both directions and conflicting camera/transform requests are rejected', async () => {
   const f = await fixture(), state = reduce(f, f.state, {type: 'create', kind: 'camera', id: 'camera-a'}).state;
   const icon = reduce(f, state, {type: 'update', entityId: 'camera-a', patch: {transform: {position: {x: 3}, rotation: {y: .8}}}}, 102), a = control(f, icon.state, 'camera-a').setupState;
-  assert.deepEqual(a.camera.position, a.transform.position);assert.deepEqual(a.camera.rotation, a.transform.rotation);
-  const optic = reduce(f, icon.state, {type: 'update', entityId: 'camera-a', patch: {camera: {position: {z: 4}, rotation: {x: .2}, fov: 35}}}, 103), b = control(f, optic.state, 'camera-a').setupState;assert.deepEqual(b.camera.position, {x: 3, y: 0, z: 4});assert.deepEqual(b.camera.position, b.transform.position);assert.deepEqual(b.camera.rotation, b.transform.rotation);assert.equal(b.camera.fov, 35);
+  assert.deepEqual(a.camera.position, a.transform.position);nearQuaternion(a.camera.rotation, reflectedQuaternion(a.transform.rotation));assert(Math.abs(a.camera.rotation.y + .8) < 1e-10);
+  const optic = reduce(f, icon.state, {type: 'update', entityId: 'camera-a', patch: {camera: {position: {z: 4}, rotation: {x: .2}, fov: 35}}}, 103), b = control(f, optic.state, 'camera-a').setupState;assert.deepEqual(b.camera.position, {x: 3, y: 0, z: 4});assert.deepEqual(b.camera.position, b.transform.position);nearQuaternion(b.transform.rotation, reflectedQuaternion(b.camera.rotation));assert.equal(b.camera.fov, 35);
   domain(() => reduce(f, state, {type: 'update', entityId: 'camera-a', patch: {transform: {position: {x: 3}}, camera: {position: {x: 8}}}}));
+});
+test('tilted camera plan and optical edits preserve full orientation across every Euler order', async () => {
+  const f = await fixture();
+  for (const order of ['XYZ', 'YXZ', 'ZXY', 'ZYX', 'YZX', 'XZY']) {
+    const rotation = {x: .43, y: .89, z: -.32, order}, created = reduce(f, f.state, {type: 'create', kind: 'camera', id: 'camera-a', transform: {rotation}}), initial = control(f, created.state, 'camera-a').setupState;
+    assert.deepEqual(initial.transform.rotation, rotation);assert.equal(initial.camera.rotation.order, order);nearQuaternion(initial.camera.rotation, reflectedQuaternion(rotation));
+    const edited = reduce(f, created.state, {type: 'update', entityId: 'camera-a', patch: {camera: {rotation: {x: -.24}}}}, 102), next = control(f, edited.state, 'camera-a').setupState;
+    assert.deepEqual(next.camera.rotation, {...initial.camera.rotation, x: -.24});assert.equal(next.transform.rotation.order, order);nearQuaternion(next.transform.rotation, reflectedQuaternion(next.camera.rotation));
+    const roundTrip = reduce(f, edited.state, {type: 'update', entityId: 'camera-a', patch: {transform: {rotation: next.transform.rotation}}}, 103), after = control(f, roundTrip.state, 'camera-a').setupState;
+    nearQuaternion(after.camera.rotation, rotationQuaternion(next.camera.rotation));assert.deepEqual(created.state.scenePlay.worldSpace.setups[1].entityStates[0].transform.rotation, rotation);
+  }
+});
+test('camera dual rotations accept equivalent optical orientation in another Euler order and reject unconverted or conflicting requests atomically', async () => {
+  const f = await fixture(), state = reduce(f, f.state, {type: 'create', kind: 'camera', id: 'camera-a'}).state, snapshot = structuredClone(state), plan = {x: .41, y: .83, z: -.27, order: 'YXZ'};
+  const opticalEuler = new THREE.Euler().setFromQuaternion(reflectedQuaternion(plan), 'ZYX'), optical = {x: opticalEuler.x, y: opticalEuler.y, z: opticalEuler.z, order: opticalEuler.order};
+  const accepted = reduce(f, state, {type: 'update', entityId: 'camera-a', patch: {transform: {rotation: plan}, camera: {rotation: optical}}}), local = control(f, accepted.state, 'camera-a').setupState;
+  assert.equal(accepted.ok, true);assert.equal(local.camera.rotation.order, 'ZYX');nearQuaternion(local.camera.rotation, reflectedQuaternion(plan));nearQuaternion(local.transform.rotation, rotationQuaternion(plan));
+  for (const rotation of [plan, {...optical, y: optical.y + .25}]) domain(() => reduce(f, state, {type: 'update', entityId: 'camera-a', patch: {label: 'cannot partially rename', transform: {rotation: plan}, camera: {rotation}}}));
+  domain(() => reduce(f, f.state, {type: 'create', kind: 'camera', id: 'bad-camera', transform: {rotation: plan}, camera: {rotation: plan}}));assert.deepEqual(state, snapshot);assert.deepEqual(space(f.state).entities, []);
 });
 test('local remove preserves entity in another setup; final local removal reports actual world cascade', async () => {
   const f = await fixture(), first = createActor(f).state, second = f.world.addSetup(first, f.schema.createIndependentSetup({id: 'setup-b', now: 101})), state = f.world.addEntityState(second, 'setup-b', f.schema.createSetupState('actor-a', 101));
@@ -106,8 +134,9 @@ test('no-op update preserves state identity and returned lanes work with indepen
 });
 test('camera optics-only edit preserves existing authoritative optical pose and partial optical pose merges that same camera', async () => {
   const f = await fixture();let state = reduce(f, f.state, {type: 'create', kind: 'camera', id: 'camera-a'}).state;
-  const original = control(f, state, 'camera-a').setupState.camera;state = f.world.patchEntityState(state, 'setup:state-1', 'camera-a', {camera: {...original, position: {x: 9, y: 2, z: 4}}}, 102);
-  const updated = reduce(f, state, {type: 'update', entityId: 'camera-a', patch: {camera: {fov: 65}}}, 103), local = control(f, updated.state, 'camera-a').setupState;assert.deepEqual(local.camera.position, {x: 9, y: 2, z: 4});assert.deepEqual(local.transform.position, local.camera.position);
+  const original = control(f, state, 'camera-a').setupState.camera, authoredPlan = structuredClone(control(f, state, 'camera-a').setupState.transform), opticalRotation = {x: .2, y: -.6, z: .15, order: 'YXZ'};
+  state = f.world.patchEntityState(state, 'setup:state-1', 'camera-a', {camera: {...original, position: {x: 9, y: 2, z: 4}, rotation: opticalRotation}}, 102);
+  const updated = reduce(f, state, {type: 'update', entityId: 'camera-a', patch: {camera: {fov: 65}}}, 103), local = control(f, updated.state, 'camera-a').setupState;assert.deepEqual(local.camera.position, {x: 9, y: 2, z: 4});assert.deepEqual(local.camera.rotation, opticalRotation);assert.deepEqual(local.transform, authoredPlan, 'lens-only edits do not normalize an imported authored plan pose');
   const opticalMoved = reduce(f, updated.state, {type: 'update', entityId: 'camera-a', patch: {camera: {position: {z: 6}}}}, 104), moved = control(f, opticalMoved.state, 'camera-a').setupState;assert.deepEqual(moved.camera.position, {x: 9, y: 2, z: 6});assert.deepEqual(moved.camera.position, moved.transform.position);
 });
 test('existing-role creation and clone refuse a role ID as the instance ID', async () => {

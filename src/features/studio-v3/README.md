@@ -20,6 +20,9 @@
 | `entity-inspector.mjs` / `inspector.css` | 实体位置/旋转/缩放、颜色/材质、原GLB姿态与摄像机光学属性；真实编辑草稿、IME、基准只读/锁定与错误回执保护 |
 | `setup-actions.mjs` | 独立状态复制/删除，克隆私有实体/角色/view与关联引用，保留共享基准；删除最后独立状态时创建空替代状态 |
 | `drop-placement.mjs` | 基于真实对象包围盒与站面命中的actor/prop落地变换，排除自身模型后计算支撑；不代表完整放置输入租约 |
+| `transform-coordinates.mjs` | 人物领域／渲染与摄像机plan／optical双向转换、heading反射与quaternion等价判断 |
+| `control-session.mjs` / `control-hud.mjs` | 人物／道具真实操控、支撑与碰撞、输入租约、一笔事务完成／还原及官方主操作工具条 |
+| `camera-create.mjs` / `viewfinder-optics.mjs` | 地面命中和当前视角创建、独立临时取景相机及画幅／镜头参数 |
 | `runtime.mjs` / `render-graph.mjs` | 真实 Three 场景、GLB/SPZ、人物 clip、相机、Orbit/正交视图和事务变换 |
 | `asset-loader.mjs` / `surface-hit.mjs` | 有界本地素材读取/解码/取消，站面与直接拾取基础 |
 | `icons.mjs` / `menus.mjs` / CSS | 官方图标与布局、单活动菜单和嵌套子菜单、坐标夹紧、键盘/分层Escape回焦与退出动效 |
@@ -35,6 +38,8 @@
 本批runtime光学/取景11项、落地5项、状态7项、集成守卫5项通过；同lane连续redo新增3项，跨lane冲突仍阻断。其他光学、属性与嵌套菜单专项按上述证据页分别记录，不合计为全量重跑。Spark已接景深参数，真实Gaussian景深视觉仍未验；普通GLB无虚化。六色/道具材质与九姿态没有覆盖全部浏览器鼠标路径，官方操控模式、完整摄像机放置/viewfinder、平面放置租约、时间、生成、拍摄和完整Agent仍缺；P1不能标为全部完成，旧Alpha不包含这些增量。
 
 ## 数据约束
+
+上述实体批次之后，已接入人物／道具操控、地面放置和当前视角取景创建；早期缺口以[操控与创建最终增量证据](../../../docs/STUDIO-V3-CONTROLS-20261008.md)为准。实机最终revision6为5实体、1角色、2setup，保留90°／Standing和35mm／9:16；新建镜头遮挡及空操控保存状态已修复。摄影机possession、时间编辑、完整helper与复杂光学滑尺仍缺，不称完整官方取景器或P1全部完成。
 
 内存 envelope 为 `{schemaVersion:4,scenePlay:{id,worldNodeId,worldSpace,environment,editSessions},capturedPhotos,worldGenerationTasks}`。新领域构造器保留官方默认 ID：`stage-default`、`setup-default`、`setup:state-1`；其他 stage 的基准 ID 是 `setup:${stageId}:default`。
 
