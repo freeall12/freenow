@@ -1,6 +1,7 @@
 import {audioIcons} from './audio-assets.mjs';
 import {videoModels} from './video-catalog.mjs';
 import {resolveProviderConfiguration,providerConfigurationStatus} from '../node-composer/provider-configuration.mjs';
+import {audioNativeRequestState} from '../audio-generation/native-profile.mjs';
 // Official Agent registry/schema, release eb1c357; MiniMax follows the verified native API extension.
 export const audioModels=[
  {id:'minimax-music-26',name:'MiniMax Music 2.6',icon:videoModels.find(model=>model.id==='MiniMax-H3').icon,virtual:'minimax-music-26',scenes:{Music:'music-2.6'}},
@@ -18,7 +19,7 @@ const spec={
  music_v1:{limit:4100,defaults:{lyricsMode:'auto',lyrics:'',duration:null},options:{lyricsMode:['auto','custom','instrumental'],duration:[null,30,60]},duration:{min:3,max:300,step:1,key:'music_length_ms',scale:1000}},
  eleven_sound_effect:{limit:1000,defaults:{duration:null,loop:false,promptInfluence:.3},options:{duration:[null,1,5],loop:[false,true],promptInfluence:Array.from({length:11},(_,i)=>i/10)},duration:{min:1,max:22,step:1,key:'duration_seconds'}},
  'sonilo-music':{limit:1000,defaults:{duration:60},options:{duration:[30,60,120]},duration:{min:5,max:360,step:1,key:'duration'},video:true},
- 'sonilo-sfx':{limit:2000,defaults:{duration:10},options:{duration:[5,10,30]},duration:{min:1,max:180,step:1,key:'duration'},video:true},
+ 'sonilo-sfx':{limit:2000,defaults:{duration:10},options:{duration:[5,10,30]},duration:{min:.5,max:480,step:.1,key:'duration'},video:true},
  'doubao-seed-audio-1-0':{limit:3000,defaults:{audioFormat:'wav',sampleRate:24000,speechRate:0,pitchRate:0,loudnessRate:0,subtitle:false},options:{audioFormat:['wav','mp3','ogg_opus'],subtitle:[false,true],sampleRate:[8000,16000,24000,32000,44100,48000],speechRate:rates,pitchRate:[-12,-6,-3,0,3,6,12],loudnessRate:rates},images:1,audios:3}
 };
 const aliases={'eleven-v3':'eleven_v3','eleven-music-v1':'music_v1','eleven-sound-effect':'eleven_sound_effect'};
@@ -31,7 +32,7 @@ export function normalizeAudio(draft){
  const audioScene=model.scenes[draft.audioScene]?draft.audioScene:Object.entries(model.scenes).find(([,id])=>id===wire)?.[0]||Object.keys(model.scenes)[0];
  const s=spec[model.scenes[audioScene]],next={...draft,model:model.id,audioScene};
  for(const key of [...audioFields,'duration','aspect','imageSize','quality','resolution','generateAudio','videoMode']){
-  if(key==='audioScene'||key==='segments'||['promptInfluence','audioFormat'].includes(key)&&model.scenes[audioScene]==='sonilo-music')continue;
+  if(key==='audioScene'||key==='segments'||['promptInfluence','audioFormat'].includes(key)&&['sonilo-music','sonilo-sfx'].includes(model.scenes[audioScene]))continue;
   if(key in s.defaults)next[key]=draft[key]??s.defaults[key];else if(key!=='voice'||!s.voice)delete next[key];
  }
  // Null is an explicit automatic duration, distinct from an omitted override.
@@ -63,10 +64,21 @@ export function audioOptions(draft){return {...audioSpec(draft)?.options,audioSc
 export function audioSourceVideoState(metadata,draft,nodes=[]){
  const alias=audioWire(draft);if(!['sonilo-sfx','sonilo-music'].includes(alias))return {candidate:false,active:false};
  const refs=(draft.referenceIds??[]).map(id=>nodes.find(node=>node.id===id));
- if(refs.length!==1||!refs[0]?.video)return {candidate:false,active:false};
+ const video=refs.length===1&&!!refs[0]?.video;if(!video&&alias!=='sonilo-sfx')return {candidate:false,active:false};
  const request={kind:'audio.generate',parameters:{model:alias}},selected=resolveProviderConfiguration(metadata,request);
  if(!metadata)return {candidate:true,active:false,pending:true,label:'视频拟音供应商待确认'};
  const profile=selected?.capabilities?.videoAudio?.[alias]??selected?.capabilities?.music?.[alias];
+ if(alias==='sonilo-sfx'&&selected?.protocol==='sonilo-native'){const availability=providerConfigurationStatus(metadata,request);if(availability.configured!==true)return {candidate:true,active:false,reason:availability.message};if(profile?.semantics!=='native'||profile.durationMode!=='source-video-or-explicit')return {candidate:true,active:false,reason:'Sonilo 原生音效身份未明确配置'};
+ const parameters={model:alias,virtualModel:'sonilo-music',scene:'Sound',duration:draft.duration,...draft.count!==undefined?{count:draft.count}:{},...draft.segments!==undefined?{segments:draft.segments}:{},...draft.audioFormat!==undefined?{format:draft.audioFormat}:{},...draft.promptInfluence!==undefined?{providerParameters:{prompt_influence:draft.promptInfluence}}:{}};
+ const inputs=refs.map(node=>({id:node?.id,type:node?.video?'video':node?.image?'image':node?.audio?'audio':'text',url:node?.video||node?.image||node?.audio,text:node?.content,title:node?.title,...Object.fromEntries(['clip','trim','sourceClip','segments'].filter(key=>node?.[key]!=null).map(key=>[key,node[key]]))}));
+ // Optional text/undefined fields are omitted so strict native input validation
+ // sees the same video contract that production preparation will submit.
+ for(const input of inputs)for(const key of Object.keys(input))if(input[key]===undefined)delete input[key];
+ const source=nodes.find(node=>node.id===draft.nodeId)?.audioConfig,check=audioNativeRequestState(metadata,{kind:'audio.generate',prompt:draft.prompt??'',inputs,parameters},{deferVideoDuration:true,...source?.model===alias?{sourceParameters:source.params}:{}});
+ if(!check.ready)return {candidate:true,active:video,nativeSfx:true,reason:check.reason,hint:check.hint};
+ return {candidate:true,active:video,nativeSfx:true,label:video?'跟随视频':'指定时长',hint:'Sonilo SFX 原生音效：单个 WAV；文字 0.5–180 秒；完整 MP4 本地 0.5–480 秒、50 MB 内；分段仅视频，start/end 连续。'+(video?' 生成前读取真实视频时长。':'')};}
+ if(!video&&selected?.protocol==='fal-video-audio-native')return {candidate:true,active:false,reason:'ThinkSound 显式替代需要一个完整 MP4 视频，不支持纯文字音效'};
+ if(!video)return {candidate:false,active:false};
  if(alias==='sonilo-music'){if(selected?.protocol!=='sonilo-native')return {candidate:true,active:false};const availability=providerConfigurationStatus(metadata,request);if(availability.configured!==true)return {candidate:true,active:false,reason:availability.message};if(profile?.semantics!=='native'||profile.durationMode!=='source-video-or-explicit')return {candidate:true,active:false,reason:'Sonilo 原生音乐身份未明确配置'};return {candidate:true,active:true,label:'跟随视频',hint:'Sonilo Music 原生音乐：完整 MP4 5–360 秒、50 MB 内；生成前读取真实时长；单任务 1–10 个 WAV 变体。'+(draft.audioDurationExplicit===true?' 明确指定 '+draft.duration+' 秒；提交前须与源视频实测时长一致。':'')};}
  if(selected?.protocol!=='fal-video-audio-native')return {candidate:true,active:false};
  const availability=providerConfigurationStatus(metadata,request);
@@ -76,6 +88,7 @@ export function audioSourceVideoState(metadata,draft,nodes=[]){
 }
 export function audioConfirmationArguments(metadata,original,draft,next,nodes=[]){
  const state=audioSourceVideoState(metadata,next,nodes),alias=audioWire(next),selected=resolveProviderConfiguration(metadata,{kind:'audio.generate',parameters:{model:alias}});
+ if(alias==='sonilo-sfx'&&selected?.protocol==='sonilo-native'){if(state.reason)throw Error(state.reason);if(Object.keys(original).some(key=>!['kind','nodeId','model','audioScene','prompt','referenceIds','duration','count','segments','position','audioFormat'].includes(key)))throw Error('Sonilo 原生音效不支持原始 Agent 设置，不会在确认时忽略指令');if(original.count!==undefined&&original.count!==1)throw Error('Sonilo 原生音效每个任务仅生成一个 WAV 结果');if(next.audioFormat!==undefined&&next.audioFormat!=='wav')throw Error('Sonilo 原生音效固定返回 WAV');if(state.active&&original.duration===undefined&&draft.audioDurationExplicit!==true)delete next.duration;return next;}
  if(alias==='sonilo-music'){if(Object.keys(original).some(key=>!['kind','nodeId','model','audioScene','prompt','referenceIds','duration','count','segments','position','promptInfluence','audioFormat'].includes(key)))throw Error('Sonilo 原生音乐不支持原始 Agent 设置，不会在确认时忽略指令');if(original.count!==undefined&&(!Number.isInteger(original.count)||original.count<1||original.count>10))throw Error('Sonilo 原生音乐单任务数量须为 1–10');if(state.active&&original.duration===undefined&&draft.audioDurationExplicit!==true)delete next.duration;return next;}
  if(state.active&&Object.keys(original).some(key=>!['kind','nodeId','model','audioScene','prompt','referenceIds','duration','count','position'].includes(key)))throw Error('ThinkSound 视频拟音不支持原始 Agent 设置，不会在确认时忽略指令');
  if(state.active&&original.count!==undefined&&original.count!==1)throw Error('ThinkSound 视频拟音每个任务仅生成一个音频结果');
@@ -97,16 +110,16 @@ export function validateAudioDraft(draft,refs=[]){
   if(value!==undefined&&(range?(!Number.isFinite(value)||value<range[0]||value>range[1]):!values.includes(value)))throw Error('音频参数无效：'+(audioLabels[key]||key));
  }
  if(draft.count!==undefined&&(!Number.isInteger(draft.count)||draft.count<1||draft.count>(audioWire(draft)==='sonilo-music'?10:1)))throw Error('当前音频模型数量超出支持范围');
- if(s.duration){const v=draft.duration;if(v===undefined&&audioWire(draft)==='sonilo-music'&&refs.length===1&&refs[0].video)return;if(v===null&&!s.options.duration.includes(null))throw Error('当前模型需要指定时长');if(v!==null&&(!Number.isFinite(v)||v<s.duration.min||v>s.duration.max))throw Error('音频时长超出支持范围');}
+ if(s.duration){const v=draft.duration;if(v===undefined&&['sonilo-music','sonilo-sfx'].includes(audioWire(draft))&&refs.length===1&&refs[0].video)return;if(v===null&&!s.options.duration.includes(null))throw Error('当前模型需要指定时长');if(v!==null&&(!Number.isFinite(v)||v<s.duration.min||v>s.duration.max))throw Error('音频时长超出支持范围');}
 }
 export function audioRequestConfig(core,current,overrides){
  const draft=createAudioDraft(overrides,[{id:overrides.nodeId,audioConfig:current}]);
  if(audioWire(draft)==='music-2.6'&&draft.lyricsMode!=='custom'&&draft.lyrics?.trim())throw Error('自动歌词或纯音乐模式含有自定义歌词，请清空歌词或选择自定义');
  const model=audioModel(draft.model);if(!model)throw Error('音频模型未识别，请选择支持的模型');const target=core.transition({},model.virtual,draft.audioScene);target.prompt=draft.prompt;
- for(const [key,param]of Object.entries(paramKeys))if(draft[key]!==undefined&&!(audioWire(draft)==='sonilo-music'&&key==='promptInfluence'))target.params[param]=draft[key];
+ for(const [key,param]of Object.entries(paramKeys))if(draft[key]!==undefined&&!(['sonilo-music','sonilo-sfx'].includes(audioWire(draft))&&key==='promptInfluence'))target.params[param]=draft[key];
  if(draft.lyricsMode){target.params.lyric_mode=draft.lyricsMode==='custom';target.params.force_instrumental=draft.lyricsMode==='instrumental';target.params.lyrics=draft.lyricsMode==='custom'?draft.lyrics:'';}
  for(const key of ['count','segments'])if(draft[key]!==undefined)target.params[key]=structuredClone(draft[key]);
- if(audioWire(draft)==='sonilo-music'&&draft.promptInfluence!==undefined)target.params.providerParameters={...target.params.providerParameters,prompt_influence:draft.promptInfluence};
+ if(['sonilo-music','sonilo-sfx'].includes(audioWire(draft))&&draft.promptInfluence!==undefined)target.params.providerParameters={...target.params.providerParameters,prompt_influence:draft.promptInfluence};
  const duration=audioSpec(draft).duration;if(duration){if(draft.duration===null)delete target.params[duration.key];else target.params[duration.key]=draft.duration*(duration.scale||1);}
  target.references=current.references||[];return target;
 }

@@ -1,3 +1,6 @@
 allowBuilds:
   canvas: false
+  electron-winstaller: false
   esbuild: true
+minimumReleaseAgeExclude:
+  - electron@44.6.0

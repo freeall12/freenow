@@ -27,14 +27,15 @@
   return {virtualModel:virtual,scene,model,prompt:current.prompt||'',params:{...structuredClone(specs[model].defaults),...(current.model===model?current.params:{})},references:(current.references||[]).filter(ref=>compatible(model,ref.type))};
  }
  function compatible(model,type){const s=specs[model];return type==='text'||type==='video'&&!!s.video||type==='image'&&!!s.images||type==='audio'&&!!s.audios;}
- function validate(config,refs=[]){const s=specs[config.model];if(!s)throw Error('未知音频模型');const prompt=[...refs.filter(r=>r.type==='text').map(r=>r.text),config.prompt].filter(Boolean).join('\n');
+ function validate(config,refs=[],options={}){const s=specs[config.model];if(!s)throw Error('未知音频模型');const native=options.nativeProtocol==='sonilo-native'&&config.model==='sonilo-sfx'&&options.nativeProfile?.semantics==='native'?options.nativeProfile:null;const prompt=[...refs.filter(r=>r.type==='text').map(r=>r.text),config.prompt].filter(Boolean).join('\n');
   if(!prompt.trim()&&!refs.some(r=>r.type==='video'&&s.video))throw Error('请输入生成内容或连接参考视频');if(prompt.length>s.limit)throw Error('文字超过 '+s.limit+' 字限制');
   if(refs.some(r=>!compatible(config.model,r.type)))throw Error('当前模型不支持该参考素材');
   const images=refs.filter(r=>r.type==='image').length,audios=refs.filter(r=>r.type==='audio').length,videos=refs.filter(r=>r.type==='video').length;
   if(images>(s.images||0)||audios>(s.audios||0)||videos>1)throw Error('参考素材数量超过模型限制');if(s.mixed===false&&images&&audios)throw Error('参考图片和参考音频不能混用');
-  if(s.maxVideoDuration&&refs.some(r=>r.type==='video'&&r.duration>s.maxVideoDuration))throw Error('源视频超过 '+s.maxVideoDuration+' 秒上限');
+  if(!native&&s.maxVideoDuration&&refs.some(r=>r.type==='video'&&r.duration>s.maxVideoDuration))throw Error('源视频超过 '+s.maxVideoDuration+' 秒上限');
   if(s.lyrics&&config.params.lyric_mode&&!config.params.force_instrumental&&!config.params.lyrics?.trim())throw Error('请输入自定义歌词');
-  const duration=s.duration,value=duration&&config.params[duration.key];if(value!=null&&(!Number.isFinite(value)||value/(duration.scale||1)<duration.min||value/(duration.scale||1)>duration.max))throw Error('音频时长超出支持范围');
+  const sourceVideo=native&&refs.length===1&&refs[0].type==='video'&&Number.isFinite(refs[0].duration);const duration=native?{key:'duration',...(sourceVideo?native.localVideoDuration:native.duration)}:s.duration,value=duration&&config.params[duration.key];
+  if(sourceVideo&&value!==refs[0].duration)throw Error('Sonilo 原生音效时长须跟随真实源视频');if(value!=null&&(!Number.isFinite(value)||value/(duration.scale||1)<duration.min||value/(duration.scale||1)>duration.max))throw Error('音频时长超出支持范围');
   return prompt;
  }
  function peaks(channels,count=100){if(!channels.length||!channels[0].length)return [];const length=channels[0].length,bins=Math.max(1,Math.min(length,Math.round(count)));return Array.from({length:bins},(_,i)=>{let peak=0;const start=Math.floor(i*length/bins),end=Math.floor((i+1)*length/bins);for(const data of channels)for(let j=start;j<end;j++)peak=Math.max(peak,Math.abs(data[j]||0));return Math.min(1,peak);});}

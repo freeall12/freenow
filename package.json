@@ -12,7 +12,10 @@
     "build:mask": "node scripts/build-image-mask.cjs",
     "build:agent": "node scripts/build-agent-editor.cjs",
     "setup": "node scripts/setup-local-data.cjs",
-    "build:spark": "node scripts/build-spark.cjs"
+    "build:spark": "node scripts/build-spark.cjs",
+    "desktop:prepare": "node scripts/prepare-desktop.cjs",
+    "desktop:dev": "pnpm run desktop:prepare && electron desktop",
+    "desktop:pack": "pnpm run desktop:prepare && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --config desktop/electron-builder.cjs --mac --arm64"
   },
   "dependencies": {
     "@sparkjsdev/spark": "2.3.1",
@@ -25,6 +28,23 @@
     "three": "^0.186.0"
   },
   "devDependencies": {
+    "electron": "44.6.0",
+    "electron-builder": "26.15.3",
     "esbuild": "0.28.2"
-  }
+  },
+  "description": "Local AI creative canvas, 3D studio and Agent workbench",
+  "homepage": "https://github.com/freeall12/freenow",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/freeall12/freenow.git"
+  },
+  "keywords": [
+    "infinite-canvas",
+    "ai-agent",
+    "3d-studio",
+    "local-first",
+    "image-generation",
+    "video-generation",
+    "electron"
+  ]
 }

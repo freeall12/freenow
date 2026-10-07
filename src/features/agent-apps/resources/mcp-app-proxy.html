@@ -298,6 +298,11 @@
             var interactions = await import("../director-markup-local-interactions.mjs");
             return interactions.localizeDirectorMarkupInteractions(templateHtml, name, version);
           })
+          .then(async function (templateHtml) {
+            if (name !== "color-adjust" || version !== "v2") return templateHtml;
+            var interactions = await import("../color-adjust-local-interactions.mjs");
+            return interactions.localizeColorAdjustInteractions(templateHtml, name, version);
+          })
           .then(function (templateHtml) {
             return localizeEcommerceBilling(templateHtml, name, version);
           })

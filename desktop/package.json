@@ -1,0 +1,9 @@
+{
+  "name": "freenow-desktop",
+  "version": "0.1.0-alpha.1",
+  "private": true,
+  "description": "Local AI creative canvas, 3D studio and Agent workbench",
+  "main": "main.cjs",
+  "author": "freenow contributors",
+  "homepage": "https://github.com/freeall12/freenow"
+}

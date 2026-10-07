@@ -88,7 +88,7 @@ export function createMcpAppHost(options) {
   const canResizePlatform = options.resourceUri === 'ui://tapnow/platform-resize@v1' && typeof callbacks.onPlatformResizeApply === 'function';
   const canMessage = !['ui://tapnow/production-progress@v1','ui://tapnow/platform-resize@v1'].includes(options.resourceUri) && typeof callbacks.onSendPrompt === 'function';
   const canState = !['ui://tapnow/production-progress@v1','ui://tapnow/platform-resize@v1'].includes(options.resourceUri) && typeof callbacks.onSetWidgetState === 'function';
-  const canFlushClose = canState && ['ui://tapnow/performance-rhythm@v3','ui://tapnow/story-room@v1','ui://tapnow/character-blocking@v3','ui://tapnow/cutlist-review@v1','ui://tapnow/product-kit@v1','ui://tapnow/director-markup@v1'].includes(options.resourceUri);
+  const canFlushClose = canState && ['ui://tapnow/performance-rhythm@v3','ui://tapnow/story-room@v1','ui://tapnow/character-blocking@v3','ui://tapnow/cutlist-review@v1','ui://tapnow/product-kit@v1','ui://tapnow/director-markup@v1','ui://tapnow/color-adjust@v2'].includes(options.resourceUri);
   const resourceDataLimit = ['ui://tapnow/layer-composer@v1','ui://tapnow/animatic@v1','ui://tapnow/animatic@v2','ui://tapnow/previs@v3'].includes(options.resourceUri) ? 4 * 1024 * 1024 : ['ui://tapnow/cutlist-review@v1','ui://tapnow/ad-review@v1'].includes(options.resourceUri) ? 16 * 1024 * 1024 : options.resourceUri === 'ui://tapnow/color-adjust@v2' ? 2 * 1024 * 1024 : 1000000;
   const generationTools = {'ui://tapnow/animatic@v2':['animatic_variants_submit','animatic_variants_lookup'],'ui://tapnow/previs@v3':['previs_variants_submit','previs_variants_lookup'],'ui://tapnow/ecommerce-photoset@v2':['ecommerce_photoset_generate']}[options.resourceUri];
   const canGenerationTools = !!generationTools && typeof callbacks.onGenerationAppTool === 'function';
@@ -107,6 +107,7 @@ export function createMcpAppHost(options) {
   let widgetState = options.initialWidgetState == null ? null : dataCopy(options.initialWidgetState, widgetStateLimit), projectionRevision = null;
   let hostContext = {theme: options.theme || 'dark', locale: options.locale || 'zh-CN', displayMode: 'inline', availableDisplayModes: ['inline', 'fullscreen'], platform: 'web', ...dataCopy(options.hostContext || {})};
   let colorContextPermit = null, layerContextPermit = null, generationContextPermit = null, appReplyPermit = null;
+  let colorContextRevision = 0;
   let expanded = false, presentationTracked = false, conversationActive, appReplyStatus=null;
   let closeAttempt = null, closeReady = false;
   const requests = new Map(), csp = cspPolicy(options.csp);
@@ -200,13 +201,18 @@ export function createMcpAppHost(options) {
         const colorContext = method === 'ui/update-model-context' && canColorContext, layerContext = method === 'ui/update-model-context' && canLayerContext, generationContext = method === 'ui/update-model-context' && canGenerationContext;
         if (colorContext ? !colorContextPermit : layerContext ? !layerContextPermit : generationContext ? !generationContextPermit && (iframe.ownerDocument?.activeElement !== iframe || window.navigator.userActivation?.isActive !== true) : iframe.ownerDocument?.activeElement !== iframe || window.navigator.userActivation?.isActive !== true) throw fault(-32000, 'a current user action is required');
         const permit = colorContext ? colorContextPermit : layerContext ? layerContextPermit : generationContext ? generationContextPermit : null;if (colorContext) colorContextPermit = null;if (layerContext) layerContextPermit = null;if (generationContext) generationContextPermit = null;
-        const input = strictDataCopy(params, 65536), isSourceCurrent = () => validGeneration(version, token) && conversationActive !== true;
+        const input = strictDataCopy(params, 65536), colorRevision = colorContextRevision, isSourceCurrent = () => validGeneration(version, token) && conversationActive !== true && (!colorContext || colorRevision === colorContextRevision);
         sending = true;
         try {
           const receipt = await callback(input, {userAction: true,...permit ? {callId:permit.callId} : {}}, isSourceCurrent);
           if (!validGeneration(version, token)) return;
           if (!isSourceCurrent() || !object(receipt)) throw fault(-32000, 'library action source is no longer current');
           complete(strictDataCopy(receipt, 65536));
+        } catch (error) {
+          // A failed context save retries the same successful edit. A later
+          // source projection or conversation run must not restore its permit.
+          if (colorContext && permit && isSourceCurrent() && colorRevision === colorContextRevision && colorContextPermit === null) colorContextPermit = permit;
+          throw error;
         } finally {if (generation === version) sending = false;}
         return;
       }
@@ -224,10 +230,11 @@ export function createMcpAppHost(options) {
         }
         if (conversationActive === true || sending) throw fault(-32000, 'conversation or app action is busy');
         if (iframe.ownerDocument?.activeElement !== iframe || window.navigator.userActivation?.isActive !== true) throw fault(-32000, 'a current user action is required');
-        const isSourceCurrent = () => validGeneration(version, token) && conversationActive !== true;
+        if (canApplyColor) {colorContextPermit = null;colorContextRevision++;}
+        const colorApplyRevision = colorContextRevision, isSourceCurrent = () => validGeneration(version, token) && conversationActive !== true && (!canApplyColor || colorApplyRevision === colorContextRevision);
         sending = true;
         try {
-          if (canApplyColor) colorContextPermit = null;if (canApplyLayer) layerContextPermit = null;
+          if (canApplyLayer) layerContextPermit = null;
           const receipt = await (canApplyColor ? callbacks.onApplyColorAdjust : canApplyLayer ? callbacks.onApplyLayerComposer : canResizePlatform ? callbacks.onPlatformResizeApply : callbacks.onSaveExpressionGuide)(input.arguments, input.metadata, isSourceCurrent);
           if (!validGeneration(version, token)) return;
           if (!isSourceCurrent()) throw fault(-32000, 'expression guide source is no longer current');
@@ -307,7 +314,7 @@ export function createMcpAppHost(options) {
   function loaded() {
     if (disposed || failed) return;
     if (loadSeen) {cancelClose('应用已重载，关闭前保存未完成');closeReady=false;generation++;nonce = window.crypto.randomUUID();ready = initialized = false;sending = false;lastMessageAt = -Infinity;requests.clear();timers();}
-    colorContextPermit = layerContextPermit = generationContextPermit = appReplyPermit = null;loadSeen = true;sendResource();
+    colorContextRevision++;colorContextPermit = layerContextPermit = generationContextPermit = appReplyPermit = null;loadSeen = true;sendResource();
   }
   function start() {
     if (disposed || started) return;started = true;
@@ -322,7 +329,7 @@ export function createMcpAppHost(options) {
       if (projectionRevision && (revision.message_sequence < projectionRevision.message_sequence || revision.message_sequence === projectionRevision.message_sequence && revision.part_index <= projectionRevision.part_index)) return false;
     }
     const nextInput = dataCopy(input ?? {}, 1000000, true), nextResult = result == null ? null : dataCopy(result, resourceDataLimit, true);
-    colorContextPermit = layerContextPermit = generationContextPermit = appReplyPermit = null;toolInput = nextInput;toolResult = nextResult;if (revision) projectionRevision = {...revision};
+    colorContextRevision++;colorContextPermit = layerContextPermit = generationContextPermit = appReplyPermit = null;toolInput = nextInput;toolResult = nextResult;if (revision) projectionRevision = {...revision};
     if (ready) notify('tapnow/updateData', {toolInput, toolResult, ...(revision ? {revision: {...revision}} : {})});return true;
   }
   function updateAppReplyStatus(replyId,status){
@@ -334,7 +341,7 @@ export function createMcpAppHost(options) {
     hostContext = {...hostContext, ...next};if (ready && changed) notify('ui/notifications/host-context-changed', next);
   }
   function updatePresentationState(value) {if (disposed || failed) return;const changed = !presentationTracked || expanded !== !!value;presentationTracked = true;expanded = !!value;if (changed) sendPresentation();}
-  function updateConversationRunActive(value) {if (disposed || failed) return;const next = !!value;if (conversationActive === next) return;conversationActive = next;if (ready) notify('tapnow/updateData', {conversation_run_active: conversationActive});}
+  function updateConversationRunActive(value) {if (disposed || failed) return;const next = !!value;if (conversationActive === next) return;conversationActive = next;if (next) {colorContextRevision++;colorContextPermit = null;}if (ready) notify('tapnow/updateData', {conversation_run_active: conversationActive});}
   function sendPresentationShortcut(key) {if (!disposed && !failed && ready && expanded && typeof key === 'string' && key.length < 40) notify('tapnow/presentationShortcut', {key});}
   function cancelClose(message = '关闭已取消', cause) {
     const attempt = closeAttempt;if (!attempt) return;closeAttempt = null;window.clearTimeout(attempt.timer);

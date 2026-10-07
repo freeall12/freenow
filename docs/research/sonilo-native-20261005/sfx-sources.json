@@ -1,0 +1,33 @@
+[
+  {
+    "url": "https://platform.sonilo.com/openapi.json",
+    "sha256": "e0f85f2fb6d902b8ddd9d1b9187a91da7a3a27b4b967984feb6139f21bd0f44b",
+    "retrieved": "2026-10-05",
+    "transport": "public unauthenticated GET",
+    "bytes": 59369
+  },
+  {
+    "url": "https://platform.sonilo.com/docs/api/video-to-sfx",
+    "sha256": "c749d3b11c0a1cacf9dd08243c1bb964941b5375a3b7356d4c3ed323281f4785",
+    "retrieved": "2026-10-05",
+    "transport": "public unauthenticated GET",
+    "representation": "Mozilla/5.0 HTML text extraction",
+    "bytes": 483510
+  },
+  {
+    "url": "https://platform.sonilo.com/docs/api/text-to-sfx",
+    "sha256": "a7fce8f698527cd7466b08e4c24693d6e2069ff927379fd69e88ec892e56020b",
+    "retrieved": "2026-10-05",
+    "transport": "public unauthenticated GET",
+    "representation": "Mozilla/5.0 HTML text extraction",
+    "bytes": 368265
+  },
+  {
+    "url": "https://platform.sonilo.com/docs/api/get-task",
+    "sha256": "125e09939d189d79ea40ab559961c2d1573eb4931e19d6673d8417f26afe3e88",
+    "retrieved": "2026-10-05",
+    "transport": "public unauthenticated GET",
+    "representation": "Mozilla/5.0 HTML text extraction",
+    "bytes": 648132
+  }
+]

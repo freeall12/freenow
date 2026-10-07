@@ -1,5 +1,6 @@
 'use strict';
 const http=require('node:http'),fs=require('node:fs'),path=require('node:path');
+const dataRoot=process.env.FREENOW_DATA_DIR?path.resolve(process.env.FREENOW_DATA_DIR):__dirname;
 const {processMedia}=require('./media.cjs');
 const {isPublicStaticPath}=require('./static-public-path.cjs');
 const {processPlaylist}=require('./playlist.cjs');
@@ -7,7 +8,7 @@ const {transcribeRequest}=require('./voice.cjs');
 const {createVideoSegmentationService}=require('./video-segmentation.cjs');
 const segmentationMedia=process.env.VIDEO_SEGMENTATION_PROTOCOL==='replicate-sam2-native'
  ?require('./video-segmentation-media.cjs').createVideoSegmentationMediaTools({ffmpegPath:process.env.FFMPEG_PATH||'ffmpeg',ffprobePath:process.env.FFPROBE_PATH||'ffprobe'}):undefined;
-const videoSegmentation=createVideoSegmentationService({protocol:process.env.VIDEO_SEGMENTATION_PROTOCOL,baseUrl:process.env.VIDEO_SEGMENTATION_API_BASE_URL,apiKey:process.env.VIDEO_SEGMENTATION_API_KEY,replicateApiToken:process.env.REPLICATE_API_TOKEN,version:process.env.REPLICATE_SEGMENTATION_VERSION,directory:path.join(__dirname,'.segmentation-tasks'),mediaTools:segmentationMedia});
+const videoSegmentation=createVideoSegmentationService({protocol:process.env.VIDEO_SEGMENTATION_PROTOCOL,baseUrl:process.env.VIDEO_SEGMENTATION_API_BASE_URL,apiKey:process.env.VIDEO_SEGMENTATION_API_KEY,replicateApiToken:process.env.REPLICATE_API_TOKEN,version:process.env.REPLICATE_SEGMENTATION_VERSION,directory:path.join(dataRoot,'.segmentation-tasks'),mediaTools:segmentationMedia});
 const {generateArtifactHtml}=require('./agent-artifacts.cjs');
 const {createWebSearch}=require('./agent-search.cjs');
 const {createAgentSessionStore}=require('./agent-session-store.cjs');
@@ -15,15 +16,18 @@ const {createHash}=require('node:crypto');
 const {wantsAgentStream,writeAgentStream}=require('./agent-stream.cjs');
 const {createGenerationGateway}=require('./generation.cjs');
 const {readGenerationRoutingConfig}=require('./generation-routing-config.cjs');
-const generation=createGenerationGateway({localPort:Number(process.env.PORT||4173),directory:path.join(__dirname,'.generation-tasks'),mediaDirectory:path.join(__dirname,'.generation-media'),baseUrl:process.env.GENERATION_API_BASE_URL,apiKey:process.env.GENERATION_API_KEY,protocol:process.env.GENERATION_API_PROTOCOL||'tasks-v1',modelMap:process.env.GENERATION_MODEL_MAP,...readGenerationRoutingConfig(process.env)});
+const generation=createGenerationGateway({localPort:Number(process.env.PORT||4173),directory:path.join(dataRoot,'.generation-tasks'),mediaDirectory:path.join(dataRoot,'.generation-media'),baseUrl:process.env.GENERATION_API_BASE_URL,apiKey:process.env.GENERATION_API_KEY,protocol:process.env.GENERATION_API_PROTOCOL||'tasks-v1',modelMap:process.env.GENERATION_MODEL_MAP,...readGenerationRoutingConfig(process.env)});
 const voiceCatalog=require('./voice-catalog.cjs').createVoiceCatalog({provider:process.env.VOICE_CATALOG_PROVIDER||'elevenlabs',apiKey:process.env.ELEVENLABS_API_KEY,baseUrl:process.env.ELEVENLABS_API_BASE_URL||'https://api.elevenlabs.io',localPort:Number(process.env.PORT||4173)});
 const OpenAI=require('openai');const {AgentRuntime}=require('./agent.cjs');
 const root=path.resolve(__dirname,'..'),port=Number(process.env.PORT||4173);
-const localResourceIndexReady=require('../src/features/local-resource-migration/cli.cjs').writeLocalResourceIndex({root}).catch(()=>({published:false}));
+// Desktop bundles are read-only. Their verified public index is prepared at build time.
+const localResourceIndexReady=(process.env.FREENOW_PREBUILT_RESOURCES==='1'
+ ?fs.promises.readFile(path.join(root,'assets/local-resource-index.json'),'utf8').then(text=>{const index=JSON.parse(text);if(index.version!==1||index.algorithm!=='sha256-exact-utf8'||!index.entries||Array.isArray(index.entries))throw Error('Invalid public index');return {published:true,index};})
+ :require('../src/features/local-resource-migration/cli.cjs').writeLocalResourceIndex({root})).catch(()=>({published:false}));
 const modelConnection=require('./outbound-client.cjs').createConfiguredModelClient({apiKey:process.env.OPENAI_API_KEY,baseUrl:process.env.OPENAI_BASE_URL,localPort:port});
 const client=modelConnection.client,configured=modelConnection.configured&&!!process.env.OPENAI_MODEL;
 const webSearch=createWebSearch({client,model:process.env.OPENAI_WEB_SEARCH_MODEL||process.env.OPENAI_MODEL,configurationError:modelConnection.configurationError});
-const agentSessionStore=createAgentSessionStore({directory:path.join(__dirname,'.agent-sessions')});
+const agentSessionStore=createAgentSessionStore({directory:path.join(dataRoot,'.agent-sessions')});
 // Provider identity excludes credentials: key rotation does not change a run's
 // destination, while a different endpoint or model configuration cannot resume it.
 const providerIdentity=createHash('sha256').update(JSON.stringify({baseURL:modelConnection.baseURL||'configuration-invalid',model:process.env.OPENAI_MODEL||null,models:process.env.AGENT_MODEL_MAP||null,reasoning:process.env.AGENT_REASONING_MAP||null})).digest('hex');
@@ -99,12 +103,19 @@ const server=http.createServer(async(req,res)=>{try{
   'src/features/agent-apps/cutlist-review-local-interactions.mjs',
   'src/features/agent-apps/product-kit-local-interactions.mjs',
   'src/features/agent-apps/director-markup-local-interactions.mjs',
+  'src/features/agent-apps/color-adjust-local-interactions.mjs',
   'src/features/agent-apps/picker-local-presentation.mjs',
   'assets/branding/freenow-mark.svg',
  ].includes(relative))headers['Access-Control-Allow-Origin']='*';
  const range=req.headers.range?.match(/^bytes=(\d+)-(\d*)$/);let start=0,end=stat.size-1,status=200;if(range){start=Number(range[1]);end=range[2]?Math.min(Number(range[2]),end):end;if(start>end||start>=stat.size){res.writeHead(416,{'Content-Range':`bytes */${stat.size}`});return res.end();}status=206;headers['Content-Range']=`bytes ${start}-${end}/${stat.size}`;}headers['Content-Length']=end-start+1;res.writeHead(status,headers);if(req.method==='HEAD')return res.end();fs.createReadStream(file,{start,end}).pipe(res);
  }catch(e){if(!res.headersSent)json(res,e.status===401?401:e.code==='configuration_required'?503:[400,404,409,429,503].includes(e.status)?e.status:400,{error:e.status===401?'模型服务认证失败，请检查服务端 KEY。':e.message||'请求失败',...(e.code?{code:e.code}:{})});else res.end();}});
-Promise.all([generation.ready,runtime.ready,videoSegmentation.ready]).then(()=>server.listen(port,'127.0.0.1',()=>console.log(`Canvas replica: http://localhost:${port} | Agent ${configured?'configured':'requires OPENAI_API_KEY and OPENAI_MODEL'}`))).catch(async()=>{console.error('Local task stores unavailable; server was not started.');await Promise.allSettled([runtime.close(),agentSessionStore.close(),generation.close(),videoSegmentation.close?.()]);process.exitCode=1;});
+Promise.all([generation.ready,runtime.ready,videoSegmentation.ready]).then(()=>server.listen(port,'127.0.0.1',()=>{
+ console.log(`freenow: http://localhost:${port} | Agent ${configured?'configured':'requires OPENAI_API_KEY and OPENAI_MODEL'}`);
+ process.parentPort?.postMessage({type:'freenow-ready',port});
+})).catch(async()=>{console.error('Local task stores unavailable; server was not started.');await Promise.allSettled([runtime.close(),agentSessionStore.close(),generation.close(),videoSegmentation.close?.()]);process.exitCode=1;});
 
 let closing=false;
-for(const event of ['SIGTERM','SIGINT'])process.once(event,async()=>{if(closing)return;closing=true;server.close();voiceCatalog.close();try{await runtime.close();await agentSessionStore.close();await generation.close();await videoSegmentation.close?.();process.exit(0);}catch{console.error('Local task shutdown could not confirm persistence.');process.exit(1);}});
+async function closeLocalServer(exitCode=0){if(closing)return;closing=true;server.close();voiceCatalog.close();try{await runtime.close();await agentSessionStore.close();await generation.close();await videoSegmentation.close?.();process.exit(exitCode);}catch{console.error('Local task shutdown could not confirm persistence.');process.exit(1);}}
+for(const event of ['SIGTERM','SIGINT'])process.once(event,()=>void closeLocalServer());
+process.parentPort?.on('message',event=>{if(event.data?.type==='freenow-shutdown')void closeLocalServer();});
+server.once('error',()=>{console.error('Local listener unavailable; no existing listener was reused.');void closeLocalServer(1);});

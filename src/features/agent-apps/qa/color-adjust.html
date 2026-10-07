@@ -1,1 +1,18 @@
-<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>调色 · 官方工作流验收</title><style>body{background:#161616;color:#eee;font:14px system-ui;margin:24px;max-width:1050px}button{padding:8px 14px;margin:8px 8px 16px 0}output{display:block;white-space:pre-wrap;margin:10px 0}textarea{box-sizing:border-box;width:100%;height:240px;background:#252525;color:#eee;padding:12px}#nodes{display:flex;gap:16px;flex-wrap:wrap}figure{margin:8px 0}figcaption{max-width:260px;overflow-wrap:anywhere}label{display:block}#cards{margin:16px 0}</style><h1>调色 · 官方工作流验收</h1><p>未修改的官方 color-adjust@v2，使用生产 registry/controller/host/runtime。源图是明确标记的本地 QA 输入；实际调色 PNG、图节点、回执和队列保存在独立 IndexedDB。Apply 本地处理图片并新增连接节点；Skip 才发送普通队列。不调用模型。</p><button id="open" disabled>打开官方调色页</button><button id="rerender" disabled>普通重绘</button><button id="verify" disabled>回读真实持久结果</button><label><input id="busy" type="checkbox" disabled>模拟会话运行中</label><label><input id="fail" type="checkbox" disabled>模拟画布保存失败（不给成功回执）</label><output id="status" aria-live="polite">正在读取独立验收数据库…</output><section id="cards"></section><h2>实际保存的源图与调色 PNG</h2><section id="nodes"></section><h2>持久结果与跳过队列证据</h2><textarea id="reply" readonly aria-label="调色持久结果"></textarea><script type="module" src="./color-adjust.mjs"></script></html>
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>调色 · 官方工作流验收</title>
+<style>
+body{background:#161616;color:#eee;font:14px/24px system-ui;margin:24px;max-width:1050px}h1{font-size:28px;line-height:36px;margin:0 0 16px}h2{font-size:20px;line-height:28px;margin:24px 0 8px}p{margin:0 0 16px}button{font:14px/24px system-ui;padding:8px 14px;margin:0 8px 16px 0}output{display:block;white-space:pre-wrap;margin:8px 0}textarea{box-sizing:border-box;width:100%;height:240px;background:#252525;color:#eee;padding:12px;font:13px/20px monospace}#nodes{display:flex;gap:16px;flex-wrap:wrap}figure{margin:8px 0}figcaption{max-width:300px;overflow-wrap:anywhere}label{display:block;line-height:24px;margin:0 0 8px}#cards{margin:16px 0}#saving{color:#e4bf84}select{font:14px/24px system-ui;padding:4px}
+</style>
+<h1>调色 · 官方工作流验收</h1>
+<p>官方 color-adjust@v2 的 SHA 固定派生，使用生产 registry/controller/host/runtime。默认源图为960×540真实像素 QA 输入，也可导入本地图片。参数、真实PNG、图节点、回执和队列保存在 session 独立 IndexedDB；Apply 本地处理源图并新增连接节点，Skip 发送普通队列。不调用模型。</p>
+<label>导入真实本地图片 <input id="upload" type="file" accept="image/png,image/jpeg,image/webp" disabled></label>
+<button id="open" disabled>打开官方调色页</button><button id="rerender" disabled>普通重绘</button><button id="verify" disabled>回读真实持久结果</button><button id="close" disabled>等待保存后关闭</button><button id="reopen" disabled>重新打开保存页</button>
+<label>状态保存延迟 <select id="save-delay" disabled><option value="0">0ms</option><option value="1800">1800ms</option><option value="6000">6000ms</option></select></label>
+<label><input id="fail-save-once" type="checkbox" disabled>下一次状态保存失败（单次，可在原页重试）</label>
+<label><input id="fail-context-once" type="checkbox" disabled>下一次应用上下文保存失败（单次，重试不重复创建PNG）</label>
+<label><input id="busy" type="checkbox" disabled>模拟会话运行中</label><label><input id="fail" type="checkbox" disabled>模拟画布保存失败（不给成功回执）</label>
+<output id="saving" aria-live="polite">等待状态保存回执 0；实际成功事务 0</output><output id="status" aria-live="polite">正在读取独立验收数据库…</output>
+<section id="cards"></section><h2>实际保存的源图与调色 PNG</h2><section id="nodes"></section><h2>最后保存的参数与页面状态</h2><textarea id="state" readonly aria-label="调色持久参数"></textarea><h2>持久结果与跳过队列证据</h2><textarea id="reply" readonly aria-label="调色持久结果"></textarea>
+<script type="module" src="./color-adjust.mjs"></script></html>

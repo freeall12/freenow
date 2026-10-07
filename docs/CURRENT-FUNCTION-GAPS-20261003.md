@@ -8,7 +8,9 @@
 
 ## 已有实现，不重复开发
 
-2026-10-05 / 1005p补充：[Sonilo原生Music](SONILO-NATIVE-20261005.md)现已按完整官方开发者合同实现本地MP4直传、文字/视频音乐、精确分段与多变体，不再将“Sonilo音乐/分段”列为未实现。正式节点/Agent、媒体归档、历史第二项、缺配置零提交和同库重开已有[本批实机证据](LOCAL-SONILO-AGENT-AND-HISTORY-20261005.md)。Sonilo SFX/stems/语音保留/ducking及真实供应商仍开放。Product Kit、Director Markup保存/交接/关闭与长历史DOM更新亦已补齐并定向验证，不能等同全部状态或视觉验收。
+2026-10-07 补充：[Sonilo 原生 SFX](SONILO-SFX-NATIVE-20261005.md)已实现文字/完整视频音效及连续分段，20 项定向检查和 4 项受影响 Music 回归通过；不能再将“原生 SFX 未接入”当作当前缺口。8秒视频与0.5秒Agent文字音效已实机播放、刷新恢复；全部非法操作组合与真实账号/音质仍待验，stems、语音保留、ducking 未实现。[本批状态](STATUS.md)区分源码与实际界面范围。
+
+2026-10-05 / 1005p补充：[Sonilo原生Music](SONILO-NATIVE-20261005.md)现已按完整官方开发者合同实现本地MP4直传、文字/视频音乐、精确分段与多变体，不再将“Sonilo音乐/分段”列为未实现。正式节点/Agent、媒体归档、历史第二项、缺配置零提交和同库重开已有[本批实机证据](LOCAL-SONILO-AGENT-AND-HISTORY-20261005.md)。该批时 Sonilo SFX/stems/语音保留/ducking及真实供应商仍开放；SFX 当前接入见上方 2026-10-07 补充。Product Kit、Director Markup保存/交接/关闭与长历史DOM更新亦已补齐并定向验证，不能等同全部状态或视觉验收。
 
 2026-10-05 / 1005o补充：[Agent首次识别及恢复](LOCAL-AGENT-SEGMENTATION-AND-EXPORTS-20261005.md)已实机验证独立确认、来源漂移拒绝、同素材重存与原Agent回执闭环、换clip后取消、同库重启后显式补发唯一未派发分支；本地封面解析、视频规格焦点/滚轮与Widget实际PNG/MP4/WebM下载亦已验。合成供应商证明本地流程，真实识别质量仍待Key验收；HTML独立离线重开和92份精确模板正文仍开放。
 

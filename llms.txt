@@ -1,0 +1,30 @@
+# freenow
+
+> freenow is a local AI creative workspace with an infinite canvas, image/video/audio tools, a 3D studio, and a creative agent. Projects and outputs are stored locally; configured AI providers receive the prompts and media required for each operation.
+
+The package version is 0.1.0 and the project is in development. Implemented adapters, registered apps, and fixture tests do not establish full acceptance or real model output quality. The repository does not currently have one open-source license covering all content. It is not affiliated with TapNow.
+
+## Getting started
+
+- [English README](https://github.com/freeall12/freenow/blob/main/README.en.md): Product definition, source startup, API configuration, storage, FAQ, and license boundaries.
+- [中文 README](https://github.com/freeall12/freenow/blob/main/README.md): 本地 AI 创作工作台、启动、配置与当前边界。
+- [Desktop guide](https://github.com/freeall12/freenow/blob/main/docs/DESKTOP.md): Electron source startup, isolated data and provider configuration, and unsigned macOS arm64 prerelease limits; no published download is confirmed.
+- [Documentation guide](https://github.com/freeall12/freenow/blob/main/docs/README.md): Task-oriented documentation index. Detailed documents are primarily in Chinese.
+
+## Capabilities and configuration
+
+- [Features and adapters](https://github.com/freeall12/freenow/blob/main/docs/FEATURES.md): Local editing, generation integrations, requirements, and limitations.
+- [Multi-provider setup](https://github.com/freeall12/freenow/blob/main/docs/MULTI-PROVIDER-SETUP.md): Configure the provider and protocol for each operation; one key does not enable every model.
+- [Agent API](https://github.com/freeall12/freenow/blob/main/docs/AGENT-API.md): Responses API model and tool requirements.
+- [Development guide](https://github.com/freeall12/freenow/blob/main/docs/DEVELOPMENT-GUIDE.md): Local Node.js runtime, builds, and focused verification.
+- [Project structure](https://github.com/freeall12/freenow/blob/main/docs/PROJECT-STRUCTURE.md): Production hosts and feature-module responsibilities.
+
+## Evidence and boundaries
+
+- [Status](https://github.com/freeall12/freenow/blob/main/docs/STATUS.md): Current progress and open validation.
+- [Verification index](https://github.com/freeall12/freenow/blob/main/docs/VERIFICATION-INDEX.md): Per-feature evidence and historical checks. Historical records retain their original scope.
+- [Screenshot sources](https://github.com/freeall12/freenow/blob/main/docs/screenshots/README.md): Real interfaces, reproduction steps, and fixture/model boundaries.
+- [Localization acceptance](https://github.com/freeall12/freenow/blob/main/docs/FREENOW-LOCALIZATION-ACCEPTANCE.md): Local resources, outbound restrictions, storage, and export scope.
+- [Third-party resources](https://github.com/freeall12/freenow/blob/main/docs/THIRD-PARTY-RESOURCES.md): Sources and rights; no blanket MIT license.
+
+Prefer the current product/configuration guides for usage. Use dated records to cite only what those checks actually verified. See repository source and package.json for commands and version; do not infer published desktop downloads, completed provider quality tests, or supported platforms from upstream projects.

@@ -44,6 +44,51 @@ test('failed or stale edit callbacks never grant context permission or fake succ
  try{g.rpc('apply','tools/call',toolParams('resize_for_platform_apply',{}),true);g.setCurrent(false);assert.equal(guard(),false);release({content:[],structuredContent:{node_refs:['node/actual']}});await tick();assert.equal(g.response('apply'),undefined);}finally{g.host.dispose();}
 });
 
+test('color context save retry reuses the successful Apply and consumes its permit only after persistence',async()=>{
+ let applies=0,contexts=0;
+ const f=await hostFixture(uri('color-adjust','v2'),{
+  onApplyColorAdjust:async()=>{applies++;return {content:[],structuredContent:{node_id:'same-output'}};},
+  onColorAdjustContext:async(_params,options)=>{contexts++;assert.equal(options.callId,'actual_call_123');if(contexts===1)throw Error('local conversation save failed');return {};}
+ });
+ try{
+  f.rpc('apply','tools/call',toolParams('color_adjust_apply',{}),true);await tick();
+  f.rpc('context-1','ui/update-model-context',{content:[]});await tick();assert.ok(f.response('context-1').error);
+  f.rpc('context-2','ui/update-model-context',{content:[]});await tick();assert.deepEqual(f.response('context-2').result,{});
+  f.rpc('context-replay','ui/update-model-context',{content:[]},true);await tick();assert.ok(f.response('context-replay').error);
+  assert.equal(applies,1);assert.equal(contexts,2);
+ }finally{f.host.dispose();}
+});
+
+test('color context failure cannot restore a permit invalidated by a new source or conversation run',async()=>{
+ for(const invalidate of [host=>host.updateData({node_ref:'node/other'},{}),host=>{host.updateConversationRunActive(true);host.updateConversationRunActive(false);}]){
+  let rejectContext,contexts=0;const f=await hostFixture(uri('color-adjust','v2'),{
+   onApplyColorAdjust:async()=>({content:[],structuredContent:{node_id:'original-output'}}),
+   onColorAdjustContext:()=>{contexts++;return new Promise((_resolve,reject)=>rejectContext=reject);}
+  });
+  try{
+   f.rpc('apply','tools/call',toolParams('color_adjust_apply',{}),true);await tick();
+   f.rpc('context','ui/update-model-context',{content:[]});invalidate(f.host);rejectContext(Error('late save failure'));await tick();
+   f.rpc('stale-retry','ui/update-model-context',{content:[]},true);await tick();assert.ok(f.response('stale-retry').error);assert.equal(contexts,1);
+  }finally{f.host.dispose();}
+ }
+});
+
+test('color late Apply or context success is rejected after source projection or a completed run cycle',async()=>{
+ for(const phase of ['apply','context'])for(const invalidate of [host=>host.updateData({node_ref:'node/other'},{}),host=>{host.updateConversationRunActive(true);host.updateConversationRunActive(false);}]){
+  let release,guard,contexts=0;const deferred=(_input,_options,current)=>{guard=current;return new Promise(resolve=>release=resolve);};
+  const f=await hostFixture(uri('color-adjust','v2'),{
+   onApplyColorAdjust:phase==='apply'?deferred:async()=>({content:[],structuredContent:{node_id:'same-output'}}),
+   onColorAdjustContext:(...args)=>{contexts++;return phase==='context'?deferred(...args):{};}
+  });
+  try{
+   f.rpc('apply','tools/call',toolParams('color_adjust_apply',{}),true);await tick();
+   if(phase==='context')f.rpc('context','ui/update-model-context',{content:[]});
+   assert.equal(guard(),true);invalidate(f.host);assert.equal(guard(),false);release(phase==='apply'?{content:[],structuredContent:{node_id:'stale-output'}}:{});await tick();assert.ok(f.response(phase).error);
+   f.rpc('stale-context','ui/update-model-context',{content:[]},true);await tick();assert.ok(f.response('stale-context').error);assert.equal(contexts,phase==='context'?1:0);
+  }finally{f.host.dispose();}
+ }
+});
+
 test('platform host exposes only its edit tool and rejects state, messages, foreign methods and metadata',async()=>{
  let edits=0;const f=await hostFixture(uri('platform-resize'),{onPlatformResizeApply:async()=>{edits++;return{content:[],structuredContent:{count:1,node_refs:['node/actual']}};},onSendPrompt:()=>true,onSetWidgetState:()=>true,onColorAdjustContext:()=>({})});
  try{

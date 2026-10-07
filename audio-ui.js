@@ -107,6 +107,23 @@
    input.oninput=()=>syncDuration(false);input.onchange=()=>syncDuration(true);label.append(el('span','','自定义（秒）'),input);p.append(label);}
   if(config.scene==='Sound'&&config.model==='eleven_sound_effect')options(p,'循环',[[true,'开启'],[false,'关闭']],config.params.loop,v=>{config.params.loop=v;redraw();});
   if(config.model==='doubao-seed-audio-1-0'){options(p,'字幕',[[true,'开启'],[false,'关闭']],config.params.enable_subtitle,v=>{config.params.enable_subtitle=v;redraw();});options(p,'输出格式',[['wav','WAV'],['mp3','MP3'],['ogg_opus','OGG OPUS']],config.params.format,v=>{config.params.format=v;redraw();});}
+  const profile=audioNativeModule?.audioNativeProfile(audioNativeMetadata,{kind:'audio.generate',parameters:{model:config.model}});
+  if(config.model==='sonilo-sfx'&&profile?.semantics==='native'){
+   p.append(el('p','audio-status','Sonilo SFX 原生音效 · 单个 WAV；视频分段从 0 秒开始，start/end 必须连续。'));
+   if(referenceNodes().some(node=>node.type==='video')){
+    const section=el('div','audio-section');section.append(el('span','','音效分段'));
+    const segments=config.params.segments;
+    if(segments!==undefined&&!Array.isArray(segments))section.append(el('p','audio-status','分段格式无效，请明确清除后重填；当前设置不会被忽略。'));
+    for(const [index,segment]of (Array.isArray(segments)?segments:[]).entries()){
+     const row=el('div','audio-section');row.append(el('span','','第 '+(index+1)+' 段'));
+     if(!segment||typeof segment!=='object'||Array.isArray(segment)){row.append(el('p','audio-status','该段格式无效：'+JSON.stringify(segment)),button('移除第 '+(index+1)+' 段',null,()=>{if(!ownsPop(p))return;config.params.segments.splice(index,1);if(!config.params.segments.length)delete config.params.segments;redraw();}));section.append(row);continue;}
+     for(const [key,label]of [['start','开始（秒）'],['end','结束（秒）']]){const input=el('input');input.type='number';input.step='any';input.min=0;input.value=segment[key]??'';input.setAttribute('aria-label','第 '+(index+1)+' 段'+label);input.oninput=()=>{if(!ownsPop(p))return;segment[key]=input.value===''?null:Number(input.value);scheduleSave();updateGenerateState();};input.onchange=()=>{if(ownsPop(p))persist();};row.append(el('label','',label),input);}
+     const prompt=el('textarea');prompt.rows=2;prompt.value=segment.prompt??'';prompt.setAttribute('aria-label','第 '+(index+1)+' 段音效描述');prompt.oninput=()=>{if(!ownsPop(p))return;segment.prompt=prompt.value;scheduleSave();updateGenerateState();};prompt.onchange=()=>{if(ownsPop(p))persist();};row.append(prompt,button('移除第 '+(index+1)+' 段',null,()=>{if(!ownsPop(p))return;config.params.segments.splice(index,1);if(!config.params.segments.length)delete config.params.segments;redraw();}));section.append(row);
+    }
+    if(segments===undefined||Array.isArray(segments)&&segments.length<30)section.append(button('添加音效分段',null,()=>{if(!ownsPop(p))return;const list=config.params.segments??=[],start=list.length?list.at(-1).end:0;list.push({start,end:Number.isFinite(start)?start+1:null,prompt:''});config.params.segments=list;redraw();}));
+    if(segments!==undefined)section.append(button('清除音效分段',null,()=>{if(!ownsPop(p))return;delete config.params.segments;redraw();}));p.append(section);
+   }else if(config.params.segments!==undefined)p.append(button('清除不适用的音效分段',null,()=>{if(!ownsPop(p))return;delete config.params.segments;redraw();}));
+  }
   placePop();focusPop(p,focusKey);
  }
  function mountVoiceChoices(p,options){
@@ -154,13 +171,13 @@
   let native=null,nativeMetadata,nativeOptions;
   if(window.GenerationAPI?.availability&&['music_v1','mureka-8','mureka-o2','doubao-seed-audio-1-0','sonilo-music','sonilo-sfx'].includes(target.model)){
    native=await import('./src/features/audio-generation/native-profile.mjs');nativeOptions={nodeDraft:!agentAudio,explicitOverrides:overrides,...(agentAudio&&node.audioConfig?.model===target.model?{sourceParameters:node.audioConfig.params}:{})};
-   const preview={kind:'audio.generate',prompt:core.validate(target,refs),inputs:refs,parameters:{...target.params,model:target.model,scene:target.scene,virtualModel:target.virtualModel}};
+   const preview={kind:'audio.generate',prompt:target.prompt,inputs:refs,parameters:{...target.params,model:target.model,scene:target.scene,virtualModel:target.virtualModel}};
    nativeMetadata=await native.audioNativeConfiguration(window.GenerationAPI,preview);native.applyAudioNativeConfiguration(nativeMetadata,preview,{...nativeOptions,deferVideoDuration:true});requestGuard();
   }
   for(const ref of refs){if(!ref.url&&!ref.text)throw Error('参考素材尚未上传内容');if(ref.type==='video'&&spec.video){const video=document.createElement('video');video.preload='metadata';try{ref.duration=await new Promise((resolve,reject)=>{const timeout=setTimeout(()=>reject(Error('参考视频时长读取超时')),10000);video.onloadedmetadata=()=>{clearTimeout(timeout);resolve(video.duration);};video.onerror=()=>{clearTimeout(timeout);reject(Error('参考视频无法读取'));};window.LocalAssets.url(ref.url).then(url=>{video.src=url;}).catch(error=>{clearTimeout(timeout);reject(error);});});}finally{video.removeAttribute('src');video.load();}target.params.duration=ref.duration;requestGuard();if(native)native.applyAudioNativeConfiguration(nativeMetadata,{kind:'audio.generate',prompt:target.prompt,inputs:refs,parameters:{...target.params,model:target.model,scene:target.scene,virtualModel:target.virtualModel}},nativeOptions);}
-   if(ref.url?.startsWith('asset:')){const url=await window.LocalAssets.url(ref.url),blob=await(await fetch(url)).blob();if(ref.type==='video'&&native?.audioNativeProfile(nativeMetadata,{parameters:{model:target.model}})?.semantics==='native'&&target.model==='sonilo-music'){if(Number.isFinite(blob.size))ref.sizeBytes=blob.size;if(blob.type)ref.mime=blob.type;native.applyAudioNativeConfiguration(nativeMetadata,{kind:'audio.generate',prompt:target.prompt,inputs:refs,parameters:{...target.params,model:target.model,scene:target.scene,virtualModel:target.virtualModel}},nativeOptions);requestGuard();}ref.url=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=reject;reader.readAsDataURL(blob);});}}
+   if(ref.url?.startsWith('asset:')){const url=await window.LocalAssets.url(ref.url),blob=await(await fetch(url)).blob();if(ref.type==='video'&&native?.audioNativeProfile(nativeMetadata,{parameters:{model:target.model}})?.semantics==='native'&&['sonilo-music','sonilo-sfx'].includes(target.model)){if(Number.isFinite(blob.size))ref.sizeBytes=blob.size;if(blob.type)ref.mime=blob.type;native.applyAudioNativeConfiguration(nativeMetadata,{kind:'audio.generate',prompt:target.prompt,inputs:refs,parameters:{...target.params,model:target.model,scene:target.scene,virtualModel:target.virtualModel}},nativeOptions);requestGuard();}ref.url=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=reject;reader.readAsDataURL(blob);});}}
   if(agentAudio)agentAudio.validateAudioDraft(agentAudio.createAudioDraft(overrides,[node]),refs.map(ref=>({...ref,content:ref.text})));
-  const prompt=core.validate(target,refs);requestGuard();let request={kind:'audio.generate',label:core.scenes[target.scene]+'生成',nodeId,prompt,inputs:refs,parameters:{...target.params,model:target.model,scene:target.scene,virtualModel:target.virtualModel}};
+  const nativeProfile=native?.audioNativeProfile(nativeMetadata,{kind:'audio.generate',parameters:{model:target.model}}),nativeProtocol=nativeProfile?.semantics==='native'&&['sonilo-music','sonilo-sfx'].includes(target.model)?'sonilo-native':undefined;const prompt=core.validate(target,refs,{nativeProfile,nativeProtocol});requestGuard();let request={kind:'audio.generate',label:core.scenes[target.scene]+'生成',nodeId,prompt,inputs:refs,parameters:{...target.params,model:target.model,scene:target.scene,virtualModel:target.virtualModel}};
   if(native){request=native.applyAudioNativeConfiguration(nativeMetadata,request,nativeOptions);requestGuard();}
   return request;
  }

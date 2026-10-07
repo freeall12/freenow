@@ -86,7 +86,7 @@ GENERATION_ROUTES='{"audio.generate":{"models":{"sonilo-music":"sonilo"}}}'
 
 音频节点当前默认应用第一项结果；额外变体从画布左侧 **历史 → 音频** 查看，每个 output 索引可独立预览、播放和应用。没有声称节点内已有变体切换器。[原生合同与来源](SONILO-NATIVE-20261005.md) · [正式节点 / Agent QA](SONILO-NATIVE-UI-QA-20261005.md)。本机 fixture 不证明真实账号权限、音乐质量或与视觉事件的精确同步。
 
-这是本批进一步读取 [Sonilo 完整公开 API](https://platform.sonilo.com/openapi.json) 后实现的 Music 能力。前批“没有找到独立 Sonilo API”仅描述当时已检查的 TapNow 使用文档 / 安装包来源。**Sonilo 原生 SFX、stems、语音保留和 ducking 仍未接入**；下面的 ThinkSound 可选配置仅为明确的 SFX 替代，不启用这些 Sonilo 原生功能。
+这是本批进一步读取 [Sonilo 完整公开 API](https://platform.sonilo.com/openapi.json) 后实现的 Music 能力。前批“没有找到独立 Sonilo API”仅描述当时已检查的 TapNow 使用文档 / 安装包来源。**Sonilo 原生 SFX 已另外接入**，需要显式 `sonilo-sfx` 型号绑定和 `Sound` 路由；Music 映射不会自动启用它。文字/完整视频、连续音效分段及精确配置见[SFX 原生合同](SONILO-SFX-NATIVE-20261005.md)，测试与实机边界见[SFX UI 记录](SONILO-SFX-UI-QA-20261005.md)。stems、语音保留和 ducking 仍未接入。下面的 ThinkSound 配置是另一种显式 SFX 替代，同一别名应选择一个实际路由，不同时绑定两家。
 
 ### 可选 ThinkSound 视频拟音与延长镜头
 

@@ -7,7 +7,7 @@ const {rejectCredentials}=require('./generation-durable.cjs');
 const {publicMediaUrl,createGenerationMediaDownloader}=require('./generation-media-download.cjs');
 const {waveMetadata}=require('./generation-openai-speech.cjs');
 const {command,envelope}=require('./generation-video-mask-media.cjs').mediaInternals;
-const ORIGIN='https://api.sonilo.com',PROTOCOL='sonilo-native',MODEL='sonilo-music';
+const ORIGIN='https://api.sonilo.com',PROTOCOL='sonilo-native',MODEL='sonilo-music',SFX_MODEL='sonilo-sfx';
 const MAX_VIDEO_BYTES=50000000,MAX_AUDIO_BYTES=50*1024*1024,MAX_BATCH_AUDIO_BYTES=128*1024*1024,MAX_JSON_BYTES=1024*1024;
 const LABELS=Object.freeze(['intro','verse','pre-chorus','chorus','bridge','break','silence','outro','none']);
 const DEFAULT_SONILO_MODEL_MAP=Object.freeze({[MODEL]:Object.freeze({kind:'audio.generate',model:MODEL})});
@@ -19,8 +19,8 @@ const validId=value=>typeof value==='string'&&/^[A-Za-z0-9][A-Za-z0-9._:-]{0,199
 const hash=value=>createHash('sha256').update(value).digest('hex');
 function parseSoniloModelMap(value){
  const mapping=value===undefined?DEFAULT_SONILO_MODEL_MAP:typeof value==='string'?JSON.parse(value):value;
- if(!object(mapping)||Object.keys(mapping).length>1)throw fail('Sonilo 音乐模型映射无效','configuration_invalid');
- for(const [alias,entry]of Object.entries(mapping))if(alias!==MODEL||!object(entry)||Object.keys(entry).some(key=>!['kind','model'].includes(key))||entry.kind!=='audio.generate'||entry.model!==MODEL)throw fail('Sonilo 原生音乐仅支持 sonilo-music；未替换公开型号','configuration_invalid');
+ if(!object(mapping)||Object.keys(mapping).length>2)throw fail('Sonilo 音频模型映射无效','configuration_invalid');
+ for(const [alias,entry]of Object.entries(mapping))if(![MODEL,SFX_MODEL].includes(alias)||!object(entry)||Object.keys(entry).some(key=>!['kind','model'].includes(key))||entry.kind!=='audio.generate'||entry.model!==alias)throw fail('Sonilo 原生音频仅支持独立的 sonilo-music / sonilo-sfx 绑定；未替换公开型号','configuration_invalid');
  return structuredClone(mapping);
 }
 function validateSoniloSegments(value,duration){
@@ -29,6 +29,15 @@ function validateSoniloSegments(value,duration){
  for(let i=0;i<value.length;i++){
   const segment=value[i];
   if(!object(segment)||Object.keys(segment).some(key=>!['start','prompt','label'].includes(key))||!Number.isFinite(segment.start)||segment.start<0||i===0&&segment.start!==0||i>0&&segment.start-value[i-1].start<5||segment.start>duration-5||typeof segment.prompt!=='string'||!segment.prompt.trim()||Array.from(segment.prompt).length>200||segment.label!==undefined&&!LABELS.includes(segment.label))throw localFail('Sonilo 音乐分段须从 0 秒开始、至少相隔 5 秒且保留最后 5 秒；提示词 1–200 字符，标签须为官方枚举');
+ }
+ return structuredClone(value);
+}
+function validateSoniloSfxSegments(value,duration){
+ if(value===undefined)return undefined;
+ if(!Array.isArray(value)||value.length<1||value.length>30)throw localFail('Sonilo 视频音效分段须为 1–30 个明确的时间区间');
+ for(let i=0;i<value.length;i++){
+  const segment=value[i];
+  if(!object(segment)||Object.keys(segment).some(key=>!['start','end','prompt'].includes(key))||!Number.isFinite(segment.start)||!Number.isFinite(segment.end)||segment.start<0||segment.end<=segment.start||i===0&&segment.start!==0||i>0&&segment.start!==value[i-1].end||segment.end>duration||typeof segment.prompt!=='string'||!segment.prompt.trim()||Array.from(segment.prompt).length>200)throw localFail('Sonilo 视频音效区间须从 0 秒开始且连续，end 大于 start 并不超过视频时长；提示词 1–200 字符，不补齐、排序或量化');
  }
  return structuredClone(value);
 }
@@ -45,7 +54,7 @@ function inlineVideo(value,apiKey){
 let activeVideoChecks=0;
 // Decode private local bytes before the first billable POST. FFmpeg never sees
 // input URLs; this does not rewrite, trim, resample or upload a substitute clip.
-async function actualVideo(bytes,{duration,signal,ffmpegPath,ffprobePath}){
+async function actualVideo(bytes,{duration,minDuration=5,maxDuration=360,signal,ffmpegPath,ffprobePath}){
  if(activeVideoChecks>=2)throw localFail('Sonilo 本地视频校验繁忙，请稍后重试');
  activeVideoChecks++;let directory;
  try{
@@ -55,13 +64,37 @@ async function actualVideo(bytes,{duration,signal,ffmpegPath,ffprobePath}){
   const raw=await command(ffprobePath,[...base,'-show_entries','stream=codec_type,width,height,duration,nb_frames:format=duration','-of','json',file],{signal,maxStdout:65536});
   const summary=JSON.parse(raw.toString('utf8')),videos=summary.streams?.filter(stream=>stream.codec_type==='video'),audio=summary.streams?.filter(stream=>stream.codec_type==='audio');
   const video=videos?.[0],measured=Number(video?.duration??summary.format?.duration);
-  if(videos?.length!==1||!Array.isArray(audio)||audio.length>1||!Number.isSafeInteger(video.width)||!Number.isSafeInteger(video.height)||video.width<1||video.height<1||video.width*video.height>16777216||!Number.isFinite(measured)||measured<5||measured>360||Math.abs(measured-duration)>.01||video.nb_frames!==undefined&&video.nb_frames!=='N/A'&&(!Number.isSafeInteger(Number(video.nb_frames))||Number(video.nb_frames)<1||Number(video.nb_frames)>21600))throw localFail('Sonilo 视频须有一条真实视频轨，实际时长不超过 360 秒且与声明一致');
+  if(videos?.length!==1||!Array.isArray(audio)||audio.length>1||!Number.isSafeInteger(video.width)||!Number.isSafeInteger(video.height)||video.width<1||video.height<1||video.width*video.height>16777216||!Number.isFinite(measured)||measured<minDuration||measured>maxDuration||Math.abs(measured-duration)>.01||video.nb_frames!==undefined&&video.nb_frames!=='N/A'&&(!Number.isSafeInteger(Number(video.nb_frames))||Number(video.nb_frames)<1||Number(video.nb_frames)>21600))throw localFail('Sonilo 视频须有一条真实视频轨，实际时长在本地预算内且与声明一致');
   await command(ffmpegPath,['-hide_banner','-loglevel','error','-nostdin','-xerror','-err_detect','explode','-protocol_whitelist','file,pipe','-format_whitelist','mov','-i',file,'-map','0:v:0','-map','0:a:0?','-sn','-dn','-f','null','-'],{signal,maxStdout:1024});
   return {duration:measured,sha256:hash(bytes)};
  }catch(error){if(signal?.aborted)throw signal.reason;throw Object.assign(localFail(error?.code==='media_tool_unavailable'?'Sonilo 本地视频上传需要可运行的 FFmpeg/FFprobe':'Sonilo 视频实际解码或时长校验失败；未上传、提交或改写视频'),error?.code==='media_tool_unavailable'?{code:error.code}:{});}
  finally{activeVideoChecks--;if(directory)await fs.rm(directory,{recursive:true,force:true});}
 }
-function createSoniloProvider({baseUrl='',apiKey='',modelMap,fetchImpl=fetch,download=createGenerationMediaDownloader().download,timeoutMs=30000,mediaTimeoutMs=120000,ffmpegPath='ffmpeg',ffprobePath='ffprobe'}={}){
+let activeAudioChecks=0;
+async function actualSfxAudio(bytes,{duration,signal,ffmpegPath,ffprobePath}){
+ // Sonilo promises WAV, not PCM16. Decode downloaded WAV locally when the
+ // shared PCM16 reader cannot consume it; never substitute generated samples.
+ if(activeAudioChecks>=2)throw unknown();
+ activeAudioChecks++;let directory;
+ try{
+  if(bytes.length<44||bytes.toString('ascii',0,4)!=='RIFF'||bytes.toString('ascii',8,12)!=='WAVE'||bytes.readUInt32LE(4)!==0xffffffff&&bytes.readUInt32LE(4)+8!==bytes.length)throw unknown();
+  let at=12,format=false,data=false;
+  while(at+8<=bytes.length){const type=bytes.toString('ascii',at,at+4),declared=bytes.readUInt32LE(at+4),length=declared===0xffffffff&&type==='data'?bytes.length-at-8:declared;if(at+8+length>bytes.length||type==='fmt '&&(format||length<16)||type==='data'&&(data||!length))throw unknown();if(type==='fmt ')format=true;if(type==='data')data=true;at+=8+length+length%2;}
+  if(at!==bytes.length||!format||!data)throw unknown();
+  directory=await fs.mkdtemp(path.join(os.tmpdir(),'freenow-sonilo-audio-'));await fs.chmod(directory,0o700);
+  const source=path.join(directory,'supplier.wav'),target=path.join(directory,'decoded.wav');await fs.writeFile(source,bytes,{mode:0o600,signal});
+  const base=['-v','error','-protocol_whitelist','file,pipe','-format_whitelist','wav'];
+  const summary=JSON.parse((await command(ffprobePath,[...base,'-show_entries','stream=codec_type,sample_rate,channels:format=format_name,duration','-of','json',source],{signal,maxStdout:65536})).toString('utf8'));
+  const stream=summary.streams?.[0],rate=Number(stream?.sample_rate),measured=Number(summary.format?.duration),channels=stream?.channels;
+  if(summary.format?.format_name!=='wav'||summary.streams?.length!==1||stream.codec_type!=='audio'||!Number.isSafeInteger(rate)||rate<8000||rate>192000||![1,2].includes(channels)||!Number.isFinite(measured)||measured<.5||measured>480||Math.abs(measured-duration)>.1||Math.ceil(measured*rate)*channels*2+4096>MAX_AUDIO_BYTES)throw unknown();
+  await command(ffmpegPath,['-hide_banner','-loglevel','error','-nostdin','-xerror','-err_detect','explode','-protocol_whitelist','file,pipe','-format_whitelist','wav','-i',source,'-map','0:a:0','-vn','-sn','-dn','-map_metadata','-1','-c:a','pcm_s16le','-fs',String(MAX_AUDIO_BYTES),'-f','wav',target],{signal,maxStdout:1024});
+  if((await fs.stat(target)).size>MAX_AUDIO_BYTES)throw unknown();const decoded=await fs.readFile(target,{signal}),metadata=waveMetadata(decoded);
+  if(metadata.sampleRate!==rate||Math.abs(metadata.duration-measured)>1/rate||Math.abs(metadata.duration-duration)>.1)throw unknown();
+  return decoded;
+ }catch{if(signal?.aborted)throw signal.reason;throw unknown();}
+ finally{activeAudioChecks--;if(directory)await fs.rm(directory,{recursive:true,force:true});}
+}
+function createSoniloProvider({baseUrl='',apiKey='',modelMap,fetchImpl=fetch,download=createGenerationMediaDownloader().download,timeoutMs=30000,mediaTimeoutMs=120000,ffmpegPath=process.env.FFMPEG_PATH||'ffmpeg',ffprobePath=process.env.FFPROBE_PATH||'ffprobe'}={}){
  let mapping={},configurationError=null;
  try{
   mapping=parseSoniloModelMap(modelMap);
@@ -71,29 +104,36 @@ function createSoniloProvider({baseUrl='',apiKey='',modelMap,fetchImpl=fetch,dow
  const missing=[...(!apiKey?['GENERATION_API_KEY']:[]),...(!Object.keys(mapping).length?['GENERATION_MODEL_MAP']:[])],configured=!configurationError&&!missing.length;
  const fingerprint=hash(JSON.stringify({protocol:PROTOCOL,origin:ORIGIN,mapping}));
  const profile={scene:'Music',label:'Sonilo Music',model:MODEL,semantics:'native',duration:{min:5,max:360,automatic:false},durationMode:'source-video-or-explicit',providerMaxVideoDuration:360,localVideoDuration:{min:5,max:360},maxVideos:1,maxCount:10,count:{min:1,max:10,billing:'per-variant'},maxCharacters:1000,maxPromptCharacters:1000,maxVideoBytes:MAX_VIDEO_BYTES,maxAudioBytes:MAX_AUDIO_BYTES,maxBatchAudioBytes:MAX_BATCH_AUDIO_BYTES,segments:true,segmentContract:{maxSegments:30,minSeconds:5,maxPromptCharacters:200,labels:[...LABELS],fields:['start','prompt','label']},textOnly:true,formats:['wav'],outputFormat:'wav',requiresMediaTools:['ffmpeg','ffprobe']};
- const models=Object.fromEntries(Object.keys(mapping).map(alias=>[alias,{kind:'audio.generate',label:profile.label,model:MODEL,semantics:'native'}]));
- const metadata={configured,protocol:PROTOCOL,missing,configurationError,capabilities:{kinds:Object.keys(mapping).length?['audio.generate']:[],models,music:Object.fromEntries(Object.keys(mapping).map(alias=>[alias,structuredClone(profile)])),videoAudio:Object.fromEntries(Object.keys(mapping).map(alias=>[alias,structuredClone(profile)])),references:true,textReferences:false,videoReferences:{maxVideos:1,mimeTypes:['video/mp4'],transport:'multipart-file'},remoteRecovery:true,remoteCancellation:false,providerIdempotency:false,verified:'official-schema-and-local-contract'}};
+ const sfxProfile={...profile,scene:'Sound',label:'Sonilo SFX',model:SFX_MODEL,duration:{min:.5,max:180,automatic:false},providerMaxVideoDuration:480,localVideoDuration:{min:.5,max:480},maxCount:1,count:{min:1,max:1,billing:'per-task'},maxCharacters:2000,maxPromptCharacters:2000,segmentContract:{maxSegments:30,maxPromptCharacters:200,fields:['start','end','prompt'],firstStart:0,contiguous:true,videoOnly:true},wavCompatibility:'pcm16-original-or-local-decoding'};
+ const profiles={[MODEL]:profile,[SFX_MODEL]:sfxProfile};
+ const models=Object.fromEntries(Object.keys(mapping).map(alias=>[alias,{kind:'audio.generate',label:profiles[alias].label,model:alias,semantics:'native'}]));
+ const metadata={configured,protocol:PROTOCOL,missing,configurationError,capabilities:{kinds:Object.keys(mapping).length?['audio.generate']:[],models,music:Object.fromEntries(Object.keys(mapping).filter(alias=>alias===MODEL).map(alias=>[alias,structuredClone(profile)])),sound:Object.fromEntries(Object.keys(mapping).filter(alias=>alias===SFX_MODEL).map(alias=>[alias,structuredClone(sfxProfile)])),videoAudio:Object.fromEntries(Object.keys(mapping).map(alias=>[alias,structuredClone(profiles[alias])])),references:true,textReferences:false,videoReferences:{maxVideos:1,mimeTypes:['video/mp4'],transport:'multipart-file'},remoteRecovery:true,remoteCancellation:false,providerIdempotency:false,verified:'official-schema-and-local-contract'}};
  const transport=protectGenerationFetch(fetchImpl);
  function resolve(request){
-  if(!configured)throw fail('Sonilo 原生音乐尚未配置，请检查独立供应商 Key 与模型映射','configuration_required');
-  if(!object(request)||request.kind!=='audio.generate'||Buffer.byteLength(JSON.stringify(request))>Math.ceil(MAX_VIDEO_BYTES/3)*4+MAX_JSON_BYTES)throw localFail('Sonilo 仅支持预算内音乐生成请求');
+  if(!configured)throw fail('Sonilo 原生音频尚未配置，请检查独立供应商 Key 与模型映射','configuration_required');
+  if(!object(request)||request.kind!=='audio.generate'||Buffer.byteLength(JSON.stringify(request))>Math.ceil(MAX_VIDEO_BYTES/3)*4+MAX_JSON_BYTES)throw localFail('Sonilo 仅支持预算内音频生成请求');
   assertCredentialFree(request,apiKey);rejectCredentials(request);
   const p=request.parameters??{};if(!object(p))throw localFail('Sonilo 音乐参数须为对象');const wire=p.providerParameters??{};
   if(!object(wire)||Object.keys(p).some(key=>!['model','modelId','virtualModel','scene','duration','segments','count','times','format','response_format','providerParameters'].includes(key))||Object.keys(wire).some(key=>!['model','prompt_influence'].includes(key)))throw localFail('Sonilo 请求含未支持的格式、混音、分轨或其他设置；不会忽略后提交');
-  const alias=p.modelId??p.model;
-  if(alias!==MODEL||!Object.hasOwn(mapping,alias))throw fail('此型号未配置 Sonilo 原生音乐','configuration_required');
-  if([p.model,p.modelId,wire.model].some(value=>value!==undefined&&value!==alias)||p.virtualModel!==undefined&&p.virtualModel!==MODEL||p.scene!=='Music')throw localFail('Sonilo 原生音乐型号或场景不一致');
+  const alias=p.modelId??p.model,isSfx=alias===SFX_MODEL;
+  if(![MODEL,SFX_MODEL].includes(alias)||!Object.hasOwn(mapping,alias))throw fail('此型号未配置 Sonilo 原生音频','configuration_required');
+  // The production Sonilo selector remains Music while its Sound scene routes
+  // to the independent SFX binding. Actual model fields must still agree.
+  if([p.model,p.modelId,wire.model].some(value=>value!==undefined&&value!==alias)||p.virtualModel!==undefined&&!(isSfx?[MODEL,SFX_MODEL]:[MODEL]).includes(p.virtualModel)||p.scene!==(isSfx?'Sound':'Music'))throw localFail('Sonilo 原生音频型号或场景不一致');
   const counts=[request.count,p.count,p.times].filter(value=>value!==undefined),count=counts[0]??1;
   if(counts.some(value=>!Number.isSafeInteger(value)||value<1||value>10||value!==count))throw localFail('Sonilo 生成数量须为一致的 1–10 整数；不同计数字段不可冲突');
+  if(isSfx&&count!==1)throw localFail('Sonilo 原生音效只公开单结果合同，不拆分或忽略多结果数量');
   if([p.format,p.response_format].some(value=>value!==undefined&&value!=='wav'))throw localFail('Sonilo 本批固定返回 WAV，不会忽略格式或另行转码');
   if(wire.prompt_influence!==undefined&&(!Number.isFinite(wire.prompt_influence)||wire.prompt_influence<0||wire.prompt_influence>1))throw localFail('Sonilo prompt_influence 须在 0–1 之间');
+  if(isSfx&&wire.prompt_influence!==undefined)throw localFail('Sonilo 原生音效没有公开 prompt_influence 字段');
   if([request.sourceClip,request.clip,request.trim,request.segments].some(value=>value!==undefined)||request.references!==undefined&&(!Array.isArray(request.references)||request.references.length))throw localFail('Sonilo 不接受未展开引用或选段；须先导出选段实际视频');
   const inputs=request.inputs??[];
   if(!Array.isArray(inputs)||inputs.length>1||inputs.some(input=>!object(input)||input.type!=='video'))throw localFail('Sonilo 原生音乐仅接受一个视频参考或无参考文字生成');
   if(!inputs.length&&wire.prompt_influence!==undefined)throw localFail('Sonilo prompt_influence 仅适用于视频音乐');
-  if(typeof request.prompt!=='string'||Array.from(request.prompt).length>1000||!inputs.length&&!request.prompt.trim())throw localFail('Sonilo 音乐描述最多 1000 字符；无视频时描述须非空');
-  const duration=p.duration;
-  if(!Number.isFinite(duration)||duration<5||duration>360||!inputs.length&&(!Number.isInteger(duration)||duration<5))throw localFail('Sonilo 文字音乐时长须为 5–360 整数秒；视频音乐须声明实际来源时长');
+  if(typeof request.prompt!=='string'||Array.from(request.prompt).length>(isSfx?2000:1000)||!inputs.length&&!request.prompt.trim())throw localFail(isSfx?'Sonilo 音效描述最多 2000 字符；无视频时描述须非空':'Sonilo 音乐描述最多 1000 字符；无视频时描述须非空');
+  const duration=p.duration,minDuration=isSfx?.5:5,maxDuration=isSfx?(inputs.length?480:180):360;
+  if(!Number.isFinite(duration)||duration<minDuration||duration>maxDuration||!isSfx&&!inputs.length&&!Number.isInteger(duration))throw localFail(isSfx?'Sonilo 文字音效时长须为 0.5–180 秒；视频音效须声明 0.5–480 秒实际来源时长':'Sonilo 文字音乐时长须为 5–360 整数秒；视频音乐须声明实际来源时长');
+  if(isSfx&&!inputs.length&&p.segments!==undefined)throw localFail('Sonilo 文字音效没有公开分段字段；精确分段须有实际视频');
   let source;
   if(inputs.length){
    const input=inputs[0];
@@ -101,7 +141,7 @@ function createSoniloProvider({baseUrl='',apiKey='',modelMap,fetchImpl=fetch,dow
    source=typeof input.url==='string'&&input.url.startsWith('data:')?{bytes:inlineVideo(input.url,apiKey),duration,sizeBytes:input.sizeBytes}:{url:httpsMedia(input.url),duration,sizeBytes:input.sizeBytes};
    if(source.bytes&&source.sizeBytes!==undefined&&source.sizeBytes!==source.bytes.length)throw localFail('Sonilo 视频声明字节数不一致');
   }
-  return {alias,type:source?'video_to_music':'text_to_music',path:source?'/v1/video-to-music':'/v1/text-to-music',source,duration,count,prompt:request.prompt,segments:validateSoniloSegments(p.segments,duration),promptInfluence:wire.prompt_influence};
+  return {alias,isSfx,type:(source?'video_to_':'text_to_')+(isSfx?'sfx':'music'),path:'/v1/'+(source?'video-to-':'text-to-')+(isSfx?'sfx':'music'),source,duration,minDuration,maxDuration,count,prompt:request.prompt,segments:(isSfx?validateSoniloSfxSegments:validateSoniloSegments)(p.segments,duration),promptInfluence:wire.prompt_influence};
  }
  async function bounded(operation,budget,signal){
   const controller=new AbortController(),combined=signal?AbortSignal.any([signal,controller.signal]):controller.signal;
@@ -127,7 +167,7 @@ function createSoniloProvider({baseUrl='',apiKey='',modelMap,fetchImpl=fetch,dow
    finally{if(!complete){if(reader)void reader.cancel().catch(()=>{});else void response?.body?.cancel().catch(()=>{});}try{reader?.releaseLock();}catch{}}
   },timeoutMs,signal);
  }
- async function media(url,kind,expectedSize,expectedDuration,signal){
+ async function media(url,kind,expectedSize,expectedDuration,signal,{sfx=false}={}){
   return bounded(async context=>{
    let resource,iterator,complete=false;
    try{
@@ -136,10 +176,10 @@ function createSoniloProvider({baseUrl='',apiKey='',modelMap,fetchImpl=fetch,dow
     if(!resource||resource.mime!==mime||!resource.stream?.[Symbol.asyncIterator]||resource.expectedBytes!==undefined&&(!Number.isSafeInteger(resource.expectedBytes)||resource.expectedBytes<1||resource.expectedBytes>limit))throw unknown();
     iterator=resource.stream[Symbol.asyncIterator]();const chunks=[];let size=0;
     for(;;){const next=await context.wait(()=>iterator.next());if(next.done)break;if(!(next.value instanceof Uint8Array))throw unknown();size+=next.value.byteLength;if(size>limit)throw unknown();chunks.push(Buffer.from(next.value));}
-    context.check();if(!size||resource.expectedBytes!==undefined&&resource.expectedBytes!==size||expectedSize!==undefined&&expectedSize!==size)throw unknown();const bytes=Buffer.concat(chunks);assertCredentialFreeBytes(bytes,apiKey);
+    context.check();if(!size||resource.expectedBytes!==undefined&&resource.expectedBytes!==size||expectedSize!==undefined&&expectedSize!==size)throw unknown();let bytes=Buffer.concat(chunks);assertCredentialFreeBytes(bytes,apiKey);
     let duration,audioInfo;
     if(kind==='video')inlineVideo('data:video/mp4;base64,'+bytes.toString('base64'),apiKey);
-    else {const metadata=waveMetadata(bytes);if(Math.abs(metadata.duration-expectedDuration)>.1)throw unknown();duration=metadata.duration;let at=12;
+    else {let metadata;try{metadata=waveMetadata(bytes);}catch(error){if(!sfx)throw error;bytes=await context.wait(()=>actualSfxAudio(bytes,{duration:expectedDuration,signal:context.signal,ffmpegPath,ffprobePath}));assertCredentialFreeBytes(bytes,apiKey);metadata=waveMetadata(bytes);}if(Math.abs(metadata.duration-expectedDuration)>.1)throw unknown();duration=metadata.duration;let at=12;
      while(bytes.toString('ascii',at,at+4)!=='fmt '){const size=bytes.readUInt32LE(at+4);at+=8+size+(size%2);}
      audioInfo={sampleRate:metadata.sampleRate,channels:bytes.readUInt16LE(at+10)};
     }
@@ -151,21 +191,23 @@ function createSoniloProvider({baseUrl='',apiKey='',modelMap,fetchImpl=fetch,dow
  const envelopeId=values=>'sn1.'+Buffer.from(JSON.stringify(values)).toString('base64url');
  function identity(id){
   let values;
-  try{if(typeof id!=='string'||id.length>1024||!/^sn1\.[A-Za-z0-9_-]+$/.test(id))throw Error();values=JSON.parse(Buffer.from(id.slice(4),'base64url').toString('utf8'));if(!Array.isArray(values)||values.length!==7||values[0]!==fingerprint||values[1]!==MODEL||!['video_to_music','text_to_music'].includes(values[2])||!validId(values[3])||!Number.isFinite(values[4])||values[4]<5||values[4]>360||!Number.isSafeInteger(values[5])||values[5]<1||values[5]>10||typeof values[6]!=='string'||!/^[a-f0-9]{64}$/.test(values[6])||envelopeId(values)!==id)throw Error();}catch{throw fail('Sonilo 原任务身份或供应商配置不一致','provider_identity_mismatch');}
+  try{if(typeof id!=='string'||id.length>1024||!/^sn1\.[A-Za-z0-9_-]+$/.test(id))throw Error();values=JSON.parse(Buffer.from(id.slice(4),'base64url').toString('utf8'));if(!Array.isArray(values)||values.length!==7||values[0]!==fingerprint||![MODEL,SFX_MODEL].includes(values[1])||!Object.hasOwn(mapping,values[1])||!(values[1]===SFX_MODEL?['video_to_sfx','text_to_sfx']:['video_to_music','text_to_music']).includes(values[2])||!validId(values[3])||!Number.isFinite(values[4])||values[4]<(values[1]===SFX_MODEL?.5:5)||values[4]>(values[1]===SFX_MODEL?(values[2]==='video_to_sfx'?480:180):360)||!Number.isSafeInteger(values[5])||values[5]<1||values[5]>(values[1]===SFX_MODEL?1:10)||typeof values[6]!=='string'||!/^[a-f0-9]{64}$/.test(values[6])||envelopeId(values)!==id)throw Error();}catch{throw fail('Sonilo 原任务身份或供应商配置不一致','provider_identity_mismatch');}
   if(!configured)throw fail('Sonilo 原任务供应商尚未配置','configuration_required');
-  return {type:values[2],taskId:values[3],duration:values[4],count:values[5]};
+  return {model:values[1],type:values[2],taskId:values[3],duration:values[4],count:values[5]};
  }
- async function submit(request,{signal}={}){
+ async function submit(request,{signal,onTaskIdentity}={}){
+  if(onTaskIdentity!==undefined&&typeof onTaskIdentity!=='function')throw localFail('Sonilo 任务身份保存回调须为函数');
   const prepared=resolve(request);if(signal?.aborted)throw signal.reason;
   let bytes=prepared.source?.bytes,sourceHash=hash(JSON.stringify({prompt:prepared.prompt,segments:prepared.segments,duration:prepared.duration}));
   if(prepared.source){
    try{
     if(!bytes)bytes=(await media(prepared.source.url,'video',prepared.source.sizeBytes,prepared.duration,signal)).bytes;
-    const actual=await bounded(context=>actualVideo(bytes,{duration:prepared.duration,signal:context.signal,ffmpegPath,ffprobePath}),mediaTimeoutMs,signal);
-    validateSoniloSegments(prepared.segments,actual.duration);sourceHash=actual.sha256;
+    const actual=await bounded(context=>actualVideo(bytes,{duration:prepared.duration,minDuration:prepared.minDuration,maxDuration:prepared.maxDuration,signal:context.signal,ffmpegPath,ffprobePath}),mediaTimeoutMs,signal);
+    (prepared.isSfx?validateSoniloSfxSegments:validateSoniloSegments)(prepared.segments,actual.duration);sourceHash=actual.sha256;
    }catch{if(signal?.aborted)throw signal.reason;throw Object.assign(localFail('Sonilo 来源未通过本地预上传校验；尚未上传或提交模型生成'),{code:'sonilo_preparation_failed'});}
   }
-  const form=new FormData();form.append('mode','async');form.append('output_format','wav');form.append('variants_num',String(prepared.count));
+  const form=new FormData();
+  if(prepared.isSfx)form.append('audio_format','wav');else{form.append('mode','async');form.append('output_format','wav');form.append('variants_num',String(prepared.count));}
   if(bytes)form.append('video',new Blob([bytes],{type:'video/mp4'}),'source.mp4');else form.append('duration',String(prepared.duration));
   if(prepared.prompt.length)form.append('prompt',prepared.prompt);
   if(prepared.segments!==undefined)form.append('segments',JSON.stringify(prepared.segments));
@@ -173,16 +215,28 @@ function createSoniloProvider({baseUrl='',apiKey='',modelMap,fetchImpl=fetch,dow
   const receipt=await json(prepared.path,'POST',form,signal);
   if([400,401,402,403,413,422,429].includes(receipt.status))return {status:'failed',code:'provider_rejected',error:'Sonilo API 明确拒绝请求，请检查账号权限、额度或输入；未自动重试'};
   if(receipt.status!==202||receipt.value.status!=='processing'||!validId(receipt.value.task_id)||Object.keys(receipt.value).some(key=>!['task_id','status'].includes(key)))throw unknown();
-  return {id:envelopeId([fingerprint,MODEL,prepared.type,receipt.value.task_id,prepared.duration,prepared.count,sourceHash]),status:'running'};
+  const id=envelopeId([fingerprint,prepared.alias,prepared.type,receipt.value.task_id,prepared.duration,prepared.count,sourceHash]);
+  if(onTaskIdentity!==undefined){try{await onTaskIdentity(id);}catch{throw unknown();}}
+  return {id,status:'running'};
  }
  async function poll(id,{signal}={}){
   const original=identity(id),receipt=await json('/v1/tasks/'+encodeURIComponent(original.taskId),'GET',undefined,signal),value=receipt.value;
   if(receipt.status!==200)throw unknown();
   if(value.task_id!==original.taskId||value.type!==undefined&&value.type!==original.type)throw fail('Sonilo 查询回执与原任务身份不一致','provider_identity_mismatch');
   if(!['processing','succeeded','failed'].includes(value.status))throw unknown();
+  if(original.model===SFX_MODEL&&Object.keys(value).some(key=>!['task_id','type','status','duration_seconds','audio','error','refunded'].includes(key)))throw unknown();
   if(value.status==='failed'){if(!object(value.error)||typeof value.error.code!=='string'||typeof value.error.message!=='string')throw unknown();return {id,status:'failed',code:'provider_failed',error:'Sonilo 原任务生成失败；未重新提交'};}
   if(value.error!==undefined||['video','videos','outputs','music','sfx','music_processed','vocals','mux','ducked','stems','stems_error'].some(key=>value[key]!==undefined))throw unknown();
-  if(value.status==='processing'){if(value.audio!==undefined&&(!Array.isArray(value.audio)||value.audio.length))throw unknown();return {id,status:'running'};}
+  if(value.status==='processing'){if(value.audio!==undefined&&(original.model===SFX_MODEL||!Array.isArray(value.audio)||value.audio.length))throw unknown();return {id,status:'running'};}
+  // SFX is always one object, not Music's stream array; the public task page
+  // specifies this distinction even though its shared OpenAPI schema lags it.
+  if(original.model===SFX_MODEL){
+   const descriptor=value.audio;
+   if(original.count!==1||!object(descriptor)||Object.keys(descriptor).some(key=>!['url','content_type','file_size'].includes(key))||descriptor.content_type!=='audio/wav'||!Number.isSafeInteger(descriptor.file_size)||descriptor.file_size<1||descriptor.file_size>MAX_AUDIO_BYTES||value.duration_seconds!==undefined&&(!Number.isFinite(value.duration_seconds)||Math.abs(value.duration_seconds-original.duration)>.1))throw unknown();
+   let url;try{url=httpsMedia(descriptor.url);}catch{throw unknown();}
+   const audio=await media(url,'audio',descriptor.file_size,original.duration,signal,{sfx:true});
+   return {id,status:'succeeded',outputs:[{type:'audio',url:'data:audio/wav;base64,'+audio.bytes.toString('base64'),duration:audio.duration}]};
+  }
   if(!Array.isArray(value.audio)||value.audio.length!==original.count||value.duration_seconds!==undefined&&(!Number.isFinite(value.duration_seconds)||Math.abs(value.duration_seconds-original.duration)>.1))throw unknown();
   const title=value=>{if(!object(value)||Object.keys(value).length!==1||typeof value.title!=='string'||!value.title.trim()||Array.from(value.title).length>1000)throw unknown();return value.title;};
   if(value.title!==undefined)title(value.title);
@@ -203,7 +257,7 @@ function createSoniloProvider({baseUrl='',apiKey='',modelMap,fetchImpl=fetch,dow
   if(!Number.isSafeInteger(timeout)||timeout<1||timeout>1800000||!Number.isSafeInteger(pollInterval)||pollInterval<1||pollInterval>30000)throw localFail('Sonilo 轮询预算无效');
   const timed=AbortSignal.timeout(timeout),combined=signal?AbortSignal.any([signal,timed]):timed;
   try{
-   let value=await submit(request,{signal:combined});if(!value.id)return value;await onTaskIdentity(value.id);
+   let value=await submit(request,{signal:combined,onTaskIdentity});if(!value.id)return value;
    while(value.status==='running'){
     onProgress(0);
     await new Promise((resolve,reject)=>{if(combined.aborted){reject(combined.reason);return;}const abort=()=>{clearTimeout(timer);reject(combined.reason);};const timer=setTimeout(()=>{combined.removeEventListener('abort',abort);resolve();},pollInterval);combined.addEventListener('abort',abort,{once:true});});
@@ -214,4 +268,4 @@ function createSoniloProvider({baseUrl='',apiKey='',modelMap,fetchImpl=fetch,dow
  }
  return {configured,fingerprint,metadata,prepare:request=>{resolve(request);return request;},submit,poll,generate,isConfigured:()=>configured,isPollable:()=>true};
 }
-module.exports={createSoniloProvider,parseSoniloModelMap,validateSoniloSegments,DEFAULT_SONILO_MODEL_MAP,PROTOCOL,MODEL,MAX_VIDEO_BYTES,MAX_AUDIO_BYTES,MAX_BATCH_AUDIO_BYTES};
+module.exports={createSoniloProvider,parseSoniloModelMap,validateSoniloSegments,validateSoniloSfxSegments,DEFAULT_SONILO_MODEL_MAP,PROTOCOL,MODEL,SFX_MODEL,MAX_VIDEO_BYTES,MAX_AUDIO_BYTES,MAX_BATCH_AUDIO_BYTES};

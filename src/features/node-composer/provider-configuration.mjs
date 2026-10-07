@@ -28,7 +28,7 @@ const nativeKinds={
   'ark-native':['video.generate'],'magnific-native':['image.upscale'],'fal-native':['image.remove-background','image.upscale','image.multiAngle'],
   'minimax-native':['video.generate'],'tripo-native':['world.generate'],
   'elevenlabs-native':['audio.generate'],'marble-native':['world.generate'],
-  'minimax-music-native':['audio.generate'],'fal-video-native':['video.upscale'],
+  'minimax-music-native':['audio.generate'],'sonilo-native':['audio.generate'],'fal-video-native':['video.upscale'],
   'fal-video-audio-native':['audio.generate'],'fal-video-depth-native':['video.depth'],'openai-panorama-edit-native':['panorama.edit'],'ark-video-extend-reference':['video.extend'],
   'ark-video-reshoot-edit':['video.reshoot'],'fal-panorama-native':['image.generate'],
   'fal-video-mask-native':['video.erase','video.replace'],'openai-relight-native':['image.relight'],'skin-tasks-v1':['image.skin'],
