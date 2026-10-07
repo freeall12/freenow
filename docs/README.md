@@ -28,7 +28,7 @@ freenow 是本地 AI 创作工作台：无限画布、图片/音视频工具、3
 | 修改生成路由、预检或结果归档 | [生成网关](GENERATION-GATEWAY.md)、[路由合同](generation-routing-contract.md)、[预检](GENERATION-PREFLIGHT-READINESS-20261003.md)、[媒体归档](GENERATION-MEDIA-MATERIALIZER-20261003.md) |
 | 修改 Agent 检查点或继续执行 | [服务端会话](AGENT-SESSION-STORE.md)、[存储](AGENT-STORAGE.md)、[恢复合同](agent-stored-continuation.md) |
 | 修改内嵌创作应用 | [本地生成合同](agent-apps-local-generation-contract.md)、[应用目录与历史](HISTORICAL-APPS-AND-NATIVE-TTS-20261003.md) |
-| 核对导演工作区与GLB片场的版本边界 | [下一代实现映射](research/STUDIO-V3-IMPLEMENTATION-MAP-20261008.md)；官方两入口并存，本地领域内核实施中，不等于独立生产Workspace交付 |
+| 核对导演工作区与GLB片场的版本边界 | [下一代实现映射](research/STUDIO-V3-IMPLEMENTATION-MAP-20261008.md)、[V3纯领域基础代码与证据](../src/features/studio-v3/README.md)；官方两入口并存，本地仅领域基础已实现，P0生产入口/保存整链及P1–P6未完成 |
 | 核对出站和公开文件边界 | [运行边界](LOCAL-RUNTIME-BOUNDARIES-20261003.md)、[依赖审计](RUNTIME-DEPENDENCY-AUDIT-20261003.md)、[公开仓库检查](PUBLIC-REPOSITORY-AUDIT-20261004.md) |
 | 理解许可与第三方资源 | [第三方来源](THIRD-PARTY-RESOURCES.md)；当前没有覆盖全部内容的统一许可证 |
 

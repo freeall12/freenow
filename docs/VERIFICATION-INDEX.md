@@ -11,7 +11,8 @@
 | [模板来源与草稿](research/agent-template-source-followup-20261008.md) | 92 份正文仍缺；21 项草稿/原来源回归；失败保留和 revision 2 真实回读已验，刷新恢复被控制层 beforeunload 取消，仅定向检查 |
 | [Ark 本地 MP4 发布](ARK-LOCAL-VIDEO-PUBLICATION-20261008.md) | 独立 fal Key、全来源解码、公网 HTTPS、原 ID 只读恢复与结果归档；115 项定向检查，实际媒体/网关重启；实机延长/重拍缺发布条件与阻断，启用发布 UI/真实供应商未验 |
 | [画布命令与媒体菜单](canvas-command-menu-audit-20261008.md) | 最终52项定向（新增17）；当前主壳QA开关/Tab/回焦、导航/创建、主画布焦点撤销重做同ID，以及hover视频→Enter/图片→Space真实创建/关闭/回焦已实机；旧视频/fullImage历史单独浏览器、上传/下载/PNG读回未验 |
-| [片场 v2 标签键盘](STUDIO-V2-PANEL-KEYBOARD-20261008.md) / [下一代实现映射](research/STUDIO-V3-IMPLEMENTATION-MAP-20261008.md) | 17 项面板 + 3 项真实 GLB QA；主壳大场景左右循环/首尾、Tab进面板/首镜头、修饰键/Down/右键保护实机；官方导演/GLB并存，本地V3领域内核实施中，生产Workspace尚未交付 |
+| [片场 v2 标签键盘](STUDIO-V2-PANEL-KEYBOARD-20261008.md) / [下一代实现映射](research/STUDIO-V3-IMPLEMENTATION-MAP-20261008.md) | 17 项面板 + 3 项真实 GLB QA；主壳大场景左右循环/首尾、Tab进面板/首镜头、修饰键/Down/右键保护实机；官方导演/GLB并存，V3生产Workspace尚未交付 |
+| [V3纯领域基础](../src/features/studio-v3/README.md) | schemaVersion4展开内存域、严格关系/基准优先/删除级联、单事务逐项补丁/50条历史及跨lane依赖；此前39/39 + 最后新增1/1，当前40项，未全量重跑；五模块语法通过。无entry/持久保存适配/官方存档解析/runtime/UI/renderer/生成/Agent，P0及P1–P6未完成 |
 | [人物情绪确认与关闭](../src/features/agent-apps/ACTOR-EMOTION.md) | 4 项确认 + 5 项关闭 + 4 项资源检查；原嵌套应用实际512×512灰模/AE2/SHA、800ms慢保存、关闭失败保页重试及刷新62/87%/13%；鼠标全路径、严格350ms与完整失败组合未验 |
 | [桌面文件整理](DESKTOP-FILES-20261008.md) | 15 项专项 + 18 项相关；最新源码 Electron 原生授权/确认3项、7字节/SHA回读、有效单项取消0/未创建、目录移动拒绝与撤销授权后列表阻断、正常⌘Q退出；不在已发布Alpha内，SDK/重启journal/实机回滚与恶意TOCTOU边界保留 |
 | [帮助与离线教程](CANVAS-HELP-20261008.md) | 五项本地入口、现场SVG/原始GIF；5项初始定向及隐藏dialog新增回归；实机快捷键21行/GIF、640×606面板、Escape/二次关闭、教程新标签/窄屏章节切换；模块内两图打包白名单/原字节与自然尺寸通过，无新包验收，全部正文/断点未验 |

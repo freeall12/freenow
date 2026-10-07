@@ -26,7 +26,8 @@
 ## 本批：菜单、片场标签、人物情绪与桌面文件
 
 - 画布添加菜单实际开关、Tab 离开关闭、Shift+Tab/Escape 回焦、悬停后从真实焦点导航和真实文本创建已验。主画布焦点下 ⌘Z 删除、⌘⇧Z 恢复同 ID 文本；dock 的 `+` 焦点下不响应画布撤销，不能推广为任意焦点可撤销。旧视频当前历史、fullImage来源与hover→Enter/Space视觉高亮执行已补修，最终52项定向检查通过（新增17项）。最后实机补验hover视频→Enter新增真实video、hover图片→Space新增真实image，均关闭回焦且画布未滚动/外部尝试为0；旧来源历史单独浏览器与上传、下载、PNG剪贴板读回仍未验。[菜单核验](canvas-command-menu-audit-20261008.md)
-- 当前 GLB 片场 v2 接通单一 Tab 停留、左右循环/首尾键和标签/面板关联；17 项面板与 3 项真实 GLB QA 检查通过。当前主壳真实大场景已验拍摄↔场景、Home/End、Tab 进入面板再进首镜头，以及修饰键/Down/右键不切换。官方导演工作区与独立GLB编辑器并存，V3是本项目拟建代际名称；本地纯领域内核仍在实施，独立生产Workspace/菜单尚未交付，不能用v2验收替代。[片场标签](STUDIO-V2-PANEL-KEYBOARD-20261008.md) · [下一代实现映射](research/STUDIO-V3-IMPLEMENTATION-MAP-20261008.md)
+- 当前 GLB 片场 v2 接通单一 Tab 停留、左右循环/首尾键和标签/面板关联；17 项面板与 3 项真实 GLB QA 检查通过。当前主壳真实大场景已验拍摄↔场景、Home/End、Tab 进入面板再进首镜头，以及修饰键/Down/右键不切换。官方导演工作区与独立GLB编辑器并存，V3是本项目拟建代际名称；独立生产Workspace/菜单尚未交付，不能用v2验收替代。[片场标签](STUDIO-V2-PANEL-KEYBOARD-20261008.md) · [下一代实现映射](research/STUDIO-V3-IMPLEMENTATION-MAP-20261008.md)
+- V3独立纯领域基础已实现：五模块校验schemaVersion4展开内存域与严格关系、基准优先/独立排斥、实体/角色/view编辑和删除级联，以及world/setup单事务逐项补丁历史、每lane50条与跨lane依赖冲突。此前39/39通过，补collection.order/插回锚点依赖后仅新增1/1通过，当前共40项；五模块语法及末次history-patches检查通过。没有生产entry、所有权/持久保存适配、官方紧凑存档解析、runtime/UI/renderer、生成或Agent接入，没有数据库迁移或新依赖；P0整链及P1–P6仍未完成，未做浏览器/保存重开验收。[领域代码与完整边界](../src/features/studio-v3/README.md)
 - 人物情绪原嵌套应用接通确认等待真实保存及关闭失败保页，4 项确认、5 项关闭和4项资源完整性检查通过。生产 controller/host/runtime QA 实际生成512×512灰模指导图，AE2 face=-65~-65~68 与图片 SHA 一致，guides=1/replies=1；800ms慢保存、关闭失败后原卡重试与刷新恢复强度62/悲伤87%/恐惧13%已验。原HTML SHA不变；鼠标全路径、严格350ms内确认及灰模/消息失败完整重试组合未验。[人物情绪合同](../src/features/agent-apps/ACTOR-EMOTION.md)
 - 桌面源码新增六个 Agent 文件工具、原生单目录授权/整批确认和 journal，只创建子目录及移动/重命名普通文件；15项专项与18项相关检查通过。重启最新 source QA 后实机确认3项、两份7字节文件SHA保持；最新单项取消回执 completed=0且目标未创建，目录移动预览阻断且实际未移动。撤销授权后 authorized=false且列表明确阻断，正常⌘Q退出已验。未知批次重启不重放有定向检查，重启journal尚未实机验；恶意祖先路径并发替换仍有 TOCTOU 窗口，完整 Agent SDK/实机回滚未验。这项源码功能不在已发布642d3db Alpha包内。[文件整理与限制](DESKTOP-FILES-20261008.md)
 
