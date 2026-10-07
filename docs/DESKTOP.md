@@ -2,7 +2,7 @@
 
 freenow Desktop 用 Electron 窗口运行现有无限画布、媒体编辑器、3D 片场和 Agent，并在应用内启动独立的本机 Node.js 后台。它沿用现有功能与供应商合同；桌面外壳不增加模型、付费账号权限或全站验收承诺。
 
-**当前桌面版本：`0.1.0-alpha.1`。目标为 macOS Apple Silicon（arm64）的 unsigned ZIP。Electron 开发窗口已实际运行，新的打包产物仍在验收，尚未提供可下载发布包。** 根项目版本仍为 `0.1.0`。实际发布成功后才补下载链接；[构建与核验记录](releases/DESKTOP-ALPHA-VERIFICATION-20261007.md)提供本次字节和SHA-256。
+**当前桌面版本：`0.1.0-alpha.1`。目标为 macOS Apple Silicon（arm64）的 unsigned ZIP。Electron 开发窗口已实际运行，实际6197文件、ZIP及包内后台已核验，原生窗口因Mac锁定待验，Release仍为草稿。** 根项目版本仍为 `0.1.0`。实际发布成功后才补下载链接；[构建与核验记录](releases/DESKTOP-ALPHA-VERIFICATION-20261007.md)提供本次字节和SHA-256。
 
 [项目首页](../README.md) · [当前状态](STATUS.md) · [开发指南](DEVELOPMENT-GUIDE.md)
 
@@ -27,7 +27,7 @@ pnpm desktop:dev
 pnpm desktop:pack
 ```
 
-此命令同样先准备资源，再按 `desktop/electron-builder.cjs` 构建 macOS arm64 ZIP。输出目录为 `build/release/`，目标文件名为 `freenow-0.1.0-alpha.1-mac-arm64.zip`。当前配置不签名、不公证、不自动发布；以上是构建目标，不代表文件已经通过运行验收或已上传。
+此命令同样先准备资源，再按 `desktop/electron-builder.cjs` 构建 macOS arm64 ZIP。输出目录为 `build/release/`，目标文件名为 `freenow-0.1.0-alpha.1-mac-arm64.zip`。当前配置不签名、不公证、不自动发布；本次ZIP已完成文件及包内后台核验，原生窗口验收与公开发布仍待完成。
 
 正式产物确认后，安装方式是解压 ZIP，将 `freenow.app` 放入 Applications 后打开。unsigned / 未公证预发布包可能触发 macOS 的来源验证提示；发布页应同时提供真实来源、校验值和本版本限制。当前不提供其他 CPU、Windows、Linux、自动更新、DMG 或商店分发承诺。
 

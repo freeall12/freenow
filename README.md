@@ -20,7 +20,7 @@
 
 ## 快速开始
 
-推荐 **Node.js 22 LTS、pnpm**。本地视频裁切、封装及部分媒体处理还需要 **FFmpeg / FFprobe**。浏览器源码启动如下；Electron 桌面版本 `0.1.0-alpha.1` 的 macOS arm64 构建正在验收，尚无下载包。[桌面指南](docs/DESKTOP.md)
+推荐 **Node.js 22 LTS、pnpm**。本地视频裁切、封装及部分媒体处理还需要 **FFmpeg / FFprobe**。浏览器源码启动如下；Electron 桌面版本 `0.1.0-alpha.1` 的 macOS arm64 ZIP 已构建并完成文件/包内后台核验，原生窗口验收待完成，Release 仍为草稿。[桌面指南](docs/DESKTOP.md)
 
 ```sh
 git clone https://github.com/freeall12/freenow.git

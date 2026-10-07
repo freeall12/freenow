@@ -63,7 +63,7 @@ Sonilo Music、Product Kit 与导演批注的本地验证见[整批证据](LOCAL
 
 ## 桌面运行
 
-Electron 外壳提供独立窗口、用户目录和本机后台，桌面包版本 `0.1.0-alpha.1`，固定 4183；macOS arm64 unsigned ZIP 构建正在验收，未提供下载。它沿用本表的供应商与功能边界，FFmpeg / FFprobe 需外部安装。[启动与配置](DESKTOP.md)
+Electron 外壳提供独立窗口、用户目录和本机后台，桌面包版本 `0.1.0-alpha.1`，固定 4183；macOS arm64 ZIP已完成文件与包内后台核验，原生窗口待验、Release草稿，未公开发布下载。它沿用本表的供应商与功能边界，FFmpeg / FFprobe 需外部安装。[启动与配置](DESKTOP.md)
 
 ## 状态与历史
 

@@ -20,7 +20,7 @@ These three images show real local interfaces with the current freenow branding.
 
 ## Quick start
 
-Recommended: **Node.js 22 LTS and pnpm**. Local video trimming, encoding, and some media processing also require **FFmpeg / FFprobe**. Start the browser version from source below. The Electron desktop version `0.1.0-alpha.1` targets a macOS arm64 build and is undergoing validation; no download is published yet. [Desktop guide](docs/DESKTOP.md)
+Recommended: **Node.js 22 LTS and pnpm**. Local video trimming, encoding, and some media processing also require **FFmpeg / FFprobe**. Start the browser version from source below. The Electron desktop version `0.1.0-alpha.1` has passed macOS arm64 artifact and bundled-backend checks; native-window verification is pending and the release remains a draft. [Desktop guide](docs/DESKTOP.md)
 
 ```sh
 git clone https://github.com/freeall12/freenow.git

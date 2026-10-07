@@ -1,12 +1,12 @@
 # freenow Desktop Alpha 安装包记录
 
-日期：2026-10-07。目标 macOS ARM64 `0.1.0-alpha.1`，运行源码提交 `71cbf410daf902e060b589405165fe0dab4bdc38`。本记录区分文件、无窗口后台和实际原生窗口；它不代表全站复刻完成。
+日期：2026-10-07。目标 macOS ARM64 `0.1.0-alpha.1`，运行源码提交 `642d3db5c156ae82b0ee33f253fad2756ffe015a`。本记录区分文件、无窗口后台和实际原生窗口；它不代表全站复刻完成。
 
 ## 文件与ZIP
 
 - 实际构建：Electron 44.6.0、electron-builder 26.15.3，macOS ARM64 ZIP。
-- 包体729976742字节；SHA-256：`16708fc778a53e8a52f32c056b3b3da900ada18df47fec34f827dd8369b8dff3`。
-- 6196个运行文件（含manifest），694800807字节；逐文件字节与SHA吻合。ASAR仅3文件：桌面主入口、配置模块及package元数据。
+- 包体729978385字节；SHA-256：`42dc247b909a8e7a2f0322f75c00e6ec212917491ea730426d1cf83f21bf821f`。
+- 6197个运行文件（含manifest），694802127字节；逐文件字节与SHA吻合。ASAR仅3文件：桌面主入口、配置模块及package元数据。
 - 四类启动数据与公开空默认值逐字节相同。未含私有Key文件、任务/媒体存储、QA、research或HAR。保留公开`provider.env.example`。
 - ZIP中核对OpenAI SDK、Three模块、关闭保存模块、实际图标、空默认画布与同一manifest。
 - 使用现有Tabler F资源构建桌面图标，不新增自绘图形。ICNS SHA：`0a2d8dd703680558967ffa72eebfe095c103715647f1f69887b1cbd148d7b06c`。
@@ -27,7 +27,7 @@ node scripts/audit-desktop-artifact.cjs
 
 通过包内`Contents/MacOS/freenow`的Electron Node模式，在干净环境和独立临时数据目录启动**包内server**，没有使用系统Node运行后台，也没有读取个人Key文件。实际版本Node24.21.0、Electron44.6.0、arm64。
 
-专项4196端口实际返回200：主页面、包内Three.js模块、关闭保存ES模块、预构建资源索引和生成配置。关闭保存模块SHA为`9487c24e116580c80df9e0efe9f69eeb04a296aa39ed58e7c1751beef26fa67b`，与源码相同。无Key配置不会生成；SIGTERM后后台退出0。Three的CommonJS导入有弃用警告，当前启动不受影响，未来须迁移到ES模块。
+专项4196端口实际返回200：主页面、包内Three.js模块、关闭保存ES模块、预构建资源索引和生成配置。最新642d3db包再次使用自带Node在新临时目录启动，配置200，SIGTERM后退出0。关闭保存模块SHA为`5f7908e58ef50a9ac48cf7ceb09f3f79c110d646bbde928046deb86799e0986d`，与源码相同。无Key配置不会生成；SIGTERM后后台退出0。Three的CommonJS导入有弃用警告，当前启动不受影响，未来须迁移到ES模块。
 
 这些检查证明包内依赖与服务入口可运行，不能代替真实BrowserWindow/WebGL/Worker/保存重启验收。
 

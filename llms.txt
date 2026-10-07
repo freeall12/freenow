@@ -8,7 +8,7 @@ The package version is 0.1.0 and the project is in development. Implemented adap
 
 - [English README](https://github.com/freeall12/freenow/blob/main/README.en.md): Product definition, source startup, API configuration, storage, FAQ, and license boundaries.
 - [中文 README](https://github.com/freeall12/freenow/blob/main/README.md): 本地 AI 创作工作台、启动、配置与当前边界。
-- [Desktop guide](https://github.com/freeall12/freenow/blob/main/docs/DESKTOP.md): Electron source startup, isolated data and provider configuration, and unsigned macOS arm64 prerelease limits; no published download is confirmed.
+- [Desktop guide](https://github.com/freeall12/freenow/blob/main/docs/DESKTOP.md): Electron source startup, isolated data and provider configuration, and unsigned macOS arm64 prerelease limits; artifact and bundled-backend checks passed, but native-window verification is pending and the release remains a draft.
 - [Documentation guide](https://github.com/freeall12/freenow/blob/main/docs/README.md): Task-oriented documentation index. Detailed documents are primarily in Chinese.
 
 ## Capabilities and configuration

@@ -8,7 +8,7 @@
 | --- | --- |
 | [Sonilo SFX 合同](SONILO-SFX-NATIVE-20261005.md) / [正式 UI](SONILO-SFX-UI-QA-20261005.md) | 20 项定向检查与 4 项受影响 Music 回归；本批 CUA 实际编辑分段、8 秒与 0.5 秒 WAV 播放/刷新恢复、缺 Key 禁用且无第三次 POST；真实供应商未验 |
 | [Agent 调色交互](AGENT-COLOR-ADJUST-INTERACTIONS-20261005.md) | 本轮 runtime/派生 10 项，保存失败、context-only 重试、实际 PNG 与刷新重开；非全部视觉/参数组合验收 |
-| [Electron 桌面指南](DESKTOP.md) / [开发窗口截图](screenshots/freenow-desktop-studio-20261007.jpg) | 开发外壳真实 WebGL、Agent/片场关闭等待与构建策略；新 ZIP 仍在验收，未发布 |
+| [Electron 桌面指南](DESKTOP.md) / [安装包核验](releases/DESKTOP-ALPHA-VERIFICATION-20261007.md) / [开发窗口截图](screenshots/freenow-desktop-studio-20261007.jpg) | 开发外壳真实 WebGL、Agent/片场关闭等待与构建策略；实际6197文件/ASAR/ZIP及包内Node后台已核验；原生窗口因Mac锁定待验，Release草稿，未公开发布 |
 
 ## 分批记录
 

@@ -9,7 +9,7 @@ freenow 是本地 AI 创作工作台：无限画布、图片/音视频工具、3
 | 任务 | 阅读入口 |
 | --- | --- |
 | 安装、启动与最小配置 | [项目首页](../README.md#快速开始)、[环境变量字段](../.env.example) |
-| 运行或构建 Electron 桌面预发布 | [桌面指南](DESKTOP.md)，固定 4183、独立用户目录、外部 FFmpeg；构建验收中，无下载包 |
+| 运行或构建 Electron 桌面预发布 | [桌面指南](DESKTOP.md)，固定 4183、独立用户目录、外部 FFmpeg；ZIP/包内后台已核验，原生窗口待验，Release草稿 |
 | 新建与切换画布项目 | [画布项目](CANVAS-PROJECTS.md) |
 | 使用图片、视频、音频或 3D 生成 | [多供应商配置](MULTI-PROVIDER-SETUP.md)、[功能与适配器](FEATURES.md) |
 | 连接创作 Agent | [Agent API](AGENT-API.md)、[本地编辑工具](AGENT-LOCAL-EDITING-20261003.md)、[片场控制](AGENT-STUDIO-LOCAL-CONTROLS.md) |
@@ -34,7 +34,7 @@ freenow 是本地 AI 创作工作台：无限画布、图片/音视频工具、3
 - [本地化验收](FREENOW-LOCALIZATION-ACCEPTANCE.md)：资源、数据、原站请求与实际导出边界。
 - [验收证据索引](VERIFICATION-INDEX.md)：分批交互、源码回归、真实本机媒体与模拟供应商的区别。
 
-**本批验证：** [桌面外壳](DESKTOP.md)正在安装包验收；[Sonilo SFX](SONILO-SFX-UI-QA-20261005.md)已完成正式8秒视频与0.5秒Agent音效播放、刷新恢复和缺Key零新增提交，[Agent 调色](AGENT-COLOR-ADJUST-INTERACTIONS-20261005.md)已完成失败重试、同一PNG上下文及草稿刷新恢复，具体范围见[当前状态](STATUS.md)。存在代码或专项记录不等于全站已完成。
+**本批验证：** [桌面外壳](DESKTOP.md)已完成文件及包内后台核验，原生窗口待验；[Sonilo SFX](SONILO-SFX-UI-QA-20261005.md)已完成正式8秒视频与0.5秒Agent音效播放、刷新恢复和缺Key零新增提交，[Agent 调色](AGENT-COLOR-ADJUST-INTERACTIONS-20261005.md)已完成失败重试、同一PNG上下文及草稿刷新恢复，具体范围见[当前状态](STATUS.md)。存在代码或专项记录不等于全站已完成。
 
 ## 文档组织约定
 
