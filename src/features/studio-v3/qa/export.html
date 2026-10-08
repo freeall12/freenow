@@ -1,0 +1,50 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>真实镜头导出验收 · 本地公开模型</title>
+<style>body{margin:0;padding:24px;background:#15171b;color:#ddd;font:14px/1.5 system-ui}nav{display:flex;gap:12px;flex-wrap:wrap}button,a{padding:9px 14px;border:1px solid #666;background:#282b30;color:#fff;border-radius:6px;cursor:pointer}button:disabled{opacity:.4}output{display:block;margin:16px 0;white-space:pre-wrap}img,video{display:block;max-width:800px;width:100%;margin-top:16px}pre{max-width:1000px;white-space:pre-wrap}</style>
+<h1>本地餐椅镜头导出</h1><p>真实 Three 离屏渲染、原生 VP9／VP8 编码；1 秒 30 帧。来源仅公开本地模型，零供应商调用。输出不会写入项目。</p>
+<nav><button id="still">导出静态 JPEG</button><button id="video">导出动态 WebM</button><button id="fallback">验证无编码器六帧 contact sheet</button><button id="abort">取消当前导出</button><button id="audit" disabled>验证真实编码文件</button></nav>
+<output id="status">读取本地导演领域模块…</output><nav id="downloads"></nav><div id="preview"></div><pre id="evidence"></pre>
+<script type="importmap">{"imports":{"three":"/node_modules/three/build/three.module.js","three/addons/":"/node_modules/three/examples/jsm/","@sparkjsdev/spark":"/assets/spark.js"}}</script>
+<script type="module">
+import {createState, createEntity, createSetupState, createView} from '../schema.mjs';
+import {addEntity, addView} from '../world-space.mjs';
+import {CAMERA_OPTICS_DEFAULTS} from '../camera-optics.mjs';
+import {listCameraShots} from '../camera-shots.mjs';
+import {createCameraShotExporter} from '../camera-shot-export.mjs';
+import {ShotVideoUnsupportedError} from '../webm-encoder.mjs';
+const status=document.querySelector('#status'),evidence=document.querySelector('#evidence'),preview=document.querySelector('#preview'),downloads=document.querySelector('#downloads');
+let state=createState({worldNodeId:'qa-local-camera-shot-export',now:1});
+const setupId=state.scenePlay.worldSpace.activeSetupId,stageId=state.scenePlay.worldSpace.activeStageId;
+const chair=createEntity({id:'local-chair',kind:'prop',label:'本地公开餐椅',asset:{sourceUrl:'/assets/studio/library/chair-dining.glb',sourceFormat:'glb'},now:1});
+state=addEntity(state,chair,{setupId,setupState:createSetupState(chair.id,1)});
+const config={...CAMERA_OPTICS_DEFAULTS,position:{x:-2,y:2,z:5},rotation:{x:-.12,y:-.22,z:0,order:'YXZ'},lookAt:{mode:'point',target:{x:0,y:.7,z:0}}};
+const camera=createEntity({id:'local-camera',kind:'camera',label:'动态本地餐椅',now:1}),cameraState=createSetupState(camera.id,1);cameraState.camera=config;cameraState.transform.position={...config.position};
+state=addEntity(state,camera,{setupId,setupState:cameraState});
+const setup=state.scenePlay.worldSpace.setups.find(item=>item.id===setupId);
+setup.temporal={durationMs:1000,tracks:[{id:'camera-track',owner:{kind:'entity',entityId:camera.id},keys:[{id:'start',timeMs:0},{id:'end',timeMs:1000}],channels:[{id:'camera-position',property:'entity.transform.position',values:[{keyId:'start',value:{kind:'vec3',value:{x:-2,y:2,z:5}},interpolation:'linear'},{keyId:'end',value:{kind:'vec3',value:{x:2,y:2,z:5}},interpolation:'linear'}]}]}]};
+state=addView(state,createView({id:'static-view',stageId,setupId,label:'静态本地餐椅',camera:config,tags:['shot'],now:1}));
+const shots=listCameraShots(state),still=shots.find(shot=>shot.kind==='static'),motion=shots.find(shot=>shot.kind==='dynamic');
+let controller=null,exporter=null,urls=[],retainedVideo=null,auditing=false;
+const auditButton=document.querySelector('#audit'),buttons=[...document.querySelectorAll('button:not(#abort):not(#audit)')];
+async function run(shot,unsupported=false){
+ if(exporter?.busy||auditing)return;retainedVideo=null;auditButton.disabled=true;buttons.forEach(button=>button.disabled=true);controller=new AbortController();
+ exporter=createCameraShotExporter({getState:()=>state,getFence:()=>({fixture:'public-local-export',revision:1}),isCurrent:()=>true,
+  ...(unsupported?{encodeVideo:async()=>{throw new ShotVideoUnsupportedError('验收注入：仅关闭原生编码器能力');}}:{}),
+  onProgress:info=>{status.textContent=JSON.stringify(info);}});
+ try{
+  const results=await exporter.render(shot,{signal:controller.signal,state});for(const url of urls)URL.revokeObjectURL(url);urls=[];preview.replaceChildren();downloads.replaceChildren();
+  for(const result of results){const url=URL.createObjectURL(result.blob);urls.push(url);const link=document.createElement('a');link.href=url;link.download=result.type==='video'?'local-chair-shot.webm':result.provenance.exportKind==='contact-sheet'?'local-chair-contact-sheet.webp':'local-chair-shot.jpg';link.textContent='下载 '+link.download;downloads.append(link);
+   const media=document.createElement(result.type==='video'?'video':'img');media.src=url;if(result.type==='video'){media.controls=true;media.preload='metadata';media.onloadedmetadata=()=>{evidence.textContent+='\n实际视频解码：'+JSON.stringify({width:media.videoWidth,height:media.videoHeight,duration:media.duration});};}preview.append(media);}
+  retainedVideo=results.find(result=>result.type==='video')?.blob||null;auditButton.disabled=!retainedVideo;
+  evidence.textContent=JSON.stringify(results.map(({blob,posterBlob,...result})=>({...result,bytes:blob.size,mimeType:blob.type,posterBytes:posterBlob?.size})),null,2);status.textContent='实际媒体已生成；请播放／下载核验';
+ }catch(error){status.textContent='导出失败：'+error.message;evidence.textContent=JSON.stringify({name:error.name,code:error.code,message:error.message});}
+ finally{exporter.dispose();controller=null;buttons.forEach(button=>button.disabled=false);}
+}
+auditButton.onclick=async()=>{
+ if(!retainedVideo||auditing||exporter?.busy)return;auditing=true;auditButton.disabled=true;buttons.forEach(button=>button.disabled=true);status.textContent='正在本机验证公开自测 WebM 的真实解码帧…';
+ try{const response=await fetch('http://127.0.0.1:4197/audit',{method:'POST',headers:{'Content-Type':retainedVideo.type},body:retainedVideo});const result=await response.json();if(!response.ok)throw Error(result.error||'本机验收失败');evidence.textContent+='\n真实文件解码验收：\n'+JSON.stringify(result,null,2);status.textContent='真实编码文件验收完成：'+result.decodedFrames+' 帧，'+result.uniqueFrames+' 个不同画面';}
+ catch(error){status.textContent='真实文件验收失败：'+error.message;}
+ finally{auditing=false;auditButton.disabled=!retainedVideo;buttons.forEach(button=>button.disabled=false);}
+};
+document.querySelector('#still').onclick=()=>run(still);document.querySelector('#video').onclick=()=>run(motion);document.querySelector('#fallback').onclick=()=>run(motion,true);document.querySelector('#abort').onclick=()=>controller?.abort();status.textContent='本地公开镜头就绪：静态 JPEG 4096×2304；动态 WebM 1280×720、30 fps';
+</script></html>

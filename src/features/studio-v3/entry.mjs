@@ -16,6 +16,11 @@ import {createViewfinderOptics} from './viewfinder-optics.mjs';
 import {createCameraControlHUD, createCameraShutter} from './camera-control-hud.mjs';
 import {createCameraCapture} from './camera-capture.mjs';
 import {createCameraHistoryAdapter} from './camera-history-adapter.mjs';
+import {listCameraShots, reduceCameraShotAction} from './camera-shots.mjs';
+import {createCameraManager} from './camera-manager.mjs';
+import {createCameraShotPreview} from './camera-shot-preview.mjs';
+import {createCameraShotExporter} from './camera-shot-export.mjs';
+import {createCameraBatchPublish} from './camera-batch-publish.mjs';
 
 for (const name of ['official-layout.css', 'styles.css']) {
   const link = document.createElement('link'); link.rel = 'stylesheet'; link.href = new URL(name, import.meta.url); document.head.append(link);
@@ -40,6 +45,7 @@ export async function open(node) {
   const instance = {nodeId: node.id, version: 3}; active = instance;
   let alive = true, closing = null, session, runtime, observer, lastSync = Promise.resolve(), selected = null, lastLane = 'world', previousIndependent = null, toastTimer, cameraCreation = null, controlHUD, viewfinderOptics = null, cameraHUD = null, cameraCapture, cameraHistory, focusPicking = false;
   const notices = new Map();
+  let cameraManager = null, shotPreview = null, shotExporter = null, cameraBatch = null;
   const notice = (message, error = false) => {
     if (!alive) return; clearTimeout(toastTimer); toast.textContent = message; toast.hidden = false; toast.dataset.error = String(error);
     if (!error) toastTimer = setTimeout(() => {toast.hidden = true;}, 3500);
@@ -54,6 +60,7 @@ export async function open(node) {
     if (!finishControlScope()) return false; cancelCameraCreation(); return menuController[name](...args);
   };
   function finishControlScope() {
+    if (cameraBatch?.busy || cameraBatch?.pendingReceipt) {notice(cameraBatch.busy ? '镜头正在导出，请等待完成' : '镜头导出尚未保存，请打开镜头管理重试保存', true); return false;}
     if (cameraCapture?.busy) {notice('镜头正在拍摄，请等待照片保存后继续', true); return false;}
     if (cameraCapture?.pendingReceipt) {notice('照片尚未保存，请点击拍摄按钮或顶部保存状态重试，再继续操作', true); return false;}
     if ((!runtime?.controlling || runtime.finishControl()) && (!runtime?.possessing || runtime.finishCameraControl())) return true;
@@ -252,6 +259,42 @@ export async function open(node) {
     onEditBaseline: () => switchSetup(control().ownerSetupId), depthOfFieldRendered: runtime.depthOfFieldSupported
   }), {label: '实体属性', width: 440});
   const removeSelected = () => selected && entityAction({type: 'remove', entityId: selected, mode: 'local'});
+  const shotAction = async (shot, type, title) => {
+    if (!finishControlScope()) return {ok: false}; runtime.cancelTransform();
+    const result = reduceCameraShotAction(state(), {type, shotId: shot.id, ...(title === undefined ? {} : {title})});
+    if (!result.ok) throw Error(result.message);
+    if (result.changed) {change(() => result.state, type === 'rename' ? '镜头重命名' : '删除镜头', result.lane); await lastSync;}
+    if (type === 'remove' && selected === result.entityId) {selected = null; runtime.selectEntity(null);}
+    refresh(); return {ok: true};
+  };
+  const openShot = async shot => {
+    if (!finishControlScope()) return {ok: false};
+    const id = shot.cameraEntityId, definition = space().entities.find(entity => entity.id === id && entity.kind === 'camera');
+    if (!definition) throw Error(`镜头“${shot.title}”缺少有效的摄像机链接`);
+    cancelCameraCreation(); menus.close({all: true}); runtime.cancelTransform();
+    if (shot.setupId !== space().activeSetupId) {change(value => setActiveSetup(value, shot.setupId), '切换镜头状态', 'world', false); await lastSync;}
+    selected = id; runtime.selectEntity(id);
+    if (!runtime.startCameraControl(id)) throw Error('此摄像机暂不可操控，请检查所属状态或时间轨道');
+    refresh(); canvas.focus({preventScroll: true}); return {ok: true};
+  };
+  const showCameraManager = () => {
+    if (!cameraBatch?.pendingReceipt && !cameraBatch?.busy && !finishControlScope()) return;
+    if (currentSetup().kind === 'scene-baseline') return;
+    cancelCameraCreation();
+    menuController.toggle(cameraManagerButton, ({close}) => {
+      const panel = createCameraManager({close, onError: error => notice(error.message, true),
+        read: () => ({shots: listCameraShots(state()).map(shot => ({...shot, cameraId: shot.cameraEntityId, thumbnailRevision: session.getFence().editEpoch})),
+          setupLabels: Object.fromEntries(space().setups.map(setup => [setup.id, setup.label])),
+          readOnly: currentSetup().kind === 'scene-baseline', busy: !!cameraBatch?.busy,
+          playing: !!space().temporalPlaybackPlaying, activeCameraId: runtime.possessing?.entityId ?? selected,
+          pendingExportShotIds: cameraBatch?.pendingReceipt?.shotIds || []}),
+        openShot, renameShot: (shot, title) => shotAction(shot, 'rename', title), removeShot: shot => shotAction(shot, 'remove'),
+        loadThumbnail: (shot, {signal}) => shotPreview.request(shot, {signal, isCurrent: () => alive && session.isCurrent()}),
+        exportShots: async shots => {const result = await cameraBatch.export(shots); notice(result.errorCount ? `已导出 ${result.successCount} 个镜头，${result.errorCount} 个失败` : '镜头已导出到画布'); return result;}});
+      cameraManager = panel;
+      const dispose = panel.dispose; panel.dispose = () => {dispose(); if (cameraManager === panel) cameraManager = null;}; return panel;
+    }, {label: '镜头管理', role: 'presentation', width: 560, placement: 'top', align: 'end', offset: 12});
+  };
   const showEntityMenu = (point, anchor) => {
     const c = control(); if (!c) return;
     const list = ({close}) => {
@@ -302,6 +345,7 @@ export async function open(node) {
   const topSurface = el('div', 'sv3-surface'); topSurface.append(back, home, help); left.append(topSurface);
   const wordmark = el('div', 'sv3-wordmark'), logo = el('img'); logo.src = '/assets/branding/freenow-mark.svg'; logo.alt = 'freenow'; wordmark.append(logo); center.append(wordmark);
   const saveStatus = button(null, '保存状态', safe(async() => {
+    if (cameraBatch?.pendingReceipt) {await cameraBatch.export(); notice('镜头已保存到画布'); return;}
     if (cameraCapture?.pendingReceipt) {await captureCamera(); return;}
     if (instance.initializationError) {
       const result = await session.flush();
@@ -316,8 +360,10 @@ export async function open(node) {
   const character = button('character', '添加人物', safe(() => addEntity('actor')));
   const cameraButton = button('camera', '添加摄像机', () => menus.toggle(cameraButton, () => cameraMenuContent(), {label: '添加摄像机', placement: 'top'}));
   const props = button('add', '添加道具', () => showLibrary(props));
+  const cameraManagerButton = button('cameraManager', '镜头管理', safe(showCameraManager));
   const undo = button('undo', '撤销', safe(() => replay(false))), redo = button('redo', '重做', safe(() => replay(true)));
   tools.append(objectList, character, cameraButton, props, el('span', 'sv3-separator'), undo, redo); mainActions.append(tools);
+  const cameraManagerSurface = el('div', 'sv3-surface'); cameraManagerSurface.append(cameraManagerButton); mainActions.append(cameraManagerSurface);
   const orbit = button('onSet', '3D 视图', safe(() => {if (!finishControlScope()) return; cancelCameraCreation(); runtime.setView('orbit'); refresh();}), {text: '3D'}), plan = button('topView', '俯视图', safe(() => {if (!finishControlScope()) return; cancelCameraCreation(); runtime.setView('plan'); refresh();}), {text: '俯视图'}); viewCapsule.append(orbit, plan); trailing.append(viewCapsule);
   const selectionTools = el('div', 'sv3-capsule'), selectionButton = button('object', '实体操作', () => showEntityMenu(null, selectionButton), {text: ''}); selectionButton.classList.add('sv3-selection-name');
   const transformButtons = ['translate', 'rotate', 'scale'].map((mode, index) => button(['control', 'rotateRight', 'redistribute'][index], ['移动', '旋转', '缩放'][index], safe(() => {if (!finishControlScope()) return; runtime.attachTransform(selected, mode);}), {text: ['移动', '旋转', '缩放'][index]}));
@@ -341,10 +387,11 @@ export async function open(node) {
   function refresh() {
     if (!session || !runtime || !alive) return;
     const status = session.getStatus(), setup = currentSetup();
+    cameraManagerButton.hidden = setup.kind === 'scene-baseline'; cameraManager?.refresh();
     cameraButton.disabled = setup.kind === 'scene-baseline'; cameraButton.title = cameraButton.disabled ? '请先选择或新建独立状态，再添加摄像机。' : '添加摄像机';
     stateButton.querySelector('span').textContent = setup.label; leaveBaseline.hidden = setup.kind !== 'scene-baseline';
     const editing = !!session.history.getActiveTransaction();
-    saveStatus.textContent = cameraCapture?.pendingReceipt ? '照片保存失败 · 重试' : editing ? '编辑中' : status.status === 'failed' ? '保存失败 · 重试' : status.status === 'saving' ? '保存中' : status.dirty ? '待保存' : '已保存'; saveStatus.disabled = editing || status.status === 'saving' || !!cameraCapture?.busy;
+    saveStatus.textContent = cameraBatch?.pendingReceipt ? '镜头导出未保存 · 重试' : cameraCapture?.pendingReceipt ? '照片保存失败 · 重试' : editing ? '编辑中' : status.status === 'failed' ? '保存失败 · 重试' : status.status === 'saving' ? '保存中' : status.dirty ? '待保存' : '已保存'; saveStatus.disabled = editing || status.status === 'saving' || !!cameraCapture?.busy || !!cameraBatch?.busy;
     orbit.dataset.active = String(runtime.view === 'orbit'); plan.dataset.active = String(runtime.view === 'plan');
     updatePreviewFrame();
     if (selected && !renderSetup(state()).entityStates.some(item => item.entityId === selected)) selected = null;
@@ -384,8 +431,8 @@ export async function open(node) {
     if (!alive || active !== instance) return;
     if (closing) return closing;
     closing = (async () => {
-      if (!finishControlScope()) throw Error(cameraCapture?.busy ? '镜头正在拍摄，请等待照片保存后继续' : cameraCapture?.pendingReceipt ? '照片尚未保存，请点击拍摄按钮或顶部保存状态重试，再继续操作' : '请先完成或还原本次操控'); cancelCameraCreation(); runtime?.cancelTransform(); menus.close({all: true}); await session.closeGuard();
-      alive = false; clearTimeout(toastTimer); observer?.disconnect(); controlHUD.dispose(); cameraHUD?.dispose(); cameraCapture?.dispose(); cameraHistory?.dispose(); menus.dispose(); await runtime?.dispose();
+      if (!finishControlScope()) throw Error(cameraBatch?.busy ? '镜头正在导出，请等待完成' : cameraBatch?.pendingReceipt ? '镜头导出尚未保存，请打开镜头管理重试保存' : cameraCapture?.busy ? '镜头正在拍摄，请等待照片保存后继续' : cameraCapture?.pendingReceipt ? '照片尚未保存，请点击拍摄按钮或顶部保存状态重试，再继续操作' : '请先完成或还原本次操控'); cancelCameraCreation(); runtime?.cancelTransform(); menus.close({all: true}); await session.closeGuard();
+      alive = false; clearTimeout(toastTimer); observer?.disconnect(); controlHUD.dispose(); cameraHUD?.dispose(); cameraCapture?.dispose(); cameraBatch?.dispose(); shotExporter?.dispose(); await shotPreview?.dispose(); cameraHistory?.dispose(); menus.dispose(); await runtime?.dispose();
       root.remove(); document.body.classList.remove('studio-active'); active = null;
       app.select(node.id, false); const target = returnFocus?.isConnected ? returnFocus : document.querySelector('#canvas'); target?.focus({preventScroll: true}); window.AgentUI?.refreshSceneContext?.();
     })();
@@ -400,7 +447,7 @@ export async function open(node) {
       getFence: () => session.getFence(), isCurrent: () => alive && session.isCurrent(),
       onInvalidate: () => {updatePreviewFrame(); updateModeChrome();},
       onStatus: report => {const key = `${report.kind}:${report.id}`; if (report.status === 'failed') {notices.set(key, report.error); notice(report.error, true);} else if (report.status === 'ready') notices.delete(key);},
-      canControlInput: () => !closing && !menus.isOpen() && !cameraCreation && !cameraCapture?.busy && !cameraCapture?.pendingReceipt && !focusPicking,
+      canControlInput: () => !closing && !menus.isOpen() && !cameraCreation && !cameraCapture?.busy && !cameraCapture?.pendingReceipt && !cameraBatch?.busy && !cameraBatch?.pendingReceipt && !focusPicking,
       onCameraEdit: event => cameraHistory.handle(event),
       onControl: event => handleTransform(event, '实体操控'),
       onTransform: event => handleTransform(event, '实体变换')});
@@ -415,6 +462,10 @@ export async function open(node) {
         return true;
     }
     cameraCapture = createCameraCapture({app, session, runtime, nodeId: node.id, onStatus: ({status}) => {refresh(); if (status === 'preparing' || status === 'rendering') notice('正在拍摄当前镜头…');}});
+    shotPreview = createCameraShotPreview({getState: state, getSourceResource: () => readSourceResource(app, node.id)});
+    shotExporter = createCameraShotExporter({getState: state, getSourceResource: () => readSourceResource(app, node.id), getFence: () => session.getFence(), isCurrent: () => alive && session.isCurrent(),
+      onProgress: report => notice(`正在导出镜头… ${Math.round((report.progress || 0) * 100)}%`)});
+    cameraBatch = createCameraBatchPublish({app, session, nodeId: node.id, renderer: shotExporter, isCurrent: () => alive && session.isCurrent(), onStatus: refresh});
     instance.session = session; instance.runtime = runtime;
     observer = new ResizeObserver(() => runtime.resize()); observer.observe(root);
     let down;

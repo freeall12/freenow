@@ -58,15 +58,15 @@ Current source adds [local external-agent MCP access](src/features/external-agen
 | Workflows and recovery | Dependency execution, durable receipts, original-task queries, explicit continuation, save guards | Unknown outcomes are not automatically resubmitted |
 | External agent (desktop source) | Local MCP connection, native approval, two current-canvas metadata tools, reload revocation | Local stdio clients; no writes, generation, media, or cloud connectors; not included in the published Alpha |
 
-The source also includes a [director workspace V3](docs/STUDIO-V3-PRODUCTION-20261008.md) under development: actors/cameras/props, baseline and independent states, [entity properties](docs/STUDIO-V3-ENTITIES-20261008.md), and [actor control/camera creation](docs/STUDIO-V3-CONTROLS-20261008.md) are integrated. The latest [camera control and capture](docs/STUDIO-V3-CAMERA-POSSESSION-20261008.md) adds 3D flight, entry/return transitions, aspect and focal rulers, finish/cancel, and real PNG captures connected to the canvas with same-photo save retry. Browser reload restored five photos and camera parameters. The complete plan view, timeline/keyframes, Saved Views/photo history, generation, and full V3 agent orchestration remain incomplete; real SPZ depth-of-field visuals are unverified. The current Alpha does not include this batch.
+The source also includes a [director workspace V3](docs/STUDIO-V3-PRODUCTION-20261008.md) under development: actors/cameras/props, baseline and independent states, [entity properties](docs/STUDIO-V3-ENTITIES-20261008.md), [actor control/camera creation](docs/STUDIO-V3-CONTROLS-20261008.md), and [camera control](docs/STUDIO-V3-CAMERA-POSSESSION-20261008.md) are integrated. The latest [shot management and export](docs/verification/20261008-studio-shots.md) adds JPEG photography with a 4096-pixel long edge, entity body outlines, independent camera thumbnails, renaming, and batch export; failed photo and batch saves reuse their original receipts. The browser decoded a 2304×4096 portrait photo. A real 1280×720 / 30 fps WebM decoded to 30 distinct frames over one second. The complete plan view, timeline/keyframe editing, complete view/photo-history management, generation, and full V3 agent orchestration remain incomplete; SPZ offscreen GPU/depth-of-field pixels and held-object rendering have remaining limits. The current Alpha does not include this batch.
 
 | Actor control and heading | Current-view camera confirmation |
 | --- | --- |
 | ![freenow director workspace actor control HUD and heading](docs/screenshots/20261008-studio-controls/actor-heading.jpg) | ![freenow director workspace 35mm 9:16 current-view camera confirmation](docs/screenshots/20261008-studio-controls/viewfinder-portrait.jpg) |
 
-| Camera control and optics | Captured photo connected to the canvas |
+| Shot management and real thumbnails | Offscreen photos connected to the canvas |
 | --- | --- |
-| ![freenow 9:16 camera control, focal ruler and real shutter](docs/screenshots/20261008-studio-camera/possession-portrait.jpg) | ![freenow canvas with a studio connected to an actual captured PNG](docs/screenshots/20261008-studio-camera/canvas-photos.jpg) |
+| ![freenow shot manager, batch selection and real camera thumbnails](docs/screenshots/20261008-studio-shots/camera-manager.jpg) | ![freenow canvas with actual offscreen JPEG photo nodes and connections](docs/screenshots/20261008-studio-shots/canvas-photo-nodes.jpg) |
 
 Model menus, adapter implementations, and app registrations describe different scopes. Real provider output quality requires separate validation. [Detailed features and adapters](docs/FEATURES.md) · [Verification evidence](docs/VERIFICATION-INDEX.md)
 

@@ -38,7 +38,11 @@ async function fixture() {
   const optics = {position: {x: 1, y: 2, z: 3}, rotation: {x: 0, y: 0, z: 0, order: 'XYZ'}, fov: 45, frameAspectRatio: 1};
   const runtime = {camera, disposed: false, possessing: {entityId: 'camera'}, controlling: null,
     checkpointCameraControl: () => true, getVisibleCameraState: () => structuredClone(optics), setCapturing() {},
-    async renderCapture(value) {assert.equal(value, camera); stats.renders++; return {width: 100, height: 100};},
+    async renderPhoto(value, options) {
+      assert.equal(value, camera); assert.deepEqual(options, {frameAspectRatio: 1}); stats.renders++; stats.encodes++;
+      return {blob: new Blob(['jpeg'], {type: 'image/jpeg'}), canvas: {width: 4096, height: 4096},
+        width: 4096, height: 4096, mimeType: 'image/jpeg', quality: .92};
+    },
     finishCameraControl() {calls.push('finish'); this.possessing = null; return true;},
     setView(mode) {calls.push(['view', mode]); this.camera = {isPerspectiveCamera: true, aspect: 1}; return mode;},
     selectEntity(id) {calls.push(['select', id]); this.possessing = null; this.camera = {isPerspectiveCamera: true, aspect: 1}; return id;},
@@ -47,12 +51,12 @@ async function fixture() {
     controls: {target: {set() {calls.push('target');}}, update() {}},
     orbitCamera: {position: {set() {calls.push('position');}}, lookAt() {}}, render() {}};
   const capture = createCameraCapture({app, session, runtime, nodeId: owner.id, createId: () => 'capture', now: () => 2,
-    assets: {async put() {stats.assets++; if (stats.assets === 1) throw Error('asset write failed'); return 'asset:photo';}},
-    createCanvas: () => ({getContext: () => ({drawImage() {}}), toBlob(callback, type) {
-      stats.encodes++; callback(new Blob(['png'], {type}));
-    }})});
+    assets: {async put(blob) {
+      assert.equal(blob.type, 'image/jpeg'); stats.assets++;
+      if (stats.assets === 1) throw Error('asset write failed'); return 'asset:photo';
+    }}});
   const buttons = new Map(), instance = {};
-  const context = vm.createContext({runtime, session, instance, cameraCapture: capture, calls,
+  const context = vm.createContext({runtime, session, instance, cameraCapture: capture, cameraBatch: null, calls,
     notice: message => notices.push(message), cancelCameraCreation: () => calls.push('creation-exit'),
     refresh() {}, window: {}, button(icon, label, action) {buttons.set(label, action); return {};},
     menus: {close: () => calls.push('menu-close')}, updateModeChrome() {}, canvas: {focus() {}},
@@ -95,6 +99,7 @@ test('unapplied capture receipt blocks production home, view, select and close w
     const result = await f.capture.capture();
     assert.equal(result.ok, true);
     assert.equal(result.nodeId, 'photo');
+    assert.deepEqual([result.width, result.height], [4096, 4096]);
     assert.equal(f.capture.pendingReceipt, null);
     assert.deepEqual(f.stats, {renders: 1, encodes: 1, assets: 2, adds: 1, saves: 1});
     assert.equal(f.runtime.camera, f.camera);

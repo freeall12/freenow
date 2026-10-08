@@ -1,0 +1,66 @@
+{
+  "verifiedOn": "2026-10-08",
+  "scope": "Public local chair QA using the actual independent photographic renderer and native WebCodecs/WebM export; no supplier call",
+  "source": "build/qa/studio-shot-audit/public-shot.webm",
+  "sample": "docs/screenshots/20261008-studio-shots/dynamic-chair.webm",
+  "sha256": "7ccab1ef7a28cda1dc3c30c82b96b62dbc8400790c1753818694ad51da7d8988",
+  "metadata": {
+    "codec": "vp9",
+    "width": 1280,
+    "height": 720,
+    "frameRate": "30/1",
+    "averageFrameRate": "30/1",
+    "durationSeconds": 1,
+    "bytes": 56649,
+    "decodedFrames": 30,
+    "uniqueDecodedFrameHashes": 30
+  },
+  "inspection": {
+    "frames": [
+      {
+        "index": 0,
+        "nominalTimeSeconds": 0,
+        "md5": "4fe3c25a31ac03d51527b4aa9f7d03fe",
+        "luminance": {
+          "min": 19.86,
+          "max": 111.31,
+          "mean": 44.1,
+          "standardDeviation": 13.41
+        },
+        "nonblackPixelFraction": 1
+      },
+      {
+        "index": 15,
+        "nominalTimeSeconds": 0.5,
+        "md5": "6dab2dbdac0692bb6e6195474d6cddbd",
+        "luminance": {
+          "min": 19.86,
+          "max": 111.49,
+          "mean": 44.59,
+          "standardDeviation": 13.01
+        },
+        "nonblackPixelFraction": 1
+      },
+      {
+        "index": 29,
+        "nominalTimeSeconds": 0.9666666666666667,
+        "md5": "65e22e2416dd05931a737d9732126d16",
+        "luminance": {
+          "min": 19.86,
+          "max": 112.76,
+          "mean": 44.02,
+          "standardDeviation": 13.38
+        },
+        "nonblackPixelFraction": 1
+      }
+    ],
+    "visualConclusion": "Frames 0, 15 and 29 visibly contain the local dining chair and ground; camera angle changes across the sequence. No all-black or empty frames in the inspected samples.",
+    "method": "ffprobe -count_frames; ffmpeg framemd5 with fps_mode passthrough; decoded first/middle/last strip viewed; luminance statistics measured at 160x90"
+  },
+  "boundaries": [
+    "This is one 1-second public GLB fixture, not all models, long clips, Gaussian or temporal channel combinations.",
+    "Held relationships and ordinary GLB aperture depth of field explicitly remain unsupported.",
+    "This does not verify production manager batch persistence, final packaging or MP4 export.",
+    "HTTP and feature suites were not rerun in this independent file audit."
+  ]
+}

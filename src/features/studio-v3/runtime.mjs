@@ -14,6 +14,8 @@ import {resolveEntityControl} from './entity-actions.mjs';
 import {visibleSurface} from './surface-hit.mjs';
 import {createCameraNavigation} from './camera-navigation.mjs';
 import {createCameraEditSession} from './camera-edit-session.mjs';
+import {createSelectionOutline} from './selection-outline.mjs';
+import {createPhotoRenderer} from './photo-renderer.mjs';
 
 const fail = (code, message) => Object.assign(Error(message), {code});
 const entityLocked = record => ['actor', 'prop'].includes(record?.definition?.kind) && record.definition.locked === true;
@@ -31,8 +33,9 @@ export function createStudioV3Runtime({canvas, getState, getSourceResource = () 
   const planCamera = new THREE.OrthographicCamera(-10, 10, 10, -10, .01, 10000); planCamera.position.set(0, 100, 0); planCamera.up.set(0, 0, -1); planCamera.lookAt(0, 0, 0);
   for (const layer of [3, 4, 5, 6, 7]) orbitCamera.layers.enable(layer);
   planCamera.layers.enable(4);
-  let activeCamera = orbitCamera, renderer, controls, transformControls, graph, selectionOutline, viewportWidth = 1, viewportHeight = 1, entityControl, controlReturn = null, navigationTransition = null, viewfinder = null;
+  let activeCamera = orbitCamera, renderer, controls, transformControls, graph, selectionOutline, hoverOutline, hovered = null, pendingHover = null, hoverFence = null, viewportWidth = 1, viewportHeight = 1, entityControl, controlReturn = null, navigationTransition = null, viewfinder = null;
   let cameraEdit, cameraNavigation, cameraLease = null, possessionCamera = null, cameraTransition = null, switchingCamera = false;
+  let photoRenderer = null, photoResourceTimeoutMs = 30000;
   const cameraTransformProxy = new THREE.Group(); cameraTransformProxy.name = 'V3 camera body transform pivot'; cameraTransformProxy.userData.helper = cameraTransformProxy.userData.captureExcluded = true; scene.add(cameraTransformProxy);
   const lighting = new THREE.Group(); lighting.name = 'V3 local scene lighting';
   lighting.add(new THREE.HemisphereLight('#dfe8fa', '#292422', 2));
@@ -41,6 +44,7 @@ export function createStudioV3Runtime({canvas, getState, getSourceResource = () 
   const grid = new THREE.GridHelper(100, 100, '#686b70', '#3a3d42'); grid.position.y = .002; grid.userData.helper = grid.userData.captureExcluded = true; scene.add(grid);
   function clearDepthOfField() {if (gaussian?.spark) {gaussian.spark.focalDistance = 0; gaussian.spark.apertureAngle = 0;}}
   function check() {if (disposed || !isCurrent()) {
+    clearHover();
     if (viewfinder) {const saved = viewfinder; viewfinder = null; saved.controls.dispose(); view = saved.view === 'plan' ? 'plan' : 'orbit'; activeCamera = view === 'plan' ? planCamera : orbitCamera;}
     clearDepthOfField(); entityControl?.cancel('ownership-stale'); cameraEdit?.dispose(); cameraNavigation?.stop(); cameraTransition = null; navigationTransition = null; if (controls) controls.enabled = false; transformControls?.detach();
     if (!disposed && previewCameraEntityId !== null) {previewCameraEntityId = null; view = returnView; activeCamera = view === 'plan' ? planCamera : orbitCamera; controls.enabled = false; transformControls.detach();}
@@ -88,7 +92,7 @@ export function createStudioV3Runtime({canvas, getState, getSourceResource = () 
     return {left: rect.left * scaleX, top: rect.top * scaleY, width: rect.width * scaleX, height: rect.height * scaleY};
   }
   function restoreViewport() {renderer.setViewport?.(0, 0, viewportWidth, viewportHeight); renderer.setScissor?.(0, 0, viewportWidth, viewportHeight); renderer.setScissorTest?.(false);}
-  function drawFrame(camera, fit) {
+  function drawFrame(camera, fit, outlines = true) {
     const rect = fit ? fittedRect(camera) : {left: 0, top: 0, width: viewportWidth, height: viewportHeight};
     const clearColor = renderer.getClearColor?.(new THREE.Color()), clearAlpha = renderer.getClearAlpha?.();
     try {
@@ -98,7 +102,21 @@ export function createStudioV3Runtime({canvas, getState, getSourceResource = () 
       if (fit) {renderer.setClearColor?.(0x000000, 1); renderer.clear?.();}
       const bottom = viewportHeight - rect.top - rect.height;
       renderer.setViewport?.(rect.left, bottom, rect.width, rect.height); renderer.setScissor?.(rect.left, bottom, rect.width, rect.height); renderer.setScissorTest?.(fit);
-      applyDepthOfField(camera); renderer.render(scene, camera);
+      applyDepthOfField(camera);
+      const mask = camera.layers.mask, background = scene.background, overrideMaterial = scene.overrideMaterial, autoClear = renderer.autoClear;
+      try {
+        for (const layer of [3, 6, 7]) camera.layers.disable(layer);
+        renderer.autoClear = true;
+        renderer.render(scene, camera);
+        if (outlines && view !== 'plan' && (hoverOutline.selectedObjects.length || selectionOutline.selectedObjects.length)) {
+          const outputTarget = renderer.getRenderTarget();
+          hoverOutline.render({renderer, camera, outputTarget}); selectionOutline.render({renderer, camera, outputTarget});
+        }
+        if (mask & (1 << 3)) {
+          camera.layers.set(3); renderer.autoClear = false; scene.background = null; scene.overrideMaterial = null;
+          renderer.render(scene, camera);
+        }
+      } finally {camera.layers.mask = mask; scene.background = background; scene.overrideMaterial = overrideMaterial; renderer.autoClear = autoClear;}
     } finally {restoreViewport(); if (clearColor) renderer.setClearColor?.(clearColor, clearAlpha);}
   }
   function rayAt(client) {
@@ -109,13 +127,45 @@ export function createStudioV3Runtime({canvas, getState, getSourceResource = () 
     return viewportRay(client, rect, activeCamera);
   }
   function invalidate() {if (disposed) return; onInvalidate(); if (autoRender && requestFrame && !frame && !capturing && !hidden()) frame = requestFrame(draw);}
-  function visibilityChanged() {lastTime = 0; if (viewfinder) viewfinder.controls.enabled = !hidden(); if (hidden()) {entityControl?.cancel('hidden'); cameraNavigation?.cancelInput(); navigationTransition = null; if (frame) cancelFrame?.(frame); frame = 0;} else invalidate();}
+  function visibilityChanged() {lastTime = 0; if (viewfinder) viewfinder.controls.enabled = !hidden(); if (hidden()) {clearHover(); entityControl?.cancel('hidden'); cameraNavigation?.cancelInput(); navigationTransition = null; if (frame) cancelFrame?.(frame); frame = 0;} else invalidate();}
   function refreshSelection() {
-    selectionOutline?.removeFromParent(); selectionOutline?.geometry.dispose(); selectionOutline?.material.dispose(); selectionOutline = null;
     for (const record of graph.entities.values()) record.cameraMarker?.update({selected: record.id === selected, transformPreviewActive: transformSession?.entityId === record.id});
-    const root = graph.entity(selected)?.root; if (!root || !root.visible || graph.entity(selected)?.status !== 'ready') return;
-    if (graph.entity(selected)?.cameraMarker) return;
-    selectionOutline = new THREE.BoxHelper(root, '#b5d4e4'); selectionOutline.layers.set(6); selectionOutline.userData.helper = selectionOutline.userData.captureExcluded = true; graph.helpers.add(selectionOutline);
+    const target = id => {const record = graph.entity(id); return record?.status === 'ready' && record.root.visible ? record.cameraMarker?.outlineTarget || record.root : null;};
+    const selectedTarget = target(selected), hoverTarget = target(hovered);
+    if (!hoverTarget) {hovered = null; hoverFence = null;}
+    selectionOutline.setObjects(selectedTarget ? [selectedTarget] : []); hoverOutline.setObjects(hoverTarget ? [hoverTarget] : []);
+  }
+  function clearHover() {
+    const changed = hovered !== null || pendingHover !== null;
+    hovered = null; pendingHover = null; hoverFence = null; hoverOutline?.setObjects([]);
+    if (changed && !disposed && isCurrent()) invalidate(); return changed;
+  }
+  function hoverAvailable() {return !disposed && !hidden() && !capturing && view !== 'plan' && previewCameraEntityId === null && !entityControl?.active && !cameraEdit?.active && !viewfinder && !transformSession && !transformControls?.dragging;}
+  function setHoverEntity(id) {
+    const record = id && graph?.entity(id), next = hoverAvailable() && isCurrent() && record?.status === 'ready' && record.root.visible ? id : null;
+    if (next === null) return clearHover();
+    if (next === hovered) return false;
+    hovered = next; hoverFence = next ? viewportFence() : null; refreshSelection(); invalidate(); return true;
+  }
+  function hoverPointer(event) {
+    if (!hoverAvailable() || event.buttons || !canControlInput('hover', event)) {clearHover(); return;}
+    pendingHover = {clientX: event.clientX, clientY: event.clientY, fence: viewportFence()}; invalidate();
+  }
+  function leavePointer() {clearHover();}
+  function refreshHover() {
+    if (!hoverAvailable() || hoverFence && hoverFence !== viewportFence()) {clearHover(); return;}
+    if (!pendingHover) return;
+    const client = pendingHover; pendingHover = null;
+    if (client.fence !== viewportFence()) {clearHover(); return;}
+    setHoverEntity(hitEntity(client)?.entityId || null);
+  }
+  function failInitialization(failure) {
+    photoRenderer?.dispose();
+    disposed = true; if (frame) cancelFrame?.(frame); frame = 0;
+    document?.removeEventListener('visibilitychange', visibilityChanged); canvas.removeEventListener('pointermove', hoverPointer); canvas.removeEventListener('pointerleave', leavePointer);
+    entityControl?.dispose(); cameraEdit?.dispose(); cameraNavigation?.dispose(); selectionOutline?.dispose(); hoverOutline?.dispose(); graph?.dispose();
+    controls?.dispose(); transformControls?.dispose(); renderer?.dispose(); renderer?.forceContextLoss?.(); disposeModel(scene);
+    throw failure;
   }
   const vector = value => ({x: value.x, y: value.y, z: value.z});
   function syncCameraTransformProxy(record) {
@@ -136,7 +186,7 @@ export function createStudioV3Runtime({canvas, getState, getSourceResource = () 
     const payload = {phase, entityId: transformSession.entityId, transform: readEntityTransform(record.definition.kind, readTransform(record.root), record.state.transform)};
     try {if (onTransform(payload) === false) {cancelTransform(); return;}} catch (failure) {cancelTransform(); notify(failure); return;}
     if (phase === 'commit') transformSession = null;
-    selectionOutline?.update(); invalidate();
+    invalidate();
   }
   function cancelTransform() {
     const session = transformSession; if (!session && !transformControls?.dragging) return false; transformSession = null;
@@ -152,6 +202,7 @@ export function createStudioV3Runtime({canvas, getState, getSourceResource = () 
   try {
     renderer = rendererFactory({canvas, antialias: true, alpha: false, preserveDrawingBuffer: true});
     renderer.setPixelRatio(Math.min(globalThis.devicePixelRatio || 1, 2)); renderer.outputColorSpace = THREE.SRGBColorSpace; renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    selectionOutline = createSelectionOutline({scene, camera: orbitCamera}); hoverOutline = createSelectionOutline({scene, camera: orbitCamera, presentation: 'hover'});
     controls = controlsFactory(orbitCamera, canvas); controls.enabled = true; controls.target.set(0, 1, 0); controls.enableDamping = true; controls.dampingFactor = .12;
     controls.addEventListener('change', invalidate);
     transformControls = transformFactory(orbitCamera, canvas); const gizmo = transformControls.getHelper(); gizmo.traverse(object => object.layers.set(3)); gizmo.userData.helper = gizmo.userData.captureExcluded = true; scene.add(gizmo);
@@ -172,7 +223,7 @@ export function createStudioV3Runtime({canvas, getState, getSourceResource = () 
       },
       onDetach() {gaussian?.prune(graph.content);}
     });
-  } catch (failure) {controls?.dispose(); transformControls?.dispose(); renderer?.dispose(); renderer?.forceContextLoss?.(); disposeModel(scene); throw failure;}
+  } catch (failure) {failInitialization(failure);}
   function controlSubject(id) {
     if (disposed || !isCurrent() || hidden() || capturing) return null;
     const record = graph.entity(id); if (record?.status !== 'ready' || !record.state.visible || !['actor', 'prop'].includes(record.definition.kind)) return null;
@@ -253,7 +304,7 @@ export function createStudioV3Runtime({canvas, getState, getSourceResource = () 
   const transitionEase = t => t < .5 ? 4 * t ** 3 : 1 - (-2 * t + 2) ** 3 / 2;
   function cameraSubject(id) {
     if (disposed || !isCurrent()) return null;
-    const record = graph.entity(id); if (record?.status !== 'ready' || !record.state.visible || !record.camera) return null;
+    const record = graph.entity(id); if (record?.status !== 'ready' || !record.camera) return null;
     const snapshot = getState(), space = snapshot.scenePlay.worldSpace, setup = space.setups.find(item => item.id === space.activeSetupId), context = resolveEntityControl(snapshot, {entityId: id});
     if (setup.kind !== 'independent' || context.baselineReadOnly || !context.setupState?.camera || space.temporalPlaybackPlaying || space.temporalPlayheadScrubbing) return null;
     // Key sampling/recording is a separate authoring target. Until integrated,
@@ -363,7 +414,7 @@ export function createStudioV3Runtime({canvas, getState, getSourceResource = () 
     }, resolveHorizontal: controlHorizontal, resolveSupport: controlSupport, setFollowCamera: followControlCamera,
     onControl, canInput: canControlInput, onInvalidate: invalidate, onError: notify,
     onMotion: motion => graph.setControlMotion(motion.entityId, motion),
-    onRenderTransform(id, world) {const record = graph.entity(id); if (record?.root) {applyTransform(record.root, world); selectionOutline?.update();}},
+    onRenderTransform(id, world) {const record = graph.entity(id); if (record?.root) applyTransform(record.root, world);},
     onStart({entityId}) {
       navigationTransition = null; cancelTransform(); transformControls.detach();
       controlReturn = {view: previewCameraEntityId !== null ? returnView : view, position: orbitCamera.position.clone(), quaternion: orbitCamera.quaternion.clone(),
@@ -378,14 +429,14 @@ export function createStudioV3Runtime({canvas, getState, getSourceResource = () 
     orbitCamera.aspect = width / height; orbitCamera.updateProjectionMatrix();
     const half = 10; planCamera.left = -half * width / height; planCamera.right = half * width / height; planCamera.top = half; planCamera.bottom = -half; planCamera.updateProjectionMatrix(); invalidate();
   }
-  function render() {if (disposed || capturing) return false; check(); refreshVisibleCamera(); scene.updateMatrixWorld(true); selectionOutline?.update();
+  function render() {if (disposed || capturing) return false; check(); refreshVisibleCamera(); refreshHover(); scene.updateMatrixWorld(true);
     const drawScene = () => drawFrame(activeCamera, !!viewfinder || !!cameraEdit?.active || previewCameraEntityId !== null);
     // NU presents no director-camera helpers during possession, independently
     // of the viewport render profile. The leased camera is a clone, so an
     // object-identity comparison alone would leave its own frustum visible.
     const hiddenMarkers = [];
     for (const record of graph.entities.values()) if (record.status === 'ready' && (cameraEdit?.active && record.cameraMarker || record.camera === activeCamera)) {
-      for (const object of [record.root, record.cameraHelper, record.id === selected ? selectionOutline : null]) if (object?.visible) {hiddenMarkers.push(object); object.visible = false;}
+      for (const object of [record.root, record.cameraHelper]) if (object?.visible) {hiddenMarkers.push(object); object.visible = false;}
     }
     try {if (gaussian) gaussian.render(graph.content, activeCamera, drawScene); else drawScene();}
     finally {for (const object of hiddenMarkers) object.visible = true;} return true;
@@ -402,7 +453,8 @@ export function createStudioV3Runtime({canvas, getState, getSourceResource = () 
     const resource = getSourceResource(state.scenePlay.worldSpace.activeStageId), boundary = JSON.stringify([state.scenePlay.worldNodeId, state.scenePlay.worldSpace.activeStageId, state.scenePlay.worldSpace.activeSetupId, resource]);
     if (transformSession && transformSession.fence !== boundary) cancelTransform();
     if (sourceKey !== boundary) {endViewfinder(); cancelControl('boundary-change'); cameraEdit.cancel('boundary-change'); interruptNavigationTransition();}
-    if (sourceKey !== boundary) {sourceKey = boundary; transformControls.detach(); selected = null; if (previewCameraEntityId !== null) navigationView(returnView); clearDepthOfField();}
+    if (sourceKey !== boundary) {clearHover(); sourceKey = boundary; transformControls.detach(); selected = null; selectionOutline.setObjects([]); if (previewCameraEntityId !== null) navigationView(returnView); clearDepthOfField();}
+    if (hoverFence && hoverFence !== viewportFence() || pendingHover && pendingHover.fence !== viewportFence()) clearHover();
     const groundY = Number.isFinite(state.scenePlay.environment.ground.y) ? state.scenePlay.environment.ground.y : 0; ground.position.y = groundY; grid.position.y = groundY + .002;
     if (viewfinder && viewfinder.fence !== viewportFence()) endViewfinder();
     const report = await graph.sync(state, resource); check();
@@ -413,6 +465,7 @@ export function createStudioV3Runtime({canvas, getState, getSourceResource = () 
     if (selected && !graph.entity(selected)?.root) selected = null; refreshVisibleCamera(); applyDepthOfField(); refreshSelection(); invalidate(); return report;
   }
   function navigationView(value) {
+    clearHover();
     previewCameraEntityId = null; view = value; controls.enabled = true;
     activeCamera = value === 'plan' ? planCamera : orbitCamera; controls.object = activeCamera; controls.enableRotate = value === 'orbit'; controls.target.y = value === 'plan' ? ground.position.y : controls.target.y;
     if (value === 'plan') {const target = controls.target; planCamera.position.set(target.x, target.y + 100, target.z); planCamera.lookAt(target);}
@@ -425,6 +478,7 @@ export function createStudioV3Runtime({canvas, getState, getSourceResource = () 
     check(); const record = graph.entity(entityId);
     if (record?.status !== 'ready' || !record.state.visible || !record.camera) return false;
     if (!finishCameraControl('camera-preview')) return false;
+    clearHover();
     endViewfinder(); cancelControl('camera-preview'); navigationTransition = null; cancelTransform(); transformControls.detach();
     if (previewCameraEntityId === null) returnView = view;
     previewCameraEntityId = entityId; view = 'camera'; activeCamera = record.camera;
@@ -445,6 +499,7 @@ export function createStudioV3Runtime({canvas, getState, getSourceResource = () 
   }
   function beginViewfinder() {
     check(); if (capturing || !finishCameraControl('viewfinder')) return false; endViewfinder(); cancelControl('viewfinder'); interruptNavigationTransition(); cancelTransform();
+    clearHover();
     const optics = getVisibleCameraState(), camera = new THREE.PerspectiveCamera(optics.fov, optics.frameAspectRatio, .01, 10000);
     camera.position.set(optics.position.x, optics.position.y, optics.position.z); camera.rotation.set(optics.rotation.x, optics.rotation.y, optics.rotation.z, optics.rotation.order || 'XYZ');
     camera.up.set(0, 1, 0).applyQuaternion(camera.quaternion); camera.layers.enable(4);
@@ -507,32 +562,99 @@ export function createStudioV3Runtime({canvas, getState, getSourceResource = () 
     invalidate(); return true;
   }
   async function settle(camera = activeCamera) {check(); applyDepthOfField(camera); if (gaussian) await gaussian.settle(graph.content, camera); check(); applyDepthOfField(camera);}
+  async function renderPhoto(camera = activeCamera, options = {}) {
+    check(); if (photoRenderer?.busy) throw fail('studio_v3_photo_busy', '镜头正在拍摄');
+    const timeout = options.resourceTimeoutMs ?? 30000;
+    if (!Number.isFinite(timeout) || timeout <= 0) throw fail('studio_v3_photo_resources_timeout', '拍摄资源等待上限必须为正数');
+    photoResourceTimeoutMs = timeout;
+    const leased = capturing; capturing = true;
+    if (frame) cancelFrame?.(frame); frame = 0;
+    try {
+      photoRenderer ||= createPhotoRenderer({renderer, scene,
+        getFence: () => ({boundary: sourceKey ?? null, owner: getFence() ?? null}), isCurrent: () => !disposed && isCurrent(),
+        settle: async ({camera: opticalCamera, width, height, signal}) => {
+          check();
+          const identity = () => {const state = getState(); return JSON.stringify([getFence(), state, getSourceResource(state.scenePlay.worldSpace.activeStageId)]);};
+          const expected = identity(), snapshot = getState(), resource = getSourceResource(snapshot.scenePlay.worldSpace.activeStageId);
+          const current = () => {
+            if (signal.aborted || disposed || !isCurrent() || identity() !== expected) throw fail('studio_v3_photo_stale', '拍摄资源等待期间片场或来源已变化');
+          };
+          // Resource failures are reported by graph.sync, rather than rejected.
+          // Only required photographic content belongs to this readiness gate.
+          const syncing = graph.sync(snapshot, resource); syncing.catch(() => {});
+          const required = [...(resource ? [graph.source] : []), ...[...graph.entities.values()].filter(record => record.state.visible && record.definition.kind !== 'camera')];
+          const unavailable = record => {
+            const label = record?.kind === 'source' ? '场景来源' : record?.definition?.label || record?.id || '场景资源';
+            return fail('studio_v3_photo_resources_failed', `${label}未成功加载，照片未创建${record?.error?.message ? '：' + record.error.message : ''}`);
+          };
+          current();
+          for (const record of required) if (!record || record.status === 'failed') throw unavailable(record);
+          const pending = required.filter(record => record.status === 'loading').map(record => record.pending);
+          if (pending.length) {
+            let timer, cancelled;
+            try {
+              await new Promise((resolve, reject) => {
+                timer = setTimeout(() => reject(fail('studio_v3_photo_resources_timeout', '场景资源加载超时，照片未创建；请待资源就绪后重试')), photoResourceTimeoutMs);
+                cancelled = () => reject(fail('studio_v3_photo_stale', '拍摄资源等待已取消，照片未创建'));
+                signal.addEventListener('abort', cancelled, {once: true});
+                if (signal.aborted) cancelled();
+                Promise.all(pending).then(resolve, reject);
+              });
+            } finally {clearTimeout(timer); if (cancelled) signal.removeEventListener('abort', cancelled);}
+          }
+          current();
+          for (const record of required) if (record.status !== 'ready' || record.disposed || !record.root) throw unavailable(record);
+          scene.updateMatrixWorld(true);
+          if (gaussian) await gaussian.settleOffscreen(graph.content, opticalCamera, {width, height, signal, assertCurrent: check});
+          check(); current();
+        },
+        getSpark: () => gaussian?.spark || null,
+        renderFrame: ({camera: opticalCamera, target, draw, signal}) => {
+          check();
+          if (gaussian) return gaussian.renderSettled(graph.content, opticalCamera, draw, {width: target.width, height: target.height, signal, assertCurrent: check});
+          return draw();
+        }, createCanvas: () => document.createElement('canvas')});
+      const bounds = graph.bounds(), boundsCenter = bounds && !bounds.isEmpty() ? bounds.getCenter(new THREE.Vector3()) : null;
+      const renderPhotograph = options.encode === false ? photoRenderer.render : photoRenderer.capture;
+      return await renderPhotograph({camera, ...options, optics: options.optics || camera.userData.studioV3Optics,
+        boundsCenter, resolveEntityPosition(id, offset) {
+          const record = graph.entity(id); if (record?.status !== 'ready' || !record.state.visible) return null;
+          record.root.updateWorldMatrix(true, false);
+          return offset ? record.root.localToWorld(new THREE.Vector3(offset.x, offset.y, offset.z)) : record.root.getWorldPosition(new THREE.Vector3());
+        }});
+    } finally {
+      capturing = leased; if (!disposed && isCurrent()) {applyDepthOfField(); if (!capturing) invalidate();}
+    }
+  }
   async function renderCapture(camera = activeCamera) {
     check(); const boundary = sourceKey, entityId = [...graph.entities.values()].find(record => record.camera === camera)?.id;
     try {
       await settle(camera); check();
       if (sourceKey !== boundary || entityId && (entityCamera(entityId) !== camera || !graph.entity(entityId)?.state.visible)) throw fail('studio_v3_capture_stale', '拍摄场景或摄像机已变化');
       return withCaptureVisibility(scene, () => {
-        scene.updateMatrixWorld(true); const drawScene = () => drawFrame(camera, true);
+        scene.updateMatrixWorld(true); const drawScene = () => drawFrame(camera, true, false);
         if (gaussian) gaussian.render(graph.content, camera, drawScene); else drawScene(); return renderer.domElement;
       });
     } finally {if (!disposed && isCurrent()) {refreshVisibleCamera(); applyDepthOfField(); invalidate();} else clearDepthOfField();}
   }
   async function dispose() {
+    photoRenderer?.dispose();
     if (disposed) return; endViewfinder(); entityControl.dispose(); cameraEdit.dispose(); cameraNavigation.dispose(); cameraTransition = null; navigationTransition = null; cancelTransform(); clearDepthOfField(); previewCameraEntityId = null; disposed = true; if (frame) cancelFrame?.(frame); frame = 0;
-    document?.removeEventListener('visibilitychange', visibilityChanged); transformControls.detach(); transformControls.dispose(); controls.dispose(); graph.dispose(); selectionOutline = null;
+    document?.removeEventListener('visibilitychange', visibilityChanged); canvas.removeEventListener('pointermove', hoverPointer); canvas.removeEventListener('pointerleave', leavePointer); selectionOutline?.dispose(); hoverOutline?.dispose(); transformControls.detach(); transformControls.dispose(); controls.dispose(); graph.dispose(); selectionOutline = hoverOutline = null;
+    await photoRenderer?.whenIdle();
     await gaussian?.dispose(); gaussian = null; disposeModel(scene); scene.clear(); renderer.dispose(); renderer.forceContextLoss?.();
   }
-  document?.addEventListener('visibilitychange', visibilityChanged); resize(); invalidate();
+  try {document?.addEventListener('visibilitychange', visibilityChanged); canvas.addEventListener('pointermove', hoverPointer); canvas.addEventListener('pointerleave', leavePointer); resize(); invalidate();}
+  catch (failure) {failInitialization(failure);}
   return {scene, renderer, graph, controls, transformControls, orbitCamera, planCamera,
     get camera() {return activeCamera;}, get controlling() {return entityControl.active;}, get view() {return view;}, get selectedEntityId() {return selected;}, get disposed() {return disposed;}, get previewCameraEntityId() {return previewCameraEntityId;}, get cameraPreviewReturnView() {return returnView;}, get cameraPreviewRect() {return previewRect();}, get depthOfFieldSupported() {return !disposed && isCurrent() && !!gaussian?.spark;},
     get possessing() {return cameraEdit.active;}, get capturing() {return capturing;},
     startCameraControl, finishCameraControl, cancelCameraControl, checkpointCameraControl, patchCameraControl, pickCameraFocus,
     startControl, finishControl, cancelControl, nudgeControlHeight: entityControl.nudgeHeight, dropControlToGround: entityControl.dropToGround, setControlHeading: entityControl.setHeading,
     getVisibleCameraState, beginViewfinder, patchViewfinder, endViewfinder,
-    sync, render, resize, setView, previewCamera, clearCameraPreview, sparkDepthOfFieldParameters, selectEntity, focusEntity, entityObject, entityCamera, hitEntity, hitSurface, attachTransform, cancelTransform, settle, dispose,
+    sync, render, resize, setView, previewCamera, clearCameraPreview, sparkDepthOfFieldParameters, selectEntity, focusEntity, entityObject, entityCamera, hitEntity, hitSurface, setHoverEntity, attachTransform, cancelTransform, settle, dispose,
     retryEntity(id) {if (graph.retry(id)) return sync(); return Promise.resolve(false);},
-    renderCapture,
+    renderCapture, renderPhoto,
     setCapturing(value) {if (value) {cancelControl('capture'); cameraNavigation.cancelInput(); stopCameraTransition(); navigationTransition = null;} capturing = !!value; if (!capturing) invalidate();}
   };
 }

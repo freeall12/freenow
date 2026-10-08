@@ -1,6 +1,6 @@
 # Studio V3 Three 运行时
 
-当前生产集成已接[摄像机接管与拍摄](../../../docs/STUDIO-V3-CAMERA-POSSESSION-20261008.md)：navigation／edit-session／history adapter组成三维飞行、光学、viewport lease和checkpoint；camera-capture在运行时之外编码PNG、写LocalAssets和画布节点。真实浏览器已验保存重试、五张照片刷新解码与镜头回读。下面的运行时专项范围仍按各模块独立记录，不能代表完整工作区或全站验收。
+当前生产集成已接[摄像机接管与拍摄](../../../docs/STUDIO-V3-CAMERA-POSSESSION-20261008.md)：navigation／edit-session／history adapter组成三维飞行、光学、viewport lease和checkpoint。该批viewport PNG保存重试、五张照片刷新解码与镜头回读保留为历史证据；当前[镜头管理与离屏摄影验收](../../../docs/verification/20261008-studio-shots.md)确认独立4096长边JPEG、实体身体轮廓、真实缩略图及原照片/批次保存重试。真实一秒WebM为1280×720/30fps，30帧完整解码且不同。下面的运行时专项范围仍按各模块独立记录，不能代表完整工作区或全站验收。
 
 `runtime.mjs` 把领域层的完整 schema 4 envelope 渲染为 Three 场景。渲染内容由 `world-space.mjs` 的 `renderSetup()` 决定：先合并共享基底，再加入独立状态实体。运行时使用 V3 实体 ID，不读取或改写 V2 studio 数据。
 
@@ -45,6 +45,7 @@ await runtime.sync();
 | `retryEntity(id)` | 显式重试 failed 实体；传 `'source'` 重试源模型 |
 | `resize(width, height)` / `render()` | 同步尺寸或立即绘制 |
 | `settle(camera)` / `renderCapture(camera)` | 等待 Gaussian 资源稳定，再使用指定相机绘制并返回 renderer 的 canvas |
+| `renderPhoto(camera, options)` | 独立克隆光学相机并直接绘制真实离屏目标，默认4096长边JPEG .92；`encode:false`返回读回像素canvas，小尺寸目标用于真实缩略图 |
 | `setCapturing(boolean)` | 暂停或恢复普通视口刷新，供调用方协调捕获 |
 | `dispose()` | 幂等释放 RAF、控件、图、Gaussian 上下文、模型和 renderer |
 
@@ -74,7 +75,11 @@ helper、相机可视模型、隐藏/未完成实体不参与支撑命中。相�
 
 `renderCapture()` 返回一次真实绘制后的 canvas。调用方应以 `setCapturing(true)` / finally `setCapturing(false)` 包裹需要稳定画布的导出流程；这里尚不包含 CanvasStore 节点创建、图片编码、附件保存或拍摄完成事务。
 
-镜头相机同步 position、rotation、fov、focalLength、frameAspectRatio，并保留 apertureFNumber、focusDistance 等完整光学字段。当前没有景深后处理，保留字段不能视为已实现景深效果。空场景、GLB 和 SPZ 源已接入，room/panorama 专属绘制不在此模块中实现。
+`renderPhoto()`使用[独立摄影渲染](PHOTO-RENDERER.md)创建目标、读回RGBA并翻转Y，真实绘制目标细节，不放大当前viewport；摄影排除编辑轮廓与helpers，finally恢复渲染器/相机层/Spark状态。调用方负责checkpoint、权限、LocalAssets和画布保存，离屏结果本身不等于已持久保存。关闭先dispose摄影模块并等待whenIdle，再释放renderer，避免读回仍在运行时提前释放。
+
+摄影先等待 source 与可见非 camera 实体的必需资源就绪；加载失败、会话/来源失效或默认30秒超时具体报错且不进入编码，防止把缺失模型的场景当作成功照片。新增readiness 5项及受影响Spark/drain 2项定向通过；生产UI刷新后重新9:16拍摄成功且warn/error为空。本批实际照片为2304×4096，不将这一GLB结果扩展为真实SPZ离屏GPU/景深验收。
+
+镜头相机同步 position、rotation、fov、focalLength、frameAspectRatio，并保留 apertureFNumber、focusDistance 等完整光学字段。Spark已接光圈/对焦参数，真实SPZ景深像素仍未验；普通GLB没有景深后处理，保存字段不能视为已实现虚化。空场景、GLB 和 SPZ 源已接入，room/panorama 专属绘制不在此模块中实现。
 
 ## 验证
 
@@ -92,4 +97,4 @@ node --check src/features/studio-v3/surface-hit.mjs
 
 相机使用当前仓库真实 GLB，14,948 bytes，SHA-256 `00f5a46007aee91cf8a9accd2584ad83b7dc3ce2396c1dd325ff61c3304004e7`；Node 测试仅为内嵌 PNG 提供尺寸解析 bitmap shim，因此确认真实几何解码，不能据此声称纹理 GPU 显示通过。其余隔离生命周期测试使用轻量资产替身；运行时测试的 renderer/controls 注入也只验证接口和调度。
 
-本模块的聚焦测试没有验证真实浏览器 GPU、Draco worker、真实 SPZ 显示、生产入口与面板交互、截图或拍摄到画布的完整闭环；这些需要接入后的浏览器验收。
+上述聚焦测试本身没有验证真实浏览器GPU、Draco worker、真实SPZ景深或生产界面；后续实际摄影/保存和镜头管理已有独立浏览器证据，不能把本段旧测试范围写成当前全部能力仍未接入，也不能据此宣称全部设备/功能完成。

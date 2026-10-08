@@ -5,7 +5,7 @@ const modules = Promise.all([import('../src/features/studio-v3/camera-capture.mj
   import('../src/features/studio-v3/schema.mjs'), import('../src/features/studio-v3/world-space.mjs')]);
 const defer = () => {let resolve; const promise = new Promise(done => {resolve = done;}); return {promise, resolve};};
 
-async function fixture({aspect = 16 / 9, width = 800, height = 600, readonly = false} = {}) {
+async function fixture({aspect = 16 / 9, width = 800, height = 600, readonly = false, photoPatch = {}} = {}) {
   const [{createCameraCapture}, {createStudioSession}, schema, world] = await modules;
   let state = schema.createState({worldNodeId: 'owner', now: 1});
   state = world.addEntity(state, schema.createEntity({id: 'camera', kind: 'camera', label: 'Camera', now: 1}));
@@ -15,7 +15,7 @@ async function fixture({aspect = 16 / 9, width = 800, height = 600, readonly = f
   const source = {id: 'source', worldResource: {url: '/local.glb', format: 'glb'}};
   const owner = {id: 'owner', type: 'studio', x: 0, y: 0, width: 375, height: 250, studioV3: {version: 3, state, revision: 0,
     sourceBinding: {sourceNodeId: 'source', sourceKind: 'world', sourceSnapshot: structuredClone(source.worldResource)}}};
-  const nodes = [owner, source], stats = {renders: 0, encodes: 0, assets: 0, adds: 0, saves: 0, checkpoints: 0, draws: [], statuses: []};
+  const nodes = [owner, source], stats = {renders: 0, encodes: 0, assets: 0, adds: 0, saves: 0, checkpoints: 0, photoRequests: [], statuses: []};
   let current = true, projectId = 'project', durable, saveError, assetError, encodeError, renderError, saveGate, renderGate, assetGate, encodeGate, checkpointAccepted = true;
   const app = {
     getState: () => ({nodes}), projectIdentity: () => ({id: projectId}), registerNodeWriteGuard: () => () => {},
@@ -33,9 +33,9 @@ async function fixture({aspect = 16 / 9, width = 800, height = 600, readonly = f
   const session = createStudioSession({nodeId: owner.id, app, store: {flush: async () => {}}, readonly,
     getSourceSnapshot: node => node.worldResource, isCurrentSession: () => current, autosaveMs: null,
     publishNode: async (id, patch, {beforeCommit}) => {assert.equal(beforeCommit(), true); owner.studioV3 = structuredClone(patch.studioV3);}});
-  const camera = {isPerspectiveCamera: true, aspect}, rendered = {width, height}; let capturing = false, possessing = true;
+  const camera = {isPerspectiveCamera: true, aspect}; let capturing = false, possessing = true;
   const runtime = {
-    camera, disposed: false, previewCameraEntityId: null,
+    camera, disposed: false, previewCameraEntityId: null, renderer: {domElement: {width, height}},
     get possessing() {return possessing ? {entityId: 'camera'} : null;},
     getVisibleCameraState: () => structuredClone(cameraState),
     checkpointCameraControl() {
@@ -43,23 +43,29 @@ async function fixture({aspect = 16 / 9, width = 800, height = 600, readonly = f
       if (session.history.getActiveTransaction()) {if (!session.history.commit()) session.history.cancel();} return true;
     },
     setCapturing(value) {capturing = value;},
-    async renderCapture(value) {
+    async renderPhoto(value, options) {
       assert.equal(value, camera); assert.equal(capturing, true); stats.renders++;
+      assert.deepEqual(options, {frameAspectRatio: aspect}); stats.photoRequests.push(structuredClone(options));
       if (renderGate) {const gate = renderGate; renderGate = null; await gate.promise;}
-      if (renderError) throw renderError; return rendered;
+      if (renderError) throw renderError;
+      stats.encodes++;
+      if (encodeGate) {const gate = encodeGate; encodeGate = null; await gate.promise;}
+      if (encodeError) throw Error('JPEG encode failed');
+      const photoWidth = aspect >= 1 ? 4096 : Math.round(4096 * aspect);
+      const photoHeight = aspect >= 1 ? Math.round(4096 / aspect) : 4096;
+      return {blob: new Blob(['jpeg-bytes'], {type: 'image/jpeg'}), canvas: {width: photoWidth, height: photoHeight},
+        width: photoWidth, height: photoHeight, mimeType: 'image/jpeg', quality: .92, ...photoPatch};
+    },
+    renderCapture() {
+      throw Error('viewport capture must not supply the offscreen photo');
     }
   };
   const assets = {async put(blob) {
-    assert.equal(blob.type, 'image/png'); stats.assets++;
+    assert.equal(blob.type, 'image/jpeg'); stats.assets++;
     if (assetGate) {const gate = assetGate; assetGate = null; await gate.promise;}
     if (assetError) {const error = assetError; assetError = null; throw error;} return 'asset:photo';
   }};
-  const createCanvas = () => ({getContext: () => ({drawImage: (...args) => stats.draws.push(args)}), toBlob(callback, type) {
-    assert.equal(capturing, true); stats.encodes++;
-    const finish = () => callback(encodeError ? null : new Blob(['png-bytes'], {type}));
-    if (encodeGate) {const gate = encodeGate; encodeGate = null; gate.promise.then(finish);} else finish();
-  }});
-  const capture = createCameraCapture({app, session, runtime, nodeId: owner.id, assets, createCanvas, createId: () => 'capture-1', now: () => 10,
+  const capture = createCameraCapture({app, session, runtime, nodeId: owner.id, assets, createId: () => 'capture-1', now: () => 10,
     onStatus: value => stats.statuses.push(value)});
   return {capture, session, owner, source, nodes, app, runtime, stats, cameraState, durable: () => durable, capturing: () => capturing,
     failSave: () => {saveError = Error('disk unavailable');}, failAsset: () => {assetError = Error('asset write failed');},
@@ -69,12 +75,12 @@ async function fixture({aspect = 16 / 9, width = 800, height = 600, readonly = f
 }
 const until = async predicate => {for (let i = 0; i < 20 && !predicate(); i++) await new Promise(done => setImmediate(done)); assert.ok(predicate());};
 
-test('shutter saves an aspect-correct PNG asset and connected image, preserving director state and mode', async () => {
+test('shutter saves an offscreen 4096 JPEG asset and connected image, preserving director state and mode', async () => {
   const f = await fixture(), before = f.session.getState();
-  const result = await f.capture.capture(); assert.equal(result.ok, true); assert.deepEqual([result.width, result.height], [800, 450]);
-  assert.deepEqual(f.stats.draws[0].slice(1), [0, 75, 800, 450, 0, 0, 800, 450]);
+  const result = await f.capture.capture(); assert.equal(result.ok, true); assert.deepEqual([result.width, result.height], [4096, 2304]);
+  assert.deepEqual(f.stats.photoRequests, [{frameAspectRatio: 16 / 9}]);
   const image = f.nodes.at(-1); assert.equal(image.image, 'asset:photo'); assert.equal(image.sourceId, 'owner');
-  assert.equal(image.width, 446); assert.equal(image.height, 446 * 450 / 800); assert.equal(image.pixelWidth, 800);
+  assert.equal(image.width, 446); assert.equal(image.height, 446 * 2304 / 4096); assert.equal(image.pixelWidth, 4096); assert.equal(image.pixelHeight, 2304);
   assert.equal(image.provenance.sourceCameraEntityId, 'camera'); assert.equal(image.provenance.sourceNodeId, 'source');
   assert.equal(image.provenance.setupId, before.scenePlay.worldSpace.activeSetupId); assert.deepEqual(image.provenance.camera, f.cameraState);
   assert.deepEqual(f.session.getState(), before); assert.deepEqual(f.owner.studioV3.state.capturedPhotos, []);
@@ -82,13 +88,29 @@ test('shutter saves an aspect-correct PNG asset and connected image, preserving 
   assert.ok(f.runtime.possessing); assert.equal(f.capture.busy, false); assert.equal(f.capturing(), false); assert.equal(f.capture.pendingReceipt, null);
 });
 
-test('portrait crop and 4096 maximum never stretch the viewport matte or enlarge native detail', async () => {
-  const [{cameraCaptureGeometry}] = await modules;
-  assert.deepEqual(cameraCaptureGeometry(800, 600, 9 / 16), {left: 231.25, top: 0, sourceWidth: 337.5, sourceHeight: 600, width: 338, height: 600});
-  assert.deepEqual(cameraCaptureGeometry(9000, 6000, 3 / 2), {left: 0, top: 0, sourceWidth: 9000, sourceHeight: 6000, width: 4096, height: 2731});
-  assert.throws(() => cameraCaptureGeometry(0, 600, 1), /尺寸无效/);
-  const f = await fixture({aspect: 9 / 16}); const result = await f.capture.capture(); assert.deepEqual([result.width, result.height], [338, 600]);
-  assert.equal(f.stats.draws[0][1], 231.25); assert.equal(f.stats.draws[0][3], 337.5);
+test('offscreen portrait and landscape photo dimensions are independent of viewport size', async () => {
+  for (const [aspect, dimensions] of [[16 / 9, [4096, 2304]], [9 / 16, [2304, 4096]]]) {
+    for (const [width, height] of [[80, 60], [800, 600], [9000, 6000]]) {
+      const f = await fixture({aspect, width, height}), result = await f.capture.capture();
+      assert.deepEqual([result.width, result.height], dimensions);
+      assert.deepEqual(f.stats.photoRequests, [{frameAspectRatio: aspect}]);
+      assert.deepEqual([f.nodes.at(-1).pixelWidth, f.nodes.at(-1).pixelHeight], dimensions);
+      assert.equal(f.stats.encodes, 1);
+    }
+  }
+});
+
+test('invalid JPEG blobs and non-4096 or invalid pixel dimensions reject before assets and canvas writes', async () => {
+  for (const photoPatch of [{blob: null}, {blob: new Blob([], {type: 'image/jpeg'})},
+    {blob: new Blob(['png'], {type: 'image/png'})}, {width: 0}, {height: -1},
+    {width: 4096.5}, {height: NaN}, {width: 2048, height: 1152}, {width: 8192, height: 4608}]) {
+    const f = await fixture({photoPatch});
+    try {
+      await assert.rejects(f.capture.capture(), error => error.code === 'studio_v3_capture_encode');
+      assert.equal(f.stats.assets, 0); assert.equal(f.stats.adds, 0); assert.equal(f.stats.saves, 0);
+      assert.equal(f.capture.pendingReceipt, null); assert.equal(f.capturing(), false);
+    } finally {f.capture.dispose(); await f.session.closeGuard();}
+  }
 });
 
 test('checkpoint commits preview pose before shutter; rejected checkpoint and foreign transactions create no asset', async () => {

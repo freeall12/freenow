@@ -148,7 +148,7 @@ export function createMenus({ root, onError } = {}) {
     const surface = document.createElement('div');
     surface.className = 'sv3-menu sv3-motion';
     surface.id = `studio-v3-menu-${++sequence}`;
-    surface.setAttribute('role', 'menu');
+    surface.setAttribute('role', options.role || 'menu');
     surface.setAttribute('tabindex', '-1');
     if (options.label) surface.setAttribute('aria-label', options.label);
     if (options.width) surface.style.width = typeof options.width === 'number' ? `${options.width}px` : options.width;
@@ -181,7 +181,7 @@ export function createMenus({ root, onError } = {}) {
       }
       surface.append(node);
       for (const button of surface.querySelectorAll('button')) {
-        if (!button.hasAttribute('role')) button.setAttribute('role', 'menuitem');
+        if ((options.role || 'menu') === 'menu' && !button.hasAttribute('role')) button.setAttribute('role', 'menuitem');
       }
       // Same scoped root coordinate system as official body Portal, without global CSS.
       root.append(portal);
@@ -260,6 +260,9 @@ export function createMenus({ root, onError } = {}) {
   listen(document, 'keydown', event => {
     validate();
     if (!active || event.defaultPrevented || event.isComposing || event.keyCode === 229 || event.key === 'Process') return;
+    if (event.key === 'Escape' && (contains(event.target) || event.target === active.anchor || event.target === document.body) && active.content?.handleEscape?.() === true) {
+      event.preventDefault(); event.stopPropagation(); return;
+    }
     if (editable(event.target)) return;
     if (!contains(event.target) && event.target !== active.anchor && event.target !== document.body) return;
     if (event.key === 'Escape' || event.key === 'Tab') {

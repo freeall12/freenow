@@ -27,7 +27,13 @@
 | `camera-navigation.mjs` | 摄像机Quaternion三维飞行、惯性／滚轮／Alt支点、输入隔离与按需tick |
 | `camera-edit-session.mjs` / `camera-history-adapter.mjs` | 作者事务、checkpoint、viewport lease、来源围栏和真实领域history接线 |
 | `camera-control-hud.mjs` / `camera-control-hud.css` | 原光学工具、画幅菜单、log滑尺／弹簧、对焦和失败回执交互 |
-| `camera-capture.mjs` | 真实PNG、LocalAssets、连接画布图片、受守卫保存及同照片重试 |
+| `photo-renderer.mjs` | 独立真实WebGLRenderTarget、默认4096长边RGBA读回与JPEG .92编码，摄影层/Spark/渲染状态恢复 |
+| `selection-outline.mjs` | 真实实体选择/悬停身体轮廓pass，与摄影内容隔离 |
+| `camera-capture.mjs` | 真实离屏JPEG、LocalAssets、连接画布图片、受守卫保存及同照片重试；前批viewport PNG保留历史证据 |
+| `camera-shots.mjs` / `camera-manager.mjs` | 镜头目录、真实机位/已有View解析、改名/删除/批量选择及分层Escape交互 |
+| `camera-shot-preview.mjs` | 独立运行时按真实画幅生成320×180包围框内JPEG缩略图，串行/取消/身份与资源释放 |
+| `camera-shot-sampling.mjs` / `camera-shot-export.mjs` / `webm-encoder.mjs` | 静态JPEG、已有时序频道采样、1280×720/30fps原生WebM与明确unsupported时contact sheet回退；不等于时间编辑UI完成 |
+| `camera-batch-publish.mjs` | 原批次本地素材、连线媒体节点与真实项目保存，保留幂等回执用于失败重试 |
 | `runtime.mjs` / `render-graph.mjs` | 真实 Three 场景、GLB/SPZ、人物 clip、相机、Orbit/正交视图和事务变换 |
 | `asset-loader.mjs` / `surface-hit.mjs` | 有界本地素材读取/解码/取消，站面与直接拾取基础 |
 | `icons.mjs` / `menus.mjs` / CSS | 官方图标与布局、单活动菜单和嵌套子菜单、坐标夹紧、键盘/分层Escape回焦与退出动效 |
@@ -42,13 +48,21 @@
 
 前批runtime光学/取景11项、落地5项、状态7项、集成守卫5项通过；同lane连续redo新增3项，跨lane冲突仍阻断。其他光学、属性与嵌套菜单专项按上述证据页分别记录，不合计为全量重跑。六色/道具材质与九姿态没有覆盖全部浏览器鼠标路径，P1不能标为全部完成，旧Alpha不包含这些增量。操控／创建与摄像机拍摄的当前补齐范围见下。
 
-## 摄像机接管与拍摄增量
+## 最新：离屏摄影、身体轮廓与镜头管理/导出
 
-当前生产入口已接三维飞行、0.8s／0.55s进入返回、光学滑尺、完成／还原和拍摄checkpoint，摄像机helper采用原材质／短视锥／layer与身体pivot。快门真实PNG→LocalAssets→连接画布图片→受守卫保存，重试保留同照片，接管排除全部camera marker。GLB隐藏不具备能力的景深工具，Spark已有光圈／点对焦参数但真实像素未验。
+当前快门接独立 WebGLRenderTarget、RGBA 读回和 JPEG .92，默认 4096 长边；实机 9:16 图像解码为 2304×4096。摄影排除轮廓与 helper，实体身体橙色 outline 已有生产界面证据。摄影前等待 source 与可见非 camera 实体的必需资源，失败/身份失效/默认 30 秒超时具体报错且零编码；新增 readiness 5 项与受影响 Spark/drain 2 项通过，刷新新代码后真实竖幅快门成功且 warn/error 为空。
+
+镜头管理以独立 runtime 生成真实缩略图，竖幅实测 101×180；改名保存、删除确认/撤销、批量选择和分层 Escape 已验。照片失败重试保留原 capture ID、节点和素材；批次两次保存失败后关闭/重开恢复原选中项，重试与刷新保留同 export ID 的唯一输出节点及素材。普通快门不会追加 `capturedPhotos` 或 `views`，管理器不能当作完整 Saved Views/历史照片作者 UI。
+
+动态镜头以已有 temporal 频道采样并导出 WebM。真实文件审核为 VP9、1280×720、30 fps、1 秒、56,649 bytes，30 帧解码且全部不同，0/15/29 帧有餐椅与地面；只有编码器明确不支持时才回退 contact sheet。完整证据、截图与视频审核见[本批验收](../../../docs/verification/20261008-studio-shots.md)。真实 SPZ 离屏 GPU/景深像素未实机验，GLB 景深/持物渲染未实现；时间/关键帧编辑、完整平面图、独立历史照片管理、生成与完整 V3 Agent 编排仍缺，旧 Alpha 不含此批。
+
+## 前批：摄像机接管与 viewport PNG 拍摄
+
+前批生产入口接通三维飞行、0.8s／0.55s进入返回、光学滑尺、完成／还原和拍摄checkpoint，摄像机helper采用原材质／短视锥／layer与身体pivot。当时快门为真实PNG→LocalAssets→连接画布图片→受守卫保存，重试保留同照片，接管排除全部camera marker。GLB隐藏不具备能力的景深工具，Spark已有光圈／点对焦参数但真实像素未验。
 
 实机验证滑尺ArrowRight只改焦距不改pose；400mm与拖动后还原完整states，revision不变。两笔照片保存失败时锁非重试HUD，并保护恢复视图／选择／关闭入口；顶部或快门重试均不重复图片。最终刷新revision6、五张763×1356照片同ID并全部解码成功。完整源证据、模块合同、分批检查范围和截图见[摄像机接管与拍摄验收](../../../docs/STUDIO-V3-CAMERA-POSSESSION-20261008.md)。
 
-仍缺完整身体轮廓pass、4K离屏JPEG、Saved Views／历史照片、时间／关键帧、完整平面图、生成UI与完整V3 Agent编排。领域schema字段和只读Agent接口不能代替这些功能；不声称完整官方工作区验收。
+此段保留五张 viewport PNG 的历史证据；当时缺少的身体轮廓 pass 与 4096 长边离屏 JPEG 已由上方最新增量补齐。独立 Saved Views／历史照片管理、时间／关键帧编辑、完整平面图、生成 UI 与完整 V3 Agent 编排仍未完成。领域 schema 字段和只读 Agent 接口不能代替这些功能；不声称完整官方工作区验收。
 
 ## 数据约束
 

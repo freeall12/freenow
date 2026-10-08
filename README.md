@@ -58,15 +58,15 @@ pnpm desktop:dev
 | 工作流与恢复 | 依赖执行、持久任务回执、原任务查询、显式继续与保存保护 | 未知状态不自动重复提交 |
 | 外部Agent（桌面源码） | 本机MCP连接、原生批准、两项当前画布元数据只读工具、刷新撤权 | 支持本机stdio客户端；不含写入/生成/媒体或云端连接器，现有Alpha包未包含 |
 
-源码另有正在补齐的[导演片场 V3](docs/STUDIO-V3-PRODUCTION-20261008.md)：人物/镜头/道具、基准与独立状态、[实体属性](docs/STUDIO-V3-ENTITIES-20261008.md)、[人物操控与摄像机创建](docs/STUDIO-V3-CONTROLS-20261008.md)已接入。最新[摄像机操控与拍摄](docs/STUDIO-V3-CAMERA-POSSESSION-20261008.md)支持三维飞行、进入/返回过渡、画幅与焦距滑尺、完成/还原，以及真实 PNG 连接到画布和同照片保存重试；实机刷新恢复五张照片与镜头参数已验。完整平面图、时间/关键帧、保存视图/历史照片、生成与完整 V3 Agent 编排仍未完成，SPZ 景深视觉待验；现有 Alpha 不含此批。
+源码另有正在补齐的[导演片场 V3](docs/STUDIO-V3-PRODUCTION-20261008.md)：人物/镜头/道具、基准与独立状态、[实体属性](docs/STUDIO-V3-ENTITIES-20261008.md)、[人物操控与摄像机创建](docs/STUDIO-V3-CONTROLS-20261008.md)、[摄像机操控](docs/STUDIO-V3-CAMERA-POSSESSION-20261008.md)已接入。[本批镜头管理与导出](docs/verification/20261008-studio-shots.md)新增 4096 长边离屏 JPEG、实体身体轮廓、独立机位缩略图、改名与批量导出；照片和批次保存失败均可复用原回执重试。实机 9:16 照片解码为 2304×4096，真实 WebM 为 1280×720 / 30 fps，1 秒的 30 帧均可解码且不同。完整平面图、时间/关键帧编辑、完整视图/历史照片管理、生成与完整 V3 Agent 编排仍未完成，SPZ 离屏 GPU/景深像素及持物渲染仍有限制；现有 Alpha 不含此批。
 
 | 人物操控与朝向 | 当前视角摄像机确认 |
 | --- | --- |
 | ![freenow 导演片场中的人物操控HUD与朝向](docs/screenshots/20261008-studio-controls/actor-heading.jpg) | ![freenow 导演片场中35mm 9:16当前视角的摄像机确认预览](docs/screenshots/20261008-studio-controls/viewfinder-portrait.jpg) |
 
-| 摄像机接管与光学工具 | 拍摄照片连接到画布 |
+| 镜头管理与真实缩略图 | 离屏照片连接到画布 |
 | --- | --- |
-| ![freenow 9:16 摄像机操控、焦距滑尺与真实快门](docs/screenshots/20261008-studio-camera/possession-portrait.jpg) | ![freenow 无限画布中片场连接实际拍摄PNG](docs/screenshots/20261008-studio-camera/canvas-photos.jpg) |
+| ![freenow 镜头管理与真实机位缩略图](docs/screenshots/20261008-studio-shots/camera-manager.jpg) | ![freenow 无限画布中的真实离屏 JPEG 照片与连线](docs/screenshots/20261008-studio-shots/canvas-photo-nodes.jpg) |
 
 模型菜单、适配器和应用登记分别说明可选择范围；真实供应商输出质量需单独验证。[详细功能与适配器](docs/FEATURES.md) · [验收证据](docs/VERIFICATION-INDEX.md)
 

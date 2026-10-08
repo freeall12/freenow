@@ -5,9 +5,8 @@ export const CAMERA_CAPTURE_MAX_EDGE = 4096;
 const failure = (code, message) => Object.assign(new Error(message), {code});
 const boundary = fence => {const {revision, editEpoch, ...identity} = fence; return identity;};
 
-/** Crop the fitted optical frame, preserving its aspect and native detail.
- * Official ii caps the long edge at 4096. A viewport capture cannot synthesize
- * the reference's offscreen 4K detail, so this path never enlarges its pixels. */
+/** Legacy viewport geometry kept for compatibility; the shutter now uses
+ * runtime.renderPhoto with an independent 4096-pixel render target. */
 export function cameraCaptureGeometry(width, height, aspect) {
   if (![width, height, aspect].every(value => Number.isFinite(value) && value > 0)) {
     throw failure('studio_v3_capture_frame', '拍摄画幅或画布尺寸无效');
@@ -26,7 +25,7 @@ export function createCameraCapture({app, session, runtime, nodeId, getFence = s
     if (typeof value !== 'function') throw new TypeError(`cameraCapture.${name} requires a callback`);
   }
   for (const [name, value] of Object.entries({getState: app?.getState, createConnected: app?.createConnected,
-    saveProject: app?.saveProject, flush: session?.flush, read: session?.getState, renderCapture: runtime?.renderCapture,
+    saveProject: app?.saveProject, flush: session?.flush, read: session?.getState, renderPhoto: runtime?.renderPhoto,
     setCapturing: runtime?.setCapturing, getVisibleCameraState: runtime?.getVisibleCameraState, put: assets?.put})) {
     if (typeof value !== 'function') throw new TypeError(`cameraCapture.${name} requires an adapter`);
   }
@@ -85,21 +84,14 @@ export function createCameraCapture({app, session, runtime, nodeId, getFence = s
     const item = {captureId, createdAt, owner: owner(), fence, boundary: boundary(fence), scope: scene,
       camera, cameraState, sourceCameraEntityId, source: runtime.possessing ? 'possession' : 'camera', nodeId: null, asset: null, blob: null};
     emit('rendering');
-    const rendered = await runtime.renderCapture(camera); check(item, true);
+    const rendered = await runtime.renderPhoto(camera, {frameAspectRatio: aspect}); check(item, true);
     if (runtime.renderer?.getContext?.().isContextLost?.()) throw failure('studio_v3_capture_context', '镜头渲染已中断，照片未创建');
-    const frame = cameraCaptureGeometry(rendered?.width, rendered?.height, aspect), output = createCanvas();
-    output.width = frame.width; output.height = frame.height;
-    const context = output.getContext('2d');
-    if (!context) throw failure('studio_v3_capture_encode', '照片画布不可用，照片未创建');
-    // Copy immediately; an invalidation can repaint the shared renderer canvas
-    // after this task yields. Crop black mattes instead of stretching them.
-    context.drawImage(rendered, frame.left, frame.top, frame.sourceWidth, frame.sourceHeight, 0, 0, frame.width, frame.height);
-    emit('encoding');
-    const blob = await new Promise((resolve, reject) => {
-      try {output.toBlob(value => value?.size && value.type === 'image/png' ? resolve(value) : reject(failure('studio_v3_capture_encode', 'PNG 编码失败，照片未创建')), 'image/png');}
-      catch (error) {reject(error);}
-    });
-    check(item, true); Object.assign(item, {blob, width: frame.width, height: frame.height});
+    const {blob, width, height} = rendered || {};
+    if (!blob?.size || blob.type !== 'image/jpeg' || !Number.isInteger(width) || !Number.isInteger(height) ||
+      width < 1 || height < 1 || Math.max(width, height) !== CAMERA_CAPTURE_MAX_EDGE) {
+      throw failure('studio_v3_capture_encode', '离屏渲染未产出有效 4096 像素 JPEG，照片未创建');
+    }
+    check(item, true); Object.assign(item, {blob, width, height});
     item.provenance = {kind: 'studio-render', sceneId: nodeId, sceneVersion: 3, captureId,
       source: item.source, sourceNodeId: fence.sourceBinding?.sourceNodeId ?? nodeId,
       sourceKind: fence.sourceBinding?.sourceKind ?? 'studio', stageId: scene.stageId, setupId: scene.setupId,
@@ -111,7 +103,7 @@ export function createCameraCapture({app, session, runtime, nodeId, getFence = s
     if (!item.asset) {
       emit('saving-asset'); const asset = await assets.put(item.blob); check(item, true);
       if (typeof asset !== 'string' || !asset.startsWith('asset:') || asset.length <= 6) {
-        throw failure('studio_v3_capture_asset', 'PNG 未保存为本地素材，照片未创建');
+        throw failure('studio_v3_capture_asset', 'JPEG 未保存为本地素材，照片未创建');
       }
       item.asset = asset;
     }

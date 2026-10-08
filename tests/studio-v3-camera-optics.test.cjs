@@ -94,9 +94,10 @@ test('look-at target movement synchronizes camera model with derived optical rot
   const graph = createRenderGraph({scene: new THREE.Scene(), loader: {async load() {const root = new THREE.Group();root.add(new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial()));return {root, format: 'glb', animations: [], dispose() {}};}}});
   try {
     await graph.sync(state);const record = graph.entity('camera'), before = record.camera.quaternion.clone();
-    assert.deepEqual(record.root.quaternion.toArray(), before.toArray());
+    // Matrix decomposition can differ at machine precision; compare orientation.
+    quaternionNear(record.root.quaternion, before);
     state = actions.reduceEntityAction(state, {type: 'update', entityId: 'target', patch: {transform: {position: {x: -3, y: 4, z: -7}}}}, {now: 3}).state;
-    await graph.sync(state);assert(before.angleTo(record.camera.quaternion) > .1);assert.deepEqual(record.root.quaternion.toArray(), record.camera.quaternion.toArray());
+    await graph.sync(state);assert(before.angleTo(record.camera.quaternion) > .1);quaternionNear(record.root.quaternion, record.camera.quaternion);
     assert.deepEqual(actions.resolveEntityControl(state, {entityId: 'camera'}).setupState, authored);
     const expected = new THREE.Vector3(-3, 4, -7).sub(record.camera.position).normalize(), direction = record.camera.getWorldDirection(new THREE.Vector3());near(direction.distanceTo(expected), 0);
     state = actions.reduceEntityAction(state, {type: 'update', entityId: 'camera', patch: {camera: {lookAt: {mode: 'none'}}}}, {now: 4}).state;await graph.sync(state);

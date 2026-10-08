@@ -62,8 +62,8 @@ export class SplatContext {
     this.sync();
   }
   retire(mesh){const lod=this.lod,task=this.serial.then(async()=>{try{await lod?.release(mesh);}finally{mesh.dispose();}});this.retirements.add(task);task.catch(this.onError).finally(()=>this.retirements.delete(task));return task;}
-  rebind(root){const objects=new Map(splatObjects(root).map(object=>[object.uuid,object]));const entries=new Map();for(const [proxy,mesh] of this.entries){const next=objects.get(proxy.uuid);if(next)entries.set(next,mesh);else{mesh.removeFromParent();void this.retire(mesh);}}this.entries=entries;this.lastKey=null;this.releaseEmpty();this.sync();}
-  prune(root){const objects=new Set(splatObjects(root));for(const [proxy,mesh] of this.entries)if(!objects.has(proxy)){mesh.removeFromParent();this.entries.delete(proxy);void this.retire(mesh);}this.lastKey=null;this.releaseEmpty();}
+  rebind(root){const objects=new Map(splatObjects(root).map(object=>[object.uuid,object]));const entries=new Map();for(const [proxy,mesh] of this.entries){const next=objects.get(proxy.uuid);if(next)entries.set(next,mesh);else{mesh.removeFromParent();void this.retire(mesh);}}this.entries=entries;this.lastKey=null;this.offscreenSettled=null;this.releaseEmpty();this.sync();}
+  prune(root){const objects=new Set(splatObjects(root));for(const [proxy,mesh] of this.entries)if(!objects.has(proxy)){mesh.removeFromParent();this.entries.delete(proxy);void this.retire(mesh);}this.lastKey=null;this.offscreenSettled=null;this.releaseEmpty();}
   releaseEmpty(){if(this.entries.size||!this.spark)return;void this.serial.then(async()=>{await Promise.allSettled([...this.retirements]);if(this.entries.size||!this.spark)return;this.lod?.disposeTextures();this.spark.removeFromParent();this.spark.dispose();this.spark=null;this.lod=null;}).catch(this.onError);}
   readLod(){return this.lod?.read([...this.entries.values()])||{...splatLodPolicy,selectedCount:0,drawCount:0,activeCount:0,sources:[],workerTrees:0,indexTextures:0};}
   sync(){for(const [proxy,mesh] of this.entries){proxy.updateWorldMatrix(true,false);mesh.matrixAutoUpdate=false;mesh.layers.mask=proxy.layers.mask;mesh.matrix.copy(proxy.matrixWorld).scale(splatAxisScale(proxy.userData.worldSplat));mesh.matrixWorldNeedsUpdate=true;let visible=true;for(let node=proxy;node;node=node.parent)visible=visible&&node.visible;mesh.visible=visible;}}
@@ -74,12 +74,41 @@ export class SplatContext {
   enqueue(camera){
     // A second update must never race Spark's accumulator/sort ownership.
     if(this.preparing)return this.preparing;this.sync();const view=camera.clone();camera.updateWorldMatrix(true,false);camera.matrixWorld.decompose(view.position,view.quaternion,view.scale);view.updateMatrixWorld(true);
-    const key=JSON.stringify([view.matrixWorld.elements,view.projectionMatrix.elements,view.layers.mask,this.renderer.domElement.width,this.renderer.domElement.height,[...this.entries].map(([proxy,mesh])=>[proxy.uuid,mesh.matrix.elements,mesh.visible,mesh.layers.mask])]);if(key===this.lastKey)return this.serial;
+    const key=this.viewKey(view,'viewport',this.renderer.domElement.width,this.renderer.domElement.height);if(key===this.lastKey)return this.serial;this.offscreenSettled=null;
     // Spark frameUpdates hidden generators too. Its accumulation root must be
     // this context's layer so another view cannot overwrite our raycast state.
     this.preparing=this.serial.then(async()=>{if(this.disposed||!this.spark)return;this.sync();this.renderer.getDrawingBufferSize(this.spark.renderSize);await this.lod.select(view,[...this.entries.values()]);if(this.disposed)return;const visible=this.layer.visible;let update;try{this.layer.visible=true;update=this.spark.update({scene:this.layer,camera:view});}finally{this.layer.visible=visible;}await update;this.lastKey=key;if(!this.disposed)this.onDirty();}).finally(()=>{this.preparing=null;});this.serial=this.preparing.catch(()=>{});return this.preparing;
   }
   async settle(root,camera){if(!camera?.isCamera)throw Error('高斯拍摄需要有效镜头');await this.prepare(root);if(!this.spark)return;await this.serial;await this.enqueue(camera);if(this.disposed)throw Error('高斯渲染上下文已关闭');}
+  viewKey(camera,mode,width,height){camera.updateWorldMatrix(true,false);return JSON.stringify([mode,width,height,camera.matrixWorld.elements,camera.projectionMatrix.elements,camera.fov,camera.aspect,camera.zoom,camera.near,camera.far,camera.layers.mask,[...this.entries].map(([proxy,mesh])=>[proxy.uuid,mesh.uuid,mesh.matrix.elements,mesh.visible,mesh.layers.mask])]);}
+  checkOffscreen(camera,{width,height,signal,assertCurrent}={}){if(!camera?.isCamera)throw Error('高斯拍摄需要有效镜头');if(!Number.isInteger(width)||width<1||!Number.isInteger(height)||height<1)throw Error('高斯离屏尺寸需要正整数');if(this.disposed)throw Error('高斯渲染上下文已关闭');if(signal?.aborted)throw signal.reason||new DOMException('高斯离屏渲染已取消','AbortError');if(assertCurrent?.()===false)throw Error('高斯离屏渲染身份已改变');}
+  offscreenKey(root,camera,options){this.checkOffscreen(camera,options);const proxies=splatObjects(root);if(proxies.length!==this.entries.size||proxies.some(proxy=>!this.entries.has(proxy)))throw Error('高斯离屏源场景已改变');this.sync();return this.viewKey(camera,'offscreen',options.width,options.height);}
+  async settleOffscreen(root,camera,options={}){
+    this.checkOffscreen(camera,options);await this.prepare(root);this.checkOffscreen(camera,options);await this.serial;this.checkOffscreen(camera,options);
+    const key=this.offscreenKey(root,camera,options);this.offscreenSettled=null;
+    if(!this.spark||!this.entries.size||key===this.lastKey){this.offscreenSettled={root,key};return;}
+    const view=camera.clone();camera.matrixWorld.decompose(view.position,view.quaternion,view.scale);view.updateMatrixWorld(true);
+    // Explicit dimensions must reach native LOD before accumulation/sort. The
+    // host holds the render lease; ordinary viewport requests remain coalesced.
+    this.preparing=this.serial.then(async()=>{
+      if(this.offscreenKey(root,camera,options)!==key)throw Error('高斯离屏镜头或源场景已改变');
+      const spark=this.spark,size=spark.renderSize.clone();
+      try{
+        spark.renderSize.set(options.width,options.height);await this.lod.select(view,[...this.entries.values()]);
+        if(this.offscreenKey(root,camera,options)!==key)throw Error('高斯离屏镜头或源场景已改变');
+        const visible=this.layer.visible;let update;try{this.layer.visible=true;update=spark.update({scene:this.layer,camera:view});}finally{this.layer.visible=visible;}
+        await update;if(this.offscreenKey(root,camera,options)!==key)throw Error('高斯离屏镜头或源场景已改变');
+        this.lastKey=key;this.offscreenSettled={root,key};
+      }catch(error){this.lastKey=null;this.offscreenSettled=null;throw error;}finally{spark.renderSize.copy(size);}
+    }).finally(()=>{this.preparing=null;});this.serial=this.preparing.catch(()=>{});return this.preparing;
+  }
+  renderSettled(root,camera,draw,options={}){
+    const key=this.offscreenKey(root,camera,options);
+    if(this.preparing||this.offscreenSettled?.root!==root||this.offscreenSettled.key!==key)throw Error('高斯离屏镜头尚未完成排序');
+    if(typeof draw!=='function')throw Error('高斯离屏渲染需要同步 draw');
+    const visible=this.layer.visible,spark=this.spark,autoUpdate=spark?.autoUpdate;this.layer.visible=this.entries.size>0;if(spark)spark.autoUpdate=false;
+    try{const result=draw();if(result?.then)throw Error('高斯离屏 draw 必须同步完成');return result;}finally{this.layer.visible=visible;if(spark)spark.autoUpdate=autoUpdate;}
+  }
   pick(camera,u,v,{root}={}){
     if(this.disposed||!this.entries.size||!camera?.isCamera)return null;
     this.sync();const ray=new THREE.Raycaster();ray.layers.mask=camera.layers.mask;ray.setFromCamera(new THREE.Vector2(u*2-1,1-v*2),camera);const hits=[];

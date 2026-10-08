@@ -13,13 +13,22 @@
 | 生成接口 | 多供应商路由及若干原生适配已实现；其余能力保留任务接口 | [配置及每项限制](MULTI-PROVIDER-SETUP.md) |
 | 本地化 | 本地资源/归档、原站出站阻断与显式资源修复已实现 | [验收清单](FREENOW-LOCALIZATION-ACCEPTANCE.md) |
 
-## 最新：导演摄像机接管与真实拍摄
+## 最新：离屏摄影、实体轮廓与镜头管理/导出
+
+- 当前源码采用真实独立渲染目标和 RGBA 读回，默认 4096 长边 JPEG .92；实机 9:16 快门输出 2304×4096，DOM 自然尺寸实际解码。摄影排除编辑轮廓与 helper，人物身体橙色选择轮廓在生产界面可见。
+- 摄影先等待 source 与可见非 camera 实体的必需资源；加载失败、身份失效或默认 30 秒超时均具体报错且不编码。新增 readiness 5 项与受影响 Spark/drain 2 项通过；刷新生产 UI 后重新拍摄 9:16 成功，warn/error 日志为空。
+- 镜头管理接入独立运行时的真实机位缩略图、改名、删除确认/撤销、批量选择和分层 Escape。竖幅缩略图实测 101×180；改名保存、删除为空及撤销恢复原项已验。管理器不是完整 Saved Views/历史照片编辑器。
+- 照片保存失败显示“重试保存照片”，重试复用原 capture ID、节点和素材，刷新仅一张新增照片。批次连续两次注入 QuotaExceededError 后，关闭/重开恢复原选中镜头；原批次重试成功，刷新保留一个输出节点和同素材。
+- 真实浏览器 WebM 经 ffprobe/ffmpeg 独立审核为 VP9、1280×720、30 fps、1 秒、56,649 bytes；30 帧完整解码且 30 帧不同，0/15/29 帧均非黑、可见餐椅与地面。已有时序频道采样/导出不等于完整时间/关键帧编辑 UI；只有编码器明确不支持时才回退 contact sheet。
+- 完整平面图、独立 Saved Views/历史照片管理、生成 UI、完整 V3 Agent 编排仍未完成，真实 SPZ 离屏 GPU/景深像素及持物渲染仍有限制。没有私人项目/素材、供应商或原站请求，现有 Alpha 未包含本批源码。[当前验收与文件审核](verification/20261008-studio-shots.md)
+
+## 前批：导演摄像机接管与 viewport PNG 拍摄
 
 - 当前源码接通摄像机三维飞行、惯性、0.8s进入／0.55s返回、viewport lease、完成／还原及checkpoint；原camera GLB、材质、短视锥／层和身体pivot已接。接管时按官方上游列表规则隐藏全部camera marker。光学保留lookAt，真实位姿编辑原子清除lookAt。
 - 原图标／圆环快门、画幅菜单、log焦距与光圈滑尺、弹簧微动效和点对焦参数已接。普通GLB没有DOF能力，因此隐藏光圈／对焦。修复window capture抢走HUD方向键，实机ArrowRight改焦距至29.386115702481316mm，保存revision6且pose不变；End／拖动后还原states与revision均回原值。
 - 真实PNG→LocalAssets→连接图片→守卫保存已闭环。两笔保存失败保留同照片回执、锁住非重试操作；修复恢复视图／直接选择绕过守卫及关闭提示覆盖。顶部／快门两种重试均没有重复图片，刷新revision6、五张763×1356及所有ID／镜头参数保持，实际图片均解码成功。
 - 新增scope回归用真实capture/session和生产入口闭包，asset写失败且无nodeId时所有相关入口无runtime副作用，原照片重试复用一次render/encode且只创建一节点，1/1通过；HUD捕获隔离新增2＋相关IME1通过。其他摄像机／runtime专项按各次定向范围记录，没有合计为全仓重跑或整体性能提升。
-- 完整身体outline、4K离屏JPEG、Saved Views／历史照片、time／keyframes、完整平面图／生成UI／V3 Agent仍缺，真实SPZ景深视觉未验。本批没有供应商请求或Alpha重打包。[当前合同、实机与截图](STUDIO-V3-CAMERA-POSSESSION-20261008.md)
+- 此批记录的是 viewport PNG 里程碑；当时缺少的身体 outline 与 4096 长边离屏 JPEG 已由上方最新增量补齐。独立 Saved Views／历史照片管理、time／keyframes 编辑、完整平面图／生成 UI／V3 Agent仍缺，真实 SPZ 景深视觉未验。该批没有供应商请求或 Alpha 重打包。[历史合同、实机与截图](STUDIO-V3-CAMERA-POSSESSION-20261008.md)
 
 ## 本批：节点手势、标题、搜索与编辑草稿
 
@@ -39,7 +48,7 @@
 - 前批联合真实CanvasApp/CanvasStore/session受控IndexedDB检查10/10、画布持久30/30、运行时Transform取消/换选20/20、菜单10/10、改名4/4，分别按记录通过，并非全部重新全量运行。官方紧凑存档仍不支持，v2并存，旧Alpha不含本批新增能力；不能宣称全新工作区全量完成。[模块合同](../src/features/studio-v3/README.md)
 - V3前批补实体属性、颜色/原GLB姿态、落地/恢复、镜头光学和真实黑边预览、独立状态复制/嵌套删除及同lane连续redo修复。实机刷新revision23保持绿色Sitting、X1.5/Y0.005886657753309876及50mm/9:16/FOV39.597752709049864；非当前状态复制产生独立ID，revision26为4实体/2角色/4setup；基准创建/继承全局删除后revision32为4实体/3角色/4setup，未引用第三角色按合同保留。确认菜单回焦/保留、连续删除撤销重做、最后状态删除撤销及快捷键不穿透已验；空地面NaN修复后重验成功。runtime11/11、落地5/5、状态7/7、集成守卫5/5及同lane新增3项分别通过。Gaussian景深视觉未验，GLB无虚化；九姿态/材质鼠标全路径、P2放置租约及P3–P6仍未闭合，Agent未实机，不标P1全完成。操控与创建的当前增量见下。[实体、状态与镜头实机证据](STUDIO-V3-ENTITIES-20261008.md)
 - V3本批接人物/道具原生WASD、Q/E、G、Shift、指针/滚轮跟随、heading HUD及完成/还原；临时Idle/Walking/Running不覆盖用户姿态，坐标转换保留原约定。地面/此处创建取站面Y+1.6，当前视角必须经独立取景器确认并可编辑画幅/光学，摄像机无缩放UI。实机完成后人物Y=0.9999451279999999、90°，再次270°后还原保留90°/Standing；创建35mm/9:16后刷新revision3、地面创建刷新revision4，最终revision6为5实体/1角色/2setup，原35mm/9:16保留。camera body偏移修复后导航/预览/Escape、空地右键创建关闭菜单，以及“编辑中”禁用/空完成“已保存”可用均已验。[操控、创建与最终存档](STUDIO-V3-CONTROLS-20261008.md)
-- 前批坐标13、HUD14、光学/实体动作29、创建/集成11、取景器runtime5、参数UI9分别通过；control原14项及末次失焦定向2项通过，当前文件15项未整套重跑，camera-marker真实GLB几何新增1项通过。人物／道具失焦隐藏保守取消是该模式的本地差异；摄像机接管／过渡／helper／滑尺和拍摄已由[最新增量](STUDIO-V3-CAMERA-POSSESSION-20261008.md)补齐对应子集。Gaussian景深像素、完整身体outline、temporal/keyframes、P2真平面图与P3–P6/完整Agent仍未全，无供应商验证或本批Alpha重打包，也不声称全部Idle零帧循环。
+- 前批坐标13、HUD14、光学/实体动作29、创建/集成11、取景器runtime5、参数UI9分别通过；control原14项及末次失焦定向2项通过，当前文件15项未整套重跑，camera-marker真实GLB几何新增1项通过。人物／道具失焦隐藏保守取消是该模式的本地差异；摄像机接管／过渡／helper／滑尺和拍摄已由[摄像机增量](STUDIO-V3-CAMERA-POSSESSION-20261008.md)补齐对应子集，身体 outline 与离屏摄影另见上方最新增量。Gaussian景深像素、temporal/keyframes 编辑、P2真平面图与P3–P6/完整Agent仍未全，无供应商验证或本批Alpha重打包，也不声称全部Idle零帧循环。
 - 人物情绪原嵌套应用接通确认等待真实保存及关闭失败保页，4 项确认、5 项关闭和4项资源完整性检查通过。生产 controller/host/runtime QA 实际生成512×512灰模指导图，AE2 face=-65~-65~68 与图片 SHA 一致，guides=1/replies=1；800ms慢保存、关闭失败后原卡重试与刷新恢复强度62/悲伤87%/恐惧13%已验。原HTML SHA不变；鼠标全路径、严格350ms内确认及灰模/消息失败完整重试组合未验。[人物情绪合同](../src/features/agent-apps/ACTOR-EMOTION.md)
 - 桌面源码新增六个 Agent 文件工具、原生单目录授权/整批确认和 journal，只创建子目录及移动/重命名普通文件；15项专项与18项相关检查通过。重启最新 source QA 后实机确认3项、两份7字节文件SHA保持；最新单项取消回执 completed=0且目标未创建，目录移动预览阻断且实际未移动。撤销授权后 authorized=false且列表明确阻断，正常⌘Q退出已验。未知批次重启不重放有定向检查，重启journal尚未实机验；恶意祖先路径并发替换仍有 TOCTOU 窗口，完整 Agent SDK/实机回滚未验。这项源码功能不在已发布642d3db Alpha包内。[文件整理与限制](DESKTOP-FILES-20261008.md)
 

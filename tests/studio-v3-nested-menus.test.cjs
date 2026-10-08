@@ -288,3 +288,160 @@ test('parent and child ResizeObservers remain live until their respective close'
     f.menus.close(); assert.equal(observers[0].disconnected, true);
   } finally { f.finish(); }
 });
+
+async function managerFixture({ exportShots } = {}) {
+  const f = await fixture();
+  const { createCameraManager } = await import('../src/features/studio-v3/camera-manager.mjs');
+  const previousDocument = Object.getOwnPropertyDescriptor(globalThis, 'document');
+  Object.defineProperty(globalThis, 'document', { configurable: true, writable: true, value: f.document });
+  const state = {
+    shots: [{ id: 'shot-wide', setupId: 'setup-first', label: '全景', camera: { focalLength: 24, frameAspectRatio: 16 / 9 } }],
+    setupLabels: { 'setup-first': '状态1' }, busy: false, playing: false, readOnly: false
+  };
+  const calls = []; let panel, closes = 0, disposes = 0, escapes = 0;
+  const surface = f.menus.toggle(f.anchor, ({ close }) => {
+    panel = createCameraManager({
+      read: () => state,
+      openShot: async shot => { calls.push(['open', shot.id]); return true; },
+      renameShot: async (shot, name) => { calls.push(['rename', shot.id, name]); return true; },
+      removeShot: async shot => { calls.push(['remove', shot.id]); return true; },
+      exportShots: async shots => { calls.push(['export', shots.map(shot => shot.id)]); return exportShots ? exportShots(shots) : { ok: true }; },
+      loadThumbnail: async () => 'data:image/png;base64,d2lkZQ==',
+      close: () => { closes++; close(); }, onError: error => f.errors.push(error)
+    });
+    const handleEscape = panel.handleEscape, dispose = panel.dispose;
+    panel.handleEscape = () => { escapes++; return handleEscape(); };
+    panel.dispose = () => { disposes++; dispose(); };
+    return panel;
+  }, { role: 'presentation', label: '镜头管理', placement: 'top', align: 'center', offset: 12, width: 560 });
+  return {
+    ...f, panel, surface, state, calls,
+    get closes() { return closes; }, get disposes() { return disposes; }, get escapes() { return escapes; },
+    button(label) { return panel.querySelector(`button[aria-label="${label}"]`); },
+    busy(value) { state.busy = value; panel.refresh(); },
+    finish() {
+      try { f.finish(); }
+      finally {
+        if (previousDocument) Object.defineProperty(globalThis, 'document', previousDocument);
+        else delete globalThis.document;
+      }
+    }
+  };
+}
+
+test('integration presentation manager wrapper preserves native buttons, card roles and checkbox semantics', async () => {
+  const f = await managerFixture(); try {
+    assert.equal(f.surface.getAttribute('role'), 'presentation');
+    assert.equal(f.panel.getAttribute('aria-label'), '镜头管理');
+    assert.equal(f.surface.querySelector('[role="menuitem"]'), null);
+    assert([...f.panel.querySelectorAll('button')].every(button => !button.hasAttribute('role')));
+    assert.equal(f.panel.querySelector('.sv3-camera-manager-open').getAttribute('role'), 'button');
+    assert.equal(f.panel.querySelector('.sv3-camera-manager-confirm').getAttribute('role'), 'alertdialog');
+    const checkbox = f.panel.querySelector('input[type="checkbox"]');
+    assert.equal(checkbox.hasAttribute('role'), false);
+    assert.equal(checkbox.closest('label').className, 'sv3-camera-manager-choice');
+    f.button('导出到画布').click(); checkbox.click();
+    assert.equal(checkbox.checked, true); assert.equal(f.button('导出').disabled, false);
+    assert.equal(f.surface.querySelector('[role="menuitem"]'), null);
+    assert.equal(f.menus.isOpen(), true); assert.deepEqual(f.errors, []);
+  } finally { f.finish(); }
+});
+
+test('integration manager Escape capture cancels confirmation then rename then batch before closing panel once', async () => {
+  const f = await managerFixture(); try {
+    let hostKeys = 0; f.root.addEventListener('keydown', () => hostKeys++);
+    const confirmation = f.panel.querySelector('[role="alertdialog"]');
+    f.button('删除“全景”').click(); assert.equal(confirmation.hidden, false);
+    assert(f.key(confirmation.querySelector('button'), 'Escape').defaultPrevented);
+    assert.equal(confirmation.hidden, true); assert.equal(f.escapes, 1);
+    assert.equal(f.closes, 0); assert.equal(f.disposes, 0); assert(f.menus.contains(f.surface));
+
+    f.button('重命名“全景”').click();
+    const input = f.panel.querySelector('.sv3-camera-manager-name'); input.value = '未保存名称';
+    assert.equal(f.document.activeElement, input);
+    assert(f.key(input, 'Escape').defaultPrevented);
+    assert.equal(f.panel.querySelector('.sv3-camera-manager-name'), null); assert.equal(f.escapes, 2);
+    assert.equal(f.closes, 0); assert.equal(f.disposes, 0); assert(f.menus.contains(f.surface));
+
+    f.button('导出到画布').click();
+    const checkbox = f.panel.querySelector('input[type="checkbox"]'); checkbox.click();
+    assert.equal(f.panel.querySelector('header strong').textContent, '批量导出');
+    assert(f.key(checkbox, 'Escape').defaultPrevented);
+    assert.equal(f.panel.querySelector('header strong').textContent, '镜头管理');
+    assert.equal(checkbox.checked, false); assert.equal(f.escapes, 3);
+    assert.equal(f.closes, 0); assert.equal(f.disposes, 0); assert(f.menus.contains(f.surface));
+
+    assert(f.key(f.panel, 'Escape').defaultPrevented);
+    assert.equal(f.escapes, 4); assert.equal(f.closes, 1); assert.equal(f.disposes, 1);
+    assert.equal(f.menus.isOpen(), false); assert.equal(f.document.activeElement, f.anchor);
+    assert.equal(hostKeys, 0); assert.deepEqual(f.calls, []); assert.deepEqual(f.errors, []);
+    f.menus.dispose(); assert.equal(f.disposes, 1);
+  } finally { f.finish(); }
+});
+
+test('integration manager Escape bypasses busy gates for local cancellation and pending export close', async () => {
+  let resolveExport;
+  const pendingExport = new Promise(resolve => { resolveExport = resolve; });
+  const f = await managerFixture({ exportShots: () => pendingExport }); try {
+    f.button('删除“全景”').click(); f.busy(true);
+    const confirmation = f.panel.querySelector('[role="alertdialog"]');
+    assert.equal(confirmation.querySelector('button').disabled, true);
+    assert(f.key(confirmation, 'Escape').defaultPrevented);
+    assert.equal(confirmation.hidden, true); assert(f.menus.contains(f.surface)); assert.equal(f.closes, 0);
+
+    f.busy(false); f.button('重命名“全景”').click(); f.busy(true);
+    const input = f.panel.querySelector('.sv3-camera-manager-name'); input.value = '忙碌时取消';
+    assert.equal(input.disabled, true); assert(f.key(input, 'Escape').defaultPrevented);
+    assert.equal(f.panel.querySelector('.sv3-camera-manager-name'), null);
+    assert(f.menus.contains(f.surface)); assert.equal(f.closes, 0);
+
+    f.busy(false); f.button('导出到画布').click();
+    f.panel.querySelector('input[type="checkbox"]').click(); f.button('导出').click();
+    assert.equal(f.panel.getAttribute('aria-busy'), 'true'); assert.equal(f.button('导出').disabled, true);
+    assert(f.key(f.panel, 'Escape').defaultPrevented);
+    assert.equal(f.panel.querySelector('header strong').textContent, '镜头管理');
+    assert.equal(f.panel.getAttribute('aria-busy'), 'true'); assert(f.menus.contains(f.surface));
+    assert.equal(f.closes, 0); assert.equal(f.disposes, 0);
+    assert(f.key(f.panel, 'Escape').defaultPrevented);
+    assert.equal(f.menus.isOpen(), false); assert.equal(f.closes, 1); assert.equal(f.disposes, 1);
+    assert.equal(f.document.activeElement, f.anchor); assert.equal(f.escapes, 4);
+    resolveExport({ ok: true }); await new Promise(resolve => setImmediate(resolve));
+    assert.equal(f.menus.isOpen(), false); assert.equal(f.disposes, 1);
+    assert.deepEqual(f.calls, [['export', ['shot-wide']]]); assert.deepEqual(f.errors, []);
+  } finally { resolveExport({ ok: true }); f.finish(); }
+});
+
+test('integration manager Escape at trigger or body keeps local dismissal ahead of panel close', async () => {
+  const batch = await managerFixture(); try {
+    batch.button('导出到画布').click(); batch.anchor.focus();
+    assert.equal(batch.document.activeElement, batch.anchor);
+    assert.equal(batch.panel.querySelector('header strong').textContent, '批量导出');
+    assert(batch.key(batch.anchor, 'Escape').defaultPrevented);
+    assert.equal(batch.panel.querySelector('header strong').textContent, '镜头管理');
+    assert(batch.menus.contains(batch.surface)); assert.equal(batch.closes, 0); assert.equal(batch.disposes, 0);
+    assert.equal(batch.escapes, 1);
+    batch.anchor.focus();
+    assert(batch.key(batch.anchor, 'Escape').defaultPrevented);
+    assert.equal(batch.menus.isOpen(), false); assert.equal(batch.closes, 1); assert.equal(batch.disposes, 1);
+    assert.equal(batch.document.activeElement, batch.anchor); assert.equal(batch.escapes, 2);
+    assert.deepEqual(batch.calls, []); assert.deepEqual(batch.errors, []);
+  } finally { batch.finish(); }
+
+  const confirmation = await managerFixture(); try {
+    confirmation.button('删除“全景”').click(); confirmation.busy(true);
+    const dialog = confirmation.panel.querySelector('[role="alertdialog"]');
+    assert.equal(dialog.hidden, false); assert.equal(dialog.querySelector('button').disabled, true);
+    // JSDOM cannot blur a disabled button; removal reproduces its lost-focus body fallback.
+    confirmation.document.activeElement.remove();
+    assert.equal(confirmation.document.activeElement, confirmation.document.body);
+    assert(confirmation.key(confirmation.document.body, 'Escape').defaultPrevented);
+    assert.equal(dialog.hidden, true); assert(confirmation.menus.contains(confirmation.surface));
+    assert.equal(confirmation.document.activeElement, confirmation.panel);
+    assert.equal(confirmation.panel.getAttribute('aria-busy'), 'true');
+    assert.equal(confirmation.closes, 0); assert.equal(confirmation.disposes, 0); assert.equal(confirmation.escapes, 1);
+    assert(confirmation.key(confirmation.document.activeElement, 'Escape').defaultPrevented);
+    assert.equal(confirmation.menus.isOpen(), false); assert.equal(confirmation.closes, 1); assert.equal(confirmation.disposes, 1);
+    assert.equal(confirmation.document.activeElement, confirmation.anchor); assert.equal(confirmation.escapes, 2);
+    assert.deepEqual(confirmation.calls, []); assert.deepEqual(confirmation.errors, []);
+  } finally { confirmation.finish(); }
+});

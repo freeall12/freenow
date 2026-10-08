@@ -1,0 +1,40 @@
+.studio-v3 .sv3-camera-manager {position:relative;display:flex;flex-direction:column;width:560px;max-width:calc(100vw - 24px);max-height:620px;box-sizing:border-box;border:0;border-radius:16px;background:rgba(44,43,41,.76);backdrop-filter:blur(56px);-webkit-backdrop-filter:blur(56px);box-shadow:0 8px 28px rgba(0,0,0,.24);color:#fff;text-align:left}
+.studio-v3 .sv3-camera-manager[hidden],.studio-v3 .sv3-camera-manager [hidden] {display:none}
+.studio-v3 .sv3-camera-manager-header {display:flex;flex-shrink:0;min-height:56px;box-sizing:border-box;align-items:center;justify-content:space-between;gap:8px;padding:12px 16px 8px}
+.studio-v3 .sv3-camera-manager-header strong {flex:1;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:16px;font-weight:600;line-height:24px;color:rgba(255,255,255,.92)}
+.studio-v3 .sv3-camera-manager-header .sv3-button {height:28px;min-width:0;padding:0 8px;gap:6px;border-radius:6px;font-size:12px}
+.studio-v3 .sv3-camera-manager-body {min-height:0;flex:1;overflow:auto;padding:0 8px 16px 16px;scrollbar-gutter:stable;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.14) transparent}
+.studio-v3 .sv3-camera-manager-group+.sv3-camera-manager-group {padding-top:20px}
+.studio-v3 .sv3-camera-manager-group h3 {margin:0 0 8px;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:14px;font-weight:600;line-height:20px;color:rgba(255,255,255,.72)}
+.studio-v3 .sv3-camera-manager-grid {display:grid;grid-template-columns:repeat(auto-fill,minmax(156px,1fr));align-items:start;gap:12px}
+.studio-v3 .sv3-camera-manager-shot {position:relative;display:block;width:100%;min-width:0;border-radius:8px;overflow:hidden;background:rgba(255,255,255,.035);transition:background-color 150ms}
+.studio-v3 .sv3-camera-manager-shot:hover {background:rgba(255,255,255,.07)}
+.studio-v3 .sv3-camera-manager-open,.studio-v3 .sv3-camera-manager-choice {display:block;min-width:0;cursor:pointer;outline:none}
+.studio-v3 .sv3-camera-manager-open[aria-disabled=true],.studio-v3 .sv3-camera-manager-choice:has(input:disabled) {cursor:default}
+.studio-v3 .sv3-camera-manager-open:focus-visible {box-shadow:inset 0 0 0 1px rgba(255,255,255,.5)}
+.studio-v3 .sv3-camera-manager-preview {display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;width:100%;overflow:hidden;background:rgba(0,0,0,.18);font-size:11px;color:rgba(255,255,255,.4)}
+.studio-v3 .sv3-camera-manager-preview img {display:block;width:100%;height:100%;object-fit:contain;object-position:top}
+.studio-v3 .sv3-camera-manager-preview[data-status=loading] {background:rgba(255,255,255,.04)}
+.studio-v3 .sv3-camera-manager-caption {display:flex;flex-direction:column;min-width:0;padding:8px 12px;gap:0}
+.studio-v3 .sv3-camera-manager-title {height:28px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:14px;line-height:20px;font-weight:500;padding-right:56px;color:rgba(255,255,255,.9)}
+.studio-v3 .sv3-camera-manager-choice .sv3-camera-manager-title {padding-right:0}
+.studio-v3 .sv3-camera-manager-metadata {overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:12px;line-height:16px;color:rgba(255,255,255,.42)}
+.studio-v3 .sv3-camera-manager-actions {position:absolute;right:8px;bottom:6px;display:flex;gap:2px;border-radius:6px}
+.studio-v3 .sv3-camera-manager-actions .sv3-button {width:28px;height:28px;min-width:28px;padding:0;border-radius:6px}
+.studio-v3 .sv3-camera-manager-native-checkbox {position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+.studio-v3 .sv3-camera-manager-checkbox {position:absolute;right:8px;top:8px;z-index:1;display:flex;align-items:center;justify-content:center;box-sizing:border-box;width:18px;height:18px;border-radius:50%;border:1px solid rgba(255,255,255,.28);background:#2c2b29;color:transparent}
+.studio-v3 .sv3-camera-manager-checkbox[data-checked=true] {border-color:#fff;background:#fff;color:#000}
+.studio-v3 .sv3-camera-manager-native-checkbox:focus-visible+.sv3-camera-manager-checkbox {outline:1px solid #fff;outline-offset:2px}
+.studio-v3 .sv3-camera-manager-name {box-sizing:border-box;width:100%;min-width:0;border:1px solid rgba(255,255,255,.3);border-radius:4px;padding:1px 4px;background:rgba(0,0,0,.2);color:#fff;font:inherit;font-size:12px;line-height:18px;outline:none}
+.studio-v3 .sv3-camera-manager-footer {display:flex;flex-shrink:0;align-items:center;justify-content:flex-end;gap:4px;padding:8px 12px 12px;border-top:1px solid rgba(255,255,255,.1)}
+.studio-v3 .sv3-camera-manager-footer .sv3-button,.studio-v3 .sv3-camera-manager-confirm-actions .sv3-button {height:28px;min-width:0;padding:0 12px;font-size:12px;border-radius:6px}
+.studio-v3 .sv3-camera-manager-footer .sv3-button:last-child {background:rgba(255,255,255,.1)}
+.studio-v3 .sv3-camera-manager-empty {margin:16px 0;padding:16px;text-align:center;font-size:13px;color:rgba(255,255,255,.5)}
+.studio-v3 .sv3-camera-manager-feedback {padding:0 16px 12px;color:#ffbfaf;font-size:12px;line-height:18px;overflow-wrap:anywhere}
+.studio-v3 .sv3-camera-manager-confirm {position:absolute;z-index:3;box-sizing:border-box;width:280px;max-width:100%;padding:12px;border:1px solid rgba(255,255,255,.12);border-radius:12px;background:rgba(44,43,41,.94);backdrop-filter:blur(28px);box-shadow:0 8px 28px rgba(0,0,0,.3)}
+.studio-v3 .sv3-camera-manager-confirm strong {font-size:14px;font-weight:500;line-height:20px;color:rgba(255,255,255,.92);overflow-wrap:anywhere}
+.studio-v3 .sv3-camera-manager-confirm p {margin:4px 0 12px;font-size:12px;line-height:20px;color:rgba(255,255,255,.55)}
+.studio-v3 .sv3-camera-manager-confirm-actions {display:flex;justify-content:flex-end;gap:8px}
+.studio-v3 .sv3-camera-manager-confirm-actions .sv3-button:last-child {color:#ffaaa0;background:rgba(255,100,80,.1)}
+@media(max-width:350px) {.studio-v3 .sv3-camera-manager-grid {grid-template-columns:minmax(0,1fr)}}
+.studio-v3 .sv3-menu:has(>.sv3-camera-manager) {padding:0;border:0;border-radius:16px;overflow:visible;background:transparent;backdrop-filter:none;-webkit-backdrop-filter:none;box-shadow:none}
