@@ -1,6 +1,12 @@
 # V3 导演片场 · 2026-10-08
 
-**已接入真实生产画布、IndexedDB 保存和 Three.js 工作区，当前完成 P0/P1、时间作者/预览及平面图/房间/放置路径的部分闭环。** 本地模型预览可创建独立导演片场；人物、摄像机、道具、状态、基准、基础变换和失败保存重试已有实机证据。最新[平面放置与路径验收](../../../docs/verification/20261008-studio-plan-placement-paths.md)、前批[平面图与房间](../../../docs/verification/20261008-studio-plan.md)及[时间轴/只读相册](../../../docs/verification/20261008-studio-temporal.md)各有独立范围；完整导演流程与 P2–P6 尚未完成，见[生产入口验收与截图](../../../docs/STUDIO-V3-PRODUCTION-20261008.md)。V3 是本项目内部代际名称，官方导演工作区与独立 GLB 编辑器并存；现有 v2 节点不隐式迁移。
+**已接入真实生产画布、IndexedDB 保存和 Three.js 工作区，当前完成 P0/P1、时间作者/预览、已保存视图及平面图/房间/放置路径的部分闭环。** 本地模型预览可创建独立导演片场；人物、摄像机、道具、状态、基准、基础变换和失败保存重试已有实机证据。最新[平面放置与路径验收](../../../docs/verification/20261008-studio-plan-placement-paths.md)、前批[平面图与房间](../../../docs/verification/20261008-studio-plan.md)及[时间轴/只读相册](../../../docs/verification/20261008-studio-temporal.md)各有独立范围；完整导演流程与 P2–P6 尚未完成，见[生产入口验收与截图](../../../docs/STUDIO-V3-PRODUCTION-20261008.md)。V3 是本项目内部代际名称，官方导演工作区与独立 GLB 编辑器并存；现有 v2 节点不隐式迁移。
+
+## 已保存视图与导航恢复
+
+真实生产入口 `3D/俯视 → 已保存视图` 接入保存、跨状态恢复、更新、中文改名和仅View删除。作者桥使用既有session/history/持久化，保存失败保留原ID，retry只flush；恢复等待目标setup同步，只改变导航相机，不写实体camera/temporal，不拍照或删除已有媒体。初始画幅null，固定摄影画幅/roll/光学完整恢复，`.8s`按RAF实际时间而非clamp delta计时。
+
+[原生验收与四图](../../../docs/verification/20261008-studio-saved-views.md)覆盖同active/跨setup恢复、Enter/Escape/blur、Quota原回执重试、删除undo/redo/reload与plan禁用；plan遮挡右下按钮已真实鼠标修复。底层View语义见[官方研究](../../../docs/research/STUDIO-V3-SAVED-VIEWS-20261008.md)，独立管理UI和更新是本地补齐，未定位官方面板，未接缩略图或Agent写能力。现有Alpha不含。
 
 ## 实现范围
 
@@ -15,6 +21,8 @@
 | `persistence.mjs` | dirty/contentDirty 序列、不可变保存快照、单队列保存/重试和事务延迟 |
 | `session.mjs` | 可供消费者直接使用的领域历史代理、change/getState/getFence、自动保存与关闭守卫 |
 | `source.mjs` | 明确空片场或资源来源、独立 owner 标记、读取来源快照 |
+| `saved-view-actions.mjs` / `saved-view-workspace.mjs` | View CRUD、目标历史lane、持久保存回执与跨setup同步导航；[动作](SAVED-VIEW-ACTIONS.md)/[作者桥](SAVED-VIEW-WORKSPACE.md) |
+| `saved-view-menu.mjs` / `saved-view-menu.css` | 本地嵌套视图管理，原生控件/IME/分层Escape/焦点；[菜单合同](SAVED-VIEW-MENU.md) |
 | `entry.mjs` / `dom.mjs` | 生产工作区、实体/状态 UI、数字属性、异步重命名、保存和关闭生命周期 |
 | `camera-optics.mjs` | 焦距/画幅与FOV换算、光圈/对焦配置、Three相机投影，以及显式Spark景深参数；普通GLB本身不具备虚化渲染 |
 | `entity-inspector.mjs` / `inspector.css` | 实体位置/旋转/缩放、颜色/材质、原GLB姿态与摄像机光学属性；真实编辑草稿、IME、基准只读/锁定与错误回执保护 |
@@ -76,7 +84,7 @@ geometry缓存以作者editEpoch/来源身份失效，排除纯save revision；�
 
 定向按实际运行分批：路径/temporal27/27、surface25/25、placement12/12、入口新增6/6、旧入口review11/11；其后cache/key optics4/4、surface key optics2/2、hover1/1、旋转2/2、failure3/3。没有合并成全仓测试或重复声称重跑旧用例。本批无新依赖、生成请求或Alpha重打包。
 
-P2仍未全；orbit/3D添加角色保持立即创建，不能代表3D放置语义已对齐。真实SPZ/DOF GPU、完整Saved Views、P4导入/生成UI、holding、完整V3 Agent和跨设备性能仍开放；GLB景深未实现。现有Alpha不含10月8日源码。
+P2仍未全；orbit/3D添加角色保持立即创建，不能代表3D放置语义已对齐。真实SPZ/DOF GPU、官方Saved Views独立面板对齐、P4导入/生成UI、holding、完整V3 Agent和跨设备性能仍开放；GLB景深未实现。现有Alpha不含10月8日源码。
 
 ## 前批：平面图、房间与本地场景来源
 

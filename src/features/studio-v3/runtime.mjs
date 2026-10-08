@@ -3,11 +3,11 @@ import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {TransformControls} from 'three/addons/controls/TransformControls.js';
 import {createRenderGraph, readTransform, applyTransform} from './render-graph.mjs';
 import {createAssetLoader} from './asset-loader.mjs';
-import {assertState} from './schema.mjs';
+import {assertState, assertCamera} from './schema.mjs';
 import {viewportRay, surfaceHit, topDownSupportSurface, withCaptureVisibility} from './surface-hit.mjs';
 import {SplatContext} from '../world-node/splat-io.mjs';
 import {disposeModel} from '../studio-v2/model-io.mjs';
-import {sparkDepthOfField, cameraOpticsPatch, applyCameraOptics} from './camera-optics.mjs';
+import {sparkDepthOfField, cameraOpticsPatch, applyCameraOptics, sensorDimensions} from './camera-optics.mjs';
 import {createControlSession, controlSpatialProfile} from './control-session.mjs';
 import {readEntityTransform} from './transform-coordinates.mjs';
 import {resolveEntityControl} from './entity-actions.mjs';
@@ -28,7 +28,7 @@ export function createStudioV3Runtime({canvas, getState, getSourceResource = () 
   getTemporalStatus = () => ({}), canEditAnimatedEntity = () => false, controlEventTarget,
   loader = createAssetLoader(), rendererFactory = options => new THREE.WebGLRenderer(options), controlsFactory = (camera, canvas) => new OrbitControls(camera, canvas),
   transformFactory = (camera, canvas) => new TransformControls(camera, canvas), splatFactory = (...args) => new SplatContext(...args),
-  requestFrame = globalThis.requestAnimationFrame?.bind(globalThis), cancelFrame = globalThis.cancelAnimationFrame?.bind(globalThis), autoRender = true} = {}) {
+  requestFrame = globalThis.requestAnimationFrame?.bind(globalThis), cancelFrame = globalThis.cancelAnimationFrame?.bind(globalThis), now = () => globalThis.performance?.now() ?? Date.now(), autoRender = true} = {}) {
   if (!canvas || typeof getState !== 'function') throw fail('studio_v3_runtime_options', '真实片场渲染需要 canvas 与领域 getState');
   const document = canvas.ownerDocument || globalThis.document;
   const hidden = () => document?.visibilityState === 'hidden';
@@ -104,7 +104,7 @@ export function createStudioV3Runtime({canvas, getState, getSourceResource = () 
     releasePlan();
     clearHover();
     if (viewfinder) {const saved = viewfinder; viewfinder = null; saved.controls.dispose(); view = saved.view === 'plan' ? 'plan' : 'orbit'; activeCamera = view === 'plan' ? planCamera : orbitCamera;}
-    clearDepthOfField(); entityControl?.cancel('ownership-stale'); cameraEdit?.dispose(); cameraNavigation?.stop(); cameraTransition = null; navigationTransition = null; if (controls) controls.enabled = false; transformControls?.detach();
+    cancelSavedViewTransition(); clearDepthOfField(); entityControl?.cancel('ownership-stale'); cameraEdit?.dispose(); cameraNavigation?.stop(); cameraTransition = null; navigationTransition = null; if (controls) controls.enabled = false; transformControls?.detach();
     if (!disposed && previewCameraEntityId !== null) {previewCameraEntityId = null; view = returnView; activeCamera = view === 'plan' ? planCamera : orbitCamera; controls.enabled = false; transformControls.detach();}
     throw fail('studio_v3_runtime_stale', '片场会话已关闭或所有权已变化');
   }}
@@ -187,6 +187,7 @@ export function createStudioV3Runtime({canvas, getState, getSourceResource = () 
   function invalidate() {if (disposed) return; onInvalidate(); if (autoRender && requestFrame && !frame && !capturing && !renderPauseCount && !hidden()) frame = requestFrame(draw);}
   function acquireRenderingPause() {
     check();
+    cancelSavedViewTransition();
     if (view === 'plan') navigationView('orbit');
     renderPauseCount++; if (frame) cancelFrame?.(frame); frame = 0; lastTime = 0;
     clearHover(); cameraNavigation?.cancelInput(); controls.enabled = false; transformControls.enabled = false;
@@ -200,7 +201,7 @@ export function createStudioV3Runtime({canvas, getState, getSourceResource = () 
       return true;
     };
   }
-  function visibilityChanged() {lastTime = 0; if (viewfinder) viewfinder.controls.enabled = !hidden(); if (hidden()) {clearHover(); entityControl?.cancel('hidden'); cameraNavigation?.cancelInput(); navigationTransition = null; if (frame) cancelFrame?.(frame); frame = 0;} else invalidate();}
+  function visibilityChanged() {lastTime = 0; if (viewfinder) viewfinder.controls.enabled = !hidden(); if (hidden()) {cancelSavedViewTransition(); clearHover(); entityControl?.cancel('hidden'); cameraNavigation?.cancelInput(); navigationTransition = null; if (frame) cancelFrame?.(frame); frame = 0;} else invalidate();}
   function refreshSelection() {
     for (const record of graph.entities.values()) record.cameraMarker?.update({selected: record.id === selected, transformPreviewActive: transformSession?.entityId === record.id});
     const target = id => {const record = graph.entity(id); return record?.status === 'ready' && record.root.visible ? record.cameraMarker?.outlineTarget || record.root : null;};
@@ -233,10 +234,12 @@ export function createStudioV3Runtime({canvas, getState, getSourceResource = () 
     setHoverEntity(hitEntity(client)?.entityId || null);
   }
   function failInitialization(failure) {
+    cancelSavedViewTransition();
     releasePlan(); planRenderer?.dispose(); if (roomScene) {roomScene.removeFromParent(); disposeRoomScene(roomScene); roomScene = null;}
     photoRenderer?.dispose();
     disposed = true; if (frame) cancelFrame?.(frame); frame = 0;
-    document?.removeEventListener('visibilitychange', visibilityChanged); canvas.removeEventListener('pointermove', hoverPointer); canvas.removeEventListener('pointerleave', leavePointer);
+    document?.removeEventListener('visibilitychange', visibilityChanged); canvas.removeEventListener('pointermove', hoverPointer); canvas.removeEventListener('pointerleave', leavePointer); canvas.removeEventListener('pointerdown', navigationInput, true); canvas.removeEventListener('wheel', navigationInput, true);
+    controls?.removeEventListener('start', navigationInput);
     entityControl?.dispose(); cameraEdit?.dispose(); cameraNavigation?.dispose(); selectionOutline?.dispose(); hoverOutline?.dispose(); graph?.dispose();
     controls?.dispose(); transformControls?.dispose(); renderer?.dispose(); renderer?.forceContextLoss?.(); disposeModel(scene);
     throw failure;
@@ -279,6 +282,7 @@ export function createStudioV3Runtime({canvas, getState, getSourceResource = () 
     selectionOutline = createSelectionOutline({scene, camera: orbitCamera}); hoverOutline = createSelectionOutline({scene, camera: orbitCamera, presentation: 'hover'});
     controls = controlsFactory(orbitCamera, canvas); controls.enabled = true; controls.target.set(0, 1, 0); controls.enableDamping = true; controls.dampingFactor = .12;
     controls.addEventListener('change', invalidate);
+    controls.addEventListener('start', navigationInput);
     transformControls = transformFactory(orbitCamera, canvas); const gizmo = transformControls.getHelper(); gizmo.traverse(object => object.layers.set(3)); gizmo.userData.helper = gizmo.userData.captureExcluded = true; scene.add(gizmo);
     transformControls.addEventListener('dragging-changed', event => {controls.enabled = view !== 'plan' && !renderPauseCount && previewCameraEntityId === null && !entityControl?.active && !cameraEdit?.active && !viewfinder && !event.value;});
     transformControls.addEventListener('mouseDown', () => {
@@ -362,21 +366,115 @@ export function createStudioV3Runtime({canvas, getState, getSourceResource = () 
       navigationTransition = {elapsed: 0, duration: .55, from, to: saved};
     } else {orbitCamera.position.copy(saved.position); orbitCamera.quaternion.copy(saved.quaternion);}
   }
-  function tickNavigationTransition(delta) {
+  function tickNavigationTransition(delta, time) {
     const transition = navigationTransition; if (!transition) return false;
-    transition.elapsed += delta; const fraction = Math.min(1, transition.elapsed / transition.duration), eased = transitionEase(fraction);
+    if (transition.kind === 'saved-view' && !savedViewTransitionCurrent(transition)) {cancelSavedViewTransition(); return false;}
+    // Saved View duration is wall-clock time, independent of low-frequency
+    // RAF delivery. Movement and the existing return animations keep dt caps.
+    if (transition.kind === 'saved-view') transition.elapsed = Math.max(0, (time - transition.startedAt) / 1000);
+    else transition.elapsed += delta;
+    const fraction = Math.min(1, transition.elapsed / transition.duration), eased = transitionEase(fraction);
     orbitCamera.position.lerpVectors(transition.from.position, transition.to.position, eased); orbitCamera.quaternion.slerpQuaternions(transition.from.quaternion, transition.to.quaternion, eased);
     controls.target.lerpVectors(transition.from.target, transition.to.target, eased);
-    if (Number.isFinite(transition.from.fov) && Number.isFinite(transition.to.fov)) {orbitCamera.fov = THREE.MathUtils.lerp(transition.from.fov, transition.to.fov, eased); orbitCamera.updateProjectionMatrix();}
-    if (fraction === 1) {navigationTransition = null; controls.enabled = view !== 'plan' && !renderPauseCount && previewCameraEntityId === null && !entityControl?.active && !cameraEdit?.active && !viewfinder;}
+    if (transition.kind === 'saved-view') {
+      orbitCamera.up.set(0, 1, 0).applyQuaternion(orbitCamera.quaternion);
+      applyNavigationOptics(cameraOpticsPatch(transition.camera, {fov: THREE.MathUtils.lerp(transition.from.fov, transition.to.fov, eased)}));
+      orbitCamera.updateMatrixWorld(true);
+    } else if (Number.isFinite(transition.from.fov) && Number.isFinite(transition.to.fov)) {orbitCamera.fov = THREE.MathUtils.lerp(transition.from.fov, transition.to.fov, eased); orbitCamera.updateProjectionMatrix();}
+    if (fraction === 1) {
+      if (transition.kind === 'saved-view') {
+        // Normalize once at admission; completion preserves that detached
+        // optical snapshot instead of the interpolation's derived focal value.
+        applyNavigationOptics(transition.camera);
+        navigationTransition = null; restoreNavigationControls(); transition.resolve(true);
+      } else {navigationTransition = null; controls.enabled = view !== 'plan' && !renderPauseCount && previewCameraEntityId === null && !entityControl?.active && !cameraEdit?.active && !viewfinder;}
+    }
     return !!navigationTransition;
   }
   function interruptNavigationTransition() {
+    if (cancelSavedViewTransition()) return;
     const transition = navigationTransition; navigationTransition = null;
     if (transition) {orbitCamera.position.copy(transition.to.position); orbitCamera.quaternion.copy(transition.to.quaternion); controls.target.copy(transition.to.target); if (Number.isFinite(transition.to.fov)) {orbitCamera.fov = transition.to.fov; orbitCamera.updateProjectionMatrix();}}
     controls.enabled = view !== 'plan' && !renderPauseCount && previewCameraEntityId === null && !entityControl?.active && !cameraEdit?.active && !viewfinder;
   }
   const transitionEase = t => t < .5 ? 4 * t ** 3 : 1 - (-2 * t + 2) ** 3 / 2;
+  function restoreNavigationControls() {
+    if (controls) controls.enabled = !disposed && isCurrent() && !capturing && !renderPauseCount && view === 'orbit' && previewCameraEntityId === null && !entityControl?.active && !cameraEdit?.active && !viewfinder && !transformControls?.dragging;
+  }
+  function cancelSavedViewTransition() {
+    const transition = navigationTransition;
+    if (transition?.kind !== 'saved-view') return false;
+    navigationTransition = null; restoreNavigationControls(); transition.resolve(false); return true;
+  }
+  function navigationInput(event) {
+    if (navigationTransition?.kind === 'saved-view' && (!event || event.type === 'start' || canControlInput('navigation', event))) cancelSavedViewTransition();
+  }
+  function navigationRestoreFence() {
+    const state = getState(), space = state.scenePlay.worldSpace;
+    return JSON.stringify([controlFence(), space.source, space.roomConfig, state.scenePlay.environment.ground.y, sourceResourceFor(state), graph.epoch]);
+  }
+  function navigationSceneSynchronized() {
+    const state = getState(), space = state.scenePlay.worldSpace, {revision, editEpoch, ...ownerIdentity} = getFence() || {};
+    const isRoom = space.source.kind === 'mesh-preset' && space.source.preset === 'room', groundY = Number.isFinite(state.scenePlay.environment.ground.y) ? state.scenePlay.environment.ground.y : 0;
+    return !planSyncing && sourceKey === JSON.stringify([state.scenePlay.worldNodeId, space.activeStageId, space.activeSetupId, space.source, isRoom ? space.roomConfig : null, groundY, sourceResourceFor(state), ownerIdentity]);
+  }
+  function savedViewTransitionCurrent(transition) {
+    try {
+      const temporal = getTemporalStatus();
+      return !disposed && isCurrent() && !hidden() && !capturing && !renderPauseCount && view === 'orbit' && activeCamera === orbitCamera && previewCameraEntityId === null && !entityControl?.active && !cameraEdit?.active && !viewfinder && !transformSession && !transformControls?.dragging && !temporal.playing && !temporal.scrubbing && transition.isCurrent() && navigationSceneSynchronized() && transition.fence === navigationRestoreFence();
+    } catch {return false;}
+  }
+  function applyNavigationOptics(optics) {
+    // The photographic ratio belongs to the snapshot. Orbit rendering keeps
+    // the real viewport aspect; resizing must not overwrite the saved ratio.
+    applyCameraOptics(orbitCamera, optics);
+    orbitCamera.filmGauge = sensorDimensions(optics.frameAspectRatio).height * Math.max(viewportWidth / viewportHeight, 1);
+    orbitCamera.aspect = viewportWidth / viewportHeight; orbitCamera.fov = optics.fov;
+    orbitCamera.userData.studioV3Optics = structuredClone(optics); orbitCamera.updateProjectionMatrix();
+  }
+  function clearOrbitDamping() {
+    // Drain native residual motion through the public update API, then restore
+    // the displayed pose. Old mouse damping must not move a restored endpoint.
+    const position = orbitCamera.position.clone(), quaternion = orbitCamera.quaternion.clone(), up = orbitCamera.up.clone(), target = controls.target.clone(), zoom = orbitCamera.zoom, damping = controls.enableDamping;
+    try {controls.enableDamping = false; controls.update();}
+    finally {controls.enableDamping = damping; orbitCamera.position.copy(position); orbitCamera.quaternion.copy(quaternion); orbitCamera.up.copy(up); orbitCamera.zoom = zoom; controls.target.copy(target); orbitCamera.updateProjectionMatrix();}
+  }
+  function getNavigationCameraState() {
+    if (disposed || !isCurrent() || view !== 'orbit' || activeCamera !== orbitCamera || previewCameraEntityId !== null || entityControl?.active || cameraEdit?.active || viewfinder) return null;
+    const transition = navigationTransition;
+    if (transition?.kind === 'saved-view') {
+      if (!savedViewTransitionCurrent(transition)) {cancelSavedViewTransition(); return null;}
+      return structuredClone(transition.camera);
+    }
+    const target = transition?.to, rotation = target?.quaternion ? new THREE.Euler().setFromQuaternion(target.quaternion, orbitCamera.rotation.order) : orbitCamera.rotation;
+    const optics = orbitCamera.userData.studioV3Optics || {frameAspectRatio: null};
+    return cameraOpticsPatch(optics, {position: vector(target?.position || orbitCamera.position), rotation: {...vector(rotation), order: rotation.order}, fov: target?.fov ?? orbitCamera.fov});
+  }
+  async function restoreNavigationCamera(camera, {duration = .8, isCurrent: restoreIsCurrent = () => true} = {}) {
+    // A newer request supersedes the old one even when its own admission fails.
+    cancelSavedViewTransition();
+    try {
+      if (!Number.isFinite(duration) || duration < 0 || typeof restoreIsCurrent !== 'function') return false;
+      const optics = cameraOpticsPatch({}, camera);
+      assertCamera(optics);
+      const fence = navigationRestoreFence(), admission = {isCurrent: restoreIsCurrent, fence};
+      if (!savedViewTransitionCurrent(admission) || duration > 0 && (!autoRender || !requestFrame)) return false;
+      interruptNavigationTransition();
+      clearOrbitDamping();
+      const position = new THREE.Vector3(optics.position.x, optics.position.y, optics.position.z), quaternion = new THREE.Quaternion().setFromEuler(new THREE.Euler(optics.rotation.x, optics.rotation.y, optics.rotation.z, optics.rotation.order || 'XYZ'));
+      const target = position.clone().addScaledVector(new THREE.Vector3(0, 0, -1).applyQuaternion(quaternion), Math.max(.1, optics.focusDistance ?? 10));
+      const from = {position: orbitCamera.position.clone(), quaternion: orbitCamera.quaternion.clone(), target: controls.target.clone(), fov: orbitCamera.fov}, to = {position, quaternion, target, fov: optics.fov};
+      orbitCamera.rotation.reorder(optics.rotation.order || 'XYZ');
+      controls.enabled = false;
+      if (!duration) {
+        orbitCamera.position.copy(position); orbitCamera.quaternion.copy(quaternion); orbitCamera.up.set(0, 1, 0).applyQuaternion(quaternion); controls.target.copy(target);
+        applyNavigationOptics(optics); orbitCamera.updateMatrixWorld(true); restoreNavigationControls(); invalidate(); return true;
+      }
+      const startedAt = now(); if (!Number.isFinite(startedAt)) {restoreNavigationControls(); return false;}
+      const result = new Promise(resolve => {navigationTransition = {...admission, kind: 'saved-view', startedAt, elapsed: 0, duration, from, to, camera: optics, resolve};});
+      invalidate(); return await result;
+    } catch {cancelSavedViewTransition(); restoreNavigationControls(); return false;}
+  }
   function cameraSubject(id) {
     if (disposed || !isCurrent() || renderPauseCount) return null;
     const record = graph.entity(id); if (record?.status !== 'ready' || !record.camera) return null;
@@ -494,7 +592,7 @@ export function createStudioV3Runtime({canvas, getState, getSourceResource = () 
     onRenderTransform(id, world) {const record = graph.entity(id); if (record?.root) applyTransform(record.root, world);},
     onStart({entityId}) {
       if (view === 'plan') navigationView('orbit');
-      navigationTransition = null; cancelTransform(); transformControls.detach();
+      cancelSavedViewTransition(); navigationTransition = null; cancelTransform(); transformControls.detach();
       controlReturn = {view: previewCameraEntityId !== null ? returnView : view, position: orbitCamera.position.clone(), quaternion: orbitCamera.quaternion.clone(),
         planPosition: planCamera.position.clone(), planQuaternion: planCamera.quaternion.clone(), target: controls.target.clone()};
       previewCameraEntityId = null; activeCamera = orbitCamera; view = 'control'; controls.enabled = false; transformControls.camera = activeCamera; selected = entityId; clearDepthOfField(); refreshSelection();
@@ -504,7 +602,7 @@ export function createStudioV3Runtime({canvas, getState, getSourceResource = () 
   function cancelControl(reason = 'cancel') {return entityControl.cancel(reason);}
   function resize(width = canvas.clientWidth || 900, height = canvas.clientHeight || 600) {
     if (disposed || capturing || renderPauseCount) return; width = Math.max(1, Math.round(width)); height = Math.max(1, Math.round(height)); viewportWidth = width; viewportHeight = height; renderer.setSize(width, height, false); restoreViewport();
-    orbitCamera.aspect = width / height; orbitCamera.updateProjectionMatrix();
+    orbitCamera.aspect = width / height; if (orbitCamera.userData.studioV3Optics) applyNavigationOptics(orbitCamera.userData.studioV3Optics); else orbitCamera.updateProjectionMatrix();
     if (view === 'plan') {releasePlan(); publishPlan(); setupPlan();} invalidate();
   }
   function render() {if (disposed || capturing || renderPauseCount) return false; check(); refreshVisibleCamera(); refreshHover(); scene.updateMatrixWorld(true);
@@ -525,6 +623,7 @@ export function createStudioV3Runtime({canvas, getState, getSourceResource = () 
       for (const object of [record.root, record.cameraHelper]) if (object?.visible) {hiddenMarkers.push(object); object.visible = false;}
     }
     try {if (gaussian) gaussian.render(graph.content, renderCamera, drawScene); else drawScene();}
+    catch (failure) {cancelSavedViewTransition(); throw failure;}
     finally {for (const object of hiddenMarkers) object.visible = true;} return true;
   }
   function draw(time) {
@@ -532,8 +631,8 @@ export function createStudioV3Runtime({canvas, getState, getSourceResource = () 
     const delta = Math.min(.05, Math.max(0, (time - (lastTime || time)) / 1000)); lastTime = time;
     let dampingChanged = false, controlChanged = false, navigationChanged = false, cameraChanged = false, planChanged = false;
     try {if (view === 'plan') planChanged = planNavigation.tick(delta); else {
-      controlChanged = entityControl.tick(delta); navigationChanged = tickNavigationTransition(delta); const transitionChanged = tickCameraTransition(delta), inputChanged = cameraNavigation.tick(delta); cameraChanged = transitionChanged || inputChanged; const navigation = viewfinder?.controls || controls; dampingChanged = navigation.enabled && navigation.update(delta) === true;
-    } graph.tick(delta); render();} catch (failure) {notify(failure); return;}
+      controlChanged = entityControl.tick(delta); navigationChanged = tickNavigationTransition(delta, time); const transitionChanged = tickCameraTransition(delta), inputChanged = cameraNavigation.tick(delta); cameraChanged = transitionChanged || inputChanged; const navigation = viewfinder?.controls || controls; dampingChanged = navigation.enabled && navigation.update(delta) === true;
+    } graph.tick(delta); render();} catch (failure) {cancelSavedViewTransition(); notify(failure); return;}
     if (planChanged || view === 'plan' && !planError && planNavigation.active || dampingChanged || controlChanged || entityControl.needsFrame || navigationChanged || cameraChanged || cameraNavigation.needsFrame() || graph.needsAnimation()) invalidate();
   }
   async function sync(state = getState()) {
@@ -569,6 +668,7 @@ export function createStudioV3Runtime({canvas, getState, getSourceResource = () 
     if (selected && !graph.entity(selected)?.root) selected = null; refreshVisibleCamera(); applyDepthOfField(); refreshSelection(); invalidate(); return report;
   }
   function navigationView(value) {
+    cancelSavedViewTransition();
     clearHover();
     const wasPlan = view === 'plan'; releasePlan({error: true});
     previewCameraEntityId = null; view = value; controls.enabled = !renderPauseCount && value === 'orbit';
@@ -586,7 +686,7 @@ export function createStudioV3Runtime({canvas, getState, getSourceResource = () 
     if (!finishCameraControl('camera-preview')) return false;
     if (view === 'plan') navigationView('orbit');
     clearHover();
-    endViewfinder(); cancelControl('camera-preview'); navigationTransition = null; cancelTransform(); transformControls.detach();
+    endViewfinder(); cancelControl('camera-preview'); cancelSavedViewTransition(); navigationTransition = null; cancelTransform(); transformControls.detach();
     if (previewCameraEntityId === null) returnView = view;
     previewCameraEntityId = entityId; view = 'camera'; activeCamera = record.camera;
     // Preview is read-only. Orbit damping and native gizmos must never mutate
@@ -685,6 +785,7 @@ export function createStudioV3Runtime({canvas, getState, getSourceResource = () 
     if (!Number.isFinite(timeout) || timeout <= 0) throw fail('studio_v3_photo_resources_timeout', '拍摄资源等待上限必须为正数');
     photoResourceTimeoutMs = timeout;
     const leased = capturing; capturing = true;
+    const cancelledNavigationRestore = cancelSavedViewTransition();
     if (frame) cancelFrame?.(frame); frame = 0;
     try {
       photoRenderer ||= createPhotoRenderer({renderer, scene,
@@ -740,10 +841,11 @@ export function createStudioV3Runtime({canvas, getState, getSourceResource = () 
           return offset ? record.root.localToWorld(new THREE.Vector3(offset.x, offset.y, offset.z)) : record.root.getWorldPosition(new THREE.Vector3());
         }});
     } finally {
-      capturing = leased; if (!disposed && isCurrent()) {applyDepthOfField(); if (!capturing) invalidate();}
+      capturing = leased; if (!disposed && isCurrent()) {applyDepthOfField(); if (!capturing) {if (cancelledNavigationRestore) restoreNavigationControls(); invalidate();}}
     }
   }
   async function renderCapture(camera = activeCamera) {
+    cancelSavedViewTransition();
     check(); const boundary = sourceKey, entityId = [...graph.entities.values()].find(record => record.camera === camera)?.id;
     try {
       await settle(camera); check();
@@ -756,24 +858,25 @@ export function createStudioV3Runtime({canvas, getState, getSourceResource = () 
   }
   async function dispose() {
     photoRenderer?.dispose();
+    cancelSavedViewTransition();
     if (disposed) return; endViewfinder(); entityControl.dispose(); cameraEdit.dispose(); cameraNavigation.dispose(); cameraTransition = null; navigationTransition = null; cancelTransform(); clearDepthOfField(); previewCameraEntityId = null; disposed = true; if (frame) cancelFrame?.(frame); frame = 0;
     releasePlan(); planProfiles.clear(); planRenderer?.dispose();
     if (roomScene) {roomScene.removeFromParent(); disposeRoomScene(roomScene); roomScene = null;}
-    document?.removeEventListener('visibilitychange', visibilityChanged); canvas.removeEventListener('pointermove', hoverPointer); canvas.removeEventListener('pointerleave', leavePointer); selectionOutline?.dispose(); hoverOutline?.dispose(); transformControls.detach(); transformControls.dispose(); controls.dispose(); graph.dispose(); selectionOutline = hoverOutline = null;
+    document?.removeEventListener('visibilitychange', visibilityChanged); canvas.removeEventListener('pointermove', hoverPointer); canvas.removeEventListener('pointerleave', leavePointer); canvas.removeEventListener('pointerdown', navigationInput, true); canvas.removeEventListener('wheel', navigationInput, true); controls.removeEventListener('start', navigationInput); selectionOutline?.dispose(); hoverOutline?.dispose(); transformControls.detach(); transformControls.dispose(); controls.dispose(); graph.dispose(); selectionOutline = hoverOutline = null;
     await photoRenderer?.whenIdle();
     await gaussian?.dispose(); gaussian = null; disposeModel(scene); scene.clear(); renderer.dispose(); renderer.forceContextLoss?.();
   }
-  try {document?.addEventListener('visibilitychange', visibilityChanged); canvas.addEventListener('pointermove', hoverPointer); canvas.addEventListener('pointerleave', leavePointer); resize(); invalidate();}
+  try {document?.addEventListener('visibilitychange', visibilityChanged); canvas.addEventListener('pointermove', hoverPointer); canvas.addEventListener('pointerleave', leavePointer); canvas.addEventListener('pointerdown', navigationInput, true); canvas.addEventListener('wheel', navigationInput, true); resize(); invalidate();}
   catch (failure) {failInitialization(failure);}
   return {scene, renderer, graph, controls, transformControls, orbitCamera, planCamera, plan,
     get camera() {return activeCamera;}, get controlling() {return entityControl.active;}, get view() {return view;}, get selectedEntityId() {return selected;}, get disposed() {return disposed;}, get previewCameraEntityId() {return previewCameraEntityId;}, get cameraPreviewReturnView() {return returnView;}, get cameraPreviewRect() {return previewRect();}, get depthOfFieldSupported() {return !disposed && isCurrent() && !!gaussian?.spark;},
     get possessing() {return cameraEdit.active;}, get capturing() {return capturing;}, get renderingPaused() {return renderPauseCount > 0;}, acquireRenderingPause,
     startCameraControl, finishCameraControl, cancelCameraControl, checkpointCameraControl, patchCameraControl, pickCameraFocus,
     startControl, finishControl, cancelControl, nudgeControlHeight: entityControl.nudgeHeight, dropControlToGround: entityControl.dropToGround, setControlHeading: entityControl.setHeading,
-    getVisibleCameraState, beginViewfinder, patchViewfinder, endViewfinder,
+    getVisibleCameraState, getNavigationCameraState, restoreNavigationCamera, beginViewfinder, patchViewfinder, endViewfinder,
     sync, render, resize, setView, previewCamera, clearCameraPreview, sparkDepthOfFieldParameters, selectEntity, focusEntity, entityObject, entityCamera, hitEntity, hitSurface, resolvePlanSurface, setHoverEntity, attachTransform, cancelTransform, settle, dispose,
     retryEntity(id) {if (graph.retry(id)) return sync(); return Promise.resolve(false);},
     renderCapture, renderPhoto,
-    setCapturing(value) {if (value) {cancelControl('capture'); cameraNavigation.cancelInput(); stopCameraTransition(); navigationTransition = null;} capturing = !!value; if (!capturing) invalidate();}
+    setCapturing(value) {if (value) {cancelSavedViewTransition(); cancelControl('capture'); cameraNavigation.cancelInput(); stopCameraTransition(); navigationTransition = null;} capturing = !!value; if (!capturing) {restoreNavigationControls(); invalidate();}}
   };
 }

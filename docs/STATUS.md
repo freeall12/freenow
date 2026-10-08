@@ -13,7 +13,15 @@
 | 生成接口 | 多供应商路由及若干原生适配已实现；其余能力保留任务接口 | [配置及每项限制](MULTI-PROVIDER-SETUP.md) |
 | 本地化 | 本地资源/归档、原站出站阻断与显式资源修复已实现 | [验收清单](FREENOW-LOCALIZATION-ACCEPTANCE.md) |
 
-## 最新：平面放置与时间路径编辑
+## 最新：已保存视图与导航恢复
+
+- 接入 create/restore/update-camera/rename/View-only-delete、真实 session/history/CanvasStore 和跨 setup 同步恢复；[原生操作与四张截图](verification/20261008-studio-saved-views.md)包括保存失败同 ID 重试、删除撤销/重做和刷新重开。
+- 完整相机 pose/roll/order 与光学保留，初始画幅 null，固定9:16独立于窗口；`.8s` 恢复采用 RAF 实际时间，低帧率不被每帧 delta 上限拖慢。修复 plan 层覆盖右下导航按钮，真实鼠标命中已验。
+- [官方依据](research/STUDIO-V3-SAVED-VIEWS-20261008.md)证实底层 View 能力；独立管理菜单与“更新到当前视角”属于本地补齐，不称官方面板像素复刻。普通 View、镜头目录与只读照片相册分开。
+- 动作13/13、作者桥20/20、菜单15/15、导航11/11、入口10/10分别通过，旧关闭入口4/4、最后仅复跑通知接线影响2/2。旧返回/销毁窄5项在当前与HEAD均1通过/4失败，详情见[导航合同](../src/features/studio-v3/SAVED-VIEW-NAVIGATION.md)；未重跑全库。
+- 未调用供应商或原站、未增依赖、现有Alpha未包含。视图缩略图/官方独立面板、P4/holding/完整V3 Agent、SPZ/DOF真实GPU与跨设备性能仍开放。
+
+## 前批：平面放置与时间路径编辑
 
 - 当前源码按[官方原包合同](research/STUDIO-V3-PLAN-PLACEMENT-PATHS-20261008.md)接入已有角色、新角色名/六色草稿、原生子菜单 hover 与180ms延迟关闭；平面 pending placement 固定首点，拖动只改朝向。新增取 normal.y≥.65 的最高有效支撑，无命中才回退地面；摄像机加1.6m，已有实体拖动仍保原Y。
 - temporal 路径 click 只选择实体或端点 key，不创建 key/history；曲线拖动写 bend，Bezier 首末控制点和 key 位置/朝向、camera key FOV 均可编辑。key 再次点击/右键仅“删除关键帧”，bend 右键直接 reset；每次手势一笔历史，保留 base、其他 key 和原Y。
@@ -21,7 +29,7 @@
 - 最终生产页复验bend直接右键reset：无菜单、可见SVG曲线改变，一次undo恢复原路径；此项未另读作者JSON。进入pending前清旧entity/key选择，实机selected key数0、工具条消失、提示可见，Escape留plan；遮挡修复专门回归1/1。提示bottom84是本地可见性适配，不是官方像素合同。
 - 轨迹 geometry cache 排除纯 save revision，按作者 editEpoch/来源失效；保存回执不中断 lease。commit/cancel失败保留 lease 可重试，无变化事务被消费后释放，不留下输入锁。
 - 分批定向通过：既有路径/temporal27/27、surface25/25、placement12/12、入口新增6/6及旧入口review11/11；随后cache+key optics4/4、surface key optics2/2、hover1/1、旋转2/2、失败边界3/3。不合计为全仓或全部用例重跑。
-- P2仍不标完整；orbit/3D添加角色仍立即创建，不能代表3D放置已对齐。真实SPZ/DOF GPU、完整[Saved Views](research/STUDIO-V3-SAVED-VIEWS-20261008.md)、P4导入/生成UI、holding、完整V3 Agent及跨设备性能仍开放；GLB景深未实现。旧Alpha不含10月8日源码，无新依赖或供应商API请求。
+- P2仍不标完整；orbit/3D添加角色仍立即创建，不能代表3D放置已对齐。真实SPZ/DOF GPU、官方Saved Views独立面板对齐、P4导入/生成UI、holding、完整V3 Agent及跨设备性能仍开放；GLB景深未实现。旧Alpha不含10月8日源码，无新依赖或供应商API请求。
 
 ## 前批：平面图、房间与空间来源
 

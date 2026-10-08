@@ -28,6 +28,8 @@ import {createPlanWorkspace} from './plan-workspace.mjs';
 import {createPlanPlacement} from './plan-placement.mjs';
 import {createPlanTrajectories} from './plan-trajectories.mjs';
 import {createCharacterDraft} from './character-menu.mjs';
+import {createSavedViewWorkspace} from './saved-view-workspace.mjs';
+import {createSavedViewMenu} from './saved-view-menu.mjs';
 import {createSpaceMenu} from './space-menu.mjs';
 import {reduceSpaceAction} from './space-actions.mjs';
 import {workspaceSourceResource, localWorkspaceScenes} from './workspace-source.mjs';
@@ -59,6 +61,7 @@ export async function open(node) {
   let cameraManager = null, shotPreview = null, shotExporter = null, cameraBatch = null, photoHistory = null, temporal = null, planView = null, planWorkspace = null, spacePanel = null, roomEdit = null, roomRequestId = 0;
   let planPlacement = null, planTrajectories = null, planPending = null, placementRequestId = 0;
   let actorDraft = {label: '', color: '#C97984', actorGender: 'neutral'};
+  let savedViews = null, savedViewMenu = null;
   const notice = (message, error = false) => {
     if (!alive) return; clearTimeout(toastTimer); toast.textContent = message; toast.hidden = false; toast.dataset.error = String(error);
     if (!error) toastTimer = setTimeout(() => {toast.hidden = true;}, 3500);
@@ -72,7 +75,8 @@ export async function open(node) {
   for (const name of ['toggle', 'openAt', 'openNested']) menus[name] = (...args) => {
     if (!finishControlScope()) return false; cancelPlanGesture(); cancelCameraCreation(); return menuController[name](...args);
   };
-  function finishControlScope() {
+  function finishControlScope({allowSavedViews = false} = {}) {
+    if (!allowSavedViews && savedViews?.busy) {notice('视图正在保存或恢复，请稍候', true); return false;}
     if (photoHistory) {notice('请先关闭历史照片，再继续编辑片场', true); return false;}
     if (temporal?.confirming) {notice('请先确认或取消关键帧编辑', true); return false;}
     if (cameraBatch?.busy || cameraBatch?.pendingReceipt) {notice(cameraBatch.busy ? '镜头正在导出，请等待完成' : '镜头导出尚未保存，请打开镜头管理重试保存', true); return false;}
@@ -122,8 +126,31 @@ export async function open(node) {
       const list = menu('视图', ['orbit', 'plan'].map(mode => {
         const item = row(mode === 'plan' ? 'topView' : 'onSet', mode === 'plan' ? '俯视' : '3D（现场）', async () => {close(); await switchViewport(mode);});
         item.setAttribute('role', 'menuitem'); item.dataset.active = String(runtime.view === mode); return item;
-      })); return list;
+      }));
+      // The installed package exposes View storage/restore capabilities but
+      // no independent Saved Views panel. This entry is a local completion.
+      const stored = row('camera', '已保存视图', () => showSavedViews(stored));
+      stored.setAttribute('role', 'menuitem');
+      list.append(el('div', 'sv3-menu-divider'), stored); return list;
     }, {label: '视图', placement: 'top', align: 'start'});
+  }
+  function showSavedViews(anchor) {
+    return menus.openNested(anchor, () => {
+      const action = async (run, message) => {
+        const result = await run();
+        if (result?.ok) notice(message);
+        return result;
+      };
+      const panel = createSavedViewMenu({read: () => savedViews.read(),
+        onSave: () => action(() => savedViews.saveCurrent(), '视图已保存'), onRetrySave: () => action(() => savedViews.retrySave(), '视图已保存'),
+        onRestore: id => action(() => savedViews.restore(id), '视图已恢复'), onUpdate: id => action(() => savedViews.update(id), '视图已更新'),
+        onRename: (id, label) => action(() => savedViews.rename(id, label), '视图名称已保存'), onRemove: id => action(() => savedViews.remove(id), '视图已删除'),
+        onError: error => notice(error.message, true)});
+      savedViewMenu = panel;
+      const dispose = panel.dispose;
+      panel.dispose = () => {dispose(); if (savedViewMenu === panel) savedViewMenu = null;};
+      return panel;
+    }, {label: '已保存视图', role: 'presentation', placement: 'right', width: 360});
   }
   const roomFence = () => {const {revision, ...identity} = session.getFence(); return JSON.stringify(identity);};
   async function spaceAction(action) {
@@ -616,6 +643,7 @@ export async function open(node) {
     creationLabel.textContent = cameraCreation?.kind === 'view' ? '调整取景后确认添加摄像机' : '选择地面位置'; confirmCreate.hidden = cameraCreation?.kind !== 'view';
     if (c) {selectionButton.textContent = c.definition.label; for (const [index, item] of transformButtons.entries()) {item.hidden = index === 2 && c.definition.kind === 'camera'; item.disabled = c.locked || c.baselineReadOnly || runtime.view === 'camera' || temporalStatus.playing || temporalStatus.scrubbing;}}
     updateModeChrome();
+    savedViewMenu?.refresh();
     undo.disabled = !session.history.getUndoAvailability(lastLane).ok; redo.disabled = !session.history.getRedoAvailability(lastLane).ok;
   }
   instance.read = () => {
@@ -645,9 +673,10 @@ export async function open(node) {
   instance.close = async () => {
     if (!alive || active !== instance) return;
     if (closing) return closing;
+    if (savedViews?.busy) throw Error('视图正在保存或恢复，请稍候');
     closing = (async () => {
       if (!finishControlScope()) throw Error(cameraBatch?.busy ? '镜头正在导出，请等待完成' : cameraBatch?.pendingReceipt ? '镜头导出尚未保存，请打开镜头管理重试保存' : cameraCapture?.busy ? '镜头正在拍摄，请等待照片保存后继续' : cameraCapture?.pendingReceipt ? '照片尚未保存，请点击拍摄按钮或顶部保存状态重试，再继续操作' : '请先完成或还原本次操控'); cancelPlanGesture(); cancelCameraCreation(); runtime?.cancelTransform(); menus.close({all: true}); await allowStructuralWrite(); await session.closeGuard();
-      cancelPlanGesture(); planPlacement?.dispose(); planTrajectories?.dispose(); planWorkspace?.dispose(); planView?.dispose(); await temporal?.dispose(); alive = false; clearTimeout(toastTimer); observer?.disconnect(); photoHistory?.dispose(); controlHUD.dispose(); cameraHUD?.dispose(); cameraCapture?.dispose(); cameraBatch?.dispose(); shotExporter?.dispose(); await shotPreview?.dispose(); cameraHistory?.dispose(); menus.dispose(); await runtime?.dispose();
+      cancelPlanGesture(); savedViews?.dispose(); planPlacement?.dispose(); planTrajectories?.dispose(); planWorkspace?.dispose(); planView?.dispose(); await temporal?.dispose(); alive = false; clearTimeout(toastTimer); observer?.disconnect(); photoHistory?.dispose(); controlHUD.dispose(); cameraHUD?.dispose(); cameraCapture?.dispose(); cameraBatch?.dispose(); shotExporter?.dispose(); await shotPreview?.dispose(); cameraHistory?.dispose(); menus.dispose(); await runtime?.dispose();
       root.remove(); document.body.classList.remove('studio-active'); active = null;
       app.select(node.id, false); const target = returnFocus?.isConnected ? returnFocus : document.querySelector('#canvas'); target?.focus({preventScroll: true}); window.AgentUI?.refreshSceneContext?.();
     })();
@@ -687,6 +716,18 @@ export async function open(node) {
       refresh, notice, onLane: lane => {lastLane = lane;}, isCurrent: () => alive && session.isCurrent(), isHidden: () => document.hidden,
       getSourceKey: workspaceSourceKey,
       getBusy: () => !!photoHistory || !!cameraCreation || !!cameraCapture?.busy || !!cameraCapture?.pendingReceipt || !!cameraBatch?.busy || !!cameraBatch?.pendingReceipt});
+    savedViews = createSavedViewWorkspace({getState: state, session, getRuntime: () => runtime,
+      isCurrent: () => alive && !closing && session.isCurrent(), getSourceKey: workspaceSourceKey,
+      getBusy: () => ({busy: !!closing || !!photoHistory || !!cameraCreation || !!cameraCapture?.busy || !!cameraCapture?.pendingReceipt || !!cameraBatch?.busy || !!cameraBatch?.pendingReceipt || !!roomEdit || !!temporal?.confirming,
+        playing: !!temporal?.getTemporalStatus().playing, scrubbing: !!temporal?.getTemporalStatus().scrubbing}),
+      beforeWrite: async () => {
+        if (!finishControlScope({allowSavedViews: true})) return {ok: false, message: '请先完成当前片场编辑'};
+        cancelPlanGesture(); cancelCameraCreation(); runtime.cancelTransform();
+        const allowed = await allowStructuralWrite();
+        return allowed === false || allowed?.ok === false ? {ok: false, message: allowed?.message || '请先完成当前片场编辑'} : {ok: true};
+      }, waitForSync: () => lastSync, prepareNavigation: () => runtime.setView('orbit'),
+      onSelect: () => temporal.clearSelectedKey() === false ? false : select(null), onLane: lane => {lastLane = lane;}, onChange: refresh});
+    instance.savedViews = savedViews;
     const timelineHost = el('div', 'sv3-dock-timeline'); dock.append(timelineHost); temporal.mount(timelineHost, {getReturnFocus: () => timelineButton});
     planWorkspace = createPlanWorkspace({getState: displayState, getAuthorState: state, session, temporal, getRuntime: () => runtime,
       isCurrent: () => alive && session.isCurrent(), getSelected: () => selected, onSelect: select, onChange: refresh,
@@ -767,7 +808,7 @@ export async function open(node) {
       back.disabled=false;saveStatus.disabled=false;
       notice('片场启动失败，保存仍需重试：'+cleanupError.message,true);throw error;
     }
-    cancelPlanGesture();planPlacement?.dispose();planTrajectories?.dispose();planWorkspace?.dispose();planView?.dispose();await temporal?.dispose();alive=false;clearTimeout(toastTimer);observer?.disconnect();photoHistory?.dispose();controlHUD.dispose();cameraHUD?.dispose();cameraCapture?.dispose();cameraBatch?.dispose();shotExporter?.dispose();await shotPreview?.dispose();cameraHistory?.dispose();menus.dispose();await runtime?.dispose();root.remove();
+    cancelPlanGesture();savedViews?.dispose();planPlacement?.dispose();planTrajectories?.dispose();planWorkspace?.dispose();planView?.dispose();await temporal?.dispose();alive=false;clearTimeout(toastTimer);observer?.disconnect();photoHistory?.dispose();controlHUD.dispose();cameraHUD?.dispose();cameraCapture?.dispose();cameraBatch?.dispose();shotExporter?.dispose();await shotPreview?.dispose();cameraHistory?.dispose();menus.dispose();await runtime?.dispose();root.remove();
     if (active === instance) {document.body.classList.remove('studio-active'); active=null;}
     if(returnFocus?.isConnected)returnFocus.focus({preventScroll:true});throw error;
   }

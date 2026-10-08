@@ -1,0 +1,32 @@
+/* The host .sv3-menu retains the extracted radius18/bg-popover.5/blur28 surface. */
+.studio-v3 .sv3-saved-view-menu {position:relative;box-sizing:border-box;width:100%;min-width:0;color:rgba(255,255,255,.7);text-align:left}
+.studio-v3 .sv3-saved-view-menu [hidden] {display:none}
+.studio-v3 .sv3-saved-view-header {padding:6px 10px 8px}
+.studio-v3 .sv3-saved-view-header strong {font-size:14px;font-weight:500;line-height:20px;color:rgba(255,255,255,.9)}
+.studio-v3 .sv3-saved-view-save {font-size:13px}
+.studio-v3 .sv3-saved-view-icon {display:flex;flex:none;align-items:center;justify-content:center}
+.studio-v3 .sv3-saved-view-reason,.studio-v3 .sv3-saved-view-feedback {margin:4px 10px 8px;font-size:12px;line-height:20px;overflow-wrap:anywhere;color:rgba(255,255,255,.48)}
+.studio-v3 .sv3-saved-view-feedback {color:#ffbfaf}
+.studio-v3 .sv3-saved-view-body {min-width:0;border-top:1px solid rgba(255,255,255,.1);padding-top:4px}
+.studio-v3 .sv3-saved-view-row {min-width:0;padding-bottom:6px}
+.studio-v3 .sv3-saved-view-row+.sv3-saved-view-row {border-top:1px solid rgba(255,255,255,.07);padding-top:4px}
+.studio-v3 .sv3-saved-view-restore {min-width:0;font-size:14px}
+.studio-v3 .sv3-saved-view-restore[aria-pressed=true] {color:var(--sv3-active,#efd77a)}
+.studio-v3 .sv3-saved-view-title {display:block;flex:1;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.studio-v3 .sv3-saved-view-caption {display:flex;flex-direction:column;min-width:0;padding:0 10px 0 38px;gap:2px;font-size:12px;line-height:16px;color:rgba(255,255,255,.42)}
+.studio-v3 :is(.sv3-saved-view-ownership,.sv3-saved-view-metadata,.sv3-saved-view-tags) {min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.studio-v3 .sv3-saved-view-tags {font-size:11px;color:rgba(255,255,255,.32)}
+.studio-v3 .sv3-saved-view-actions {display:flex;align-items:center;justify-content:flex-end;gap:2px;padding:4px 6px 0;min-width:0}
+.studio-v3 .sv3-saved-view-actions .sv3-button {flex:none;min-width:28px;width:28px;height:28px;padding:0;border-radius:999px}
+.studio-v3 .sv3-saved-view-actions .sv3-button[data-icon-only=false] {width:auto;padding:0 8px;font-size:12px}
+.studio-v3 .sv3-saved-view-actions .sv3-button:has(svg) svg {width:14px;height:14px}
+.studio-v3 .sv3-saved-view-actions .sv3-button:has(svg):last-child:hover {color:#ff9a9a}
+.studio-v3 .sv3-saved-view-name {box-sizing:border-box;width:100%;min-width:0;height:28px;padding:1px 4px;border:1px solid rgba(255,255,255,.3);border-radius:4px;background:rgba(255,255,255,.08);color:#fff;font:inherit;font-size:13px;line-height:20px;outline:none}
+.studio-v3 .sv3-saved-view-empty {margin:8px 0;padding:12px 10px;text-align:center;font-size:13px;line-height:20px;color:rgba(255,255,255,.5)}
+.studio-v3 .sv3-saved-view-confirm {box-sizing:border-box;width:100%;padding:10px;border:1px solid rgba(255,255,255,.1);border-radius:18px;background:rgba(var(--sv3-popover,44,43,41),.5);backdrop-filter:blur(28px);-webkit-backdrop-filter:blur(28px)}
+.studio-v3 .sv3-saved-view-confirm strong {display:block;font-size:14px;font-weight:500;line-height:20px;color:rgba(255,255,255,.92);overflow-wrap:anywhere}
+.studio-v3 .sv3-saved-view-confirm p {margin:6px 0 12px;font-size:12px;line-height:20px;color:rgba(255,255,255,.55);overflow-wrap:anywhere}
+.studio-v3 .sv3-saved-view-confirm-actions {display:flex;justify-content:flex-end;gap:4px}
+.studio-v3 .sv3-saved-view-confirm-actions .sv3-button {height:32px;min-width:0;border-radius:8px;font-size:12px}
+.studio-v3 .sv3-saved-view-confirm-actions .sv3-button:last-child {color:#ffaaa0;background:rgba(255,100,80,.1)}
+.studio-v3 .sv3-saved-view-menu :is(button,input):focus-visible {outline:1px solid rgba(255,255,255,.55);outline-offset:1px}

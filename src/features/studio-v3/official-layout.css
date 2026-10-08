@@ -73,7 +73,7 @@
 .studio-v3 .sv3-dock { bottom: 12px; grid-template-columns: minmax(max-content,1fr) minmax(0,max-content) minmax(0,1fr); align-items: end; }
 .studio-v3 .sv3-dock-leading { position: relative; grid-column: 1; grid-row: 4; min-width: max-content; justify-self: start; z-index: 72; }
 .studio-v3 .sv3-dock-center { position: relative; display: flex; grid-column: 2; grid-row: 4; height: 48px; min-width: 0; max-width: 100%; align-items: center; justify-content: center; justify-self: center; z-index: 70; }
-.studio-v3 .sv3-dock-trailing { grid-column: 3; grid-row: 4; justify-self: end; }
+.studio-v3 .sv3-dock-trailing { position: relative; grid-column: 3; grid-row: 4; justify-self: end; z-index: 72; }
 .studio-v3 .sv3-dock-upper { position: relative; grid-column: 2; grid-row: 2; min-width: 0; max-width: 100%; margin-bottom: 12px; justify-self: center; pointer-events: auto; z-index: 70; }
 .studio-v3 .sv3-dock-toast { grid-column: 2; grid-row: 3; min-width: 0; max-width: 100%; margin-bottom: 12px; justify-self: center; z-index: 85; }
 .studio-v3 .sv3-dock-toast[data-placement="aboveUpper"] { grid-row: 1; }

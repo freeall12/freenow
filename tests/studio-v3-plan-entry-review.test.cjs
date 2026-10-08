@@ -11,7 +11,7 @@ function extract(startMarker, endMarker) {
   assert(start >= 0 && end > start, startMarker); return source.slice(start, end);
 }
 const spaceActions = extract('  const roomFence =', '\n  function showSpaceMenu()');
-const finishControlScope = extract('  function finishControlScope()', '\n  const state =');
+const finishControlScope = extract('  function finishControlScope(', '\n  const state =');
 const cancelRoomEdit = extract('  function cancelRoomEdit()', '\n  async function switchViewport');
 const allowStructuralWrite = extract('  async function allowStructuralWrite()', '\n  const switchSetup =');
 const viewport = extract('  async function switchViewport(', '\n  function updateViewTrigger()');
@@ -45,7 +45,7 @@ async function fixture() {
     notice() {}, cancelPlanGesture: () => {}, cancelCameraCreation() {}, menus: {close() {}, dispose() {}},
     reduceSpaceAction: (state, action) => reduceSpaceAction(state, structuredClone(action)), change: (reducer, label, lane) => session.change(reducer, {label, lane, scope: {kind: 'world-space'}}),
     workspaceSourceResource: () => null, app, node: {id: 'owner'}, refresh() {}, planView: {element: {focus() {}}, dispose() {}}, canvas: {focus() {}},
-    planWorkspace: null, planPlacement: null, planTrajectories: null, cameraBatch: null, cameraCapture: null, cameraHUD: null, cameraHistory: null, shotExporter: null, shotPreview: null,
+    planWorkspace: null, planPlacement: null, planTrajectories: null, savedViews: null, cameraBatch: null, cameraCapture: null, cameraHUD: null, cameraHistory: null, shotExporter: null, shotPreview: null,
     photoHistory: null, observer: null, toastTimer: null, clearTimeout, controlHUD: {dispose() {}}, root: {remove() {}},
     document: {body: {classList: {remove() {}}}, querySelector: () => null}, window: {}, returnFocus: null});
   vm.runInContext(`${finishControlScope}\n${cancelRoomEdit}\n${spaceActions}\n${allowStructuralWrite}\n${viewport}\n${close}\nglobalThis.actions = {spaceAction, beginRoomEdit, switchViewport};`, context);

@@ -62,7 +62,7 @@ pnpm desktop:dev
 
 最新[平面图与房间](docs/verification/20261008-studio-plan.md)接入独立正交渲染、1.6m 默认剖切、平移/缩放/旋转、已有实体保高度拖动、摄像机朝向/FOV 联动，以及房间尺寸/参考图案和本地场景选择。房间编辑、单笔撤销与刷新恢复已验。
 
-[平面放置与路径编辑](docs/verification/20261008-studio-plan-placement-paths.md)进一步接入角色草稿/六色菜单、已有角色与摄像机摆位、最高支撑面和固定首点朝向；摄像机位于支撑面上方1.6m。路径点击选择，拖动可改 bend、Bezier 首末控制点、关键帧位置/朝向与摄像机关键帧 FOV；关键帧菜单仅删除，bend 右键直接重置。角色创建、撤销/重做、刷新保存，以及机位支撑和单次路径/光学编辑已实机验证。进入待放置会清除旧选择，提示保持可见，Escape 取消后仍留在平面图。P2 仍不标完整；3D 视图添加角色仍立即创建，完整 Saved Views、P4 导入/生成 UI、持物渲染与 V3 Agent 编排未完成，真实 SPZ/景深 GPU 和跨设备性能未验。现有 Alpha 不含这些源码增量。
+[平面放置与路径编辑](docs/verification/20261008-studio-plan-placement-paths.md)进一步接入角色草稿/六色菜单、已有角色与摄像机摆位、最高支撑面和固定首点朝向；摄像机位于支撑面上方1.6m。路径点击选择，拖动可改 bend、Bezier 首末控制点、关键帧位置/朝向与摄像机关键帧 FOV；关键帧菜单仅删除，bend 右键直接重置。角色创建、撤销/重做、刷新保存，以及机位支撑和单次路径/光学编辑已实机验证。进入待放置会清除旧选择，提示保持可见，Escape 取消后仍留在平面图。P2 仍不标完整；3D 视图添加角色仍立即创建，官方 Saved Views 独立面板对齐、P4 导入/生成 UI、持物渲染与 V3 Agent 编排未完成，真实 SPZ/景深 GPU 和跨设备性能未验。现有 Alpha 不含这些源码增量。
 
 | 平面图与摄像机 FOV | 房间与空间设置 |
 | --- | --- |
@@ -77,6 +77,12 @@ pnpm desktop:dev
 | 镜头管理与真实缩略图 | 离屏照片连接到画布 |
 | --- | --- |
 | ![freenow 镜头管理与真实机位缩略图](docs/screenshots/20261008-studio-shots/camera-manager.jpg) | ![freenow 无限画布中的真实离屏 JPEG 照片与连线](docs/screenshots/20261008-studio-shots/canvas-photo-nodes.jpg) |
+
+[已保存视图](docs/verification/20261008-studio-saved-views.md)支持保存、恢复、更新、中文改名和仅视图删除，跨状态恢复完整相机光学，失败重试保留原 ID。真实鼠标、存储失败、撤销/重做和刷新重开已验。View 底层能力有官方依据；独立管理菜单及更新操作为本地补齐，未找到官方独立面板调用点。
+
+| 已保存视图与跨状态恢复 | 俯视保存门禁 |
+| --- | --- |
+| ![freenow 两个持久视图与房间B实际相机恢复](docs/screenshots/20261008-studio-saved-views/saved-view-menu.jpg) | ![freenow 真正俯视图中禁用视图保存和更新](docs/screenshots/20261008-studio-saved-views/plan-save-gate.jpg) |
 
 模型菜单、适配器和应用登记分别说明可选择范围；真实供应商输出质量需单独验证。[详细功能与适配器](docs/FEATURES.md) · [验收证据](docs/VERIFICATION-INDEX.md)
 

@@ -62,7 +62,7 @@ The current [director workspace V3 source](docs/STUDIO-V3-PRODUCTION-20261008.md
 
 The latest [plan view and room integration](docs/verification/20261008-studio-plan.md) adds independent orthographic rendering, a default 1.6m section, pan/zoom/rotation, existing-entity dragging that preserves height, linked camera heading/FOV edits, room dimensions/reference patterns, and local scene selection. Room editing, single-step undo, and reload recovery are verified.
 
-[Plan placement and path editing](docs/verification/20261008-studio-plan-placement-paths.md) adds role drafts and six-color menus, existing-role/camera placement, highest-support-surface placement, and heading edits around a fixed starting point. New cameras sit 1.6m above their support. Clicking a path selects it; dragging edits bends, first/last Bezier controls, key positions/headings, and camera-key FOV. Key menus only delete keys; right-clicking a bend resets it directly. Role creation, undo/redo, reload persistence, supported camera placement, and single-step path/optics edits have browser evidence. Entering pending placement clears the previous selection and keeps its instructions visible; Escape cancels placement while keeping plan view open. P2 remains incomplete: adding roles in the 3D view still creates them immediately; complete Saved Views, P4 import/generation UI, held-object rendering, and V3 agent orchestration are unfinished. Real SPZ/depth-of-field GPU visuals and cross-device performance remain unverified. The published Alpha does not include these source additions.
+[Plan placement and path editing](docs/verification/20261008-studio-plan-placement-paths.md) adds role drafts and six-color menus, existing-role/camera placement, highest-support-surface placement, and heading edits around a fixed starting point. New cameras sit 1.6m above their support. Clicking a path selects it; dragging edits bends, first/last Bezier controls, key positions/headings, and camera-key FOV. Key menus only delete keys; right-clicking a bend resets it directly. Role creation, undo/redo, reload persistence, supported camera placement, and single-step path/optics edits have browser evidence. Entering pending placement clears the previous selection and keeps its instructions visible; Escape cancels placement while keeping plan view open. P2 remains incomplete: adding roles in the 3D view still creates them immediately; official standalone Saved Views panel parity, P4 import/generation UI, held-object rendering, and V3 agent orchestration are unfinished. Real SPZ/depth-of-field GPU visuals and cross-device performance remain unverified. The published Alpha does not include these source additions.
 
 | Plan view and camera FOV | Room and space settings |
 | --- | --- |
@@ -77,6 +77,12 @@ The latest [plan view and room integration](docs/verification/20261008-studio-pl
 | Shot management and real thumbnails | Offscreen photos connected to the canvas |
 | --- | --- |
 | ![freenow shot manager and real camera thumbnails](docs/screenshots/20261008-studio-shots/camera-manager.jpg) | ![freenow canvas with actual offscreen JPEG photo nodes and connections](docs/screenshots/20261008-studio-shots/canvas-photo-nodes.jpg) |
+
+[Saved Views](docs/verification/20261008-studio-saved-views.md) provide save, restore, update, rename, and View-only deletion, restoring full camera optics across setups. Native mouse interaction, original-ID save retry, undo/redo, and reload recovery are verified. The View domain has official source evidence; the standalone management menu and update action are local additions, with no official panel call site located.
+
+| Saved Views and cross-setup restore | Plan-view save gate |
+| --- | --- |
+| ![freenow two persisted Views and actual room B camera restore](docs/screenshots/20261008-studio-saved-views/saved-view-menu.jpg) | ![freenow actual plan view with save and update disabled](docs/screenshots/20261008-studio-saved-views/plan-save-gate.jpg) |
 
 Model menus, adapter implementations, and app registrations describe different scopes. Real provider output quality requires separate validation. [Detailed features and adapters](docs/FEATURES.md) · [Verification evidence](docs/VERIFICATION-INDEX.md)
 

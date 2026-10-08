@@ -33,13 +33,14 @@ freenow 是本地 AI 创作工作台：无限画布、图片/音视频工具、3
 | 核对导演工作区与GLB片场的版本边界 | [下一代实现映射](research/STUDIO-V3-IMPLEMENTATION-MAP-20261008.md)、[V3模块合同](../src/features/studio-v3/README.md)、[生产入口与保存实机证据](STUDIO-V3-PRODUCTION-20261008.md)；官方两入口并存，V3已接生产运行时/保存、时间作者及平面图/房间/放置路径子集，P1–P6未全、旧Alpha未包含 |
 | 修改V3平面图、房间与场景来源 | [官方合同与缺口矩阵](research/STUDIO-V3-PLAN-20261008.md)、[当前实机证据](verification/20261008-studio-plan.md)、[投影](../src/features/studio-v3/PLAN-PROJECTION.md)、[渲染](../src/features/studio-v3/PLAN-RENDERER.md)、[SVG交互](../src/features/studio-v3/PLAN-VIEW.md)、[作者桥](../src/features/studio-v3/PLAN-WORKSPACE.md)、[房间](../src/features/studio-v3/ROOM-SCENE.md)、[空间菜单](../src/features/studio-v3/SPACE-MENU.md)、[本地来源](../src/features/studio-v3/WORKSPACE-SOURCE.md) |
 | 修改V3角色放置与temporal路径 | [官方补充合同](research/STUDIO-V3-PLAN-PLACEMENT-PATHS-20261008.md)、[实机证据](verification/20261008-studio-plan-placement-paths.md)、[新实体摆位](../src/features/studio-v3/PLAN-PLACEMENT.md)、[路径作者桥/缓存](../src/features/studio-v3/PLAN-TRAJECTORIES.md)、[指针/SVG表层](../src/features/studio-v3/PLAN-SURFACE.md) |
-| 核对Saved Views领域/恢复及UI缺口 | [官方View能力与下一切片研究](research/STUDIO-V3-SAVED-VIEWS-20261008.md)；仅静态依据，完整Saved Views未实现，独立管理UI与“更新到当前视角”没有本包官方调用证据 |
+| 修改或核对已保存视图 | [官方View能力与UI缺证据](research/STUDIO-V3-SAVED-VIEWS-20261008.md)、[原生验收](verification/20261008-studio-saved-views.md)、[动作](../src/features/studio-v3/SAVED-VIEW-ACTIONS.md)、[作者桥](../src/features/studio-v3/SAVED-VIEW-WORKSPACE.md)、[导航](../src/features/studio-v3/SAVED-VIEW-NAVIGATION.md)、[菜单](../src/features/studio-v3/SAVED-VIEW-MENU.md)；CRUD/恢复已接，独立菜单与更新是本地补齐 |
 | 核对出站和公开文件边界 | [运行边界](LOCAL-RUNTIME-BOUNDARIES-20261003.md)、[依赖审计](RUNTIME-DEPENDENCY-AUDIT-20261003.md)、[公开仓库检查](PUBLIC-REPOSITORY-AUDIT-20261004.md) |
 | 理解许可与第三方资源 | [第三方来源](THIRD-PARTY-RESOURCES.md)；当前没有覆盖全部内容的统一许可证 |
 
 ## 我想核对当前范围
 
-- [平面放置与路径最新证据](verification/20261008-studio-plan-placement-paths.md)：角色草稿/六色与hover菜单、最高支撑摆位、曲线选择/bend/Bezier控制点、key位置/朝向/FOV、单笔history与删除/undo；角色刷新保存、pending清旧选择/提示可见/Escape及bend右键reset/undo的SVG几何已验。P2未全，3D角色仍立即创建；完整Saved Views/P4导入生成/holding/V3 Agent、真实SPZ/DOF GPU与跨设备性能仍开放。前批[平面图与房间](verification/20261008-studio-plan.md)、[摄影与导出](verification/20261008-studio-shots.md)、[时间轴/只读相册](verification/20261008-studio-temporal.md)保留各自范围，旧Alpha不含10月8日源码。
+- [已保存视图最新证据](verification/20261008-studio-saved-views.md)：真实保存/恢复/更新/改名/仅View删除，完整光学与跨状态同步，原ID保存重试、撤销/重做/刷新；底层官方语义和本地管理UI分别标注。四张原始生产截图，旧Alpha未包含。
+- [平面放置与路径最新证据](verification/20261008-studio-plan-placement-paths.md)：角色草稿/六色与hover菜单、最高支撑摆位、曲线选择/bend/Bezier控制点、key位置/朝向/FOV、单笔history与删除/undo；角色刷新保存、pending清旧选择/提示可见/Escape及bend右键reset/undo的SVG几何已验。P2未全，3D角色仍立即创建；官方Saved Views独立面板/P4导入生成/holding/V3 Agent、真实SPZ/DOF GPU与跨设备性能仍开放。前批[平面图与房间](verification/20261008-studio-plan.md)、[摄影与导出](verification/20261008-studio-shots.md)、[时间轴/只读相册](verification/20261008-studio-temporal.md)保留各自范围，旧Alpha不含10月8日源码。
 - [当前开发进度](STATUS.md)：已接入能力、本批变化和仍开放的验证。
 - [有效功能缺口](CURRENT-FUNCTION-GAPS-20261003.md)：缺少的接口、精确模板、服务资格与质量验证。
 - [本地化验收](FREENOW-LOCALIZATION-ACCEPTANCE.md)：资源、数据、原站请求与实际导出边界。

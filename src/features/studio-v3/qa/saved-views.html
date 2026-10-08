@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>保存视图生产交互验收 · freenow</title>
+<style>
+html,body{margin:0;height:100%;background:#181818;color:#ddd;font:13px/1.5 system-ui}body{display:grid;grid-template-rows:auto minmax(0,1fr) auto}header{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 12px;border-bottom:1px solid #444}button{background:#303030;color:#eee;border:1px solid #555;border-radius:6px;padding:6px 10px;cursor:pointer}button:disabled{opacity:.4}output{flex:1;min-width:220px;font-size:12px}iframe{display:block;border:0;width:100%;height:100%;min-height:0}details{border-top:1px solid #444;padding:6px 12px}summary{cursor:pointer}pre{height:160px;overflow:auto;margin:6px 0;white-space:pre-wrap;overflow-wrap:anywhere;font:11px/1.5 ui-monospace,monospace}
+</style>
+<header>
+  <button id="prepare" disabled>准备公开房间与两个独立状态</button>
+  <button id="open" disabled>打开生产导演片场</button>
+  <button id="optics" disabled>添加公开竖幅视图样本</button>
+  <button id="fail" disabled>注入下一次视图保存失败</button>
+  <button id="read" disabled>读取视图持久化与导航诊断</button>
+  <output id="status" aria-live="polite">读取独立保存视图验收项目…</output>
+</header>
+<iframe id="app" title="真实生产画布与视图管理"></iframe>
+<details open><summary>只读诊断数据</summary><pre id="evidence">准备后请使用生产「3D → 已保存视图」菜单完成保存、恢复、更新、重命名和删除；诊断按钮不保存、不移动相机。</pre></details>
+<script type="module">
+const frame=document.querySelector('#app'),out=document.querySelector('#status'),evidence=document.querySelector('#evidence');
+const project=new URL(location.href).searchParams.get('project')||'qa-views-public-1008';
+const buttons=[...document.querySelectorAll('button')];let ready=false,fixtureNodeId=null;
+const child=()=>frame.contentWindow,json=value=>child().JSON.parse(JSON.stringify(value));
+const active=()=>{const instance=child().StudioAPI.active;if(!instance?.session||!instance?.runtime)throw Error('请先准备或打开真实导演片场');return instance;};
+async function work(action){buttons.forEach(button=>button.disabled=true);try{await action();}catch(error){out.textContent='操作失败：'+error.message;}finally{buttons.forEach(button=>button.disabled=!ready);}}
+function findOwner(app){return app.CanvasApp.getState().nodes.find(node=>node.id===fixtureNodeId&&node.studioV3)||app.CanvasApp.getState().nodes.filter(node=>node.studioV3).at(-1);}
+async function saveSession(instance){const result=await instance.session.flush();if(!result?.ok||instance.session.getStatus().dirty)throw Error('片场真实保存尚未完成');}
+document.querySelector('#prepare').onclick=()=>work(async()=>{
+  const app=child();if(findOwner(app))throw Error('此项目已有片场，请通过打开入口验收，或使用新的独立验收后缀');
+  const result=await app.StudioAPI.createDirector(),instance=active();fixtureNodeId=result.nodeId;
+  const [{createState},{reduceEntityAction},{reduceSpaceAction},{cloneIndependentSetup}]=await app.Function('return Promise.all([import("/src/features/studio-v3/schema.mjs"),import("/src/features/studio-v3/entity-actions.mjs"),import("/src/features/studio-v3/space-actions.mjs"),import("/src/features/studio-v3/setup-actions.mjs")])')();
+  const now=Date.now();let fresh=createState(json({worldNodeId:result.nodeId,now}));const setupId=fresh.scenePlay.worldSpace.activeSetupId;
+  fresh.scenePlay.worldSpace.stages[0].label='公开本地视图片场';fresh.scenePlay.worldSpace.setups.find(setup=>setup.id===setupId).label='房间 A';
+  for(const action of [{type:'set-space-source',source:{kind:'mesh-preset',preset:'room'}},{type:'update-room',patch:{width:8,depth:6,height:3.2}}]){
+    const reduced=reduceSpaceAction(fresh,json(action),json({now}));if(!reduced.ok)throw Error(reduced.message||reduced.reason);fresh=reduced.state;
+  }
+  for(const action of [
+    {type:'create',kind:'prop',id:'qa-views-chair:'+app.crypto.randomUUID(),setupId,label:'本地公开餐椅',assetId:'chair-dining',transform:{position:{x:-.5,y:0,z:-.5}}},
+    {type:'create',kind:'camera',id:'qa-views-camera:'+app.crypto.randomUUID(),setupId,label:'公开独立摄像机',camera:{position:{x:-2,y:1.5,z:2},rotation:{x:-.12,y:-.22,z:0,order:'YXZ'},focalLength:35,frameAspectRatio:16/9}}
+  ]){const reduced=reduceEntityAction(fresh,json(action),json({now}));if(!reduced.ok)throw Error(reduced.message||reduced.reason);fresh=reduced.state;}
+  fresh=cloneIndependentSetup(fresh,setupId,{createId:kind=>'qa-views-'+kind+':'+app.crypto.randomUUID(),label:'房间 B',activate:false,now});
+  const changed=instance.session.change(state=>{state.scenePlay.worldSpace=fresh.scenePlay.worldSpace;return state;},json({lane:'world',label:'准备公开保存视图验收片场',scope:{kind:'world-space'}}));
+  if(!changed)throw Error('场景事务未提交');await saveSession(instance);await instance.runtime.sync();
+  out.textContent='两个独立状态与公开资源已真实保存，请使用生产视图菜单 · '+result.nodeId;
+});
+document.querySelector('#open').onclick=()=>work(async()=>{
+  const app=child(),owner=findOwner(app);if(!owner)throw Error('此独立项目尚无片场，请先准备');if(app.StudioAPI.active)await app.StudioAPI.active.close();
+  await app.StudioAPI.open(owner.id);fixtureNodeId=owner.id;out.textContent='已打开真实保存的片场；通过「3D → 已保存视图」验收';
+});
+document.querySelector('#optics').onclick=()=>work(async()=>{
+  const app=child(),instance=active(),state=instance.session.getState(),space=state.scenePlay.worldSpace;
+  if(space.views.some(view=>view.notes==='公开本地光学验收样本'))throw Error('光学样本已经存在，请使用生产菜单操作它');
+  if(instance.savedViews.busy||instance.session.getStatus().dirty)throw Error('请先完成并保存当前操作');
+  const setup=space.setups.find(value=>value.label==='房间 B');if(!setup)throw Error('缺少房间 B');
+  const [{reduceSavedViewAction},{cameraOpticsPatch}]=await app.Function('return Promise.all([import("/src/features/studio-v3/saved-view-actions.mjs"),import("/src/features/studio-v3/camera-optics.mjs")])')();
+  // Fixture authoring only: no runtime navigation, entity camera mutation or
+  // generated media. Actual restore/update goes through the production menu.
+  const fixture=app.JSON.parse(app.JSON.stringify(state));fixture.scenePlay.worldSpace.activeSetupId=setup.id;fixture.scenePlay.worldSpace.activeViewId=null;
+  const camera=cameraOpticsPatch(json({}),json({position:{x:-3,y:2.5,z:4},rotation:{x:-.25,y:-.35,z:.14,order:'YXZ'},fov:52,frameAspectRatio:9/16,apertureFNumber:5.6,focusDistance:6}));
+  const reduced=reduceSavedViewAction(fixture,json({type:'create',id:'qa-views-optics:'+app.crypto.randomUUID(),label:'房间 B · 竖幅光学样本',notes:'公开本地光学验收样本',camera}),json({now:Date.now()}));
+  if(!reduced.ok)throw Error(reduced.message||reduced.reason);
+  reduced.state.scenePlay.worldSpace.activeSetupId=space.activeSetupId;reduced.state.scenePlay.worldSpace.activeViewId=space.activeViewId;
+  if(!instance.session.change(()=>reduced.state,json({lane:'world',label:'准备公开竖幅视图样本',scope:{kind:'world-space'}})))throw Error('光学样本事务未提交');
+  await saveSession(instance);await instance.runtime.sync();out.textContent='房间 B 的9:16/52°公开光学样本已真实保存，请通过生产菜单恢复';
+});
+document.querySelector('#fail').onclick=()=>{
+  const app=child(),instance=active();if(instance.savedViews.busy||instance.session.getStatus().dirty)throw Error('请先完成并保存当前操作');
+  const save=app.CanvasStore.save.bind(app.CanvasStore);let restored=false;
+  app.CanvasStore.save=(...args)=>{if(!restored){restored=true;app.CanvasStore.save=save;return Promise.reject(Object.assign(Error('验收注入：视图存储空间不足'),{name:'QuotaExceededError'}));}return save(...args);};
+  out.textContent='仅下一次真实保存失败；请通过生产菜单保存，再关闭重开并重试同一视图';
+};
+document.querySelector('#read').onclick=()=>work(async()=>{
+  const app=child(),instance=active(),state=instance.session.getState(),space=state.scenePlay.worldSpace,saved=await app.CanvasStore.load();
+  const owner=saved.nodes.find(node=>node.id===instance.read().nodeId),persisted=owner?.studioV3?.state.scenePlay.worldSpace??null;
+  const summarize=value=>value?{activeStageId:value.activeStageId,activeSetupId:value.activeSetupId,activeViewId:value.activeViewId,views:value.views,entities:value.entities,setups:value.setups}:null;
+  const vector=value=>value?{x:value.x,y:value.y,z:value.z}:null,camera=instance.runtime.orbitCamera;
+  const diagnostic={project,nodeId:instance.read().nodeId,readOnly:true,persistence:instance.session.getStatus(),persistedRevision:owner?.studioV3?.revision??null,
+    author:summarize(space),persisted:summarize(persisted),savedViews:instance.savedViews.read(),
+    runtime:{view:instance.runtime.view,navigationSnapshot:instance.runtime.getNavigationCameraState(),visiblePose:{position:vector(camera.position),rotation:{...vector(camera.rotation),order:camera.rotation.order},fov:camera.fov,viewportAspect:camera.aspect},controlsEnabled:instance.runtime.controls.enabled},
+    selected:instance.read().selected,photos:state.capturedPhotos,canvasMedia:saved.nodes.filter(node=>node.provenance?.sceneVersion===3||node.provenance?.batchExportId).map(node=>({id:node.id,title:node.title,provenance:node.provenance})),
+    history:instance.session.history.getHistory(),transaction:instance.session.history.getActiveTransaction()};
+  evidence.textContent=JSON.stringify(diagnostic,null,2);out.textContent='只读诊断已更新；未保存、未导航、未更改选择';
+});
+frame.onload=async()=>{const app=child();for(let attempt=0;attempt<100;attempt++){if(app.StudioAPI&&app.CanvasApp){ready=true;break;}await new Promise(resolve=>setTimeout(resolve,100));}buttons.forEach(button=>button.disabled=!ready);out.textContent=ready?'4196 独立保存视图项目就绪；仅公开本地资源，零供应商调用':'生产入口未就绪';};
+async function bootstrap(){
+  if(location.port!=='4196'||!['localhost','127.0.0.1','[::1]'].includes(location.hostname))throw Error('请在本机 4196 端口打开此验收页');
+  if(!/^qa-views-public-1008(?:-[a-zA-Z0-9_-]+)?$/.test(project))throw Error('项目名必须使用 qa-views-public-1008 或其独立验收后缀');
+  const db=await new Promise((resolve,reject)=>{const request=indexedDB.open('tapnow-canvas-replica',1);request.onupgradeneeded=()=>request.result.createObjectStore('documents');request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error);});
+  try{await new Promise((resolve,reject)=>{const transaction=db.transaction('documents','readwrite'),store=transaction.objectStore('documents'),key='project:'+project,read=store.get(key);read.onsuccess=()=>{if(!read.result){const now=Date.now();store.put({version:1,nodes:[],edges:[],history:[],future:[],view:{x:0,y:0,scale:1},project:{id:project,title:'公开保存视图验收',createdAt:now,updatedAt:now}},key);}};transaction.oncomplete=resolve;transaction.onerror=()=>reject(transaction.error);transaction.onabort=()=>reject(transaction.error||Error('视图验收项目创建中断'));});}finally{db.close();}
+  frame.src='/?project='+encodeURIComponent(project);
+}
+bootstrap().catch(error=>{out.textContent=error.message;});
+</script>
+</html>

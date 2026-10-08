@@ -17,7 +17,7 @@ freenow 是本地 AI 创作工作台（AI infinite canvas）。本文说明已�
 | 文本与图片 | Tiptap 富文本/Markdown、Fabric 图层/画笔、裁剪、变换、蒙版、版本与导出 | [图层菜单](IMAGE-EDITOR-LAYER-MENU-20261005.md)、[图片吸附](IMAGE-EDITOR-ALIGNMENT-GUIDES-20261005.md)；AI 处理另需供应商 |
 | 视频与音频 | 导入/播放、波形、取帧、裁切、播放列表、字幕、历史与本地结果归档 | [本机剪辑](VIDEO-TRIM-RESULT-RECOVERY-20261003.md)、[音频与恢复](LOCAL-AUDIO-AND-WORKFLOW-RECOVERY-20261003.md)；部分处理需 FFmpeg |
 | 3D 片场 | Three.js、GLB、SPZ Gaussian Splatting、原生 LOD、对象/相机变换、运镜、照片与短视频、保存恢复 | [SPZ 渲染](SPZ-LOCAL-RENDERING-20261005.md)、[LOD](SPZ-LOD-20261005.md)、[GLB 导出](STUDIO-V2-SCENE-EXPORT-20261003.md)；高斯场景不能完整导出为 GLB，跨设备与长视频未验 |
-| 导演片场 V3（当前源码） | 独立状态/基准、实体操控、4096长边JPEG、镜头管理、单目标时间轴、只读照片相册、正交平面图/房间/本地来源，以及角色/机位支撑面放置、路径与关键帧位置/朝向/FOV编辑 | [生产入口](STUDIO-V3-PRODUCTION-20261008.md)、[摄影](verification/20261008-studio-shots.md)、[时间轴](verification/20261008-studio-temporal.md)、[平面图与房间](verification/20261008-studio-plan.md)、[放置与路径](verification/20261008-studio-plan-placement-paths.md)；P2未全，完整Saved Views/P4导入生成/holding/Agent未完成，SPZ/DOF GPU与跨设备性能未验，现有Alpha不含 |
+| 导演片场 V3（当前源码） | 独立状态/基准、实体操控、4096长边JPEG、镜头管理、单目标时间轴、只读照片相册、正交平面图/房间/本地来源，以及角色/机位支撑面放置、路径与关键帧位置/朝向/FOV编辑，已保存视图CRUD/跨状态相机恢复 | [生产入口](STUDIO-V3-PRODUCTION-20261008.md)、[摄影](verification/20261008-studio-shots.md)、[时间轴](verification/20261008-studio-temporal.md)、[平面图与房间](verification/20261008-studio-plan.md)、[放置与路径](verification/20261008-studio-plan-placement-paths.md)；P2未全，官方Saved Views独立面板/P4导入生成/holding/Agent未完成，SPZ/DOF GPU与跨设备性能未验，现有Alpha不含 |
 | Agent | 工具循环、画布/片场控制、技能、附件、创作应用、只读子任务/DAG 编排 | [接口](AGENT-API.md)、[工作流目录](AGENT-WORKFLOW-INVENTORY-20261003.md)；22 个版本 URI / 20 个功能族是登记范围，不是验收率 |
 | 工作流与恢复 | 分组依赖执行、持久回执、原任务查询、显式继续、来源与项目归属保护 | [预检](GENERATION-PREFLIGHT-READINESS-20261003.md)、[恢复](LOCAL-RECOVERY-AND-INTERACTIONS-20261003.md)；未知状态不自动重新提交 |
 | 桌面文件整理（当前源码） | 六个Agent工具、原生单目录授权/整批确认、子目录创建和普通文件移动/重命名、持久回执 | [源码指南与实机证据](DESKTOP-FILES-20261008.md)；未纳入现有Alpha包，拒绝目录移动，完整SDK/实机回滚与恶意路径竞态仍有限制 |
@@ -26,6 +26,8 @@ freenow 是本地 AI 创作工作台（AI infinite canvas）。本文说明已�
 Sonilo Music、Product Kit 与导演批注的本地验证见[整批证据](LOCAL-SONILO-AGENT-AND-HISTORY-20261005.md)。固定音频/模拟响应证明本机调用、保存和播放，不能证明真实供应商生成质量。
 
 当前[画布菜单](canvas-command-menu-audit-20261008.md)、[GLB片场v2标签](STUDIO-V2-PANEL-KEYBOARD-20261008.md)与[人物情绪确认/关闭](../src/features/agent-apps/ACTOR-EMOTION.md)已有定向和实机证据；[帮助五菜单/离线教程](CANVAS-HELP-20261008.md)及[快捷键接线](CANVAS-SHORTCUTS-20261008.md)已按当前范围实机核对，真实麦克风/转写仍未验。逐项边界见[验收索引](VERIFICATION-INDEX.md)。官方导演/GLB工作区并存，本地V3已接真实生产Workspace与保存，平面图/房间及放置/路径编辑仍是P2子集；[下一代映射](research/STUDIO-V3-IMPLEMENTATION-MAP-20261008.md)保留完整门槛，不能用GLB v2验收替代V3。
+
+[已保存视图](verification/20261008-studio-saved-views.md)使用真实领域/历史/持久化及导航，保存失败同 ID 重试、删除撤销/重做和重开已验；初始摄影画幅为 null，固定画幅/roll/完整光学跨状态保留。独立管理菜单与更新按钮为本地补齐，官方独立面板未定位；不拍照、不删除已有机位/媒体、无供应商调用。
 
 最新平面角色菜单支持已有角色、新角色草稿/六色和hover180ms延迟关闭。新增摆位固定首点朝向，取最高有效支撑；摄像机在支撑面上方1.6m，已有entity拖动保Y。temporal path点击选择、拖动bend/Bezier首末控制点/key位置/heading与camera key FOV；key菜单仅删除，bend右键直接reset。新角色创建/undo/redo/reload、机位支撑及单笔路径/光学编辑已有[实机证据](verification/20261008-studio-plan-placement-paths.md)；pending放置清旧entity/key选择，提示可见且Escape留plan已原生复验；bend直接右键reset/单次undo有SVG几何证据。3D/orbit添加角色仍立即创建，不能据此声称完整3D放置对齐。
 

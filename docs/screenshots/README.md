@@ -1,5 +1,16 @@
 # 功能截图与复现
 
+## 2026-10-08 已保存视图与无限画布
+
+四张均为公开验收项目的正式生产页面、1280×720原始JPEG，无QA顶栏、裁剪、拼接或修图，没有供应商生成/Key。[操作、诊断与限制](../verification/20261008-studio-saved-views.md)；独立管理UI为本地补齐，不能当官方独立面板像素依据。
+
+| 图证 | 实际状态 |
+| --- | --- |
+| [无限画布与节点类型](20261008-studio-saved-views/canvas-node-types.jpg) | 已保存导演节点与添加节点菜单。 |
+| [已保存视图](20261008-studio-saved-views/saved-view-menu.jpg) | 房间B真实相机恢复、两个持久View与当前状态。 |
+| [删除确认](20261008-studio-saved-views/view-delete-confirm.jpg) | 仅View删除确认；截图后取消，不删除机位或媒体。 |
+| [俯视保存门禁](20261008-studio-saved-views/plan-save-gate.jpg) | 真实plan、修复遮挡后的鼠标菜单、保存/更新禁用。 |
+
 ## 2026-10-08 俯视、房间与本地场景来源
 
 以下四张图均为独立公开项目的正式生产页面、1280×720 原始浏览器截图，无 QA 页顶栏、拼接或修图。餐椅 GLB 来源样本为显式本地导入，非供应商生成结果；不包含私人画布或 Key。[真实操作、诊断与范围](../verification/20261008-studio-plan.md)
