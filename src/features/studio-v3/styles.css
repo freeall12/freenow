@@ -36,4 +36,6 @@
 .studio-v3 .sv3-field select {font-size:12px}
 .studio-v3[data-camera-placement=true] .sv3-render {cursor:crosshair}
 .studio-v3 .sv3-creation-label {padding:0 10px;color:rgba(255,255,255,.7);font-size:13px}
+.studio-v3 .sv3-dock-timeline {position:relative;grid-column:2;grid-row:1;max-width:100%;min-width:0;justify-self:center;margin-bottom:12px;pointer-events:auto;z-index:70}
+.studio-v3 .sv3-dock-timeline:has(>.sv3-timeline[hidden]) {display:none}
 @media(max-width:640px){.studio-v3 .sv3-library-grid {grid-template-columns:repeat(3,1fr)}.studio-v3 .sv3-top-center {display:none}.studio-v3 .sv3-dock-center {max-width:calc(100vw - 160px);overflow:auto}.studio-v3 .sv3-selection-name {max-width:80px}}

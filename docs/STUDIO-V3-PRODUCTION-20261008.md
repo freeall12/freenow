@@ -4,6 +4,14 @@
 
 后续同日[实体、状态与镜头增量](STUDIO-V3-ENTITIES-20261008.md)已接入九姿态、实例颜色、镜头光学、状态复制／删除和分层菜单，并有新的刷新／存档回读。下文保留本次最初生产批次的验收范围，不把后续证据混入旧计数。
 
+## 最新：时间轴与只读历史相册的生产接线
+
+[本批验收](verification/20261008-studio-temporal.md)单独记录 `temporal-actions`、`temporal-playback`、`temporal-workspace`、`timeline` 与 `photo-history` 的生产集成。时间作者操作进入独立setup的history lane；preview/playhead/loop仅用于显示，采样状态不送进session保存。当前只展示正在操控/选中/所选key所属实体的一条轨道，未制造全实体轨道表、缓动菜单或连续录制UI。
+
+生产实机保存餐椅0/3000ms的X0→3，1500ms显示root X1.5而base X0；取消新key确认在视图复原修复后reload重验保持revision与keys。实际2000→997ms拖动只形成一笔undo，恢复0/2000/3000，redo/匀速及key/track删除undo通过。时长4→3秒后被末key阻止继续缩短；循环播放跨末端不改revision4，reload保存的keys恢复。带key的相机经真实焦距滑杆35→36.396mm，快门新增4096×2304 JPEG且HUD保留；继续改为37.848mm、完成并reload后key保留，base仍35mm，revision18/dirty false。普通快门没有增加两张历史照片。
+
+相册仅在原 `capturedPhotos` 非空时显示入口，实机两张本地JPEG真实解码1280×678，逆序/缩略图/方向键/Escape通过。它不是镜头管理、生成历史或View保存，不重渲染/生成资产，普通快门仍只回填画布。模型导入/生成完整流程、P2全部交互与完整V3 Agent尚缺，SPZ像素未验；无新依赖或供应商调用，旧Alpha不含此批。以下最初生产批次的revision、测试计数和遗留门槛保留历史口径，后续补齐范围以较新的专项证据为准。
+
 ## 使用入口
 
 - 本地 GLB/SPZ 资源节点 → 预览 →「在 3D 片场中使用」：创建连接原资源的独立 V3 owner，再打开导演片场。原资源节点不改写。
@@ -61,7 +69,7 @@
 
 ## 后续门槛
 
-[P0–P6 实现映射](research/STUDIO-V3-IMPLEMENTATION-MAP-20261008.md)继续有效：本批不把任何阶段的全部门槛标为完成。P1 尚缺完整光学/颜色/可见性/全局删除 UI 等；P2 尚缺站面放置、平面投影、拖摆方向和输入租约；P3 时间轨道/播放/镜头控制、P4 模型导入与生成任务 UI、P5 取景/拍摄回画布均未完整接入。
+[P0–P6 实现映射](research/STUDIO-V3-IMPLEMENTATION-MAP-20261008.md)继续有效：不把任何阶段的全部门槛标为完成。最初生产批次的P1光学/颜色、P3时间轨道/播放/镜头控制、P5取景/拍摄等缺口已有同日专项补齐部分；当前时间轴与相册以上方新证据为准，既有[操控与创建](STUDIO-V3-CONTROLS-20261008.md)、[镜头摄影与导出](verification/20261008-studio-shots.md)另有独立范围。P2站面放置/平面投影/拖摆方向/输入租约的完整流程、P4模型导入与生成任务UI、P6完整编排仍未完成。
 
 V3 Agent 暴露 `read/select/undo`，其余操作明确拒绝；生成结果暂不落入 V3，保留结果，不误路由旧 v2。`scene_read` 返回版本、能力、单位、对象与保存状态；尚未实机验证 Agent SDK 的 V3 全链。P6 完整编辑/生成/拍摄编排仍未完成。
 

@@ -20,12 +20,15 @@ const dropSelected = extract('  const dropSelected =', '\n  const addEntity =');
 const addEntity = extract('  const addEntity =', '\n  function cancelCameraCreation');
 const cancelCameraCreation = extract('  function cancelCameraCreation', '\n  const cameraCreationAllowed =');
 const beginCameraCreation = extract('  const beginCameraCreation =', '\n  const cameraMenuContent =');
-const startSelectedControl = extract('  const startSelectedControl =', '\n  const switchSetup =');
+const startSelectedControl = extract('  const startSelectedControl =', '\n  async function allowStructuralWrite');
+const startSelectedCameraControl = extract('  const startSelectedCameraControl =', '\n  const startSelectedControl =');
+const captureCamera = extract('  async function captureCamera()', '\n  const startSelectedCameraControl =');
+const hostContext = fields => vm.createContext({temporal: null, photoHistory: null, cameraBatch: null, allowStructuralWrite: async () => true, ...fields});
 
 function keyboardHost() {
   const calls = [], pending = [];
   let handler, menuOpen = false, entityKind = 'actor', cameraFinishAllowed = true;
-  const context = vm.createContext({
+  const context = hostContext({
     root: {addEventListener(type, fn) {assert.equal(type, 'keydown'); handler = fn;}},
     menus: {isOpen: () => menuOpen, close: () => calls.push('menu-close')}, selected: 'actor', cameraCreation: null, cameraCapture: null, focusPicking: false,
     runtime: {view: 'orbit', controlling: false, possessing: null, focusEntity: () => calls.push('focus'), cancelTransform: () => false,
@@ -43,6 +46,8 @@ function keyboardHost() {
   return {calls, open: value => {menuOpen = value;}, controlling: value => {context.runtime.controlling = value;},
     possessing: value => {context.runtime.possessing = value ? {entityId: 'camera'} : null;}, hasPossession: () => !!context.runtime.possessing,
     captureBusy: value => {context.cameraCapture = value ? {busy: true} : null;}, pickingFocus: value => {context.focusPicking = value;}, isPickingFocus: () => context.focusPicking,
+    modal: value => {context.temporal = value ? {confirming: true, timeline: {handleEscape: () => calls.push('modal-escape')}} : null;},
+    gallery: value => {context.photoHistory = value ? {handleEscape: () => calls.push('gallery-escape')} : null;},
     kind: value => {entityKind = value;}, allowCameraFinish: value => {cameraFinishAllowed = value;},
     creation: kind => {context.cameraCreation = kind ? {kind} : null;}, async key(key, options = {}) {
     handler({key, defaultPrevented: false, isComposing: false, keyCode: 0,
@@ -94,8 +99,45 @@ test('capture busy owns every scene shortcut including Escape, and C cannot ente
   f.kind('prop');await f.key('c');assert.deepEqual(f.calls, ['control']);
 });
 
+test('key confirmation and historical photos own scene shortcuts and route Escape only to their surface', async () => {
+  for (const mode of ['modal', 'gallery']) {
+    const f = keyboardHost(); f.possessing(true); f.pickingFocus(true); f[mode](true);
+    for (const [key, options] of [['Delete'], ['Backspace'], ['g'], ['l'], ['z', {metaKey: true}], ['f'], ['c']]) await f.key(key, options);
+    assert.deepEqual(f.calls, []); await f.key('Escape'); assert.deepEqual(f.calls, [`${mode}-escape`]);
+    assert.equal(f.hasPossession(), true); assert.equal(f.isPickingFocus(), true);
+    f[mode](false); f.calls.length = 0; f.possessing(false); await f.key('Delete'); assert.deepEqual(f.calls, ['remove']);
+  }
+});
+
+test('camera entry awaits a successful key target and capture checkpoints before clearing playback and releasing its scope', async () => {
+  const calls = []; let resolvePrime, started, checkpointAllowed = true, captureAllowed = true;
+  let primeStarted = new Promise(resolve => {started = resolve;});
+  const context = hostContext({selected: 'camera', lastSync: Promise.resolve(), focusPicking: true,
+    menus: {close: () => calls.push('menu-close')}, cancelCameraCreation: () => calls.push('creation-cancel'),
+    temporal: {primeTransform(id) {calls.push(['prime', id]); started(); return new Promise(resolve => {resolvePrime = resolve;});},
+      async beforeCapture() {calls.push('playback-clear'); return {ok: captureAllowed, message: 'capture denied', release: () => calls.push('capture-release')};}},
+    runtime: {view: 'camera-control', possessing: null, startCameraControl(id) {calls.push(['camera-start', id]); this.possessing = {entityId: id}; return true;},
+      checkpointCameraControl() {calls.push('checkpoint'); return checkpointAllowed;}},
+    cameraCapture: {async capture() {calls.push('capture'); return {id: 'photo'};}},
+    updateModeChrome: () => calls.push('chrome'), canvas: {focus: () => calls.push('focus')}, notice: () => calls.push('notice'),
+    finishControlScope: () => true});
+  vm.runInContext(`${startSelectedCameraControl}\n${captureCamera}\nglobalThis.start = startSelectedCameraControl; globalThis.capture = captureCamera;`, context);
+  const denied = context.start(); await primeStarted;
+  assert.deepEqual(calls, ['menu-close', 'creation-cancel', ['prime', 'camera']]); assert.equal(context.runtime.possessing, null);
+  resolvePrime(false); assert.equal(await denied, undefined); assert.equal(context.runtime.possessing, null);
+  assert.deepEqual(calls, ['menu-close', 'creation-cancel', ['prime', 'camera']], 'cancelled key confirmation is silent and cannot start camera control');
+  calls.length = 0; primeStarted = new Promise(resolve => {started = resolve;});
+  const accepted = context.start(); await primeStarted; assert.equal(context.runtime.possessing, null);
+  resolvePrime(true); await accepted; assert.deepEqual(calls, ['menu-close', 'creation-cancel', ['prime', 'camera'], ['camera-start', 'camera'], 'chrome', 'focus']);
+  calls.length = 0; const photo = await context.capture(); assert.equal(photo.id, 'photo'); assert.equal(context.focusPicking, false);
+  assert.deepEqual(calls, ['checkpoint', 'playback-clear', 'capture', 'notice', 'capture-release']);
+  calls.length = 0; checkpointAllowed = false; await assert.rejects(context.capture(), /尚未提交/); assert.deepEqual(calls, ['checkpoint']);
+  calls.length = 0; checkpointAllowed = true; captureAllowed = false;
+  await assert.rejects(context.capture(), /capture denied/); assert.deepEqual(calls, ['checkpoint', 'playback-clear']);
+});
+
 test('menu opening waits for camera capture and successful camera scope finish before closing creation or invoking any menu', () => {
-  const calls = [], context = vm.createContext({calls, cameraCapture: {busy: true},
+  const calls = [], context = hostContext({calls, cameraCapture: {busy: true},
     runtime: {controlling: null, possessing: {entityId: 'camera'}, finishCameraControl() {calls.push('camera-finish');if (context.allowFinish) {this.possessing = null;return true;}return false;}},
     allowFinish: false, notice: () => calls.push('notice'), cancelCameraCreation: () => calls.push('creation-exit'),
     menuController: Object.fromEntries(['toggle', 'openAt', 'openNested', 'close'].map(name => [name, () => {calls.push(`menu-${name}`);return 'opened';}]))});
@@ -108,7 +150,7 @@ test('menu opening waits for camera capture and successful camera scope finish b
 test('production camera creation finishes control and exits the previous creation mode before starting the next', async () => {
   const calls = [];
   const ownedOptics = {dispose: () => calls.push('optics-dispose'), remove: () => calls.push('optics-remove')};
-  const context = vm.createContext({calls, cameraCapture: null, currentSetup: () => ({id: 'setup', kind: 'independent'}), cameraCreationAllowed: () => true,
+  const context = hostContext({calls, cameraCapture: null, currentSetup: () => ({id: 'setup', kind: 'independent'}), cameraCreationAllowed: () => true,
     ownedOptics, createViewfinderOptics: () => ownedOptics, cameraCreateTools: {prepend: optics => assert.equal(optics, ownedOptics)},
     menus: {close: () => calls.push('menu-close')},
     runtime: {view: 'camera', controlling: true, possessing: null, finishControl() {calls.push('control-finish'); this.controlling = false; return true;}, cancelTransform: () => calls.push('transform-cancel'),
@@ -163,7 +205,7 @@ test('actual control finish guard blocks creation and menus on failure, then pre
       finishControl() {calls.push('finish'); if (!permitCommit) return false; assert.equal(engine.commit(), true); this.controlling = false; return true;},
       finishCameraControl() {calls.push('camera-finish');if (!permitCommit) return false;assert.equal(engine.commit(), true);this.possessing = null;return true;},
       cancelTransform: () => calls.push('transform-cancel'), beginViewfinder: () => calls.push('view-begin')};
-    const context = vm.createContext({engine, runtime, calls, cameraCapture: null, currentSetup: () => ({id: 'setup:state-1'}), cameraCreationAllowed: () => true,
+    const context = hostContext({engine, runtime, calls, cameraCapture: null, currentSetup: () => ({id: 'setup:state-1'}), cameraCreationAllowed: () => true,
       crypto: {randomUUID: () => {calls.push('id'); return 'new-camera';}},
       createViewfinderOptics: () => ({dispose() {}, remove() {}}), cameraCreateTools: {prepend() {}},
       menuController: Object.fromEntries(['toggle', 'openAt', 'openNested', 'close'].map(name => [name, () => {calls.push(`menu-${name}`); return 'opened';}])),
@@ -225,7 +267,7 @@ test('production drop cancels preview, waits for cancellation sync, then reads a
   mesh.position.y = .5; object.add(mesh);
   graph.applyTransform(object, engine.getState().scenePlay.worldSpace.setups[1].entityStates[0].transform);
   let release; const syncGate = new Promise(resolve => {release = resolve;}), trace = [];
-  const context = vm.createContext({engine, object, trace, syncGate, structuredClone, cameraCapture: null,
+  const context = hostContext({engine, object, trace, syncGate, structuredClone, cameraCapture: null,
     applyTransform: graph.applyTransform, resolveDropPlacement: placement.resolveDropPlacement,
     // VM object literals have a foreign prototype; bridge their JSON into the
     // domain module's realm while keeping the actual reducer and validation.
@@ -235,6 +277,7 @@ test('production drop cancels preview, waits for cancellation sync, then reads a
     let lastSync = Promise.resolve();
     const pose = () => engine.getState().scenePlay.worldSpace.setups[1].entityStates[0].transform;
     const state = () => {trace.push('read-state'); return engine.getState();};
+    const displayState = state;
     const runtime = {
       graph: {worldRoot, entities: new Map([['prop', {id: 'prop', status: 'ready', root: object}]])},
       entityObject() {trace.push('read-object'); return object;},
@@ -280,7 +323,7 @@ test('production creation uses finite ground fallback and camera height offset w
     initial.scenePlay.environment.ground = ground;
     const engine = history.createHistory(initial), selected = [], focused = [];
     let serial = 0;
-    const context = vm.createContext({engine, selected, focused, cameraCapture: null,
+    const context = hostContext({engine, selected, focused, cameraCapture: null,
       crypto: {randomUUID: () => `entity-${++serial}`},
       reduceEntityAction: (state, action) => actions.reduceEntityAction(state, structuredClone(action)),
       runtime: {controls: {target: {x: 3, z: -4}}, cancelControl() {}, cancelTransform() {}, focusEntity: id => focused.push(id)},

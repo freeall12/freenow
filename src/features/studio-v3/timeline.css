@@ -1,0 +1,49 @@
+.studio-v3 .sv3-timeline {position:relative;max-width:100%;color:rgba(255,255,255,.88)}
+.studio-v3 .sv3-timeline[hidden],.studio-v3 .sv3-timeline [hidden] {display:none}
+.studio-v3 .sv3-timeline-bar {position:relative;box-sizing:border-box;height:48px;width:min(92vw,640px);max-width:100%;margin-right:-12px;gap:2px;padding:4px;padding-left:6px;overflow:visible;border-color:rgba(255,255,255,.1);background:rgba(38,38,38,.5);animation:sv3-timeline-enter 280ms 180ms both}
+.studio-v3 .sv3-timeline-bar>.sv3-button {height:36px;width:36px;min-width:36px;padding:0;color:rgba(255,255,255,.72)}
+.studio-v3 .sv3-timeline-bar>.sv3-button:first-of-type {margin-right:6px;border-radius:50%;background:rgba(255,255,255,.1)}
+.studio-v3 .sv3-timeline-bar>.sv3-button:hover {background:rgba(255,255,255,.16);color:white}
+.studio-v3 .sv3-timeline-bar>.sv3-button:disabled {opacity:.35;cursor:default}
+.studio-v3 .sv3-timeline-bar>.sv3-button[aria-pressed=true],.studio-v3 .sv3-timeline-bar>.sv3-button[data-first-key=true] {color:#f0d887}
+.studio-v3 .sv3-timeline-bar>.sv3-button[data-timeline-action=delete-key] {color:rgba(254,202,202,.8)}
+.studio-v3 .sv3-timeline-beta {position:absolute;top:-8px;right:12px;z-index:10;border:1px solid rgba(255,255,255,.12);border-radius:5px;background:rgba(38,38,38,.92);padding:1px 5px;color:rgba(255,255,255,.72);font-size:9px;line-height:13px}
+.studio-v3 .sv3-timeline-scale-box {position:relative;min-width:148px;flex:1;height:40px}
+.studio-v3 .sv3-timeline-scale {position:relative;width:100%;height:40px;cursor:ew-resize;touch-action:none;user-select:none;outline:none}
+.studio-v3 .sv3-timeline-scale:focus-visible {outline:1px solid rgba(255,255,255,.45)}
+.studio-v3 .sv3-timeline-rail {position:absolute;left:18px;right:18px;top:0;bottom:0;pointer-events:none}
+.studio-v3 .sv3-timeline-line {position:absolute;left:0;right:0;top:33px;height:2px;transform:translateY(-50%);border-radius:2px;background:rgba(255,255,255,.24)}
+.studio-v3 .sv3-timeline-scale[data-active=true] .sv3-timeline-line {background:rgba(255,255,255,.44)}
+.studio-v3 .sv3-timeline-tick {position:absolute;top:17px;width:1px;height:3px;transform:translateX(-50%);background:rgba(255,255,255,.14)}
+.studio-v3 .sv3-timeline-tick[data-kind=minor] {height:5px;background:rgba(255,255,255,.22)}
+.studio-v3 .sv3-timeline-tick[data-kind=major] {height:6px;background:rgba(255,255,255,.38)}
+.studio-v3 .sv3-timeline-tick[data-kind=label] {height:9px;background:rgba(255,255,255,.56)}
+.studio-v3 .sv3-timeline-tick-label {position:absolute;top:-13px;font-size:9px;line-height:9px;white-space:nowrap;color:rgba(255,255,255,.62);font-variant-numeric:tabular-nums}
+.studio-v3 .sv3-timeline-tick-label[data-endpoint=middle] {transform:translateX(-50%)}
+.studio-v3 .sv3-timeline-tick-label[data-endpoint=end] {transform:translateX(-100%)}
+.studio-v3 .sv3-timeline-key-rail {z-index:30}
+.studio-v3 .sv3-timeline-key {position:absolute;top:33px;display:grid;place-items:center;width:20px;height:20px;padding:0;border:0;transform:translate(-50%,-50%);border-radius:50%;background:transparent;pointer-events:auto;cursor:pointer;color:#f0d887}
+.studio-v3 .sv3-timeline-key[data-movable=true] {cursor:ew-resize;touch-action:none}
+.studio-v3 .sv3-timeline-key>span {box-sizing:border-box;width:8px;height:8px;border:1px solid rgba(23,20,13,.9);border-radius:50%;background:#f0d887;box-shadow:0 0 0 1px rgba(14,13,9,.72)}
+.studio-v3 .sv3-timeline-key[aria-pressed=true]>span {width:12px;height:12px;border-color:#fff0b8;box-shadow:0 0 0 2px rgba(255,240,184,.3)}
+.studio-v3 .sv3-timeline-key[data-dragging=true]>span {transform:scale(1.1);border-color:#fff5cc;box-shadow:0 0 0 3px rgba(255,240,184,.32)}
+.studio-v3 .sv3-timeline-key:focus-visible,.studio-v3 .sv3-timeline-playhead:focus-visible {outline:1px solid #f0d887;outline-offset:1px}
+.studio-v3 .sv3-timeline-segments {position:absolute;inset:0;pointer-events:none}
+.studio-v3 .sv3-timeline-segments>span {position:absolute;top:33px;height:2px;transform:translateY(-50%);border-radius:2px;background:rgba(240,216,135,.82)}
+.studio-v3 .sv3-timeline-playhead-rail {z-index:40}
+.studio-v3 .sv3-timeline-playhead {position:absolute;top:0;bottom:0;width:16px;padding:0;border:0;transform:translateX(-50%);background:transparent;pointer-events:auto;cursor:ew-resize;border-radius:8px}
+.studio-v3 .sv3-timeline-playhead-line {position:absolute;top:0;bottom:0;left:50%;width:2px;transform:translateX(-50%);border-radius:2px;background:#fbbf24}
+.studio-v3 .sv3-timeline-playhead-dot {position:absolute;top:0;left:50%;width:6px;height:6px;transform:translateX(-50%);border-radius:50%;background:#fbbf24;opacity:0}
+.studio-v3 .sv3-timeline-scale:hover .sv3-timeline-playhead-dot,.studio-v3 .sv3-timeline-scale:focus-within .sv3-timeline-playhead-dot {opacity:1}
+.studio-v3 .sv3-timeline-menu {min-width:224px;max-width:calc(100vw - 16px)}
+.studio-v3 .sv3-timeline-menu>.sv3-button {display:flex;width:100%;justify-content:flex-start;font-size:12px;white-space:normal;text-align:left;min-height:32px;height:auto}
+.studio-v3 .sv3-timeline-feedback {padding:4px 8px;font-size:12px;line-height:18px;color:#ffbfaf;overflow-wrap:anywhere}
+.studio-v3 .sv3-timeline-confirm-layer {position:fixed;inset:0;z-index:410;display:flex;justify-content:center;align-items:center;background:rgba(0,0,0,.36)}
+.studio-v3 .sv3-timeline-confirm {box-sizing:border-box;width:360px;max-width:calc(100vw - 32px);border:1px solid rgba(255,255,255,.12);border-radius:12px;background:#2c2b29;padding:16px;box-shadow:0 12px 36px rgba(0,0,0,.35)}
+.studio-v3 .sv3-timeline-confirm strong {font-size:15px;font-weight:500;line-height:22px}
+.studio-v3 .sv3-timeline-confirm p {font-size:13px;line-height:20px;color:rgba(255,255,255,.6);overflow-wrap:anywhere}
+.studio-v3 .sv3-timeline-confirm-actions {display:flex;justify-content:flex-end;gap:8px}
+.studio-v3 .sv3-timeline-confirm-actions>.sv3-button {height:32px;min-width:0;padding:0 12px}
+@keyframes sv3-timeline-enter {from {opacity:0;transform:translateY(12px)} to {opacity:1;transform:translateY(0)}}
+@media(prefers-reduced-motion:reduce) {.studio-v3 .sv3-timeline-bar {animation:none}}
+@media(max-width:440px) {.studio-v3 .sv3-timeline-bar {height:auto;margin-right:0;flex-wrap:wrap;justify-content:center}.studio-v3 .sv3-timeline-scale-box {order:2;flex-basis:100%;min-width:0}.studio-v3 .sv3-timeline-bar>.sv3-button {height:32px;width:32px;min-width:32px}}

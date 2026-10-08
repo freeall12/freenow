@@ -13,14 +13,23 @@
 | 生成接口 | 多供应商路由及若干原生适配已实现；其余能力保留任务接口 | [配置及每项限制](MULTI-PROVIDER-SETUP.md) |
 | 本地化 | 本地资源/归档、原站出站阻断与显式资源修复已实现 | [验收清单](FREENOW-LOCALIZATION-ACCEPTANCE.md) |
 
-## 最新：离屏摄影、实体轮廓与镜头管理/导出
+## 最新：时间轴作者、循环预览与只读历史相册
+
+- 独立状态接入当前 actor/camera/prop 单目标轨道：保存/移动/删除 key、删除 track、匀速分配、时长及循环。作者内容和 render-only 预览分开，播放/seek 不覆写 base、不新增 history/revision；隐式创建关键帧先确认。
+- 生产 UI 保存 0/3000ms 餐椅 X=0→3，1500ms 实际 root X=1.5、作者 base X=0；取消确认在修复视图复原并 reload 后重验，revision/keys保持。真实拖动2000→997ms为一笔undo，恢复0/2000/3000；redo/匀速、4→3秒/最短3秒阻断、key与track删除undo均已验。
+- 实际循环播放头1766→1116ms跨过末端，revision4不变；刷新后keys保存。相机key0焦距35→36.3963426mm后拍摄真实4096×2304 JPEG，操控HUD保持；第二次编辑同key至37.848392988010275mm。完成/返回/reload为revision18、ready/dirty=false，key37.848mm/base35mm、原相册2项保持。[本批验收](verification/20261008-studio-temporal.md)
+- 历史相册只读原capturedPhotos，两张已有本地JPEG真实解码1280×678，逆序/160px缩略图、方向键和Escape关闭已验；不恢复镜头、不重渲染、不生成素材，普通快门仍只追加画布图片。
+- 领域作者23项、宿主最终17项与入口12项分别通过，其他播放/时间轴UI/运行时门禁专项按主证据实际批次列示，不与旧tests合计。
+- 完整P2平面图/站面流程、模型导入/生成UI与完整V3 Agent仍缺，真实SPZ像素未验，旧Alpha不含此批。没有新依赖或供应商API请求，专项按模块和各次实际运行记录，不合并旧tests为全项目重跑。
+
+## 前批：离屏摄影、实体轮廓与镜头管理/导出
 
 - 当前源码采用真实独立渲染目标和 RGBA 读回，默认 4096 长边 JPEG .92；实机 9:16 快门输出 2304×4096，DOM 自然尺寸实际解码。摄影排除编辑轮廓与 helper，人物身体橙色选择轮廓在生产界面可见。
 - 摄影先等待 source 与可见非 camera 实体的必需资源；加载失败、身份失效或默认 30 秒超时均具体报错且不编码。新增 readiness 5 项与受影响 Spark/drain 2 项通过；刷新生产 UI 后重新拍摄 9:16 成功，warn/error 日志为空。
 - 镜头管理接入独立运行时的真实机位缩略图、改名、删除确认/撤销、批量选择和分层 Escape。竖幅缩略图实测 101×180；改名保存、删除为空及撤销恢复原项已验。管理器不是完整 Saved Views/历史照片编辑器。
 - 照片保存失败显示“重试保存照片”，重试复用原 capture ID、节点和素材，刷新仅一张新增照片。批次连续两次注入 QuotaExceededError 后，关闭/重开恢复原选中镜头；原批次重试成功，刷新保留一个输出节点和同素材。
 - 真实浏览器 WebM 经 ffprobe/ffmpeg 独立审核为 VP9、1280×720、30 fps、1 秒、56,649 bytes；30 帧完整解码且 30 帧不同，0/15/29 帧均非黑、可见餐椅与地面。已有时序频道采样/导出不等于完整时间/关键帧编辑 UI；只有编码器明确不支持时才回退 contact sheet。
-- 完整平面图、独立 Saved Views/历史照片管理、生成 UI、完整 V3 Agent 编排仍未完成，真实 SPZ 离屏 GPU/景深像素及持物渲染仍有限制。没有私人项目/素材、供应商或原站请求，现有 Alpha 未包含本批源码。[当前验收与文件审核](verification/20261008-studio-shots.md)
+- 该摄影批次尚无时间轴与只读历史相册，现按上方最新增量补齐对应子集。完整平面图、视图管理、生成 UI、V3 Agent 编排仍未完成，真实 SPZ 离屏 GPU/景深像素及持物渲染仍有限制。没有私人项目/素材、供应商或原站请求，现有 Alpha 未包含本批源码。[当前验收与文件审核](verification/20261008-studio-shots.md)
 
 ## 前批：导演摄像机接管与 viewport PNG 拍摄
 
@@ -28,7 +37,7 @@
 - 原图标／圆环快门、画幅菜单、log焦距与光圈滑尺、弹簧微动效和点对焦参数已接。普通GLB没有DOF能力，因此隐藏光圈／对焦。修复window capture抢走HUD方向键，实机ArrowRight改焦距至29.386115702481316mm，保存revision6且pose不变；End／拖动后还原states与revision均回原值。
 - 真实PNG→LocalAssets→连接图片→守卫保存已闭环。两笔保存失败保留同照片回执、锁住非重试操作；修复恢复视图／直接选择绕过守卫及关闭提示覆盖。顶部／快门两种重试均没有重复图片，刷新revision6、五张763×1356及所有ID／镜头参数保持，实际图片均解码成功。
 - 新增scope回归用真实capture/session和生产入口闭包，asset写失败且无nodeId时所有相关入口无runtime副作用，原照片重试复用一次render/encode且只创建一节点，1/1通过；HUD捕获隔离新增2＋相关IME1通过。其他摄像机／runtime专项按各次定向范围记录，没有合计为全仓重跑或整体性能提升。
-- 此批记录的是 viewport PNG 里程碑；当时缺少的身体 outline 与 4096 长边离屏 JPEG 已由上方最新增量补齐。独立 Saved Views／历史照片管理、time／keyframes 编辑、完整平面图／生成 UI／V3 Agent仍缺，真实 SPZ 景深视觉未验。该批没有供应商请求或 Alpha 重打包。[历史合同、实机与截图](STUDIO-V3-CAMERA-POSSESSION-20261008.md)
+- 此批记录的是 viewport PNG 里程碑；当时缺少的身体 outline 与 4096 长边离屏 JPEG 已由上方最新增量补齐。当时的time／keyframes与只读历史相册缺口以上方最新增量为准，完整视图管理／平面图／生成 UI／V3 Agent仍缺，真实 SPZ 景深视觉未验。该批没有供应商请求或 Alpha 重打包。[历史合同、实机与截图](STUDIO-V3-CAMERA-POSSESSION-20261008.md)
 
 ## 本批：节点手势、标题、搜索与编辑草稿
 

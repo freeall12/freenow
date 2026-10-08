@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>时间片场生产界面验收 · 公开本地资源</title>
+<style>
+html,body{margin:0;height:100%;background:#181818;color:#ddd;font:13px/1.5 system-ui}body{display:grid;grid-template-rows:auto minmax(0,1fr) auto}header{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 12px;border-bottom:1px solid #444}button{background:#303030;color:#eee;border:1px solid #555;border-radius:6px;padding:6px 10px;cursor:pointer}button:disabled{opacity:.4}output{flex:1;min-width:240px;font-size:12px}iframe{display:block;border:0;width:100%;height:100%;min-height:0}details{border-top:1px solid #444;padding:6px 12px}summary{cursor:pointer}pre{max-height:230px;overflow:auto;margin:6px 0;white-space:pre-wrap;overflow-wrap:anywhere;font:11px/1.5 ui-monospace,monospace}
+</style>
+<header>
+  <button id="create" disabled>新建公开时间片场</button>
+  <button id="photos" disabled>导入两张历史照片</button>
+  <button id="read" disabled>读取场景与时间数据</button>
+  <output id="status" aria-live="polite">读取独立公开验收项目…</output>
+</header>
+<iframe id="app" title="真实生产画布与时间片场"></iframe>
+<details id="diagnostics"><summary>只读诊断数据</summary><pre id="evidence"></pre></details>
+<script type="module">
+const frame=document.querySelector('#app'),out=document.querySelector('#status'),evidence=document.querySelector('#evidence');
+const project=new URL(location.href).searchParams.get('project')||'qa-temporal-public-1008';
+const buttons=[...document.querySelectorAll('button')];
+let ready=false;
+const child=()=>frame.contentWindow;
+// Domain modules and their plain JSON inputs must belong to the iframe realm.
+const json=value=>child().JSON.parse(JSON.stringify(value));
+const active=()=>{const instance=child().StudioAPI.active;if(!instance?.session||!instance?.runtime)throw Error('请先新建或打开真实导演片场');return instance;};
+async function work(action){buttons.forEach(button=>button.disabled=true);try{await action();}catch(error){out.textContent='操作失败：'+error.message;}finally{buttons.forEach(button=>button.disabled=!ready);}}
+async function saveSession(instance){const result=await instance.session.flush();if(!result?.ok||instance.session.getStatus().dirty)throw Error('片场真实保存尚未完成');}
+async function modules(){return child().Function('return Promise.all([import("/src/features/studio-v3/schema.mjs"),import("/src/features/studio-v3/entity-actions.mjs")])')();}
+
+document.querySelector('#create').onclick=()=>work(async()=>{
+  const app=child();if(app.StudioAPI.active)await app.StudioAPI.active.close();
+  const result=await app.StudioAPI.createDirector(),instance=active();
+  const [{createState},{reduceEntityAction}]=await modules(),now=Date.now();
+  const fresh=createState(json({worldNodeId:result.nodeId,now})),setupId=fresh.scenePlay.worldSpace.activeSetupId;
+  fresh.scenePlay.worldSpace.setups.find(setup=>setup.id===setupId).label='公开时间验收状态';
+  fresh.scenePlay.worldSpace.stages[0].label='公开本地时间片场';
+  for(const action of [
+    {type:'create',kind:'prop',id:'qa-chair:'+app.crypto.randomUUID(),setupId,label:'本地公开餐椅',assetId:'chair-dining',transform:{position:{x:0,y:0,z:0}}},
+    {type:'create',kind:'camera',id:'qa-camera:'+app.crypto.randomUUID(),setupId,label:'公开时间验收摄像机',camera:{position:{x:-2,y:2,z:5},rotation:{x:-.12,y:-.22,z:0,order:'YXZ'},focalLength:35,frameAspectRatio:16/9}}
+  ]){
+    const reduced=reduceEntityAction(fresh,json(action),json({now}));
+    if(!reduced.ok)throw Error(reduced.message||reduced.reason||'领域实体创建失败');
+    fresh.scenePlay.worldSpace=reduced.state.scenePlay.worldSpace;
+  }
+  // A fresh world is committed through history; owner/envelope fields remain
+  // the production session's original data. Temporal keys are never seeded.
+  const changed=instance.session.change(state=>{state.scenePlay.worldSpace=fresh.scenePlay.worldSpace;return state;},json({lane:'world',label:'创建公开时间验收场景',scope:{kind:'world-space'}}));
+  if(!changed)throw Error('场景事务未提交，请先完成当前编辑');
+  await saveSession(instance);await instance.runtime.sync();
+  out.textContent='已真实保存餐椅和摄像机；请从片场界面添加关键帧、编辑并播放 · '+result.nodeId;
+});
+
+const samples=[
+  {id:'qa-legacy:portrait-photo-save-retry',file:'portrait-photo-save-retry.jpg'},
+  {id:'qa-legacy:canvas-photo-nodes',file:'canvas-photo-nodes.jpg'}
+];
+document.querySelector('#photos').onclick=()=>work(async()=>{
+  const app=child(),instance=active(),nodeId=instance.read().nodeId,existing=instance.session.getState().capturedPhotos;
+  const added=[];let sequence=Math.max(0,...existing.map(photo=>Number.isFinite(photo.sequence)?photo.sequence:0));
+  for(const sample of samples){
+    if(existing.some(photo=>photo.id===sample.id))continue;
+    const response=await app.fetch('/docs/screenshots/20261008-studio-shots/'+sample.file);
+    if(!response.ok)throw Error('本地 JPEG 读取失败：'+sample.file);
+    const blob=await response.blob();if(!blob.size)throw Error('本地 JPEG 为空：'+sample.file);
+    const image=await app.createImageBitmap(blob);const width=image.width,height=image.height;image.close();
+    if(!(width>0&&height>0))throw Error('本地照片真实解码失败');
+    const src=await app.LocalAssets.put(blob);
+    added.push({id:sample.id,sequence:++sequence,src,width,height});
+  }
+  await saveSession(instance);await instance.close();
+  // capturedPhotos is an opaque legacy envelope, intentionally excluded from
+  // scene history. Release the editor's guard before the real canvas import.
+  const owner=app.CanvasApp.getState().nodes.find(node=>node.id===nodeId);
+  if(!owner?.studioV3)throw Error('照片导入目标已变化');
+  if(added.length){
+    const stored=app.structuredClone(owner.studioV3);
+    stored.state.capturedPhotos.push(...json(added));stored.revision++;
+    app.CanvasApp.updateNode(nodeId,json({studioV3:stored}));
+  }
+  await app.CanvasApp.saveProject();await app.CanvasStore.flush();
+  const saved=await app.CanvasStore.load(),savedOwner=saved.nodes.find(node=>node.id===nodeId);
+  if(!samples.every(sample=>savedOwner?.studioV3?.state.capturedPhotos.some(photo=>photo.id===sample.id)))throw Error('历史照片尚未真实写入项目，请重试保存');
+  await app.StudioAPI.open(nodeId);
+  out.textContent='两张本地 JPEG 历史验收样本已保存并重新打开；可从历史照片入口查看（非新增快门记录）';
+});
+
+document.querySelector('#read').onclick=()=>work(async()=>{
+  const instance=active(),state=instance.session.getState(),space=state.scenePlay.worldSpace;
+  const host=instance.temporal;
+  const temporal=typeof host?.read==='function'?host.read():typeof host?.status==='function'?host.status():host?.status??null;
+  const vector=value=>value?{x:value.x,y:value.y,z:value.z}:null;
+  const roots=[...instance.runtime.graph.entities.values()].map(record=>({id:record.id,status:record.status,error:record.error?.message??null,position:vector(record.root?.position),rotation:record.root?{...vector(record.root.rotation),order:record.root.rotation.order}:null,scale:vector(record.root?.scale),visible:record.root?.visible??null}));
+  const diagnostic={project,nodeId:instance.read().nodeId,readOnly:true,persistence:instance.session.getStatus(),
+    activeSetupId:space.activeSetupId,authorsetups:space.setups.map(setup=>({id:setup.id,label:setup.label,kind:setup.kind,temporal:setup.temporal??null,entityStates:setup.entityStates})),
+    entities:space.entities,runtimeRoots:roots,hostTemporal:temporal,hostTemporalAvailable:!!temporal,
+    ...(temporal?{}:{hostReadFallback:instance.read()}),capturedPhotos:state.capturedPhotos};
+  evidence.textContent=JSON.stringify(diagnostic,null,2);document.querySelector('#diagnostics').open=true;
+  out.textContent='已读取领域轨道、真实渲染位置和时间状态；本次诊断未保存、移动或播放场景';
+});
+
+frame.onload=async()=>{
+  const app=child();for(let attempt=0;attempt<100;attempt++){
+    if(app.StudioAPI&&app.CanvasApp&&app.LocalAssets){try{await app.CanvasApp.saveProject();ready=true;break;}catch{}}
+    await new Promise(resolve=>setTimeout(resolve,100));
+  }
+  buttons.forEach(button=>button.disabled=!ready);
+  out.textContent=ready?'4196 独立生产项目已就绪；仅公开本地资源，零供应商调用':'生产入口未就绪';
+};
+async function bootstrap(){
+  if(location.port!=='4196'||!['localhost','127.0.0.1','[::1]'].includes(location.hostname))throw Error('请在本机 4196 端口打开此验收页，以隔离生产项目');
+  if(!/^qa-temporal-public-1008(?:-[a-zA-Z0-9_-]+)?$/.test(project))throw Error('项目名必须使用 qa-temporal-public-1008 或其独立验收后缀');
+  const db=await new Promise((resolve,reject)=>{const request=indexedDB.open('tapnow-canvas-replica',1);request.onupgradeneeded=()=>request.result.createObjectStore('documents');request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error);});
+  try{await new Promise((resolve,reject)=>{
+    const transaction=db.transaction('documents','readwrite'),store=transaction.objectStore('documents'),key='project:'+project,read=store.get(key);
+    read.onsuccess=()=>{if(!read.result){const now=Date.now();store.put({version:1,nodes:[],edges:[],history:[],future:[],view:{x:0,y:0,scale:1},project:{id:project,title:'公开时间片场验收',createdAt:now,updatedAt:now}},key);}};
+    transaction.oncomplete=resolve;transaction.onerror=()=>reject(transaction.error);transaction.onabort=()=>reject(transaction.error||Error('验收项目创建中断'));
+  });}finally{db.close();}
+  frame.src='/?project='+encodeURIComponent(project);
+}
+bootstrap().catch(error=>{out.textContent=error.message;});
+</script>
+</html>

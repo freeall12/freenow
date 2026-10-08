@@ -21,6 +21,8 @@ import {createCameraManager} from './camera-manager.mjs';
 import {createCameraShotPreview} from './camera-shot-preview.mjs';
 import {createCameraShotExporter} from './camera-shot-export.mjs';
 import {createCameraBatchPublish} from './camera-batch-publish.mjs';
+import {createPhotoHistory} from './photo-history.mjs';
+import {createTemporalWorkspace} from './temporal-workspace.mjs';
 
 for (const name of ['official-layout.css', 'styles.css']) {
   const link = document.createElement('link'); link.rel = 'stylesheet'; link.href = new URL(name, import.meta.url); document.head.append(link);
@@ -45,7 +47,7 @@ export async function open(node) {
   const instance = {nodeId: node.id, version: 3}; active = instance;
   let alive = true, closing = null, session, runtime, observer, lastSync = Promise.resolve(), selected = null, lastLane = 'world', previousIndependent = null, toastTimer, cameraCreation = null, controlHUD, viewfinderOptics = null, cameraHUD = null, cameraCapture, cameraHistory, focusPicking = false;
   const notices = new Map();
-  let cameraManager = null, shotPreview = null, shotExporter = null, cameraBatch = null;
+  let cameraManager = null, shotPreview = null, shotExporter = null, cameraBatch = null, photoHistory = null, temporal = null;
   const notice = (message, error = false) => {
     if (!alive) return; clearTimeout(toastTimer); toast.textContent = message; toast.hidden = false; toast.dataset.error = String(error);
     if (!error) toastTimer = setTimeout(() => {toast.hidden = true;}, 3500);
@@ -60,6 +62,8 @@ export async function open(node) {
     if (!finishControlScope()) return false; cancelCameraCreation(); return menuController[name](...args);
   };
   function finishControlScope() {
+    if (photoHistory) {notice('请先关闭历史照片，再继续编辑片场', true); return false;}
+    if (temporal?.confirming) {notice('请先确认或取消关键帧编辑', true); return false;}
     if (cameraBatch?.busy || cameraBatch?.pendingReceipt) {notice(cameraBatch.busy ? '镜头正在导出，请等待完成' : '镜头导出尚未保存，请打开镜头管理重试保存', true); return false;}
     if (cameraCapture?.busy) {notice('镜头正在拍摄，请等待照片保存后继续', true); return false;}
     if (cameraCapture?.pendingReceipt) {notice('照片尚未保存，请点击拍摄按钮或顶部保存状态重试，再继续操作', true); return false;}
@@ -67,12 +71,14 @@ export async function open(node) {
     notice('本次操控尚未提交，请先完成或还原后重试', true); return false;
   }
   const state = () => session.getState(), space = () => state().scenePlay.worldSpace;
+  const displayState = () => temporal?.displayState || state();
   const currentSetup = () => space().setups.find(setup => setup.id === space().activeSetupId);
   const groundHeight = () => Number.isFinite(state().scenePlay.environment.ground.y) ? state().scenePlay.environment.ground.y : 0;
-  const control = () => selected ? resolveEntityControl(state(), {entityId: selected}) : null;
+  const control = () => selected ? resolveEntityControl(displayState(), {entityId: selected}) : null;
   const row = (name, label, action, options = {}) => button(name, label, safe(action), {className: 'sv3-menu-row', text: label, ...options});
   const menu = (label, rows) => {const list = el('div'); list.ariaLabel = label; list.append(...rows); return list;};
   const select = id => {
+    if (photoHistory || temporal?.confirming) return false;
     if ((cameraCapture?.busy || cameraCapture?.pendingReceipt) && !finishControlScope()) return false;
     selected = runtime.selectEntity(id); refresh();window.AgentUI?.refreshSceneContext?.(); return true;
   };
@@ -98,7 +104,8 @@ export async function open(node) {
   };
   const sync = (strict = false) => {
     if (!runtime || !session || !alive) return;
-    const pending = runtime.sync(state()).then(() => {
+    temporal?.onAuthorStateChanged();
+    const pending = runtime.sync(displayState()).then(() => {
       if (!alive || active !== instance || !session.isCurrent()) throw Error('导演片场会话已变化');
       runtime.selectEntity(selected); refresh();
     });
@@ -112,16 +119,16 @@ export async function open(node) {
   const entityAction = async action => {
     if (!finishControlScope()) return {ok: false, changed: false, message: '本次操控尚未提交'};
     runtime?.cancelTransform();
-    const result = reduceEntityAction(state(), action);
-    if (!result.ok) {notice(result.message, true); return result;}
-    if (result.changed) {change(() => result.state, '实体编辑', result.lane); await lastSync;}
+    const result = temporal ? await temporal.entityAction(action) : reduceEntityAction(state(), action);
+    if (!result.ok) {if (result.reason !== 'cancelled') notice(result.message, true); return result;}
+    if (result.changed) {if (!temporal) change(() => result.state, '实体编辑', result.lane); await lastSync;}
     if (action.type === 'remove') select(null); else if (result.entityId) select(result.entityId);
     return result;
   };
   const dropSelected = async id => {
     runtime.cancelTransform();
     await lastSync;
-    const c = resolveEntityControl(state(), {entityId: id}), graph = runtime.graph;
+    const c = resolveEntityControl(displayState(), {entityId: id}), graph = runtime.graph;
     const meshes = [graph.worldRoot, ...[...graph.entities.values()].filter(record => record.id !== id && record.status === 'ready').map(record => record.root)];
     const result = resolveDropPlacement({kind: c.definition.kind, object: runtime.entityObject(id), transform: c.setupState?.transform, meshes, groundY: groundHeight()});
     if (!result) return {ok: false};
@@ -143,7 +150,7 @@ export async function open(node) {
     if (viewfinder) runtime?.endViewfinder(); updateModeChrome(); updatePreviewFrame();
     if (restoreFocus) cameraButton.focus({preventScroll: true}); return true;
   }
-  const cameraCreationAllowed = () => currentSetup().kind === 'independent' && !space().temporalPlaybackPlaying && !space().temporalPlayheadScrubbing;
+  const cameraCreationAllowed = () => currentSetup().kind === 'independent' && !temporal?.getTemporalStatus().playing && !temporal?.getTemporalStatus().scrubbing;
   const createCamera = async (point) => {
     if (!cameraCreationAllowed()) throw Error('请先选择独立状态，并停止播放后添加摄像机');
     const pose = point ? cameraAtSurface({point, visibleCamera: runtime.getVisibleCameraState()}) : cameraFromCurrentView(runtime.getVisibleCameraState());
@@ -152,7 +159,7 @@ export async function open(node) {
   };
   const beginCameraCreation = async kind => {
     if (!cameraCreationAllowed()) throw Error('请先选择独立状态，并停止播放后添加摄像机');
-    if (!finishControlScope()) return; menus.close({all: true}); runtime.cancelTransform(); await lastSync;
+    if (!finishControlScope()) return; menus.close({all: true}); runtime.cancelTransform(); await allowStructuralWrite(); await lastSync;
     cancelCameraCreation();
     if (kind === 'view') {
       if (!runtime.beginViewfinder()) throw Error('当前取景器不可用，请稍后重试');
@@ -168,28 +175,39 @@ export async function open(node) {
   async function captureCamera() {
     if (!cameraCapture || !['camera', 'camera-control', 'viewfinder'].includes(runtime.view)) throw Error('请先预览或操控摄像机，再拍摄到画布');
     focusPicking = false;
+    if (runtime.possessing && !runtime.checkpointCameraControl()) throw Error('当前镜头编辑尚未提交，照片未创建');
+    const captureScope = temporal && !cameraCapture.pendingReceipt ? await temporal.beforeCapture() : null;
+    if (captureScope?.ok === false) throw Error(captureScope.message);
     try {const result = await cameraCapture.capture(); notice('照片已保存到画布'); return result;}
     catch (error) {error.message = error.applied ? '照片已加入画布，尚未保存；点击拍摄按钮重试同一照片：' + error.message : '拍摄失败，尚未创建照片：' + error.message; notice(error.message, true); throw error;}
+    finally {captureScope?.release();}
   }
   const startSelectedCameraControl = async () => {
     if ((cameraCapture?.busy || cameraCapture?.pendingReceipt) && !finishControlScope()) return; menus.close({all: true}); cancelCameraCreation(); await lastSync;
-    if (!selected || !runtime.startCameraControl(selected)) throw Error('请先选择独立状态中的摄像机，并停止播放；含动画关键帧的摄像机暂不支持接管');
+    if (!selected) throw Error('请先选择独立状态中的摄像机');
+    if (temporal && !await temporal.primeTransform(selected)) return;
+    if (!runtime.startCameraControl(selected)) throw Error('请先选择独立状态中的摄像机，并暂停播放或确认关键帧编辑');
     updateModeChrome(); canvas.focus({preventScroll: true});
   };
   const startSelectedControl = async () => {
     if ((cameraCapture?.busy || cameraCapture?.pendingReceipt) && !finishControlScope()) return;
     menus.close({all: true}); cancelCameraCreation(); await lastSync;
-    if (!selected || !runtime.startControl(selected)) throw Error('请先选择可编辑且已解锁的角色或道具'); updateModeChrome(); canvas.focus({preventScroll: true});
+    if (!selected) throw Error('请先选择可编辑且已解锁的角色或道具');
+    if (temporal && !await temporal.primeTransform(selected)) return;
+    if (!runtime.startControl(selected)) throw Error('请先选择可编辑且已解锁的角色或道具'); updateModeChrome(); canvas.focus({preventScroll: true});
   };
-  const switchSetup = id => {
+  async function allowStructuralWrite() {
+    const result = await temporal?.beforeWrite(); if (result?.ok === false) throw Error(result.message); return true;
+  }
+  const switchSetup = async id => {
     if (!finishControlScope()) return; cancelCameraCreation();
-    runtime.cancelTransform(); menus.close({all: true}); selected = null;
+    runtime.cancelTransform(); menus.close({all: true}); await allowStructuralWrite(); selected = null;
     if (currentSetup().kind === 'independent') previousIndependent = currentSetup().id;
     change(value => setActiveSetup(value, id), '切换状态', 'world', false);
   };
-  const addState = (duplicate = false, sourceId = currentSetup().id) => {
+  const addState = async (duplicate = false, sourceId = currentSetup().id) => {
     if (!finishControlScope()) return; cancelCameraCreation();
-    runtime.cancelTransform();
+    runtime.cancelTransform(); await allowStructuralWrite();
     const now = Date.now(), current = currentSetup();
     selected = null;
     if (duplicate) change(value => cloneIndependentSetup(value, sourceId, {createId: () => crypto.randomUUID(), now}), '复制状态');
@@ -213,8 +231,8 @@ export async function open(node) {
     const panel = el('div', 'sv3-state-confirm');
     panel.append(el('strong', '', `删除“${setup.label}”？`), el('p', '', '同时删除其中的角色、对象、摄像机和动画'));
     const actions = el('div', 'sv3-confirm-actions');
-    actions.append(button(null, '保留状态', () => close(), {text: '保留状态'}), button('delete', '删除状态', safe(() => {
-      runtime.cancelTransform();
+    actions.append(button(null, '保留状态', () => close(), {text: '保留状态'}), button('delete', '删除状态', safe(async () => {
+      runtime.cancelTransform(); await allowStructuralWrite();
       change(value => removeIndependentSetup(value, setup.id, {replacementId: crypto.randomUUID()}), '删除状态');
       selected = null; menus.close({all: true}); refresh();
     }), {text: '删除状态'})); panel.append(actions); return panel;
@@ -226,9 +244,9 @@ export async function open(node) {
       const item = row(setup.id === currentSetup().id ? 'check' : null, setup.label, () => switchSetup(setup.id)); item.classList.add('sv3-state-label'); item.dataset.active = String(setup.id === currentSetup().id);
       const actions = el('div', 'sv3-state-actions');
       const copy = button('clone', `复制状态：${setup.label}`, safe(() => addState(true, setup.id)), {className: 'sv3-mini-button'});
-      const edit = button('rename', `重命名状态：${setup.label}`, () => rename(stateButton, setup.label, label => change(value => {
+      const edit = button('rename', `重命名状态：${setup.label}`, () => rename(stateButton, setup.label, async label => {await allowStructuralWrite(); return change(value => {
         const next = structuredClone(value); next.scenePlay.worldSpace.setups.find(item => item.id === setup.id).label = label; assertState(next); return next;
-      }, '状态重命名')), {className: 'sv3-mini-button'});
+      }, '状态重命名');}), {className: 'sv3-mini-button'});
       const remove = button('delete', `删除状态：${setup.label}`, () => confirmStateRemoval(remove, setup), {className: 'sv3-mini-button'});
       actions.append(copy, edit, remove); group.append(item, actions); list.append(group);
     }
@@ -260,7 +278,7 @@ export async function open(node) {
   }), {label: '实体属性', width: 440});
   const removeSelected = () => selected && entityAction({type: 'remove', entityId: selected, mode: 'local'});
   const shotAction = async (shot, type, title) => {
-    if (!finishControlScope()) return {ok: false}; runtime.cancelTransform();
+    if (!finishControlScope()) return {ok: false}; runtime.cancelTransform(); await allowStructuralWrite();
     const result = reduceCameraShotAction(state(), {type, shotId: shot.id, ...(title === undefined ? {} : {title})});
     if (!result.ok) throw Error(result.message);
     if (result.changed) {change(() => result.state, type === 'rename' ? '镜头重命名' : '删除镜头', result.lane); await lastSync;}
@@ -271,10 +289,10 @@ export async function open(node) {
     if (!finishControlScope()) return {ok: false};
     const id = shot.cameraEntityId, definition = space().entities.find(entity => entity.id === id && entity.kind === 'camera');
     if (!definition) throw Error(`镜头“${shot.title}”缺少有效的摄像机链接`);
-    cancelCameraCreation(); menus.close({all: true}); runtime.cancelTransform();
+    cancelCameraCreation(); menus.close({all: true}); runtime.cancelTransform(); await allowStructuralWrite();
     if (shot.setupId !== space().activeSetupId) {change(value => setActiveSetup(value, shot.setupId), '切换镜头状态', 'world', false); await lastSync;}
     selected = id; runtime.selectEntity(id);
-    if (!runtime.startCameraControl(id)) throw Error('此摄像机暂不可操控，请检查所属状态或时间轨道');
+    if (temporal && !await temporal.primeTransform(id) || !runtime.startCameraControl(id)) throw Error('此摄像机暂不可操控，请检查所属状态或确认关键帧编辑');
     refresh(); canvas.focus({preventScroll: true}); return {ok: true};
   };
   const showCameraManager = () => {
@@ -286,7 +304,7 @@ export async function open(node) {
         read: () => ({shots: listCameraShots(state()).map(shot => ({...shot, cameraId: shot.cameraEntityId, thumbnailRevision: session.getFence().editEpoch})),
           setupLabels: Object.fromEntries(space().setups.map(setup => [setup.id, setup.label])),
           readOnly: currentSetup().kind === 'scene-baseline', busy: !!cameraBatch?.busy,
-          playing: !!space().temporalPlaybackPlaying, activeCameraId: runtime.possessing?.entityId ?? selected,
+          playing: !!temporal?.getTemporalStatus().playing, activeCameraId: runtime.possessing?.entityId ?? selected,
           pendingExportShotIds: cameraBatch?.pendingReceipt?.shotIds || []}),
         openShot, renameShot: (shot, title) => shotAction(shot, 'rename', title), removeShot: shot => shotAction(shot, 'remove'),
         loadThumbnail: (shot, {signal}) => shotPreview.request(shot, {signal, isCurrent: () => alive && session.isCurrent()}),
@@ -294,6 +312,17 @@ export async function open(node) {
       cameraManager = panel;
       const dispose = panel.dispose; panel.dispose = () => {dispose(); if (cameraManager === panel) cameraManager = null;}; return panel;
     }, {label: '镜头管理', role: 'presentation', width: 560, placement: 'top', align: 'end', offset: 12});
+  };
+  const showPhotoHistory = async () => {
+    if (photoHistory || !state().capturedPhotos.length || !finishControlScope()) return;
+    menus.close({all: true}); cancelCameraCreation(); runtime.cancelTransform(); await allowStructuralWrite(); await lastSync;
+    const panel = createPhotoHistory({read: () => state().capturedPhotos,
+      onOpen: () => runtime.acquireRenderingPause(),
+      onClose: () => {
+        panel.dispose(); panel.remove(); if (photoHistory === panel) photoHistory = null;
+        refresh(); if (alive) (photoHistoryButton.hidden ? root : photoHistoryButton).focus({preventScroll: true});
+      }, onError: error => notice(error.message, true)});
+    photoHistory = panel; root.append(panel); refresh();
   };
   const showEntityMenu = (point, anchor) => {
     const c = control(); if (!c) return;
@@ -320,7 +349,7 @@ export async function open(node) {
         if (shortcut) item.append(el('span', 'sv3-menu-shortcut', shortcut)); content.append(item); return item;
       };
       if (c.definition.kind === 'camera') {
-        const start = actionRow('camera', '操控摄像机', startSelectedCameraControl); start.disabled = c.baselineReadOnly || c.animated;
+        const start = actionRow('camera', '操控摄像机', startSelectedCameraControl); start.disabled = c.baselineReadOnly || !!temporal?.getTemporalStatus().playing;
       } else {
         actionRow('focus', '聚焦', () => runtime.focusEntity(c.definition.id), 'F');
         const start = actionRow('controls', c.definition.kind === 'actor' ? '操控角色' : '操控', startSelectedControl, 'C');
@@ -340,7 +369,7 @@ export async function open(node) {
     };
     if (point) menus.openAt(point, list, {label: '实体操作'}); else menus.toggle(anchor, list, {label: '实体操作', placement: 'top'});
   };
-  const back = button('back', '返回画布', safe(() => instance.close())); const home = button('restoreHome', '恢复初始视图', safe(() => {if (!finishControlScope()) return; cancelCameraCreation(); if (runtime.setView('orbit') === false) return; runtime.controls.target.set(0, 1, 0); runtime.orbitCamera.position.set(7, 6, 9); runtime.orbitCamera.lookAt(runtime.controls.target); runtime.controls.update(); runtime.render(); refresh();}));
+  const back = button('back', '返回画布', safe(() => instance.close())); const home = button('restoreHome', '恢复初始视图', safe(async () => {if (!finishControlScope()) return; cancelCameraCreation(); await allowStructuralWrite(); if (runtime.setView('orbit') === false) return; runtime.controls.target.set(0, 1, 0); runtime.orbitCamera.position.set(7, 6, 9); runtime.orbitCamera.lookAt(runtime.controls.target); runtime.controls.update(); runtime.render(); refresh();}));
   const help = button('controls', '控制说明', () => menus.toggle(help, () => el('div', 'sv3-controls-help', '拖动鼠标旋转视角；右键拖动平移；滚轮缩放。点击实体后可移动、旋转、缩放。F 聚焦，Esc 取消当前编辑，⌘/Ctrl Z 撤销。'), {label: '控制说明', placement: 'bottom'}));
   const topSurface = el('div', 'sv3-surface'); topSurface.append(back, home, help); left.append(topSurface);
   const wordmark = el('div', 'sv3-wordmark'), logo = el('img'); logo.src = '/assets/branding/freenow-mark.svg'; logo.alt = 'freenow'; wordmark.append(logo); center.append(wordmark);
@@ -361,12 +390,14 @@ export async function open(node) {
   const cameraButton = button('camera', '添加摄像机', () => menus.toggle(cameraButton, () => cameraMenuContent(), {label: '添加摄像机', placement: 'top'}));
   const props = button('add', '添加道具', () => showLibrary(props));
   const cameraManagerButton = button('cameraManager', '镜头管理', safe(showCameraManager));
+  const photoHistoryButton = button('historicalPhotos', '历史照片', safe(showPhotoHistory));
+  const timelineButton = button('timeline', '打开时间轴', safe(() => temporal?.setVisible(!temporal.visible)));
   const undo = button('undo', '撤销', safe(() => replay(false))), redo = button('redo', '重做', safe(() => replay(true)));
   tools.append(objectList, character, cameraButton, props, el('span', 'sv3-separator'), undo, redo); mainActions.append(tools);
-  const cameraManagerSurface = el('div', 'sv3-surface'); cameraManagerSurface.append(cameraManagerButton); mainActions.append(cameraManagerSurface);
-  const orbit = button('onSet', '3D 视图', safe(() => {if (!finishControlScope()) return; cancelCameraCreation(); runtime.setView('orbit'); refresh();}), {text: '3D'}), plan = button('topView', '俯视图', safe(() => {if (!finishControlScope()) return; cancelCameraCreation(); runtime.setView('plan'); refresh();}), {text: '俯视图'}); viewCapsule.append(orbit, plan); trailing.append(viewCapsule);
+  const cameraManagerSurface = el('div', 'sv3-surface'); cameraManagerSurface.append(cameraManagerButton, photoHistoryButton, timelineButton); mainActions.append(cameraManagerSurface);
+  const orbit = button('onSet', '3D 视图', safe(async () => {if (!finishControlScope()) return; cancelCameraCreation(); await allowStructuralWrite(); runtime.setView('orbit'); refresh();}), {text: '3D'}), plan = button('topView', '俯视图', safe(async () => {if (!finishControlScope()) return; cancelCameraCreation(); await allowStructuralWrite(); runtime.setView('plan'); refresh();}), {text: '俯视图'}); viewCapsule.append(orbit, plan); trailing.append(viewCapsule);
   const selectionTools = el('div', 'sv3-capsule'), selectionButton = button('object', '实体操作', () => showEntityMenu(null, selectionButton), {text: ''}); selectionButton.classList.add('sv3-selection-name');
-  const transformButtons = ['translate', 'rotate', 'scale'].map((mode, index) => button(['control', 'rotateRight', 'redistribute'][index], ['移动', '旋转', '缩放'][index], safe(() => {if (!finishControlScope()) return; runtime.attachTransform(selected, mode);}), {text: ['移动', '旋转', '缩放'][index]}));
+  const transformButtons = ['translate', 'rotate', 'scale'].map((mode, index) => button(['control', 'rotateRight', 'redistribute'][index], ['移动', '旋转', '缩放'][index], safe(async () => {if (!finishControlScope()) return; if (temporal && !await temporal.primeTransform(selected)) return; runtime.attachTransform(selected, mode);}), {text: ['移动', '旋转', '缩放'][index]}));
   const inspectorButton = button('settings', '实体属性', () => showInspector(inspectorButton));
   const cameraPreview = button('camera', '预览摄像机', safe(() => {if (!finishControlScope()) return; runtime.previewCamera(selected); refresh();}));
   const controlButton = button('control', '操控', safe(startSelectedControl), {text: '操控'});
@@ -380,13 +411,16 @@ export async function open(node) {
   cameraCreateTools.append(creationLabel, creationCapture, cancelCreate, confirmCreate); middle.append(cameraCreateTools);
   async function replay(redo) {
     if (!finishControlScope()) return {ok: false, reason: 'transaction-active'}; cancelCameraCreation();
-    runtime.cancelTransform(); menus.close();
+    runtime.cancelTransform(); menus.close(); await allowStructuralWrite();
     const result = redo ? session.history.redo(lastLane) : session.history.undo(lastLane);
     if (!result.ok && result.reason !== 'empty') notice('此操作与其他状态的较新修改冲突，无法撤销。', true); await lastSync;return result;
   }
   function refresh() {
     if (!session || !runtime || !alive) return;
     const status = session.getStatus(), setup = currentSetup();
+    timelineButton.hidden = setup.kind === 'scene-baseline'; timelineButton.setAttribute('aria-label', temporal?.visible ? '关闭时间轴' : '打开时间轴'); timelineButton.title = timelineButton.getAttribute('aria-label'); timelineButton.setAttribute('aria-pressed', String(!!temporal?.visible));
+    temporal?.timeline?.refresh();
+    photoHistoryButton.hidden = !state().capturedPhotos.length; photoHistory?.refresh();
     cameraManagerButton.hidden = setup.kind === 'scene-baseline'; cameraManager?.refresh();
     cameraButton.disabled = setup.kind === 'scene-baseline'; cameraButton.title = cameraButton.disabled ? '请先选择或新建独立状态，再添加摄像机。' : '添加摄像机';
     stateButton.querySelector('span').textContent = setup.label; leaveBaseline.hidden = setup.kind !== 'scene-baseline';
@@ -396,11 +430,11 @@ export async function open(node) {
     updatePreviewFrame();
     if (selected && !renderSetup(state()).entityStates.some(item => item.entityId === selected)) selected = null;
     selectionTools.hidden = !selected;
-    const c = control(); cameraControlButton.hidden = !c || c.definition.kind !== 'camera'; cameraControlButton.disabled = !c || c.baselineReadOnly || c.animated; previewCapture.hidden = runtime.view !== 'camera'; creationCapture.hidden = cameraCreation?.kind !== 'view'; cameraPreview.hidden = !c || c.definition.kind !== 'camera';
-    controlButton.hidden = !c || c.definition.kind === 'camera'; controlButton.disabled = !c || c.locked || c.baselineReadOnly;
+    const c = control(), temporalStatus = temporal?.getTemporalStatus() || {}; cameraControlButton.hidden = !c || c.definition.kind !== 'camera'; cameraControlButton.disabled = !c || c.baselineReadOnly || temporalStatus.playing || temporalStatus.scrubbing; previewCapture.hidden = runtime.view !== 'camera'; creationCapture.hidden = cameraCreation?.kind !== 'view'; cameraPreview.hidden = !c || c.definition.kind !== 'camera';
+    controlButton.hidden = !c || c.definition.kind === 'camera'; controlButton.disabled = !c || c.locked || c.baselineReadOnly || temporalStatus.playing || temporalStatus.scrubbing;
     if (cameraCreation?.setupId !== undefined && cameraCreation.setupId !== setup.id) cancelCameraCreation();
     creationLabel.textContent = cameraCreation?.kind === 'view' ? '调整取景后确认添加摄像机' : '选择地面位置'; confirmCreate.hidden = cameraCreation?.kind !== 'view';
-    if (c) {selectionButton.textContent = c.definition.label; for (const [index, item] of transformButtons.entries()) {item.hidden = index === 2 && c.definition.kind === 'camera'; item.disabled = c.locked || c.baselineReadOnly || runtime.view === 'camera';}}
+    if (c) {selectionButton.textContent = c.definition.label; for (const [index, item] of transformButtons.entries()) {item.hidden = index === 2 && c.definition.kind === 'camera'; item.disabled = c.locked || c.baselineReadOnly || runtime.view === 'camera' || temporalStatus.playing || temporalStatus.scrubbing;}}
     updateModeChrome();
     undo.disabled = !session.history.getUndoAvailability(lastLane).ok; redo.disabled = !session.history.getRedoAvailability(lastLane).ok;
   }
@@ -415,6 +449,7 @@ export async function open(node) {
   instance.prepareAgentContext=async()=>{
     if(instance.initializationError)throw instance.initializationError;
     if(!alive||closing||!session.isCurrent())throw Error('导演片场会话不可用');
+    if(!finishControlScope())throw Error('请先完成当前片场编辑'); runtime.cancelTransform(); await allowStructuralWrite();
     const result=await session.flush();
     if(!result.ok||session.history.getActiveTransaction())throw Error('请先完成或取消当前片场编辑，再保存或交给 Agent');
     if(!alive||!session.isCurrent())throw Error('导演片场会话已变化');return instance.read();
@@ -431,8 +466,8 @@ export async function open(node) {
     if (!alive || active !== instance) return;
     if (closing) return closing;
     closing = (async () => {
-      if (!finishControlScope()) throw Error(cameraBatch?.busy ? '镜头正在导出，请等待完成' : cameraBatch?.pendingReceipt ? '镜头导出尚未保存，请打开镜头管理重试保存' : cameraCapture?.busy ? '镜头正在拍摄，请等待照片保存后继续' : cameraCapture?.pendingReceipt ? '照片尚未保存，请点击拍摄按钮或顶部保存状态重试，再继续操作' : '请先完成或还原本次操控'); cancelCameraCreation(); runtime?.cancelTransform(); menus.close({all: true}); await session.closeGuard();
-      alive = false; clearTimeout(toastTimer); observer?.disconnect(); controlHUD.dispose(); cameraHUD?.dispose(); cameraCapture?.dispose(); cameraBatch?.dispose(); shotExporter?.dispose(); await shotPreview?.dispose(); cameraHistory?.dispose(); menus.dispose(); await runtime?.dispose();
+      if (!finishControlScope()) throw Error(cameraBatch?.busy ? '镜头正在导出，请等待完成' : cameraBatch?.pendingReceipt ? '镜头导出尚未保存，请打开镜头管理重试保存' : cameraCapture?.busy ? '镜头正在拍摄，请等待照片保存后继续' : cameraCapture?.pendingReceipt ? '照片尚未保存，请点击拍摄按钮或顶部保存状态重试，再继续操作' : '请先完成或还原本次操控'); cancelCameraCreation(); runtime?.cancelTransform(); menus.close({all: true}); await allowStructuralWrite(); await session.closeGuard();
+      await temporal?.dispose(); alive = false; clearTimeout(toastTimer); observer?.disconnect(); photoHistory?.dispose(); controlHUD.dispose(); cameraHUD?.dispose(); cameraCapture?.dispose(); cameraBatch?.dispose(); shotExporter?.dispose(); await shotPreview?.dispose(); cameraHistory?.dispose(); menus.dispose(); await runtime?.dispose();
       root.remove(); document.body.classList.remove('studio-active'); active = null;
       app.select(node.id, false); const target = returnFocus?.isConnected ? returnFocus : document.querySelector('#canvas'); target?.focus({preventScroll: true}); window.AgentUI?.refreshSceneContext?.();
     })();
@@ -443,14 +478,15 @@ export async function open(node) {
       isCurrentSession: () => alive && active === instance, publishNode: (id, patch, options) => app.publishStudioV3(id, patch, options),
       onChange: sync, onStatus: status => {refresh(); if (status.error) notice('保存失败，修改已保留：' + status.error.message, true);}});
     cameraHistory = createCameraHistoryAdapter({getState: state, history: session.history, onLane: lane => {lastLane = lane;}, onStatus: refresh});
-    runtime = createStudioV3Runtime({canvas, getState: state, getSourceResource: () => readSourceResource(app, node.id),
+    runtime = createStudioV3Runtime({canvas, getState: displayState, getSourceResource: () => readSourceResource(app, node.id),
       getFence: () => session.getFence(), isCurrent: () => alive && session.isCurrent(),
       onInvalidate: () => {updatePreviewFrame(); updateModeChrome();},
       onStatus: report => {const key = `${report.kind}:${report.id}`; if (report.status === 'failed') {notices.set(key, report.error); notice(report.error, true);} else if (report.status === 'ready') notices.delete(key);},
-      canControlInput: () => !closing && !menus.isOpen() && !cameraCreation && !cameraCapture?.busy && !cameraCapture?.pendingReceipt && !cameraBatch?.busy && !cameraBatch?.pendingReceipt && !focusPicking,
-      onCameraEdit: event => cameraHistory.handle(event),
-      onControl: event => handleTransform(event, '实体操控'),
-      onTransform: event => handleTransform(event, '实体变换')});
+      canControlInput: () => !closing && !photoHistory && !temporal?.confirming && !menus.isOpen() && !cameraCreation && !cameraCapture?.busy && !cameraCapture?.pendingReceipt && !cameraBatch?.busy && !cameraBatch?.pendingReceipt && !focusPicking,
+      getTemporalStatus: () => temporal?.getTemporalStatus() || {}, canEditAnimatedEntity: id => temporal?.isPrimed(id) === true,
+      onCameraEdit: event => temporal ? temporal.handleCameraEdit(event) : cameraHistory.handle(event),
+      onControl: event => temporal ? temporal.handleTransform(event, '实体操控') : handleTransform(event, '实体操控'),
+      onTransform: event => temporal ? temporal.handleTransform(event, '实体变换') : handleTransform(event, '实体变换')});
     function handleTransform(event, label) {
         if (event.phase === 'begin') {const c = resolveEntityControl(state(), {entityId: event.entityId}); if (!c || c.baselineReadOnly || c.locked) throw Error('请先切换到实体所属状态并解锁'); lastLane = c.stateLane; if (!session.history.begin(lastLane, label, {kind: 'world-space'})) throw Error('请先完成当前编辑');}
         if (event.phase === 'preview') session.history.preview(value => {const result = reduceEntityAction(value, {type: 'update', entityId: event.entityId, patch: {transform: event.transform}}); if (!result.ok) throw Error(result.message); return result.state;});
@@ -466,12 +502,17 @@ export async function open(node) {
     shotExporter = createCameraShotExporter({getState: state, getSourceResource: () => readSourceResource(app, node.id), getFence: () => session.getFence(), isCurrent: () => alive && session.isCurrent(),
       onProgress: report => notice(`正在导出镜头… ${Math.round((report.progress || 0) * 100)}%`)});
     cameraBatch = createCameraBatchPublish({app, session, nodeId: node.id, renderer: shotExporter, isCurrent: () => alive && session.isCurrent(), onStatus: refresh});
-    instance.session = session; instance.runtime = runtime;
+    temporal = createTemporalWorkspace({getState: state, session, getRuntime: () => runtime, readCurrentSelection: () => selected, select,
+      refresh, notice, onLane: lane => {lastLane = lane;}, isCurrent: () => alive && session.isCurrent(), isHidden: () => document.hidden,
+      getSourceKey: () => readSourceResource(app, node.id),
+      getBusy: () => !!photoHistory || !!cameraCreation || !!cameraCapture?.busy || !!cameraCapture?.pendingReceipt || !!cameraBatch?.busy || !!cameraBatch?.pendingReceipt});
+    const timelineHost = el('div', 'sv3-dock-timeline'); dock.append(timelineHost); temporal.mount(timelineHost, {getReturnFocus: () => timelineButton});
+    instance.session = session; instance.runtime = runtime; instance.temporal = temporal;
     observer = new ResizeObserver(() => runtime.resize()); observer.observe(root);
     let down;
     canvas.addEventListener('pointerdown', event => {down = {x: event.clientX, y: event.clientY, button: event.button};});
     canvas.addEventListener('pointerup', event => {
-      if (!down || down.button !== 0 || runtime.controlling || cameraCapture?.busy || cameraCapture?.pendingReceipt || runtime.capturing || runtime.transformControls.dragging || Math.hypot(event.clientX - down.x, event.clientY - down.y) > 4) return;
+      if (!down || down.button !== 0 || photoHistory || runtime.controlling || cameraCapture?.busy || cameraCapture?.pendingReceipt || runtime.capturing || runtime.transformControls.dragging || Math.hypot(event.clientX - down.x, event.clientY - down.y) > 4) return;
       down = null;
       if (runtime.possessing) {
         if (focusPicking) {
@@ -485,12 +526,14 @@ export async function open(node) {
       const hit = runtime.hitEntity(event); select(hit?.entityId || null);
     });
     canvas.addEventListener('contextmenu', event => {
-      event.preventDefault(); if (cameraCreation || runtime.controlling || runtime.possessing || cameraCapture?.busy || cameraCapture?.pendingReceipt) return;
+      event.preventDefault(); if (photoHistory || cameraCreation || runtime.controlling || runtime.possessing || cameraCapture?.busy || cameraCapture?.pendingReceipt) return;
       const hit = runtime.hitEntity(event); if (hit) {select(hit.entityId); showEntityMenu({x: event.clientX, y: event.clientY});}
       else {const surface = runtime.hitSurface(event); if (surface && cameraCreationAllowed()) menus.openAt({x: event.clientX, y: event.clientY}, () => cameraMenuContent(surface.point), {label: '添加摄像机'});}
     });
     root.addEventListener('keydown', event => {
       event.stopPropagation(); if (event.isComposing || event.keyCode === 229 || event.target.closest('input,textarea,select,[contenteditable]')) return;
+      if (photoHistory) {if (event.key === 'Escape') {event.preventDefault(); photoHistory.handleEscape();} return;}
+      if (temporal?.confirming) {if (event.key === 'Escape') {event.preventDefault(); temporal.timeline.handleEscape();} return;}
       if (event.defaultPrevented || menus.isOpen()) return;
       if (runtime.controlling || cameraCapture?.busy || cameraCapture?.pendingReceipt) return;
       if (runtime.possessing) {if (event.key === 'Escape') {event.preventDefault(); if (focusPicking) {focusPicking = false; updateModeChrome();} else if (!runtime.finishCameraControl()) notice('本次镜头编辑尚未提交，请先完成或还原', true);} return;}
@@ -517,7 +560,7 @@ export async function open(node) {
       back.disabled=false;saveStatus.disabled=false;
       notice('片场启动失败，保存仍需重试：'+cleanupError.message,true);throw error;
     }
-    alive=false;clearTimeout(toastTimer);observer?.disconnect();controlHUD.dispose();cameraHUD?.dispose();cameraCapture?.dispose();cameraHistory?.dispose();menus.dispose();await runtime?.dispose();root.remove();
+    await temporal?.dispose();alive=false;clearTimeout(toastTimer);observer?.disconnect();photoHistory?.dispose();controlHUD.dispose();cameraHUD?.dispose();cameraCapture?.dispose();cameraBatch?.dispose();shotExporter?.dispose();await shotPreview?.dispose();cameraHistory?.dispose();menus.dispose();await runtime?.dispose();root.remove();
     if (active === instance) {document.body.classList.remove('studio-active'); active=null;}
     if(returnFocus?.isConnected)returnFocus.focus({preventScroll:true});throw error;
   }

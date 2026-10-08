@@ -1,5 +1,19 @@
 # 功能截图与复现
 
+## 2026-10-08 时间轴与已有照片只读相册
+
+独立公开验收项目使用真实生产入口、公开餐椅模型和已有本地 JPEG，不包含私人项目、供应商 Key 或模型生成。相册图为实际1280×720完整视口；其余三图为1280×637生产iframe区域截图，不冒充完整视口，无拼接或修图。[本批交互与范围](../verification/20261008-studio-temporal.md)
+
+| 证据 | 范围 |
+| --- | --- |
+| [餐椅单目标时间轴](20261008-studio-temporal/timeline-chair.jpg) | 0/3000ms的X0→3与1500ms实际rootX1.5/base0；拖动单笔undo、匀速/时长阻断、循环不改revision与reload keys分别实机验。 |
+| [历史照片只读相册](20261008-studio-temporal/photo-history.jpg) | 两张已有本地 JPEG 实际解码为1280×678；逆序、160px缩略图、方向键与Escape关闭已验。图片仅被读取，相册不恢复摄像机、不重渲染、不导出或生成新素材；普通快门不追加capturedPhotos。 |
+| [关键帧相机拍摄](20261008-studio-temporal/keyed-shutter.jpg) | 35→36.396mm写key后真实快门成功且HUD保持；第二次ArrowRight同key至37.848mm，base35保持。 |
+| [关键帧快门画布结果](20261008-studio-temporal/keyed-photo-nodes.jpg) | 实际4096×2304 JPEG节点与连线；完成/返回/reload revision18、ready/dirty=false、key37.848mm/base35，原相册仍2项。 |
+| [公开QA状态回读](20261008-studio-temporal/temporal-state.json) | 已保存作者keys/base、runtime根、只读相册与持久状态诊断，不是渲染截图或全产品测试。 |
+
+完整P2、模型导入/生成流程及V3 Agent尚未完成，真实SPZ像素未验，旧Alpha不含此批；时间轨道预览不能视为作者base的持久修改。
+
 ## 2026-10-08 离屏摄影、实体轮廓与镜头导出
 
 独立本机 4196 的公开验收项目使用生产入口、本地人物/餐椅模型和空供应商 Key。以下六张 JPEG 来自实际 1280×720 浏览器视口，直接裁取 `(0,42,1280,678)` 生产 iframe，成图 1280×678；只去除 QA 顶栏，没有拼接或修图，不能称为完整原始视口。
@@ -14,7 +28,7 @@
 | [资源守卫修复后竖幅快门](20261008-studio-shots/portrait-shutter.jpg) | 刷新生产代码后重新真实拍摄成功，显示“照片已保存到画布”，warn/error 日志为空。 |
 | [真实动态 WebM](20261008-studio-shots/dynamic-chair.webm) | 浏览器编码的公开餐椅镜头：VP9、1280×720、30 fps、1 秒、56,649 bytes；完整解码 30 帧且 30 帧不同，0/15/29 帧非黑并有餐椅与地面。 |
 
-[主验收记录](../verification/20261008-studio-shots.md)与[独立视频文件审核](../verification/20261008-studio-shots-video.json)记录操作、持久 ID 和解码结果。真实 SPZ 离屏 GPU/景深像素未实机验，GLB 景深和持物渲染尚未实现；完整时间轴编辑、独立 Saved Views/历史照片管理和 V3 Agent 仍未完成。现有 Alpha 不含此批源码；没有私人素材、供应商或原站请求。
+[主验收记录](../verification/20261008-studio-shots.md)与[独立视频文件审核](../verification/20261008-studio-shots-video.json)记录操作、持久 ID 和解码结果。真实 SPZ 离屏 GPU/景深像素未实机验，GLB 景深和持物渲染尚未实现；当时尚无时间轴与只读历史相册，其最新子集以上方新证据为准；完整视图管理和 V3 Agent 仍未完成。现有 Alpha 不含此批源码；没有私人素材、供应商或原站请求。
 
 ## 2026-10-08 前批摄像机接管与 viewport PNG 照片
 
@@ -26,7 +40,7 @@
 | [照片失败与守卫](20261008-studio-camera/photo-save-retry.jpg) | 两笔真实保存边界失败，HUD禁用非重试操作；返回/恢复视图/Escape保留镜头，文案明确先重试照片 |
 | [画布照片与连线](20261008-studio-camera/canvas-photos.jpg) | 正式画布在45%缩放下的片场与PNG连接；实际五张763×1356，刷新同ID且全部解码，不代表任意4K离屏输出 |
 
-操作、最终revision6与定向检查范围见[前批摄像机记录](../STUDIO-V3-CAMERA-POSSESSION-20261008.md)。上述 PNG 与尺寸保留为历史里程碑；当前离屏 JPEG 能力以上方最新记录为准。完整时间/平面图/独立历史视图和 V3 Agent 仍未完成，现有 Alpha 未包含这批源码。
+操作、最终revision6与定向检查范围见[前批摄像机记录](../STUDIO-V3-CAMERA-POSSESSION-20261008.md)。上述 PNG 与尺寸保留为历史里程碑；当前离屏 JPEG 能力以上方最新记录为准。时间轴与只读相册的后续补齐以上方新证据为准；完整平面图/视图管理和 V3 Agent 仍未完成，现有 Alpha 未包含这批源码。
 
 ## 2026-10-08 导演片场实体与镜头
 

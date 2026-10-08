@@ -85,6 +85,37 @@ function curveSegment(frames, index, track) {
   }
   return segment;
 }
+function curveTimeParameter(segment, timeT) {
+  if (segment.straight) return timeT;
+  const total = segment.lengths.at(-1); if (total <= 1e-8) return timeT;
+  const target = total * timeT; let low = 0, high = 64;
+  while (low < high) {const middle = Math.floor((low + high) / 2); if (segment.lengths[middle] < target) low = middle + 1; else high = middle;}
+  if (low === 0) return 0;
+  const start = segment.lengths[low - 1], length = segment.lengths[low] - start;
+  return (low - 1 + (length <= 1e-8 ? 0 : (target - start) / length)) / 64;
+}
+
+/** Geometric paths for author tools; expects schema-validated temporal track. */
+export function temporalPositionPathSegments(track) {
+  requireDomain(isRecord(track) && Array.isArray(track.keys) && Array.isArray(track.channels), 'temporalPath.track', 'requires a temporal track');
+  const frames = samples(track, track.channels.find(channel => channel.property === 'entity.transform.position'));
+  return frames.slice(0, -1).map((a, index) => {
+    const b = frames[index + 1], segment = curveSegment(frames, index, track);
+    return {...clone(segment), fromKeyId: a.key.id, toKeyId: b.key.id, fromTimeMs: a.key.timeMs, toTimeMs: b.key.timeMs,
+      interpolation: a.value.interpolation ?? 'linear', length: segment.straight ? distance(segment.p0, segment.p3) : segment.lengths.at(-1)};
+  });
+}
+
+/** Official split bends evaluate the existing path at each subinterval midpoint. */
+export function resolveTemporalPathSplit(track, timeMs) {
+  requireDomain(Number.isFinite(timeMs), 'temporalPath.timeMs', 'must be finite');
+  const segment = temporalPositionPathSegments(track).find(item => item.fromTimeMs < timeMs && timeMs < item.toTimeMs);
+  if (!segment) return null;
+  const t = curveTimeParameter(segment, (timeMs - segment.fromTimeMs) / (segment.toTimeMs - segment.fromTimeMs));
+  return {fromKeyId: segment.fromKeyId, toKeyId: segment.toKeyId, t,
+    leftBend: {point: curvePoint(segment, t * .5), t: .5},
+    rightBend: {point: curvePoint(segment, t + (1 - t) * .5), t: .5}};
+}
 function position(track, channel, timeMs) {
   const frames = samples(track, channel); if (!frames.length || timeMs < frames[0].key.timeMs) return null;
   if (timeMs >= frames.at(-1).key.timeMs) return clone(frames.at(-1).value.value);
@@ -95,13 +126,7 @@ function position(track, channel, timeMs) {
     if (a.value.interpolation === 'hold') return clone(a.value.value);
     const segment = curveSegment(frames, index, track), timeT = (timeMs - a.key.timeMs) / Math.max(1, b.key.timeMs - a.key.timeMs);
     if (segment.straight) return {kind: 'vec3', value: vector(segment.p0, segment.p3, timeT)};
-    const total = segment.lengths.at(-1); let pathT = timeT;
-    if (total > 1e-8) {
-      const target = total * timeT; let low = 0, high = 64;
-      while (low < high) {const middle = Math.floor((low + high) / 2); if (segment.lengths[middle] < target) low = middle + 1; else high = middle;}
-      if (low === 0) pathT = 0;
-      else {const start = segment.lengths[low - 1], length = segment.lengths[low] - start; pathT = (low - 1 + (length <= 1e-8 ? 0 : (target - start) / length)) / 64;}
-    }
+    const pathT = curveTimeParameter(segment, timeT);
     return {kind: 'vec3', value: curvePoint(segment, pathT)};
   }
   return clone(frames.at(-1).value.value);
@@ -158,26 +183,33 @@ function sampleEntity(entity, track, timeMs) {
   return next;
 }
 
-/** Pure, detached render snapshot. Never writes the live world, history,
- * timestamps, views or playhead. Requires a real linked camera like official
- * mK/rh strictTemporalCamera; unlinked View stills use their separate path. */
-export function sampleCameraShotState(state, shot, timeMs) {
-  assertState(state); requireDomain(isRecord(shot), 'cameraShotSampling.shot', 'must be a shot descriptor');
-  requireDomain(Number.isFinite(timeMs), 'cameraShotSampling.timeMs', 'must be finite');
+/** Detached effective setup sampling for live preview and key snapshots. No
+ * linked camera is required; all local channels share the shot math above. */
+export function sampleTemporalSetupState(state, descriptor, timeMs) {
+  assertState(state); requireDomain(isRecord(descriptor), 'temporalSampling.setup', 'must be a setup descriptor');
+  requireDomain(Number.isFinite(timeMs), 'temporalSampling.timeMs', 'must be finite');
   const time = Math.max(0, Math.round(timeMs)), space = state.scenePlay.worldSpace;
-  const setup = space.setups.find(item => item.id === shot.setupId);
-  requireDomain(!!setup && setup.kind === 'independent', 'cameraShotSampling.setupId', 'requires an independent setup', 'missing-relation');
-  requireDomain(setup.stageId === shot.stageId, 'cameraShotSampling.stageId', 'shot/setup stage mismatch', 'cross-stage');
-  const definition = space.entities.find(item => item.id === shot.cameraEntityId && item.kind === 'camera' && item.stageId === shot.stageId);
-  requireDomain(!!definition, 'cameraShotSampling.cameraEntityId', 'requires a real linked camera', 'missing-relation');
+  const setup = space.setups.find(item => item.id === descriptor.setupId);
+  requireDomain(!!setup && setup.kind === 'independent', 'temporalSampling.setupId', 'requires an independent setup', 'missing-relation');
+  requireDomain(descriptor.stageId === undefined || setup.stageId === descriptor.stageId, 'temporalSampling.stageId', 'shot/setup stage mismatch', 'cross-stage');
   const effective = renderSetup(state, setup.id), tracks = new Map((effective.temporal?.tracks ?? []).map(track => [track.owner.entityId, track]));
   const sampled = effective.entityStates.map(entity => sampleEntity(entity, tracks.get(entity.entityId), time));
-  const camera = sampled.find(entity => entity.entityId === definition.id)?.camera;
-  requireDomain(!!camera, 'cameraShotSampling.camera', 'linked camera has no effective setup state', 'missing-relation');
-  assertCamera(camera);
   const next = clone(state), nextSpace = next.scenePlay.worldSpace, byId = new Map(sampled.map(entity => [entity.entityId, entity]));
   nextSpace.activeStageId = setup.stageId; nextSpace.activeSetupId = setup.id; nextSpace.activeViewId = null;
   nextSpace.setups.find(item => item.id === setup.id).entityStates = setup.entityStates.map(entity => byId.get(entity.entityId));
   assertState(next);
-  return {state: next, camera: clone(camera)};
+  const sampledSetup = renderSetup(next, setup.id);
+  return {state: next, setup: sampledSetup, entityStates: sampledSetup.entityStates, timeMs: time};
+}
+
+/** Pure camera-shot wrapper preserves strict linked-camera eligibility. */
+export function sampleCameraShotState(state, shot, timeMs) {
+  assertState(state); requireDomain(isRecord(shot), 'cameraShotSampling.shot', 'must be a shot descriptor');
+  const sampled = sampleTemporalSetupState(state, shot, timeMs), space = state.scenePlay.worldSpace;
+  const definition = space.entities.find(item => item.id === shot.cameraEntityId && item.kind === 'camera' && item.stageId === shot.stageId);
+  requireDomain(!!definition, 'cameraShotSampling.cameraEntityId', 'requires a real linked camera', 'missing-relation');
+  const camera = sampled.entityStates.find(entity => entity.entityId === definition.id)?.camera;
+  requireDomain(!!camera, 'cameraShotSampling.camera', 'linked camera has no effective setup state', 'missing-relation');
+  assertCamera(camera);
+  return {state: sampled.state, camera: clone(camera)};
 }

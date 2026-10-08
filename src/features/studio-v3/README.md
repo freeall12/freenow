@@ -1,6 +1,6 @@
 # V3 导演片场 · 2026-10-08
 
-**已接入真实生产画布、IndexedDB 保存和 Three.js 工作区，当前完成 P0/P1 的部分闭环。** 本地模型预览可创建独立导演片场；人物、摄像机、道具、状态、基准、基础变换和失败保存重试已有实机证据。完整导演流程与 P2–P6 尚未完成，见[生产入口验收与截图](../../../docs/STUDIO-V3-PRODUCTION-20261008.md)。V3 是本项目内部代际名称，官方导演工作区与独立 GLB 编辑器并存；现有 v2 节点不隐式迁移。
+**已接入真实生产画布、IndexedDB 保存和 Three.js 工作区，当前完成 P0/P1 及时间作者/预览的部分闭环。** 本地模型预览可创建独立导演片场；人物、摄像机、道具、状态、基准、基础变换和失败保存重试已有实机证据。时间轴与已有照片只读相册的最新范围见[本批验收](../../../docs/verification/20261008-studio-temporal.md)；完整导演流程与 P2–P6 尚未完成，见[生产入口验收与截图](../../../docs/STUDIO-V3-PRODUCTION-20261008.md)。V3 是本项目内部代际名称，官方导演工作区与独立 GLB 编辑器并存；现有 v2 节点不隐式迁移。
 
 ## 实现范围
 
@@ -34,6 +34,11 @@
 | `camera-shot-preview.mjs` | 独立运行时按真实画幅生成320×180包围框内JPEG缩略图，串行/取消/身份与资源释放 |
 | `camera-shot-sampling.mjs` / `camera-shot-export.mjs` / `webm-encoder.mjs` | 静态JPEG、已有时序频道采样、1280×720/30fps原生WebM与明确unsupported时contact sheet回退；不等于时间编辑UI完成 |
 | `camera-batch-publish.mjs` | 原批次本地素材、连线媒体节点与真实项目保存，保留幂等回执用于失败重试 |
+| `temporal-actions.mjs` | base/selected-key/time-key 作者目标、隐式创建确认、关键帧/通道/轨道 CRUD、时长/曲线与匀速约束；[领域合同](TEMPORAL-ACTIONS.md) |
+| `temporal-playback.mjs` | 复用唯一采样器的 render-only seek/播放/循环，队列与来源围栏、原生对象恢复；[播放合同](TEMPORAL-PLAYBACK.md) |
+| `temporal-workspace.mjs` | 作者会话、runtime 与单轨 UI 接线、单笔事务拖动、确认取消和摄影采样租约；[宿主合同](TEMPORAL-WORKSPACE.md) |
+| `timeline.mjs` / `timeline.css` | 当前目标轨道、播放头、关键帧拖动、匀速/时长菜单与输入隔离；[UI 合同](TIMELINE.md) |
+| `photo-history.mjs` / `photo-history.css` | 只读已有 `capturedPhotos` 的本地图片相册，逆序缩略图、真实解码与焦点/关闭清理；[来源与合同](../../../docs/research/STUDIO-V3-PHOTO-HISTORY-20261008.md) |
 | `runtime.mjs` / `render-graph.mjs` | 真实 Three 场景、GLB/SPZ、人物 clip、相机、Orbit/正交视图和事务变换 |
 | `asset-loader.mjs` / `surface-hit.mjs` | 有界本地素材读取/解码/取消，站面与直接拾取基础 |
 | `icons.mjs` / `menus.mjs` / CSS | 官方图标与布局、单活动菜单和嵌套子菜单、坐标夹紧、键盘/分层Escape回焦与退出动效 |
@@ -48,13 +53,23 @@
 
 前批runtime光学/取景11项、落地5项、状态7项、集成守卫5项通过；同lane连续redo新增3项，跨lane冲突仍阻断。其他光学、属性与嵌套菜单专项按上述证据页分别记录，不合计为全量重跑。六色/道具材质与九姿态没有覆盖全部浏览器鼠标路径，P1不能标为全部完成，旧Alpha不包含这些增量。操控／创建与摄像机拍摄的当前补齐范围见下。
 
-## 最新：离屏摄影、身体轮廓与镜头管理/导出
+## 最新：单目标时间轴与已有照片只读相册
+
+当前独立状态接入单目标 actor/camera/prop 轨道，提供保存/移动/删除关键帧、删除轨道、按匀速重新分配、时长与循环播放。作者目标按自身有效 selected-key、无自身 keys 的 base、播放头精确 key、其余 time-key 决定；隐式创建先确认，取消不写 key、不改基础状态。普通基准实体编辑继续使用原领域入口，共享基准不允许时间创作。[源合同与差异](../../../docs/research/STUDIO-V3-TIMELINE-20261008.md)
+
+实机 0/3000ms 保存餐椅 X=0→3，1500ms 显示 root X=1.5 而作者 base X=0；确认取消在修复视图复原并刷新后重验保持 revision/keys。实际拖动 2000→997ms 只产生一笔撤销，撤销恢复 0/2000/3000ms；重做、匀速、4→3秒及最短3秒阻断、key/track删除撤销、循环跨末端和刷新恢复 keys 已验。播放头/循环/采样快照不持久化到作者内容。[本批交互与验证](../../../docs/verification/20261008-studio-temporal.md)
+
+带关键帧的摄像机实机焦距从35变为36.3963426mm，真实快门添加4096×2304 JPEG到画布且保持操控HUD；随后第二次编辑写入同key的37.848392988010275mm。完成/返回/reload后revision18、ready/dirty=false，key保留37.848mm、base仍35mm、原相册仍2项。领域作者23项、宿主最终17项与入口12项分别通过；其他专项和定向补验以主证据分批列示，不合计为全项目测试。
+
+历史相册读取原 `capturedPhotos`，仅集合非空时出现入口；两张已有本地 JPEG 实机解码为1280×678，逆序缩略图、方向键和 Escape 关闭已验。它不恢复相机、不重渲染、不创建素材、不保存 View，普通快门也不追加相册。完整平面图、模型导入/生成流程、完整视图管理及 V3 Agent 尚缺，真实 SPZ 像素未验，旧 Alpha 不含此批；各专项按独立范围记录，不合计为全仓重跑。
+
+## 前批：离屏摄影、身体轮廓与镜头管理/导出
 
 当前快门接独立 WebGLRenderTarget、RGBA 读回和 JPEG .92，默认 4096 长边；实机 9:16 图像解码为 2304×4096。摄影排除轮廓与 helper，实体身体橙色 outline 已有生产界面证据。摄影前等待 source 与可见非 camera 实体的必需资源，失败/身份失效/默认 30 秒超时具体报错且零编码；新增 readiness 5 项与受影响 Spark/drain 2 项通过，刷新新代码后真实竖幅快门成功且 warn/error 为空。
 
 镜头管理以独立 runtime 生成真实缩略图，竖幅实测 101×180；改名保存、删除确认/撤销、批量选择和分层 Escape 已验。照片失败重试保留原 capture ID、节点和素材；批次两次保存失败后关闭/重开恢复原选中项，重试与刷新保留同 export ID 的唯一输出节点及素材。普通快门不会追加 `capturedPhotos` 或 `views`，管理器不能当作完整 Saved Views/历史照片作者 UI。
 
-动态镜头以已有 temporal 频道采样并导出 WebM。真实文件审核为 VP9、1280×720、30 fps、1 秒、56,649 bytes，30 帧解码且全部不同，0/15/29 帧有餐椅与地面；只有编码器明确不支持时才回退 contact sheet。完整证据、截图与视频审核见[本批验收](../../../docs/verification/20261008-studio-shots.md)。真实 SPZ 离屏 GPU/景深像素未实机验，GLB 景深/持物渲染未实现；时间/关键帧编辑、完整平面图、独立历史照片管理、生成与完整 V3 Agent 编排仍缺，旧 Alpha 不含此批。
+动态镜头以已有 temporal 频道采样并导出 WebM。真实文件审核为 VP9、1280×720、30 fps、1 秒、56,649 bytes，30 帧解码且全部不同，0/15/29 帧有餐椅与地面；只有编码器明确不支持时才回退 contact sheet。完整证据、截图与视频审核见[摄影批次验收](../../../docs/verification/20261008-studio-shots.md)。真实 SPZ 离屏 GPU/景深像素未实机验，GLB 景深/持物渲染未实现；当时缺少的时间轴与只读历史相册以最新增量为准，完整平面图、视图管理、生成与完整 V3 Agent 编排仍缺，旧 Alpha 不含此批。
 
 ## 前批：摄像机接管与 viewport PNG 拍摄
 
@@ -62,7 +77,7 @@
 
 实机验证滑尺ArrowRight只改焦距不改pose；400mm与拖动后还原完整states，revision不变。两笔照片保存失败时锁非重试HUD，并保护恢复视图／选择／关闭入口；顶部或快门重试均不重复图片。最终刷新revision6、五张763×1356照片同ID并全部解码成功。完整源证据、模块合同、分批检查范围和截图见[摄像机接管与拍摄验收](../../../docs/STUDIO-V3-CAMERA-POSSESSION-20261008.md)。
 
-此段保留五张 viewport PNG 的历史证据；当时缺少的身体轮廓 pass 与 4096 长边离屏 JPEG 已由上方最新增量补齐。独立 Saved Views／历史照片管理、时间／关键帧编辑、完整平面图、生成 UI 与完整 V3 Agent 编排仍未完成。领域 schema 字段和只读 Agent 接口不能代替这些功能；不声称完整官方工作区验收。
+此段保留五张 viewport PNG 的历史证据；当时缺少的身体轮廓 pass、4096 长边离屏 JPEG、时间轴与只读历史相册已按上方增量范围接入。完整视图管理、平面图、生成 UI 与 V3 Agent 编排仍未完成。领域 schema 字段和只读 Agent 接口不能代替这些功能；不声称完整官方工作区验收。
 
 ## 数据约束
 
@@ -76,7 +91,7 @@ view 必须关联独立状态；sourceCameraEntityId 若存在，必须是同 st
 
 位置/变换使用数值 xyz，Euler 旋转为弧度、camera fov 为角度、时间为整数毫秒。不会把 v2 的 animationIndex/keyIndex 或旧对象数组隐式映射为本领域实体/时间数据。
 
-`assertState` 只接受 schemaVersion 4，拒绝旧版/未来版和不支持字段，不执行迁移或容错丢弃。这里验证的是**展开的内存域**：尚未实现官方紧凑 temporal 序列化（channel key index 等）、官方包的反序列化、云 schema 修复或编辑 session/生成任务/历史照片语义。本地保存只存该展开状态，不承诺读取任意官方 schema 4 存档。
+`assertState` 只接受 schemaVersion 4，拒绝旧版/未来版和不支持字段，不执行迁移或容错丢弃。这里验证的是**展开的内存域**：尚未实现官方紧凑 temporal 序列化（channel key index 等）、官方包的反序列化、云 schema 修复或官方编辑 session/生成任务/新照片追加语义；读取原 capturedPhotos 的相册独立实现。本地保存只存该展开状态，不承诺读取任意官方 schema 4 存档。
 
 ## 事务与错误处理
 

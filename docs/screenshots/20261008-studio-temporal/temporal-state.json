@@ -1,0 +1,591 @@
+{
+  "project": "qa-temporal-public-1008",
+  "nodeId": "d0601543-72a2-4709-aa8c-ea2df2d8c7cf",
+  "readOnly": true,
+  "persistence": {
+    "status": "ready",
+    "dirtySeq": 0,
+    "contentDirtySeq": 0,
+    "savedSeq": 0,
+    "savedContentSeq": 0,
+    "revision": 18,
+    "dirty": false,
+    "contentDirty": false,
+    "error": null
+  },
+  "activeSetupId": "setup:state-1",
+  "authorsetups": [
+    {
+      "id": "setup-default",
+      "label": "Scene baseline",
+      "kind": "scene-baseline",
+      "temporal": null,
+      "entityStates": []
+    },
+    {
+      "id": "setup:state-1",
+      "label": "公开时间验收状态",
+      "kind": "independent",
+      "temporal": {
+        "durationMs": 3000,
+        "tracks": [
+          {
+            "id": "entity-track:qa-chair:c43341a3-f140-4231-b2ca-8a84ef904eef",
+            "owner": {
+              "kind": "entity",
+              "entityId": "qa-chair:c43341a3-f140-4231-b2ca-8a84ef904eef"
+            },
+            "keys": [
+              {
+                "id": "temporal-key:7be456f6-325f-4443-b518-35f1ec65a569",
+                "timeMs": 0
+              },
+              {
+                "id": "temporal-key:dbeaf59d-5f5e-4802-a7b6-7a70875de401",
+                "timeMs": 2000
+              },
+              {
+                "id": "temporal-key:e30812a7-c373-4987-b5b9-b8d6908be6dd",
+                "timeMs": 3000
+              }
+            ],
+            "channels": [
+              {
+                "id": "entity-track:qa-chair:c43341a3-f140-4231-b2ca-8a84ef904eef:entity.transform.position",
+                "property": "entity.transform.position",
+                "values": [
+                  {
+                    "keyId": "temporal-key:7be456f6-325f-4443-b518-35f1ec65a569",
+                    "value": {
+                      "kind": "vec3",
+                      "value": {
+                        "x": 0,
+                        "y": 0,
+                        "z": 0
+                      }
+                    }
+                  },
+                  {
+                    "keyId": "temporal-key:dbeaf59d-5f5e-4802-a7b6-7a70875de401",
+                    "value": {
+                      "kind": "vec3",
+                      "value": {
+                        "x": 2,
+                        "y": 0,
+                        "z": 0
+                      }
+                    }
+                  },
+                  {
+                    "keyId": "temporal-key:e30812a7-c373-4987-b5b9-b8d6908be6dd",
+                    "value": {
+                      "kind": "vec3",
+                      "value": {
+                        "x": 3,
+                        "y": 0,
+                        "z": 0
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "entity-track:qa-chair:c43341a3-f140-4231-b2ca-8a84ef904eef:entity.transform.scale",
+                "property": "entity.transform.scale",
+                "values": [
+                  {
+                    "keyId": "temporal-key:7be456f6-325f-4443-b518-35f1ec65a569",
+                    "value": {
+                      "kind": "vec3",
+                      "value": {
+                        "x": 1,
+                        "y": 1,
+                        "z": 1
+                      }
+                    }
+                  },
+                  {
+                    "keyId": "temporal-key:dbeaf59d-5f5e-4802-a7b6-7a70875de401",
+                    "value": {
+                      "kind": "vec3",
+                      "value": {
+                        "x": 1,
+                        "y": 1,
+                        "z": 1
+                      }
+                    }
+                  },
+                  {
+                    "keyId": "temporal-key:e30812a7-c373-4987-b5b9-b8d6908be6dd",
+                    "value": {
+                      "kind": "vec3",
+                      "value": {
+                        "x": 1,
+                        "y": 1,
+                        "z": 1
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "entity-track:qa-chair:c43341a3-f140-4231-b2ca-8a84ef904eef:entity.visibility",
+                "property": "entity.visibility",
+                "values": [
+                  {
+                    "keyId": "temporal-key:7be456f6-325f-4443-b518-35f1ec65a569",
+                    "value": {
+                      "kind": "boolean",
+                      "value": true
+                    },
+                    "interpolation": "hold"
+                  },
+                  {
+                    "keyId": "temporal-key:dbeaf59d-5f5e-4802-a7b6-7a70875de401",
+                    "value": {
+                      "kind": "boolean",
+                      "value": true
+                    },
+                    "interpolation": "hold"
+                  },
+                  {
+                    "keyId": "temporal-key:e30812a7-c373-4987-b5b9-b8d6908be6dd",
+                    "value": {
+                      "kind": "boolean",
+                      "value": true
+                    },
+                    "interpolation": "hold"
+                  }
+                ]
+              },
+              {
+                "id": "entity-track:qa-chair:c43341a3-f140-4231-b2ca-8a84ef904eef:entity.transform.rotation",
+                "property": "entity.transform.rotation",
+                "values": [
+                  {
+                    "keyId": "temporal-key:7be456f6-325f-4443-b518-35f1ec65a569",
+                    "value": {
+                      "kind": "euler3",
+                      "value": {
+                        "x": 0,
+                        "y": 0,
+                        "z": 0
+                      }
+                    }
+                  },
+                  {
+                    "keyId": "temporal-key:dbeaf59d-5f5e-4802-a7b6-7a70875de401",
+                    "value": {
+                      "kind": "euler3",
+                      "value": {
+                        "x": 0,
+                        "y": 0,
+                        "z": 0,
+                        "order": "XYZ"
+                      }
+                    }
+                  },
+                  {
+                    "keyId": "temporal-key:e30812a7-c373-4987-b5b9-b8d6908be6dd",
+                    "value": {
+                      "kind": "euler3",
+                      "value": {
+                        "x": 0,
+                        "y": 0,
+                        "z": 0
+                      }
+                    }
+                  }
+                ]
+              }
+            ],
+            "segments": [
+              {
+                "fromKeyId": "temporal-key:7be456f6-325f-4443-b518-35f1ec65a569",
+                "toKeyId": "temporal-key:dbeaf59d-5f5e-4802-a7b6-7a70875de401",
+                "transition": {
+                  "spatialBend": {
+                    "point": {
+                      "x": 1,
+                      "y": 0,
+                      "z": 0
+                    },
+                    "t": 0.5
+                  }
+                }
+              },
+              {
+                "fromKeyId": "temporal-key:dbeaf59d-5f5e-4802-a7b6-7a70875de401",
+                "toKeyId": "temporal-key:e30812a7-c373-4987-b5b9-b8d6908be6dd",
+                "transition": {
+                  "spatialBend": {
+                    "point": {
+                      "x": 2.5,
+                      "y": 0,
+                      "z": 0
+                    },
+                    "t": 0.5
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "entity-track:qa-camera:de7a51e9-a914-4aa2-b9fc-aa74935374b0",
+            "owner": {
+              "kind": "entity",
+              "entityId": "qa-camera:de7a51e9-a914-4aa2-b9fc-aa74935374b0"
+            },
+            "keys": [
+              {
+                "id": "temporal-key:d59cddec-c69c-410d-9f80-6e0f76c0854f",
+                "timeMs": 0
+              }
+            ],
+            "channels": [
+              {
+                "id": "entity-track:qa-camera:de7a51e9-a914-4aa2-b9fc-aa74935374b0:entity.transform.position",
+                "property": "entity.transform.position",
+                "values": [
+                  {
+                    "keyId": "temporal-key:d59cddec-c69c-410d-9f80-6e0f76c0854f",
+                    "value": {
+                      "kind": "vec3",
+                      "value": {
+                        "x": -2,
+                        "y": 2,
+                        "z": 5
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "entity-track:qa-camera:de7a51e9-a914-4aa2-b9fc-aa74935374b0:entity.transform.scale",
+                "property": "entity.transform.scale",
+                "values": [
+                  {
+                    "keyId": "temporal-key:d59cddec-c69c-410d-9f80-6e0f76c0854f",
+                    "value": {
+                      "kind": "vec3",
+                      "value": {
+                        "x": 1,
+                        "y": 1,
+                        "z": 1
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "entity-track:qa-camera:de7a51e9-a914-4aa2-b9fc-aa74935374b0:entity.visibility",
+                "property": "entity.visibility",
+                "values": [
+                  {
+                    "keyId": "temporal-key:d59cddec-c69c-410d-9f80-6e0f76c0854f",
+                    "value": {
+                      "kind": "boolean",
+                      "value": true
+                    },
+                    "interpolation": "hold"
+                  }
+                ]
+              },
+              {
+                "id": "entity-track:qa-camera:de7a51e9-a914-4aa2-b9fc-aa74935374b0:camera.rotation",
+                "property": "camera.rotation",
+                "values": [
+                  {
+                    "keyId": "temporal-key:d59cddec-c69c-410d-9f80-6e0f76c0854f",
+                    "value": {
+                      "kind": "euler3",
+                      "value": {
+                        "x": -0.12,
+                        "y": -0.22,
+                        "z": 0,
+                        "order": "YXZ"
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "entity-track:qa-camera:de7a51e9-a914-4aa2-b9fc-aa74935374b0:camera.focalLength",
+                "property": "camera.focalLength",
+                "values": [
+                  {
+                    "keyId": "temporal-key:d59cddec-c69c-410d-9f80-6e0f76c0854f",
+                    "value": {
+                      "kind": "number",
+                      "value": 37.848392988010275
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "entity-track:qa-camera:de7a51e9-a914-4aa2-b9fc-aa74935374b0:camera.frameAspectRatio",
+                "property": "camera.frameAspectRatio",
+                "values": [
+                  {
+                    "keyId": "temporal-key:d59cddec-c69c-410d-9f80-6e0f76c0854f",
+                    "value": {
+                      "kind": "number",
+                      "value": 1.7777777777777777
+                    },
+                    "interpolation": "hold"
+                  }
+                ]
+              },
+              {
+                "id": "entity-track:qa-camera:de7a51e9-a914-4aa2-b9fc-aa74935374b0:camera.focusDistance",
+                "property": "camera.focusDistance",
+                "values": [
+                  {
+                    "keyId": "temporal-key:d59cddec-c69c-410d-9f80-6e0f76c0854f",
+                    "value": {
+                      "kind": "number",
+                      "value": 10
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "entity-track:qa-camera:de7a51e9-a914-4aa2-b9fc-aa74935374b0:camera.apertureFNumber",
+                "property": "camera.apertureFNumber",
+                "values": [
+                  {
+                    "keyId": "temporal-key:d59cddec-c69c-410d-9f80-6e0f76c0854f",
+                    "value": {
+                      "kind": "number",
+                      "value": 11
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "entity-track:qa-camera:de7a51e9-a914-4aa2-b9fc-aa74935374b0:camera.depthOfFieldMode",
+                "property": "camera.depthOfFieldMode",
+                "values": [
+                  {
+                    "keyId": "temporal-key:d59cddec-c69c-410d-9f80-6e0f76c0854f",
+                    "value": {
+                      "kind": "camera-depth-of-field-mode",
+                      "value": "deepFocus"
+                    },
+                    "interpolation": "hold"
+                  }
+                ]
+              },
+              {
+                "id": "entity-track:qa-camera:de7a51e9-a914-4aa2-b9fc-aa74935374b0:camera.focus",
+                "property": "camera.focus",
+                "values": [
+                  {
+                    "keyId": "temporal-key:d59cddec-c69c-410d-9f80-6e0f76c0854f",
+                    "value": {
+                      "kind": "camera-focus",
+                      "value": {
+                        "mode": "distance",
+                        "distance": 10
+                      }
+                    },
+                    "interpolation": "hold"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "entityStates": [
+        {
+          "entityId": "qa-chair:c43341a3-f140-4231-b2ca-8a84ef904eef",
+          "transform": {
+            "position": {
+              "x": 0,
+              "y": 0,
+              "z": 0
+            },
+            "rotation": {
+              "x": 0,
+              "y": 0,
+              "z": 0
+            },
+            "scale": {
+              "x": 1,
+              "y": 1,
+              "z": 1
+            }
+          },
+          "visible": true,
+          "lookTarget": {
+            "kind": "none"
+          },
+          "updatedAt": 1791421002924
+        },
+        {
+          "entityId": "qa-camera:de7a51e9-a914-4aa2-b9fc-aa74935374b0",
+          "transform": {
+            "position": {
+              "x": -2,
+              "y": 2,
+              "z": 5
+            },
+            "rotation": {
+              "x": -0.11999999999999998,
+              "y": 0.21999999999999945,
+              "z": 3.49457773296836e-18,
+              "order": "YXZ"
+            },
+            "scale": {
+              "x": 1,
+              "y": 1,
+              "z": 1
+            }
+          },
+          "visible": true,
+          "lookTarget": {
+            "kind": "none"
+          },
+          "updatedAt": 1791421002924,
+          "camera": {
+            "focalLength": 35,
+            "frameAspectRatio": 1.7777777777777777,
+            "fov": 32.26880217111643,
+            "apertureFNumber": 11,
+            "depthOfFieldMode": "deepFocus",
+            "focusDistance": 10,
+            "position": {
+              "x": -2,
+              "y": 2,
+              "z": 5
+            },
+            "rotation": {
+              "x": -0.12,
+              "y": -0.22,
+              "z": 0,
+              "order": "YXZ"
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "entities": [
+    {
+      "id": "qa-chair:c43341a3-f140-4231-b2ca-8a84ef904eef",
+      "stageId": "stage-default",
+      "kind": "prop",
+      "label": "本地公开餐椅",
+      "asset": {
+        "sourceUrl": "/assets/studio/library/chair-dining.glb",
+        "sourceFormat": "glb",
+        "presentationAnchor": "bottom"
+      },
+      "referenceIds": [],
+      "createdAt": 1791421002924,
+      "updatedAt": 1791421002924
+    },
+    {
+      "id": "qa-camera:de7a51e9-a914-4aa2-b9fc-aa74935374b0",
+      "stageId": "stage-default",
+      "kind": "camera",
+      "label": "公开时间验收摄像机",
+      "asset": {
+        "sourceUrl": "/assets/studio/camera.glb",
+        "sourceFormat": "glb",
+        "presentationAnchor": "center"
+      },
+      "referenceIds": [],
+      "createdAt": 1791421002924,
+      "updatedAt": 1791421002924
+    }
+  ],
+  "runtimeRoots": [
+    {
+      "id": "qa-chair:c43341a3-f140-4231-b2ca-8a84ef904eef",
+      "status": "ready",
+      "error": null,
+      "position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "rotation": {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "order": "XYZ"
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "visible": true
+    },
+    {
+      "id": "qa-camera:de7a51e9-a914-4aa2-b9fc-aa74935374b0",
+      "status": "ready",
+      "error": null,
+      "position": {
+        "x": -2,
+        "y": 2,
+        "z": 5
+      },
+      "rotation": {
+        "x": -0.12,
+        "y": -0.22,
+        "z": 0,
+        "order": "YXZ"
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "visible": true
+    }
+  ],
+  "hostTemporal": {
+    "setupId": "setup:state-1",
+    "visible": false,
+    "available": true,
+    "readOnly": false,
+    "baseline": false,
+    "canAuthorTemporal": true,
+    "busy": false,
+    "durationMs": 3000,
+    "durationMinimum": {
+      "kind": "blocking-key",
+      "durationMs": 3000,
+      "timeMs": 3000,
+      "trackLabel": "本地公开餐椅",
+      "trackId": "entity-track:qa-chair:c43341a3-f140-4231-b2ca-8a84ef904eef",
+      "keyId": "temporal-key:e30812a7-c373-4987-b5b9-b8d6908be6dd"
+    },
+    "playheadMs": 0,
+    "playing": false,
+    "looping": false,
+    "playbackShortcutAvailable": true,
+    "structureEditingDisabledReason": null,
+    "track": null
+  },
+  "hostTemporalAvailable": true,
+  "capturedPhotos": [
+    {
+      "id": "qa-legacy:portrait-photo-save-retry",
+      "sequence": 1,
+      "src": "asset:1280449a-a56d-4416-bfbc-89333ed6574a",
+      "width": 1280,
+      "height": 678
+    },
+    {
+      "id": "qa-legacy:canvas-photo-nodes",
+      "sequence": 2,
+      "src": "asset:ac208867-c995-4ce1-a61c-237f62ad2f1d",
+      "width": 1280,
+      "height": 678
+    }
+  ]
+}
