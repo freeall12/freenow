@@ -12,6 +12,7 @@ freenow 是本地 AI 创作工作台：无限画布、图片/音视频工具、3
 | 下载、运行或构建 Electron 桌面预发布 | [macOS arm64 Alpha](https://github.com/freeall12/freenow/releases/tag/v0.1.0-alpha.1)、[桌面指南](DESKTOP.md)；固定 4183、独立用户目录、外部 FFmpeg，未签名/公证；ZIP、包内后台和实际安装包退出重开恢复已核验 |
 | 用桌面源码整理授权文件夹 | [原生授权、整批确认与回执](DESKTOP-FILES-20261008.md)；仅子目录创建和普通文件移动/重命名，不在现有 Alpha 包内 |
 | 操控导演片场摄像机并拍摄到画布 | [三维飞行、光学滑尺、完成/还原和照片重试](STUDIO-V3-CAMERA-POSSESSION-20261008.md)；当前源码，PNG保存/刷新已验，不在现有Alpha包内 |
+| 在导演平面图放置角色/机位并编辑路径 | [角色草稿/六色、支撑面摆位、路径与关键帧编辑](verification/20261008-studio-plan-placement-paths.md)；当前源码，单笔撤销与角色刷新保存已验，P2未全、现有Alpha未包含 |
 | 新建与切换画布项目 | [画布项目](CANVAS-PROJECTS.md) |
 | 使用画布帮助、离线教程与快捷键 | [五项帮助入口](CANVAS-HELP-20261008.md)、[实际快捷键与验证](CANVAS-SHORTCUTS-20261008.md) |
 | 使用图片、视频、音频或 3D 生成 | [多供应商配置](MULTI-PROVIDER-SETUP.md)、[功能与适配器](FEATURES.md) |
@@ -29,14 +30,16 @@ freenow 是本地 AI 创作工作台：无限画布、图片/音视频工具、3
 | 修改生成路由、预检或结果归档 | [生成网关](GENERATION-GATEWAY.md)、[路由合同](generation-routing-contract.md)、[预检](GENERATION-PREFLIGHT-READINESS-20261003.md)、[媒体归档](GENERATION-MEDIA-MATERIALIZER-20261003.md) |
 | 修改 Agent 检查点或继续执行 | [服务端会话](AGENT-SESSION-STORE.md)、[存储](AGENT-STORAGE.md)、[恢复合同](agent-stored-continuation.md) |
 | 修改内嵌创作应用 | [本地生成合同](agent-apps-local-generation-contract.md)、[应用目录与历史](HISTORICAL-APPS-AND-NATIVE-TTS-20261003.md) |
-| 核对导演工作区与GLB片场的版本边界 | [下一代实现映射](research/STUDIO-V3-IMPLEMENTATION-MAP-20261008.md)、[V3模块合同](../src/features/studio-v3/README.md)、[生产入口与保存实机证据](STUDIO-V3-PRODUCTION-20261008.md)；官方两入口并存，V3已接生产运行时/保存、时间作者及平面图/房间子集，P1–P6未全、旧Alpha未包含 |
+| 核对导演工作区与GLB片场的版本边界 | [下一代实现映射](research/STUDIO-V3-IMPLEMENTATION-MAP-20261008.md)、[V3模块合同](../src/features/studio-v3/README.md)、[生产入口与保存实机证据](STUDIO-V3-PRODUCTION-20261008.md)；官方两入口并存，V3已接生产运行时/保存、时间作者及平面图/房间/放置路径子集，P1–P6未全、旧Alpha未包含 |
 | 修改V3平面图、房间与场景来源 | [官方合同与缺口矩阵](research/STUDIO-V3-PLAN-20261008.md)、[当前实机证据](verification/20261008-studio-plan.md)、[投影](../src/features/studio-v3/PLAN-PROJECTION.md)、[渲染](../src/features/studio-v3/PLAN-RENDERER.md)、[SVG交互](../src/features/studio-v3/PLAN-VIEW.md)、[作者桥](../src/features/studio-v3/PLAN-WORKSPACE.md)、[房间](../src/features/studio-v3/ROOM-SCENE.md)、[空间菜单](../src/features/studio-v3/SPACE-MENU.md)、[本地来源](../src/features/studio-v3/WORKSPACE-SOURCE.md) |
+| 修改V3角色放置与temporal路径 | [官方补充合同](research/STUDIO-V3-PLAN-PLACEMENT-PATHS-20261008.md)、[实机证据](verification/20261008-studio-plan-placement-paths.md)、[新实体摆位](../src/features/studio-v3/PLAN-PLACEMENT.md)、[路径作者桥/缓存](../src/features/studio-v3/PLAN-TRAJECTORIES.md)、[指针/SVG表层](../src/features/studio-v3/PLAN-SURFACE.md) |
+| 核对Saved Views领域/恢复及UI缺口 | [官方View能力与下一切片研究](research/STUDIO-V3-SAVED-VIEWS-20261008.md)；仅静态依据，完整Saved Views未实现，独立管理UI与“更新到当前视角”没有本包官方调用证据 |
 | 核对出站和公开文件边界 | [运行边界](LOCAL-RUNTIME-BOUNDARIES-20261003.md)、[依赖审计](RUNTIME-DEPENDENCY-AUDIT-20261003.md)、[公开仓库检查](PUBLIC-REPOSITORY-AUDIT-20261004.md) |
 | 理解许可与第三方资源 | [第三方来源](THIRD-PARTY-RESOURCES.md)；当前没有覆盖全部内容的统一许可证 |
 
 ## 我想核对当前范围
 
-- [平面图与房间最新证据](verification/20261008-studio-plan.md)：真实正交剖切、已有实体/FOV事务、尺寸scrub和刷新恢复；路径/关键帧曲线/新增摆位支撑面与完整P2仍开放。前批[摄影与导出](verification/20261008-studio-shots.md)、[时间轴/只读相册](verification/20261008-studio-temporal.md)保留各自测试和媒体范围，旧Alpha不含这些源码。
+- [平面放置与路径最新证据](verification/20261008-studio-plan-placement-paths.md)：角色草稿/六色与hover菜单、最高支撑摆位、曲线选择/bend/Bezier控制点、key位置/朝向/FOV、单笔history与删除/undo；角色刷新保存、pending清旧选择/提示可见/Escape及bend右键reset/undo的SVG几何已验。P2未全，3D角色仍立即创建；完整Saved Views/P4导入生成/holding/V3 Agent、真实SPZ/DOF GPU与跨设备性能仍开放。前批[平面图与房间](verification/20261008-studio-plan.md)、[摄影与导出](verification/20261008-studio-shots.md)、[时间轴/只读相册](verification/20261008-studio-temporal.md)保留各自范围，旧Alpha不含10月8日源码。
 - [当前开发进度](STATUS.md)：已接入能力、本批变化和仍开放的验证。
 - [有效功能缺口](CURRENT-FUNCTION-GAPS-20261003.md)：缺少的接口、精确模板、服务资格与质量验证。
 - [本地化验收](FREENOW-LOCALIZATION-ACCEPTANCE.md)：资源、数据、原站请求与实际导出边界。

@@ -13,14 +13,24 @@
 | 生成接口 | 多供应商路由及若干原生适配已实现；其余能力保留任务接口 | [配置及每项限制](MULTI-PROVIDER-SETUP.md) |
 | 本地化 | 本地资源/归档、原站出站阻断与显式资源修复已实现 | [验收清单](FREENOW-LOCALIZATION-ACCEPTANCE.md) |
 
-## 最新：平面图、房间与空间来源
+## 最新：平面放置与时间路径编辑
+
+- 当前源码按[官方原包合同](research/STUDIO-V3-PLAN-PLACEMENT-PATHS-20261008.md)接入已有角色、新角色名/六色草稿、原生子菜单 hover 与180ms延迟关闭；平面 pending placement 固定首点，拖动只改朝向。新增取 normal.y≥.65 的最高有效支撑，无命中才回退地面；摄像机加1.6m，已有实体拖动仍保原Y。
+- temporal 路径 click 只选择实体或端点 key，不创建 key/history；曲线拖动写 bend，Bezier 首末控制点和 key 位置/朝向、camera key FOV 均可编辑。key 再次点击/右键仅“删除关键帧”，bend 右键直接 reset；每次手势一笔历史，保留 base、其他 key 和原Y。
+- 实机新青绿角色 click 创建、undo/redo 与刷新持久化已验；摄像机放在餐椅支撑面上方，Y=2.04672378m、heading=1.14378rad。bend、endpoint、key 位置各一笔 history；camera key FOV32.2688→43.8414°、焦距25.1605mm、heading约0.074rad一次变更，base/其他key不变，undo还原；中间key删除/undo及pending Escape保留plan已验。[本批证据与原生截图](verification/20261008-studio-plan-placement-paths.md)
+- 最终生产页复验bend直接右键reset：无菜单、可见SVG曲线改变，一次undo恢复原路径；此项未另读作者JSON。进入pending前清旧entity/key选择，实机selected key数0、工具条消失、提示可见，Escape留plan；遮挡修复专门回归1/1。提示bottom84是本地可见性适配，不是官方像素合同。
+- 轨迹 geometry cache 排除纯 save revision，按作者 editEpoch/来源失效；保存回执不中断 lease。commit/cancel失败保留 lease 可重试，无变化事务被消费后释放，不留下输入锁。
+- 分批定向通过：既有路径/temporal27/27、surface25/25、placement12/12、入口新增6/6及旧入口review11/11；随后cache+key optics4/4、surface key optics2/2、hover1/1、旋转2/2、失败边界3/3。不合计为全仓或全部用例重跑。
+- P2仍不标完整；orbit/3D添加角色仍立即创建，不能代表3D放置已对齐。真实SPZ/DOF GPU、完整[Saved Views](research/STUDIO-V3-SAVED-VIEWS-20261008.md)、P4导入/生成UI、holding、完整V3 Agent及跨设备性能仍开放；GLB景深未实现。旧Alpha不含10月8日源码，无新依赖或供应商API请求。
+
+## 前批：平面图、房间与空间来源
 
 - 当前源码接独立正交renderer profile、真实六面房间/source、默认1.6m near-plane剖切、成功显示投影快照及SVG实体/FOV层。平移/缩放/旋转/剖切只改变导航，实体/光学编辑进入既有session/temporal作者事务。
 - 真实UI在旋转−15°、zoom1.12后拖餐椅，原Y=0保持且一笔history。房间width输入9m、depth从6经一次64px scrub到7.9170474646m；Escape先panel再menu，刷新revision5房间/位置保持。
 - 原生camera点击修复后实际FOV32.26880217→46.74428389°、heading0.22→0.03990825750rad；undo同时回35mm/0.22。剖切all near约44.8，reset回1.6m/near48.4；source empty可撤销回room。[当前证据与截图](verification/20261008-studio-plan.md)
 - 房间尺寸/参考图案和本地场景选择已接；picker初始空态，显式导入公开GLB来源样本后实际选为history-world，source ready/root存在，保存回读revision10/dirty=false，undo回room；样本不是生成结果。原sourceBinding保持，拒绝远端/API来源，无供应商历史请求。
 - 新模块分项结果见主证据：投影/导航21项、renderer/runtime各3项、surface全文件19项后旋转/键盘仅2项、作者桥8项及新增1项、room/space13项、菜单初7项及wheel定向补验、来源7项及混合格式新增1项、entry新增11项；不合并前批或重复用例为全项目测试数字。
-- 路径/关键帧曲线交互、新placement支撑面、完整导入/生成生命周期及V3 Agent仍缺，P2不能标完整；真实SPZ/DOF GPU未验，Alpha不含当前源码。没有新增依赖或供应商API调用。[官方依据与缺口](research/STUDIO-V3-PLAN-20261008.md)
+- 路径/关键帧曲线交互、新placement支撑面、完整导入/生成生命周期及V3 Agent仍缺，P2不能标完整；真实SPZ/DOF GPU未验，Alpha不含当前源码。没有新增依赖或供应商API调用。[官方依据与缺口](research/STUDIO-V3-PLAN-20261008.md)；当时的路径/新增摆位缺口按[后续放置与路径增量](verification/20261008-studio-plan-placement-paths.md)更新。
 
 ## 前批：时间轴作者、循环预览与只读历史相册
 
@@ -29,7 +39,7 @@
 - 实际循环播放头1766→1116ms跨过末端，revision4不变；刷新后keys保存。相机key0焦距35→36.3963426mm后拍摄真实4096×2304 JPEG，操控HUD保持；第二次编辑同key至37.848392988010275mm。完成/返回/reload为revision18、ready/dirty=false，key37.848mm/base35mm、原相册2项保持。[本批验收](verification/20261008-studio-temporal.md)
 - 历史相册只读原capturedPhotos，两张已有本地JPEG真实解码1280×678，逆序/160px缩略图、方向键和Escape关闭已验；不恢复镜头、不重渲染、不生成素材，普通快门仍只追加画布图片。
 - 领域作者23项、宿主最终17项与入口12项分别通过，其他播放/时间轴UI/运行时门禁专项按主证据实际批次列示，不与旧tests合计。
-- 完整P2平面图/站面流程、模型导入/生成UI与完整V3 Agent仍缺，真实SPZ像素未验，旧Alpha不含此批。没有新依赖或供应商API请求，专项按模块和各次实际运行记录，不合并旧tests为全项目重跑。
+- 完整P2平面图/站面流程、模型导入/生成UI与完整V3 Agent仍缺，真实SPZ像素未验，旧Alpha不含此批。没有新依赖或供应商API请求，专项按模块和各次实际运行记录，不合并旧tests为全项目重跑。该批之后的平面放置/路径范围见[后续增量](verification/20261008-studio-plan-placement-paths.md)。
 
 ## 前批：离屏摄影、实体轮廓与镜头管理/导出
 

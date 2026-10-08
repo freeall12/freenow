@@ -46,3 +46,31 @@ export function markerLabel(value) {
   return {label, width};
 }
 export function fovReadout(fov, ratio) {return `${Math.round(fov)}° · ${Math.round(fovToFocalLength(fov, ratio))}mm`;}
+
+/** Official hr proxy: keep controls at least 30 screen pixels from an anchor. */
+export function pathControlProxy(position, anchors = [], fallbackPoint) {
+  const nearest = anchors.reduce((best, value) => !best || Math.hypot(value.x - position.x, value.y - position.y) < Math.hypot(best.x - position.x, best.y - position.y) ? value : best, null);
+  if (!nearest || Math.hypot(position.x - nearest.x, position.y - nearest.y) >= 30) return {...position, proxied: false};
+  let dx = position.x - nearest.x, dy = position.y - nearest.y, length = Math.hypot(dx, dy);
+  if (length < .5) {const other = anchors.find(value => Math.hypot(value.x - nearest.x, value.y - nearest.y) >= .5) || fallbackPoint; if (other) {dx = other.x - nearest.x; dy = other.y - nearest.y; length = Math.hypot(dx, dy);}}
+  if (length < .5) {dx = 1; dy = 0; length = 1;}
+  return {...position, x: nearest.x + dx / length * 30, y: nearest.y + dy / length * 30, proxied: true};
+}
+
+/** Samples are equally spaced in time; use the nearest screen segment to recover time. */
+export function nearestPathSample(segments, project, point) {
+  let nearest = null;
+  for (const segment of segments || []) {
+    const values = segment.points?.length >= 2 ? segment.points : [segment.p0, segment.p3].filter(Boolean);
+    for (let index = 0; index < values.length - 1; index++) {
+      const a = project(values[index]), b = project(values[index + 1]); if (!a || !b) continue;
+      const dx = b.x - a.x, dy = b.y - a.y, length = dx * dx + dy * dy;
+      const ratio = length ? Math.max(0, Math.min(1, ((point.x - a.x) * dx + (point.y - a.y) * dy) / length)) : 0;
+      const distance = Math.hypot(point.x - a.x - dx * ratio, point.y - a.y - dy * ratio);
+      if (nearest && nearest.distance <= distance) continue;
+      const timeRatio = (index + ratio) / (values.length - 1), t = segment.parameters?.length === values.length ? segment.parameters[index] + (segment.parameters[index + 1] - segment.parameters[index]) * ratio : timeRatio, start = values[index], end = values[index + 1];
+      nearest = {distance, segment, t, timeMs: segment.fromTimeMs + (segment.toTimeMs - segment.fromTimeMs) * timeRatio, position: {x: start.x + (end.x - start.x) * ratio, y: (start.y ?? 0) + ((end.y ?? 0) - (start.y ?? 0)) * ratio, z: start.z + (end.z - start.z) * ratio}};
+    }
+  }
+  return nearest;
+}

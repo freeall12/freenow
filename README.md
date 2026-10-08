@@ -60,11 +60,19 @@ pnpm desktop:dev
 
 当前源码的[导演片场 V3](docs/STUDIO-V3-PRODUCTION-20261008.md)已接入人物/镜头/道具、基准与独立状态、[实体属性](docs/STUDIO-V3-ENTITIES-20261008.md)、[操控与创建](docs/STUDIO-V3-CONTROLS-20261008.md)。[摄影与镜头管理](docs/verification/20261008-studio-shots.md)支持 4096 长边 JPEG、身体轮廓、真实缩略图和原回执保存重试；实际一秒 WebM 为 1280×720 / 30 fps、30 个不同帧。[时间轴与只读相册](docs/verification/20261008-studio-temporal.md)支持单目标关键帧编辑/循环预览和已有本地照片浏览，采样不覆盖基础状态，普通快门仍只添加到画布。
 
-最新[平面图与房间](docs/verification/20261008-studio-plan.md)接入独立正交渲染、1.6m 默认剖切、平移/缩放/旋转、已有实体保高度拖动、摄像机朝向/FOV 联动，以及房间尺寸/参考图案和本地场景选择。真实房间编辑、单笔撤销与刷新恢复已验。完整 P2 仍缺路径/关键帧曲线交互和新增摆位的支撑面流程；完整视图管理、导入/生成生命周期与 V3 Agent 编排仍未完成，真实 SPZ/景深 GPU 未验、GLB 景深和持物渲染未实现。现有 Alpha 不含这些源码增量。
+最新[平面图与房间](docs/verification/20261008-studio-plan.md)接入独立正交渲染、1.6m 默认剖切、平移/缩放/旋转、已有实体保高度拖动、摄像机朝向/FOV 联动，以及房间尺寸/参考图案和本地场景选择。房间编辑、单笔撤销与刷新恢复已验。
+
+[平面放置与路径编辑](docs/verification/20261008-studio-plan-placement-paths.md)进一步接入角色草稿/六色菜单、已有角色与摄像机摆位、最高支撑面和固定首点朝向；摄像机位于支撑面上方1.6m。路径点击选择，拖动可改 bend、Bezier 首末控制点、关键帧位置/朝向与摄像机关键帧 FOV；关键帧菜单仅删除，bend 右键直接重置。角色创建、撤销/重做、刷新保存，以及机位支撑和单次路径/光学编辑已实机验证。进入待放置会清除旧选择，提示保持可见，Escape 取消后仍留在平面图。P2 仍不标完整；3D 视图添加角色仍立即创建，完整 Saved Views、P4 导入/生成 UI、持物渲染与 V3 Agent 编排未完成，真实 SPZ/景深 GPU 和跨设备性能未验。现有 Alpha 不含这些源码增量。
 
 | 平面图与摄像机 FOV | 房间与空间设置 |
 | --- | --- |
 | ![freenow 真实房间俯视图与摄像机视角交互](docs/screenshots/20261008-studio-plan/plan-camera.jpg) | ![freenow 房间来源、尺寸与参考图案菜单](docs/screenshots/20261008-studio-plan/space-room.jpg) |
+
+| 关键帧与路径编辑 | 支撑面摄像机放置 |
+| --- | --- |
+| ![freenow 平面图中的真实关键帧与轨迹控制点](docs/screenshots/20261008-studio-plan-placement-paths/plan-paths.jpg) | ![freenow 已保存支撑面摄像机的真实属性Y2.047m与朝向65.5度](docs/screenshots/20261008-studio-plan-placement-paths/camera-placement.jpg) |
+
+[角色草稿与六色放置菜单](docs/screenshots/20261008-studio-plan-placement-paths/role-placement-menu.jpg) · [待放置提示](docs/screenshots/20261008-studio-plan-placement-paths/pending-placement.jpg)
 
 | 镜头管理与真实缩略图 | 离屏照片连接到画布 |
 | --- | --- |

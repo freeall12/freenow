@@ -179,7 +179,25 @@ export function createTemporalWorkspace({getState, session, getRuntime = () => n
     await getRuntime()?.sync(displayState());
     if (!primed || !current(primed.token)) {primed = null; return false;} notify(); return true;
   }
-  function owned(event) {return owner && owner.entityId === event.entityId && current(owner.token) && same(session.history.getActiveTransaction(), owner.transaction);}
+  // A failed durable commit must retain the author owner so its original
+  // lease can still roll back. A consumed no-change transaction is released.
+  function commitAuthorOwner(descriptor, keepView) {
+    const previousView = authorView;
+    try {
+      if (keepView) retainView(descriptor.entityId, descriptor.prepared.action.setupId, descriptor.viewTimeMs ?? descriptor.prepared.action.timeMs);
+      const committed = session.history.commit();
+      if (committed !== true) {
+        if (session.history.getActiveTransaction() === null) {
+          if (owner === descriptor) owner = null;
+          finishView();
+        } else authorView = previousView;
+        notify(); return false;
+      }
+      if (owner === descriptor) owner = null;
+      finishView(); notify(); return true;
+    } catch (error) {authorView = previousView; report(error); return false;}
+  }
+  function owned(event) {return owner && owner.entityId === event.entityId && currentAuthor(owner.token) && same(session.history.getActiveTransaction(), owner.transaction);}
   function handle(event, label, patch) {
     if (disposed) return false;
     try {
@@ -193,9 +211,14 @@ export function createTemporalWorkspace({getState, session, getRuntime = () => n
       }
       // Cancellation is permitted after a source/fence change, but only for
       // this exact history transaction; never cancel another editor's work.
-      if (event.phase === 'cancel' && owner?.entityId === event.entityId && same(session.getFence?.() ?? null, owner.token.fence) && same(session.history.getActiveTransaction(), owner.transaction)) {
-        if (label === '摄像机操控' && event.reason === 'capture' && owner.prepared.target.kind !== 'base') retainView(owner.entityId, owner.prepared.action.setupId, owner.viewTimeMs ?? owner.prepared.action.timeMs);
-        owner = null; session.history.cancel(); finishView(); notify(); return true;
+      if (event.phase === 'cancel' && owner?.entityId === event.entityId && same(withoutSaveRevision(stamp()).fence, withoutSaveRevision(owner.token).fence) && same(session.history.getActiveTransaction(), owner.transaction)) {
+        const descriptor = owner, previousView = authorView;
+        try {
+          if (label === '摄像机操控' && event.reason === 'capture' && owner.prepared.target.kind !== 'base') retainView(owner.entityId, owner.prepared.action.setupId, owner.viewTimeMs ?? owner.prepared.action.timeMs);
+          if (session.history.cancel() !== true) {authorView = previousView; return false;}
+          if (owner === descriptor) owner = null;
+          finishView(); notify(); return true;
+        } catch (error) {authorView = previousView; throw error;}
       }
       if (!owned(event) || busy()) return false;
       if (event.phase === 'preview') {
@@ -204,7 +227,7 @@ export function createTemporalWorkspace({getState, session, getRuntime = () => n
         session.history.preview(() => result.state); owner.token = stamp();
         if (result.selection) selectedKey = {...result.selection, setupId: setup().id}; notify(); return true;
       }
-      if (event.phase === 'commit') {if (owner.prepared.target.kind !== 'base') retainView(owner.entityId, owner.prepared.action.setupId, owner.viewTimeMs ?? owner.prepared.action.timeMs); owner = null; session.history.commit(); finishView(); notify(); return true;}
+      if (event.phase === 'commit') return commitAuthorOwner(owner, owner.prepared.target.kind !== 'base');
       return false;
     } catch (error) {report(error); return false;}
   }
@@ -260,6 +283,10 @@ export function createTemporalWorkspace({getState, session, getRuntime = () => n
     if (!current(token) || !setup().temporal?.tracks.some(track => track.owner.entityId === entityId && track.keys.some(item => item.id === keyId))) return false;
     selectedKey = {setupId: active.id, entityId, keyId}; return seek(key.timeMs, {preserveSelectedKey: true, previewMode: 'viewing'});
   }
+  function clearSelectedKey() {
+    if (disposed || busy() || owner || primed || confirmation) return false;
+    selectedKey = null; notify(); return true;
+  }
   function keyMoveStart(entityId, keyId, token) {
     if (!current(token) || busy() || playback.blocksWrites || owner || primed || session.history.getActiveTransaction()) return false;
     const state = getState(), active = setup(state), prepared = prepareSync({type: 'update', entityId, patch: {}});
@@ -275,6 +302,57 @@ export function createTemporalWorkspace({getState, session, getRuntime = () => n
     };
     return {onMove: move, onEnd(timeMs) {if (!move(timeMs)) return false; retainView(entityId, active.id, descriptor.viewTimeMs); owner = null; session.history.commit(); finishView(); notify(); return true;},
       onCancel() {if (owner !== descriptor || !same(session.getFence?.() ?? null, descriptor.token.fence) || !same(session.history.getActiveTransaction(), descriptor.transaction)) return false; owner = null; session.history.cancel(); notify(); return true;}};
+  }
+  /** Plan trajectories use the same author owner/view lifecycle as native
+   * transforms. The caller supplies only persistent temporal domain actions. */
+  async function beginTrajectoryEdit({entityId, keyId, timeMs, label = 'director.temporal.plan.edit', initialAction, isValid = () => true} = {}) {
+    if (disposed || busy() || playback.playing || playback.status.scrubbing || owner || primed || confirmation || session.history.getActiveTransaction()) return null;
+    const viewing = viewingContext(), token = viewing.token, native = nativeLease();
+    const gate = await beforeWrite();
+    if (!gate.ok || !currentAuthor(token) || !sameNative(native) || !isValid()) return null;
+    const state = getState(), active = setup(state), c = resolveEntityControl(state, {entityId});
+    if (readonly || active.kind !== 'independent' || c.baselineReadOnly || c.locked || !c.setupState || !Number.isFinite(timeMs)) return null;
+    const atTime = Math.max(0, Math.round(timeMs)), viewTimeMs = keyId === undefined ? viewing.timeMs : atTime, lane = `setup:${active.id}`;
+    if (keyId !== undefined && !active.temporal?.tracks.some(track => track.owner.entityId === entityId && track.keys.some(key => key.id === keyId && key.timeMs === atTime))) return null;
+    const actionAt = action => ({...action, setupId: active.id, entityId, source: 'plan-view'});
+    let initial;
+    if (initialAction) {initial = reduceTemporalAction(state, actionAt(initialAction), options()); if (!initial.ok) return null;}
+    if (!session.history.begin(lane, label, scope)) return null;
+    const descriptor = {kind: 'trajectory', entityId, token: stamp(), native, transaction: session.history.getActiveTransaction(), viewTimeMs,
+      prepared: {target: {kind: 'time-key', timeMs: viewTimeMs}, action: {setupId: active.id, entityId, timeMs: viewTimeMs}}};
+    owner = descriptor; if (keyId !== undefined) {selectedKey = {setupId: active.id, entityId, keyId}; playheadMs = atTime;} onLane(lane);
+    const ownsLease = () => owner === descriptor && same(session.history.getActiveTransaction(), descriptor.transaction);
+    const cancel = () => {
+      if (descriptor.cancelled) return true;
+      try {
+        if (!ownsLease() || !same(withoutSaveRevision(descriptor.token).fence, withoutSaveRevision(stamp()).fence)) return false;
+        const restore = currentAuthor(descriptor.token) && sameNative(descriptor.native);
+        if (session.history.cancel() !== true) return false;
+        if (owner === descriptor) owner = null;
+        authorView = null; descriptor.cancelled = true; notify();
+        if (restore) void restoreViewing({...viewing, token: stamp()}).catch(report); return true;
+      } catch (error) {report(error); return false;}
+    };
+    const valid = () => {
+      if (!ownsLease()) return false;
+      if (!currentAuthor(descriptor.token) || !sameNative(descriptor.native) || busy() || !isValid()) {cancel(); return false;}
+      return true;
+    };
+    const preview = result => {
+      if (!result.ok) return false;
+      session.history.preview(() => result.state); descriptor.token = stamp();
+      if (result.selection) selectedKey = {...result.selection, setupId: active.id};
+      notify(); return true;
+    };
+    if (initial) preview(initial); else notify();
+    const move = action => {
+      if (!valid()) return false;
+      try {return preview(reduceTemporalAction(getState(), actionAt(action), options()));} catch (error) {report(error); return false;}
+    };
+    return {onMove: move, onEnd(action) {
+      if (action && !move(action) || !valid()) return false;
+      return commitAuthorOwner(descriptor, true);
+    }, onCancel: cancel};
   }
   function read() {
     const state = getState(), active = setup(state), entityId = trackOwner(), selected = validSelected(); let track = null;
@@ -335,7 +413,7 @@ export function createTemporalWorkspace({getState, session, getRuntime = () => n
     primed = null; authorView = null; captureLease = null; await previewPreparation; await playback.dispose(); timeline?.dispose(); renderOverride = null;
   }
   return {mount, read, refresh, onAuthorStateChanged: refresh, seek, endScrub, setPlaying, setVisible, beforeWrite, beforeCapture,
-    prepareEntityEdit, applyEntityEdit, entityAction, primeTransform, handleTransform, handleCameraEdit, getSubject, dispose, playback,
+    prepareEntityEdit, applyEntityEdit, entityAction, primeTransform, handleTransform, handleCameraEdit, beginTrajectoryEdit, selectKey, clearSelectedKey, temporalAction, getSubject, dispose, playback,
     isPrimed: entityId => !disposed && isCurrent() && !playback.blocksWrites && (primed?.entityId === entityId || owner?.entityId === entityId || authorView?.entityId === entityId && authorViewValid()),
     getTemporalStatus: () => ({...playback.status, confirming: !!confirmation, editing: !!owner || !!primed, capturing: !!captureLease}),
     stop: () => beforeWrite(), setLoop: value => {if (busy()) return false; return playback.setLoop(value);},

@@ -56,6 +56,20 @@ P2 路径/关键帧曲线、新放置支撑面与完整 V3 Agent 仍未完成；
 
 操作、最终revision6与定向检查范围见[前批摄像机记录](../STUDIO-V3-CAMERA-POSSESSION-20261008.md)。上述 PNG 与尺寸保留为历史里程碑；当前离屏 JPEG 能力以上方最新记录为准。时间轴与只读相册的后续补齐以上方新证据为准；完整平面图/视图管理和 V3 Agent 仍未完成，现有 Alpha 未包含这批源码。
 
+## 2026-10-08 平面放置与轨迹
+
+`20261008-studio-plan-placement-paths/` 为4196完整生产页面1280×720原生JPEG，未裁切、拼接、改变视口或覆盖样式；公开GLB/本地原资源，无生成调用。
+
+| 截图 | 已验证状态 |
+| --- | --- |
+| [路径与关键帧](20261008-studio-plan-placement-paths/plan-paths.jpg) | 保存重开后三个真实时间key、Bezier/弯曲与key光学控件。 |
+| [角色子菜单](20261008-studio-plan-placement-paths/role-placement-menu.jpg) | 名称/六色草稿及原生嵌套菜单；该图草稿未提交。 |
+| [支撑面机位](20261008-studio-plan-placement-paths/camera-placement.jpg) | 保存后的Y=2.047m、65.5°机位属性。 |
+| [关键帧菜单](20261008-studio-plan-placement-paths/key-menu.jpg) | 仅删除项。 |
+| [放置提示](20261008-studio-plan-placement-paths/pending-placement.jpg) | 清理旧选择后提示可见，取消保留俯视。 |
+
+原生数据、分批检查及未验范围见[验收记录](../verification/20261008-studio-plan-placement-paths.md)。完整P2/3D放置、V3 Agent、真实SPZ/DOF及跨设备性能尚未验收，旧Alpha不含此源码。
+
 ## 2026-10-08 导演片场实体与镜头
 
 本地 4196 的真实生产工作区，公开人物／餐椅模型，模型 Key 为空。原始截图和两次真实存档回读集中在 `20261008-studio-entities/`，没有修图或模型生成。

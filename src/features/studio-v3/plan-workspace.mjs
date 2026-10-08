@@ -111,7 +111,11 @@ export function createPlanWorkspace({getState, getAuthorState, session, temporal
       return {onMove, onEnd() {
         if (!owns(gesture)) return false;
         if (!current(gesture.token) || !nativeCurrent(gesture) || getBusy()) {cancelActive(gesture); return false;}
-        const accepted = callback({phase: 'commit', entityId, reason: 'plan', kind}); if (accepted) {active = null; emit();} return accepted === true;
+        const accepted = callback({phase: 'commit', entityId, reason: 'plan', kind});
+        // A completed no-op has no history record, but its pointer lease still
+        // completed successfully. A failed active transaction remains ours.
+        const completed = accepted === true || session.history.getActiveTransaction() === null;
+        if (completed) {active = null; emit();} return completed;
       }, onCancel: () => cancelActive(gesture)};
     } catch (error) {report(error); if (request) await discardPrime(request); return null;}
   }

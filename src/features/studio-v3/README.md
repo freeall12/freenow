@@ -1,6 +1,6 @@
 # V3 导演片场 · 2026-10-08
 
-**已接入真实生产画布、IndexedDB 保存和 Three.js 工作区，当前完成 P0/P1、时间作者/预览及平面图/房间的部分闭环。** 本地模型预览可创建独立导演片场；人物、摄像机、道具、状态、基准、基础变换和失败保存重试已有实机证据。最新[平面图与房间验收](../../../docs/verification/20261008-studio-plan.md)及前批[时间轴/只读相册](../../../docs/verification/20261008-studio-temporal.md)各有独立范围；完整导演流程与 P2–P6 尚未完成，见[生产入口验收与截图](../../../docs/STUDIO-V3-PRODUCTION-20261008.md)。V3 是本项目内部代际名称，官方导演工作区与独立 GLB 编辑器并存；现有 v2 节点不隐式迁移。
+**已接入真实生产画布、IndexedDB 保存和 Three.js 工作区，当前完成 P0/P1、时间作者/预览及平面图/房间/放置路径的部分闭环。** 本地模型预览可创建独立导演片场；人物、摄像机、道具、状态、基准、基础变换和失败保存重试已有实机证据。最新[平面放置与路径验收](../../../docs/verification/20261008-studio-plan-placement-paths.md)、前批[平面图与房间](../../../docs/verification/20261008-studio-plan.md)及[时间轴/只读相册](../../../docs/verification/20261008-studio-temporal.md)各有独立范围；完整导演流程与 P2–P6 尚未完成，见[生产入口验收与截图](../../../docs/STUDIO-V3-PRODUCTION-20261008.md)。V3 是本项目内部代际名称，官方导演工作区与独立 GLB 编辑器并存；现有 v2 节点不隐式迁移。
 
 ## 实现范围
 
@@ -41,12 +41,15 @@
 | `photo-history.mjs` / `photo-history.css` | 只读已有 `capturedPhotos` 的本地图片相册，逆序缩略图、真实解码与焦点/关闭清理；[来源与合同](../../../docs/research/STUDIO-V3-PHOTO-HISTORY-20261008.md) |
 | `plan-projection.mjs` / `plan-navigation.mjs` | 显示投影快照、保高度反解、平移/阻尼导航与非线性剖切；不写作者或历史；[投影合同](PLAN-PROJECTION.md) |
 | `plan-renderer.mjs` | 独立 OrthographicCamera、真实场景 near-plane 剖切、成功帧快照与 renderer/Spark 状态恢复；[渲染合同](PLAN-RENDERER.md) |
-| `plan-view.mjs` / `plan-geometry.mjs` / `plan-view.css` | SVG marker、已有实体移动/朝向、FOV 单次联动提交、命中与输入清理；路径交互未完成；[交互合同](PLAN-VIEW.md) |
+| `plan-view.mjs` / `plan-geometry.mjs` / `plan-view.css` | 官方 SVG glyph、实体/key朝向与FOV、pending放置及path/bend/Bezier控制点指针事务、命中与输入清理；[基础交互](PLAN-VIEW.md) / [放置与路径表层](PLAN-SURFACE.md) |
 | `plan-workspace.mjs` | 连接同一 temporal 作者目标和 session，一手势一事务，保留原 Y/倾斜/scale 与来源围栏；[作者桥](PLAN-WORKSPACE.md) |
+| `plan-placement.mjs` | 新角色/已有role/camera固定首点摆位、最高有效支撑、相机+1.6m、资源就绪与单笔事务/取消；[摆位合同](PLAN-PLACEMENT.md) |
+| `plan-trajectories.mjs` | temporal真实采样descriptor、曲线选择、bend/endpoint/key位置/朝向/FOV作者桥、上下文与geometry cache；[轨迹合同](PLAN-TRAJECTORIES.md) |
+| `character-menu.mjs` / `character-menu.css` | 角色顺序/色圆、新角色草稿/六色及共用添加入口；子菜单hover/180ms延迟关闭由menus承接 |
 | `room-scene.mjs` / `space-actions.mjs` | 真实六面房间、参考图案/标线及资源释放，来源/房间纯 reducer；[房间合同](ROOM-SCENE.md) / [领域合同](SPACE-ACTIONS.md) |
 | `space-menu.mjs` / `space-menu.css` / `workspace-source.mjs` | 来源菜单、尺寸草稿/连续 scrub、本地场景过滤、原绑定与已本地化 direct/LOD 解析；[菜单合同](SPACE-MENU.md) / [来源合同](WORKSPACE-SOURCE.md) |
 | `runtime.mjs` / `render-graph.mjs` | 真实 Three 场景、GLB/SPZ、人物 clip、相机、Orbit/正交视图和事务变换 |
-| `asset-loader.mjs` / `surface-hit.mjs` | 有界本地素材读取/解码/取消，站面与直接拾取基础 |
+| `asset-loader.mjs` / `surface-hit.mjs` | 有界本地素材读取/解码/取消，站面/直接拾取及俯视最高有效支撑命中；新增摆位与已有实体保高度拖动分开 |
 | `icons.mjs` / `menus.mjs` / CSS | 官方图标与布局、单活动菜单和嵌套子菜单、坐标夹紧、键盘/分层Escape回焦与退出动效 |
 
 内部模块由 `studio.mjs` 路由，只有明确 `studioV3` 标记进入新工作区。V3 Agent 目前仅暴露 `read/select/undo`，其余明确拒绝。
@@ -59,13 +62,29 @@
 
 前批runtime光学/取景11项、落地5项、状态7项、集成守卫5项通过；同lane连续redo新增3项，跨lane冲突仍阻断。其他光学、属性与嵌套菜单专项按上述证据页分别记录，不合计为全量重跑。六色/道具材质与九姿态没有覆盖全部浏览器鼠标路径，P1不能标为全部完成，旧Alpha不包含这些增量。操控／创建与摄像机拍摄的当前补齐范围见下。
 
-## 最新：平面图、房间与本地场景来源
+## 最新：角色/机位放置与时间路径
+
+角色入口使用真实role顺序/色圆，新角色保留名称与六色草稿，原生子菜单pointerenter开启、pointerleave延迟180ms。平面“添加并放置”进入pending，首个pointerdown固定支撑点并开事务；click创建heading0，拖动只改朝向。新增摆位向下选normal.y≥.65的最高有效支撑，无命中才fallback ground；camera为support+1.6m。已有entity/key/control拖动仍保原Y，不自动落地。候选mesh使用本地适配集合，不把普通visible mesh等同于官方BVH支撑资格。[官方原包补充合同](../../../docs/research/STUDIO-V3-PLAN-PLACEMENT-PATHS-20261008.md)
+
+`plan-trajectories`复用唯一temporal采样器，路径click只选择entity/端点key，drag冻结初始segment/t后写bend；首末Bezier控制点、key position/heading及camera key FOV都走同一作者事务。key再次click/右键菜单只有删除；bend右键直接reset，保留endpoint controls。surface保留30px control proxy和4px路径/key门槛，pending placement没有该门槛。key光学来自该key采样，FOV保固定对侧ray，原子写heading/FOV；不覆盖base、其他key、原Y或key time。
+
+geometry缓存以作者editEpoch/来源身份失效，排除纯save revision；同作者selection/playhead呈现复用geometry。commit/cancel失败保留原lease允许重试，无变化事务被消费后释放；保存回执不中断编辑。pending Escape只取消摆位并留在plan，离开plan/blur/pointercancel取消自己的事务并拒绝迟到输入。[模块合同](PLAN-PLACEMENT.md) / [轨迹与缓存](PLAN-TRAJECTORIES.md) / [表层](PLAN-SURFACE.md)
+
+实机新青绿角色click创建、undo/redo/reload已验；camera在餐椅support+1.6m，Y=2.04672378m、heading=1.14378rad。bend/endpoint/key位置各一笔history；camera key FOV32.2688→43.8414°、25.1605mm与heading约0.074rad一次提交，base/其他key不变，undo还原；删除中间key/undo及pending Escape保plan已验。[原生截图与最终回读](../../../docs/verification/20261008-studio-plan-placement-paths.md)
+
+最终生产页原生bend右键reset无菜单，可见SVG曲线改变，一次undo恢复原d；没有另读作者JSON。`beginPlanPlacement`在drain后清selected key并`select(null)`，避免旧工具条遮挡提示；刷新后实机selected key数0、工具条消失、提示可见、Escape留plan。新增遮挡回归1/1，提示bottom84仅本地可见性适配，不是官方像素合同。[待放置截图](../../../docs/screenshots/20261008-studio-plan-placement-paths/pending-placement.jpg)
+
+定向按实际运行分批：路径/temporal27/27、surface25/25、placement12/12、入口新增6/6、旧入口review11/11；其后cache/key optics4/4、surface key optics2/2、hover1/1、旋转2/2、failure3/3。没有合并成全仓测试或重复声称重跑旧用例。本批无新依赖、生成请求或Alpha重打包。
+
+P2仍未全；orbit/3D添加角色保持立即创建，不能代表3D放置语义已对齐。真实SPZ/DOF GPU、完整Saved Views、P4导入/生成UI、holding、完整V3 Agent和跨设备性能仍开放；GLB景深未实现。现有Alpha不含10月8日源码。
+
+## 前批：平面图、房间与本地场景来源
 
 平面图使用独立正交相机和真实 source/room 场景，near plane 默认剖切1.6m；SVG、命中、反解和导航共用最近一次成功显示的投影快照。平移/旋转/缩放/剖切是本地导航，不改作者history。已有实体拖动保原Y、倾斜和scale，经同一temporal目标和session事务提交；camera FOV以水平边缘回算垂直视角，朝向/光学一次提交。
 
 真实生产UI在−15°/zoom1.12后拖动餐椅，领域Y=0保持且只生成一笔历史。房间宽度输入9m，深度一次64px scrub由6变为7.9170474646m，Escape先关设置侧栏再关菜单；刷新revision5保留房间和实体位置。原生camera marker点击修复后，FOV32.26880217→46.74428389°、heading0.22→0.03990825750rad，撤销同时恢复35mm/0.22rad。剖切all的near约44.8，reset恢复1.6m/near48.4；空场地切换可撤销回房间。[本批实机与截图](../../../docs/verification/20261008-studio-plan.md)
 
-房间为真实六面几何及本地DataTexture，尺寸/参考图案经严格校验；连续scrub由宿主一笔事务保存。场景选择仅列已有可用本地world场景；显式导入公开GLB来源加载样本后选择history-world，source ready/root存在，保存回读revision10/dirty=false，undo回room，不能把样本称为生成结果。来源解析保留原sourceBinding，拒绝远端/API地址，不获取供应商生成历史。依据与待补矩阵见[完整平面图研究](../../../docs/research/STUDIO-V3-PLAN-20261008.md)。路径/关键帧曲线交互、新增摆位支撑面流程、完整导入/生成生命周期及V3 Agent仍缺，不能标P2完整；本批真实SPZ/DOF GPU未验，旧Alpha不含。专项按各模块实际运行批次记录，无新依赖或供应商API请求。
+房间为真实六面几何及本地DataTexture，尺寸/参考图案经严格校验；连续scrub由宿主一笔事务保存。场景选择仅列已有可用本地world场景；显式导入公开GLB来源加载样本后选择history-world，source ready/root存在，保存回读revision10/dirty=false，undo回room，不能把样本称为生成结果。来源解析保留原sourceBinding，拒绝远端/API地址，不获取供应商生成历史。依据与待补矩阵见[完整平面图研究](../../../docs/research/STUDIO-V3-PLAN-20261008.md)。路径/关键帧曲线交互、新增摆位支撑面流程、完整导入/生成生命周期及V3 Agent仍缺，不能标P2完整；本批真实SPZ/DOF GPU未验，旧Alpha不含。专项按各模块实际运行批次记录，无新依赖或供应商API请求。该批之后的路径/支撑面放置见[最新增量证据](../../../docs/verification/20261008-studio-plan-placement-paths.md)。
 
 ## 前批：单目标时间轴与已有照片只读相册
 
@@ -75,7 +94,7 @@
 
 带关键帧的摄像机实机焦距从35变为36.3963426mm，真实快门添加4096×2304 JPEG到画布且保持操控HUD；随后第二次编辑写入同key的37.848392988010275mm。完成/返回/reload后revision18、ready/dirty=false，key保留37.848mm、base仍35mm、原相册仍2项。领域作者23项、宿主最终17项与入口12项分别通过；其他专项和定向补验以主证据分批列示，不合计为全项目测试。
 
-历史相册读取原 `capturedPhotos`，仅集合非空时出现入口；两张已有本地 JPEG 实机解码为1280×678，逆序缩略图、方向键和 Escape 关闭已验。它不恢复相机、不重渲染、不创建素材、不保存 View，普通快门也不追加相册。完整平面图、模型导入/生成流程、完整视图管理及 V3 Agent 尚缺，真实 SPZ 像素未验，旧 Alpha 不含此批；各专项按独立范围记录，不合计为全仓重跑。
+历史相册读取原 `capturedPhotos`，仅集合非空时出现入口；两张已有本地 JPEG 实机解码为1280×678，逆序缩略图、方向键和 Escape 关闭已验。它不恢复相机、不重渲染、不创建素材、不保存 View，普通快门也不追加相册。完整平面图、模型导入/生成流程、完整视图管理及 V3 Agent 尚缺，真实 SPZ 像素未验，旧 Alpha 不含此批；各专项按独立范围记录，不合计为全仓重跑。其后平面放置/路径范围见[最新增量](../../../docs/verification/20261008-studio-plan-placement-paths.md)。
 
 ## 前批：离屏摄影、身体轮廓与镜头管理/导出
 

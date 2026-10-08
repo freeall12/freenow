@@ -4,7 +4,7 @@ import {TransformControls} from 'three/addons/controls/TransformControls.js';
 import {createRenderGraph, readTransform, applyTransform} from './render-graph.mjs';
 import {createAssetLoader} from './asset-loader.mjs';
 import {assertState} from './schema.mjs';
-import {viewportRay, surfaceHit, withCaptureVisibility} from './surface-hit.mjs';
+import {viewportRay, surfaceHit, topDownSupportSurface, withCaptureVisibility} from './surface-hit.mjs';
 import {SplatContext} from '../world-node/splat-io.mjs';
 import {disposeModel} from '../studio-v2/model-io.mjs';
 import {sparkDepthOfField, cameraOpticsPatch, applyCameraOptics} from './camera-optics.mjs';
@@ -18,6 +18,7 @@ import {createSelectionOutline} from './selection-outline.mjs';
 import {createPhotoRenderer} from './photo-renderer.mjs';
 import {createPlanRenderer, createPlanProfileRegistry, readPlanBounds} from './plan-renderer.mjs';
 import {createPlanNavigation} from './plan-navigation.mjs';
+import {unprojectPlanPoint} from './plan-projection.mjs';
 import {createRoomScene, disposeRoomScene} from './room-scene.mjs';
 
 const fail = (code, message) => Object.assign(Error(message), {code});
@@ -663,6 +664,12 @@ export function createStudioV3Runtime({canvas, getState, getSourceResource = () 
     return owner ? {entityId: owner.userData.entityId, point: vector(hit.point), distance: hit.distance, locked: !!owner.userData.locked} : null;
   }
   function hitSurface(client, options = {}) {check(); const ray = rayAt(client); return surfaceHit(ray, {meshes: [graph.content], groundY: ground.position.y, groundFallback: true, ...options});}
+  function resolvePlanSurface({point, nx, ny, projection} = {}) {
+    check(); const displayed = readPlan();
+    if (!displayed.active || !displayed.ready || projection && JSON.stringify(projection) !== JSON.stringify(displayed.projection)) return null;
+    const position = nx !== undefined || ny !== undefined ? unprojectPlanPoint(displayed.projection, {nx, ny}) : point;
+    return topDownSupportSurface(position, {meshes: [graph.content], groundY: ground.position.y});
+  }
   function attachTransform(id, mode = 'translate') {
     check(); if (view === 'plan' || renderPauseCount || getTemporalStatus().playing || getTemporalStatus().scrubbing || previewCameraEntityId !== null || !finishCameraControl('transform-gizmo')) return false; const record = graph.entity(id); if (!record || record.status !== 'ready' || entityLocked(record) || !record.state.visible) return false;
     if (record.definition.kind === 'camera' && mode === 'scale') return false;
@@ -764,7 +771,7 @@ export function createStudioV3Runtime({canvas, getState, getSourceResource = () 
     startCameraControl, finishCameraControl, cancelCameraControl, checkpointCameraControl, patchCameraControl, pickCameraFocus,
     startControl, finishControl, cancelControl, nudgeControlHeight: entityControl.nudgeHeight, dropControlToGround: entityControl.dropToGround, setControlHeading: entityControl.setHeading,
     getVisibleCameraState, beginViewfinder, patchViewfinder, endViewfinder,
-    sync, render, resize, setView, previewCamera, clearCameraPreview, sparkDepthOfFieldParameters, selectEntity, focusEntity, entityObject, entityCamera, hitEntity, hitSurface, setHoverEntity, attachTransform, cancelTransform, settle, dispose,
+    sync, render, resize, setView, previewCamera, clearCameraPreview, sparkDepthOfFieldParameters, selectEntity, focusEntity, entityObject, entityCamera, hitEntity, hitSurface, resolvePlanSurface, setHoverEntity, attachTransform, cancelTransform, settle, dispose,
     retryEntity(id) {if (graph.retry(id)) return sync(); return Promise.resolve(false);},
     renderCapture, renderPhoto,
     setCapturing(value) {if (value) {cancelControl('capture'); cameraNavigation.cancelInput(); stopCameraTransition(); navigationTransition = null;} capturing = !!value; if (!capturing) invalidate();}

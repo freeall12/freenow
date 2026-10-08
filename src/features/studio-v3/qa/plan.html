@@ -10,6 +10,7 @@ html,body{margin:0;height:100%;background:#181818;color:#ddd;font:13px/1.5 syste
   <button id="prepare" disabled>准备房间、餐椅和相机</button>
   <button id="open" disabled>打开生产导演片场</button>
   <button id="import-scene" disabled>导入公开 GLB 场景样本</button>
+  <button id="seed-path" disabled>添加公开机位轨迹样本</button>
   <button id="read" disabled>读取持久化与俯视诊断</button>
   <output id="status" aria-live="polite">读取独立公开俯视验收项目…</output>
 </header>
@@ -101,9 +102,27 @@ document.querySelector('#read').onclick=()=>work(async()=>{
     runtimeSource:instance.runtime.graph.source?{status:instance.runtime.graph.source.status,error:instance.runtime.graph.source.error?.message??null,assetDescriptor:instance.runtime.graph.source.assetDescriptor,rootPresent:!!instance.runtime.graph.source.root,position:vector(instance.runtime.graph.source.root?.position),visible:instance.runtime.graph.source.root?.visible??null}:null,
     runtimeRoots:[...instance.runtime.graph.entities.values()].map(record=>({id:record.id,status:record.status,error:record.error?.message??null,position:vector(record.root?.position),rotation:record.root?{...vector(record.root.rotation),order:record.root.rotation.order}:null,scale:vector(record.root?.scale),visible:record.root?.visible??null})),
     history:{nextSequence:history.nextSequence,lanes:Object.fromEntries(Object.entries(history.lanes).map(([lane,value])=>[lane,{undoCount:value.undoStack.length,redoCount:value.redoStack.length,lastUndo:value.undoStack.at(-1)?{id:value.undoStack.at(-1).id,label:value.undoStack.at(-1).label,sequence:value.undoStack.at(-1).sequence}:null}]))},currentTransaction:transaction,
-    temporal:instance.temporal?.read?.()??null};
+    temporal:instance.temporal?.read?.()??null,paths:instance.planTrajectories?.readPaths?.()??[],placement:instance.planPlacement?.active??null};
   evidence.textContent=JSON.stringify(diagnostic,null,2);
   out.textContent='已只读领域、持久化记录、真实俯视投影和历史事务；未保存或移动场景';
+});
+
+document.querySelector('#seed-path').onclick=()=>work(async()=>{
+  const app=child(),instance=active(),gate=await instance.temporal.beforeWrite();if(gate?.ok===false)throw Error(gate.message||gate.reason);
+  const state=instance.session.getState(),space=state.scenePlay.worldSpace,setup=space.setups.find(value=>value.id===space.activeSetupId);
+  if(setup.kind!=='independent')throw Error('请先选择独立状态');
+  const entity=space.entities.find(value=>value.kind==='camera'&&setup.entityStates.some(item=>item.entityId===value.id));if(!entity)throw Error('此样本需要现有摄像机');
+  if(setup.temporal?.tracks.some(track=>track.owner.entityId===entity.id&&track.keys.length>=3)){out.textContent='本地机位轨迹样本已存在；请在生产平面图选择摄像机';return;}
+  const {reduceTemporalAction}=await app.Function('return import("/src/features/studio-v3/temporal-actions.mjs")')();
+  const original=setup.entityStates.find(value=>value.entityId===entity.id);let next=state;
+  for(const [timeMs,x,z] of [[0,-2,2],[1500,0,-1],[3000,2,2]]){
+    const snapshot=json(original);snapshot.transform.position={x,y:original.camera.position.y,z};snapshot.camera.position={...snapshot.transform.position};
+    const reduced=reduceTemporalAction(next,json({type:'save-key',setupId:setup.id,entityId:entity.id,timeMs,keyId:'qa-plan-key-'+timeMs,snapshot}),json({now:Date.now()}));
+    if(!reduced.ok)throw Error(reduced.message||reduced.reason);next=reduced.state;
+  }
+  if(!instance.session.change(()=>next,json({lane:'setup:'+setup.id,label:'添加公开本地机位轨迹样本',scope:{kind:'world-space'}})))throw Error('轨迹准备未提交');
+  await saveSession(instance);await instance.runtime.sync(instance.temporal.displayState);
+  out.textContent='三个关键帧已真实保存；基础摄像机保持原样。请选择摄像机，通过生产平面图调整关键帧、弯曲点或端点';
 });
 
 frame.onload=async()=>{

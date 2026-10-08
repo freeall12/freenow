@@ -45,7 +45,7 @@ async function fixture() {
     notice() {}, cancelPlanGesture: () => {}, cancelCameraCreation() {}, menus: {close() {}, dispose() {}},
     reduceSpaceAction: (state, action) => reduceSpaceAction(state, structuredClone(action)), change: (reducer, label, lane) => session.change(reducer, {label, lane, scope: {kind: 'world-space'}}),
     workspaceSourceResource: () => null, app, node: {id: 'owner'}, refresh() {}, planView: {element: {focus() {}}, dispose() {}}, canvas: {focus() {}},
-    planWorkspace: null, cameraBatch: null, cameraCapture: null, cameraHUD: null, cameraHistory: null, shotExporter: null, shotPreview: null,
+    planWorkspace: null, planPlacement: null, planTrajectories: null, cameraBatch: null, cameraCapture: null, cameraHUD: null, cameraHistory: null, shotExporter: null, shotPreview: null,
     photoHistory: null, observer: null, toastTimer: null, clearTimeout, controlHUD: {dispose() {}}, root: {remove() {}},
     document: {body: {classList: {remove() {}}}, querySelector: () => null}, window: {}, returnFocus: null});
   vm.runInContext(`${finishControlScope}\n${cancelRoomEdit}\n${spaceActions}\n${allowStructuralWrite}\n${viewport}\n${close}\nglobalThis.actions = {spaceAction, beginRoomEdit, switchViewport};`, context);

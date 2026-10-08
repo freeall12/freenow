@@ -48,6 +48,7 @@ export function createMenus({ root, onError } = {}) {
     for (const child of closing) {
       child.closed = true;
       window.clearTimeout(child.enterTimer);
+      window.clearTimeout(child.hoverTimer);
       child.observer?.disconnect();
       if (child.anchor?.getAttribute('aria-controls') === child.id) {
         child.anchor.setAttribute('aria-expanded', 'false');
@@ -83,6 +84,10 @@ export function createMenus({ root, onError } = {}) {
     const child = states[states.indexOf(state) + 1];
     if (child) closeFrom(child, false);
   }
+  function closeUnrelatedDescendants(state, target) {
+    const states = chain(), child = states[states.indexOf(state) + 1];
+    if (child && !child.anchor?.contains(target)) closeFrom(child, false);
+  }
 
   function validate() {
     for (const state of chain()) {
@@ -114,7 +119,16 @@ export function createMenus({ root, onError } = {}) {
     } else {
       const anchor = state.anchor.getBoundingClientRect();
       const placement = options.placement ?? 'top';
-      const offset = options.offset ?? (placement === 'top' ? 4 : 0);
+      const horizontal = placement === 'right' || placement === 'left';
+      const offset = options.offset ?? (horizontal || placement === 'top' ? 4 : 0);
+      if (horizontal) {
+        const rightSpace = viewportWidth - anchor.right - offset - margin, leftSpace = anchor.left - offset - margin;
+        const preferRight = placement === 'right';
+        const right = preferRight ? rightSpace >= width || rightSpace >= leftSpace : leftSpace < width && rightSpace > leftSpace;
+        left = right ? anchor.right + offset : anchor.left - width - offset;
+        top = anchor.top; available = viewportHeight - margin * 2;
+        state.surface.dataset.motion = right ? 'fromLeft' : 'fromRight';
+      } else {
       left = options.align === 'end' ? anchor.right - width : options.align === 'center' ? anchor.left + anchor.width / 2 - width / 2 : anchor.left;
       const above = Math.max(0, anchor.top - offset - margin);
       const below = Math.max(0, viewportHeight - anchor.bottom - offset - margin);
@@ -125,6 +139,7 @@ export function createMenus({ root, onError } = {}) {
       available = side === 'above' ? above : below;
       top = side === 'above' ? anchor.top - offset - Math.min(height, available) : anchor.bottom + offset;
       state.surface.dataset.motion = side === 'above' ? 'fromBelow' : 'fromAbove';
+      }
     }
     left = clamp(left, margin, viewportWidth - width - margin);
     top = clamp(top, margin, viewportHeight - Math.min(height, available) - margin);
@@ -159,7 +174,7 @@ export function createMenus({ root, onError } = {}) {
     surface.addEventListener('click', event => {
       validate();
       if (!live(state)) { event.preventDefault(); event.stopImmediatePropagation(); }
-      else closeDescendants(state);
+      else closeUnrelatedDescendants(state, event.target);
     }, true);
     surface.addEventListener('pointerdown', event => event.stopPropagation());
     active = state;
@@ -199,12 +214,27 @@ export function createMenus({ root, onError } = {}) {
       anchor?.setAttribute('aria-haspopup', 'menu');
       anchor?.setAttribute('aria-expanded', 'true');
       anchor?.setAttribute('aria-controls', state.id);
+      if (parent && options.hoverDismiss) {
+        const keep = () => window.clearTimeout(state.hoverTimer);
+        const leave = event => {
+          keep(); if (anchor.contains(event.relatedTarget) || surface.contains(event.relatedTarget)) return;
+          state.hoverTimer = window.setTimeout(() => {
+            if (live(state) && !anchor.matches(':hover') && !surface.matches(':hover') && !surface.contains(document.activeElement)) closeFrom(state, false);
+          }, 180);
+        };
+        for (const node of [anchor, surface]) {node.addEventListener('pointerenter', keep); node.addEventListener('pointerleave', leave);}
+        const dispose = state.content.dispose;
+        state.content.dispose = () => {
+          keep(); for (const node of [anchor, surface]) {node.removeEventListener('pointerenter', keep); node.removeEventListener('pointerleave', leave);}
+          dispose?.call(state.content);
+        };
+      }
       state.enterTimer = window.setTimeout(() => {
         validate();
         if (live(state)) surface.dataset.visible = 'true';
       }, 0);
       const focusTarget = surface.querySelector('input:not(:disabled),textarea:not(:disabled),[autofocus],button:not(:disabled)');
-      (focusTarget ?? surface).focus({ preventScroll: true });
+      if (options.focus !== false) (focusTarget ?? surface).focus({ preventScroll: true });
       return surface;
     } catch (error) {
       const errors = [];
@@ -240,13 +270,13 @@ export function createMenus({ root, onError } = {}) {
   listen(document, 'pointerdown', event => {
     validate();
     const parent = owner(event.target);
-    if (parent) closeDescendants(parent);
+    if (parent) closeUnrelatedDescendants(parent, event.target);
     else if (active && !chain()[0].anchor?.contains(event.target)) close({ all: true });
   }, true);
   listen(document, 'focusin', event => {
     validate();
     const parent = owner(event.target);
-    if (parent) closeDescendants(parent);
+    if (parent) closeUnrelatedDescendants(parent, event.target);
     else if (active && !chain()[0].anchor?.contains(event.target)) close({ restoreFocus: false, all: true });
   });
   listen(document, 'wheel', event => { if (active && !contains(event.target)) close({ all: true }); }, { capture: true, passive: true });

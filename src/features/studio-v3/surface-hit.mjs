@@ -41,6 +41,16 @@ export function supportSurface(position, {meshes = [], colliders = [], groundY =
   if (groundFallback && groundY <= height && groundY >= minY) hits.push({point: new THREE.Vector3(position.x, groundY, position.z), normal: new THREE.Vector3(0, 1, 0), source: 'ground-plane', distance: height - groundY});
   hits.sort((a, b) => b.point.y - a.point.y); return result(hits[0]);
 }
+/** New plan placement searches all standable surfaces at x/z. Ground is a
+ * fallback only; existing-entity moves keep their authored depth instead. */
+export function topDownSupportSurface(position, {meshes = [], colliders = [], groundY = 0} = {}) {
+  if (![position?.x, position?.z, groundY].every(Number.isFinite)) return null;
+  const bounds = new THREE.Box3();
+  for (const root of [...meshes, ...colliders]) {root.updateWorldMatrix(true, true); bounds.expandByObject(root);}
+  const maxY = bounds.isEmpty() ? groundY + 10 : bounds.max.y + 10, minY = bounds.isEmpty() ? groundY - 10 : bounds.min.y - 10;
+  return supportSurface(position, {meshes, colliders, groundY, groundFallback: false, minNormalY: .65, maxY, minY})
+    || {point: {x: position.x, y: groundY, z: position.z}, normal: {x: 0, y: 1, z: 0}, source: 'ground-plane', distance: 0};
+}
 /** Director placement prefers the highest support below the current base;
  * when every support is above it, the lowest one raises the object safely.
  * The 3 cm allowance is a preference, not a clipping plane for the rays. */

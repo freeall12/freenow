@@ -1,0 +1,18 @@
+.studio-v3 .sv3-character-draft{width:176px;max-width:calc(100vw - 32px);color:#fff}
+.studio-v3 .sv3-role-color{display:block;width:16px;height:16px;flex-shrink:0;border-radius:50%;border:1px solid rgba(255,255,255,.3)}
+.studio-v3 .sv3-character-name{display:flex;min-height:36px;align-items:center;gap:10px;padding:6px 10px;border-radius:999px;color:rgba(255,255,255,.7);transition:background-color 150ms,color 150ms}
+.studio-v3 .sv3-character-name:focus-within{background:rgba(255,255,255,.1);color:#fff}
+.studio-v3 .sv3-character-name input{height:24px;width:100%;min-width:0;flex:1;padding:0;border:0;background:transparent;outline:none;color:rgba(255,255,255,.92);font:inherit}
+.studio-v3 .sv3-character-name input::placeholder{color:rgba(255,255,255,.32)}
+.studio-v3 .sv3-character-palette{display:grid;grid-template-columns:repeat(6,24px);gap:4px;padding:4px 0}
+.studio-v3 .sv3-character-swatch{display:flex;height:32px;width:24px;align-items:center;justify-content:center;padding:0;border:1px solid transparent;border-radius:8px;background:transparent;transition:transform 150ms ease-out}
+.studio-v3 .sv3-character-swatch>span{display:flex;width:16px;height:16px;align-items:center;justify-content:center;border-radius:50%;transition:transform 150ms ease-out}
+.studio-v3 .sv3-character-swatch:hover>span{transform:scale(1.05)}
+.studio-v3 .sv3-character-swatch:active{transform:scale(.98)}
+.studio-v3 .sv3-character-swatch:focus-visible{outline:2px solid rgba(255,255,255,.4)}
+.studio-v3 .sv3-character-swatch svg{width:12px;height:12px;color:#000;stroke-width:2.5}
+.studio-v3 .sv3-character-swatch[aria-pressed=false] svg{visibility:hidden}
+.studio-v3 .sv3-character-submit{justify-content:center;margin-top:8px;background:rgba(255,255,255,.1);color:rgba(255,255,255,.88)}
+.studio-v3 .sv3-character-submit:hover{background:rgba(255,255,255,.14)}
+.studio-v3 .sv3-character-submit:disabled{background:transparent;color:rgba(255,255,255,.25)}
+@media(prefers-reduced-motion:reduce){.studio-v3 .sv3-character-draft *{transition:none!important}}

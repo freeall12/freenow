@@ -26,6 +26,8 @@
 | [实际快捷键映射](CANVAS-SHORTCUTS-20261008.md) | 累计10项专项（原9+新增1），取消后残留AbortSignal修复及受影响语音3/3；主画布Cmd+A→G→Z、J开关/编辑区让出、I→Escape实机；V仅合成Recorder，真实麦克风/转写、硬件触控板及全部组合未验 |
 | [本机外部MCP只读连接](../src/features/external-agent/README.md) / [先前缺口研究](research/EXTERNAL-AGENT-MCP-GAP-20261008.md) | 累计21项（含关闭守卫）；两工具标准stdio/socket、原生批准与真实main/preload/CanvasApp读取1节点/0边/revision绑定、刷新撤权；pending轮询焦点/Tab循环及最新实例正常退出0/空日志/释放4183实机。仅桌面源码元数据，不含旧Alpha、写入/生成/媒体/云连接器，第三方产品完整配置未验 |
 
+本批[平面放置、轨迹与关键帧](verification/20261008-studio-plan-placement-paths.md)新增原生角色/支撑机位、bend/endpoint/key位置与FOV、删除/撤销、右键bend重置和pending可见性证据；各专项按分批结果记录，P2、完整Agent与SPZ/DOF仍开放。
+
 ## 2026-10-07 前批入口
 
 | 记录 | 验收范围 |
