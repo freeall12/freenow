@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>俯视片场生产界面验收 · 公开本地资源</title>
+<style>
+html,body{margin:0;height:100%;background:#181818;color:#ddd;font:13px/1.5 system-ui}body{display:grid;grid-template-rows:auto minmax(0,1fr) auto}header{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 12px;border-bottom:1px solid #444}button{background:#303030;color:#eee;border:1px solid #555;border-radius:6px;padding:6px 10px;cursor:pointer}button:disabled{opacity:.4}output{flex:1;min-width:220px;font-size:12px}iframe{display:block;border:0;width:100%;height:100%;min-height:0}details{border-top:1px solid #444;padding:6px 12px}summary{cursor:pointer}pre{height:160px;overflow:auto;margin:6px 0;white-space:pre-wrap;overflow-wrap:anywhere;font:11px/1.5 ui-monospace,monospace}
+</style>
+<header>
+  <button id="prepare" disabled>准备房间、餐椅和相机</button>
+  <button id="open" disabled>打开生产导演片场</button>
+  <button id="import-scene" disabled>导入公开 GLB 场景样本</button>
+  <button id="read" disabled>读取持久化与俯视诊断</button>
+  <output id="status" aria-live="polite">读取独立公开俯视验收项目…</output>
+</header>
+<iframe id="app" title="真实生产画布与俯视片场"></iframe>
+<details open id="diagnostics"><summary>只读诊断数据</summary><pre id="evidence">准备场景后，使用生产片场右上角“3D”视图按钮选择“俯视”。通过真实界面拖动餐椅、相机、朝向或相机视角，再读取诊断。</pre></details>
+<script type="module">
+const frame=document.querySelector('#app'),out=document.querySelector('#status'),evidence=document.querySelector('#evidence');
+const project=new URL(location.href).searchParams.get('project')||'qa-plan-public-1008';
+const buttons=[...document.querySelectorAll('button')];
+let ready=false,fixtureNodeId=null;
+const child=()=>frame.contentWindow;
+const json=value=>child().JSON.parse(JSON.stringify(value));
+const active=()=>{const instance=child().StudioAPI.active;if(!instance?.session||!instance?.runtime)throw Error('请先准备或打开真实导演片场');return instance;};
+async function work(action){buttons.forEach(button=>button.disabled=true);try{await action();}catch(error){out.textContent='操作失败：'+error.message;}finally{buttons.forEach(button=>button.disabled=!ready);}}
+async function saveSession(instance){const result=await instance.session.flush();if(!result?.ok||instance.session.getStatus().dirty)throw Error('片场真实保存尚未完成');}
+function findOwner(app){return app.CanvasApp.getState().nodes.find(node=>node.id===fixtureNodeId&&node.studioV3)||app.CanvasApp.getState().nodes.filter(node=>node.studioV3).at(-1);}
+
+document.querySelector('#prepare').onclick=()=>work(async()=>{
+  const app=child();if(app.StudioAPI.active)await app.StudioAPI.active.close();
+  const result=await app.StudioAPI.createDirector(),instance=active();fixtureNodeId=result.nodeId;
+  // Import in the iframe realm to preserve production plain-JSON validation.
+  const [{createState},{reduceEntityAction},{reduceSpaceAction}]=await app.Function('return Promise.all([import("/src/features/studio-v3/schema.mjs"),import("/src/features/studio-v3/entity-actions.mjs"),import("/src/features/studio-v3/space-actions.mjs")])')();
+  const now=Date.now();let fresh=createState(json({worldNodeId:result.nodeId,now}));
+  const setupId=fresh.scenePlay.worldSpace.activeSetupId;
+  fresh.scenePlay.worldSpace.stages[0].label='公开本地俯视片场';
+  fresh.scenePlay.worldSpace.setups.find(setup=>setup.id===setupId).label='公开俯视验收状态';
+  for(const action of [
+    {type:'set-space-source',source:{kind:'mesh-preset',preset:'room'}},
+    {type:'update-room',patch:{width:8,depth:6,height:3.2,trackingGuides:{enabled:true,lineMarkers:true,mode:'standard',spacingMeters:.5}}}
+  ]){
+    const reduced=reduceSpaceAction(fresh,json(action),json({now}));
+    if(!reduced.ok)throw Error(reduced.message||reduced.reason||'房间领域准备失败');fresh=reduced.state;
+  }
+  for(const action of [
+    {type:'create',kind:'prop',id:'qa-plan-chair:'+app.crypto.randomUUID(),setupId,label:'本地公开餐椅',assetId:'chair-dining',transform:{position:{x:-.5,y:0,z:-.5}}},
+    {type:'create',kind:'camera',id:'qa-plan-camera:'+app.crypto.randomUUID(),setupId,label:'公开俯视验收摄像机',camera:{position:{x:-2,y:1.5,z:2},rotation:{x:-.12,y:-.22,z:0,order:'YXZ'},focalLength:35,frameAspectRatio:16/9}}
+  ]){
+    const reduced=reduceEntityAction(fresh,json(action),json({now}));
+    if(!reduced.ok)throw Error(reduced.message||reduced.reason||'实体领域准备失败');fresh=reduced.state;
+  }
+  const changed=instance.session.change(state=>{state.scenePlay.worldSpace=fresh.scenePlay.worldSpace;return state;},json({lane:'world',label:'准备公开房间与俯视实体',scope:{kind:'world-space'}}));
+  if(!changed)throw Error('场景事务未提交，请先完成当前编辑');
+  await saveSession(instance);await instance.runtime.sync();
+  out.textContent='已真实保存 8×6×3.2 米房间、餐椅和相机；请通过生产“3D”按钮选择“俯视” · '+result.nodeId;
+});
+
+document.querySelector('#open').onclick=()=>work(async()=>{
+  const app=child(),owner=findOwner(app);if(!owner)throw Error('此独立项目尚无导演片场，请先准备场景');
+  if(app.StudioAPI.active)await app.StudioAPI.active.close();
+  await app.StudioAPI.open(owner.id);fixtureNodeId=owner.id;
+  out.textContent='已通过正式入口打开保存的导演片场；请点击生产视图按钮选择“俯视”';
+});
+
+document.querySelector('#import-scene').onclick=()=>work(async()=>{
+  const app=child(),instance=active(),url='/assets/studio/library/chair-dining.glb';
+  // A normal canvas save must first acknowledge the active editor's private
+  // state. Importing this separate source node does not release its owner.
+  await saveSession(instance);
+  let node=app.CanvasApp.getState().nodes.find(value=>value.type==='world'&&value.outputType==='world'&&value.worldResource?.format==='glb'&&value.worldResource.url===url);
+  if(!node){
+    const response=await app.fetch(url);if(!response.ok)throw Error('公开本地 GLB 样本读取失败');
+    const blob=await response.blob(),magic=new Uint8Array(await blob.slice(0,4).arrayBuffer());
+    if(String.fromCharCode(...magic)!=='glTF')throw Error('公开本地 GLB 样本格式无效');
+    const thumbnail='/assets/studio/library/chair-dining.webp';
+    node=app.CanvasApp.addNode('world',json({x:1000,y:340}),thumbnail,'公开餐椅 GLB · 来源加载样本',json({outputType:'world',worldResource:{format:'glb',url,thumbnail,name:'chair-dining.glb',bytes:blob.size}}));
+  }
+  await app.CanvasApp.saveProject();await app.CanvasStore.flush();
+  const saved=await app.CanvasStore.load();
+  if(!saved.nodes.some(value=>value.id===node.id&&value.worldResource?.url===url&&value.outputType==='world'))throw Error('公开场景样本尚未真实保存，请重试');
+  out.textContent='公开餐椅 GLB 来源加载样本已保存（非生成结果）；请在生产场地菜单的“3D 场景”列表选择，再撤销回房间 · '+node.id;
+});
+
+document.querySelector('#read').onclick=()=>work(async()=>{
+  const app=child(),instance=active(),nodeId=instance.read().nodeId,state=instance.session.getState(),space=state.scenePlay.worldSpace;
+  const plan=instance.runtime.plan?.read?.()??null,markers=instance.planWorkspace?.readMarkers?.()??[];
+  const {projectPlanPoint}=await app.Function('return import("/src/features/studio-v3/plan-projection.mjs")')();
+  const rect=node=>{if(!node)return null;const r=node.getBoundingClientRect();return {x:r.x,y:r.y,left:r.left,top:r.top,width:r.width,height:r.height};};
+  const surface=app.document.querySelector('.sv3-plan-svg'),surfaceRect=rect(surface),frameRect=rect(frame),canvas=instance.runtime.renderer.domElement;
+  const vector=value=>value?{x:value.x,y:value.y,z:value.z}:null;
+  const history=instance.session.history.getHistory(),transaction=instance.session.history.getActiveTransaction();
+  // CanvasStore.load is a read of the durable record. This button deliberately
+  // does not flush, save, seek, select, render or change the displayed view.
+  const saved=await app.CanvasStore.load(),owner=saved.nodes.find(node=>node.id===nodeId),persisted=owner?.studioV3?.state.scenePlay.worldSpace??null;
+  const summarize=world=>world?{activeSetupId:world.activeSetupId,source:world.source,roomConfig:world.roomConfig,entities:world.entities,setups:world.setups.map(setup=>({id:setup.id,label:setup.label,kind:setup.kind,entityStates:setup.entityStates,temporal:setup.temporal??null}))}:null;
+  const diagnostic={project,nodeId,readOnly:true,persistence:instance.session.getStatus(),persistedRevision:owner?.studioV3?.revision??null,
+    author:summarize(space),persisted:summarize(persisted),runtimeView:instance.runtime.view,runtimePlan:plan,
+    dimensions:{projection:plan?.projection?{width:plan.projection.width,height:plan.projection.height}:null,planSurface:surfaceRect,iframe:frameRect,renderCanvas:{width:canvas.width,height:canvas.height,clientWidth:canvas.clientWidth,clientHeight:canvas.clientHeight}},
+    markers:markers.map(marker=>{const projected=plan?.projection?projectPlanPoint(plan.projection,marker.position):null;return {...marker,projected,parentClient:projected&&surfaceRect?{x:frameRect.left+surfaceRect.left+projected.nx*surfaceRect.width,y:frameRect.top+surfaceRect.top+projected.ny*surfaceRect.height}:null};}),
+    runtimeSource:instance.runtime.graph.source?{status:instance.runtime.graph.source.status,error:instance.runtime.graph.source.error?.message??null,assetDescriptor:instance.runtime.graph.source.assetDescriptor,rootPresent:!!instance.runtime.graph.source.root,position:vector(instance.runtime.graph.source.root?.position),visible:instance.runtime.graph.source.root?.visible??null}:null,
+    runtimeRoots:[...instance.runtime.graph.entities.values()].map(record=>({id:record.id,status:record.status,error:record.error?.message??null,position:vector(record.root?.position),rotation:record.root?{...vector(record.root.rotation),order:record.root.rotation.order}:null,scale:vector(record.root?.scale),visible:record.root?.visible??null})),
+    history:{nextSequence:history.nextSequence,lanes:Object.fromEntries(Object.entries(history.lanes).map(([lane,value])=>[lane,{undoCount:value.undoStack.length,redoCount:value.redoStack.length,lastUndo:value.undoStack.at(-1)?{id:value.undoStack.at(-1).id,label:value.undoStack.at(-1).label,sequence:value.undoStack.at(-1).sequence}:null}]))},currentTransaction:transaction,
+    temporal:instance.temporal?.read?.()??null};
+  evidence.textContent=JSON.stringify(diagnostic,null,2);
+  out.textContent='已只读领域、持久化记录、真实俯视投影和历史事务；未保存或移动场景';
+});
+
+frame.onload=async()=>{
+  const app=child();for(let attempt=0;attempt<100;attempt++){
+    if(app.StudioAPI&&app.CanvasApp){try{await app.CanvasApp.saveProject();ready=true;break;}catch{}}
+    await new Promise(resolve=>setTimeout(resolve,100));
+  }
+  buttons.forEach(button=>button.disabled=!ready);out.textContent=ready?'4196 独立俯视生产项目已就绪；仅公开本地资源，零供应商调用':'生产入口未就绪';
+};
+async function bootstrap(){
+  if(location.port!=='4196'||!['localhost','127.0.0.1','[::1]'].includes(location.hostname))throw Error('请在本机 4196 端口打开此验收页');
+  if(!/^qa-plan-public-1008(?:-[a-zA-Z0-9_-]+)?$/.test(project))throw Error('项目名必须使用 qa-plan-public-1008 或其独立验收后缀');
+  const db=await new Promise((resolve,reject)=>{const request=indexedDB.open('tapnow-canvas-replica',1);request.onupgradeneeded=()=>request.result.createObjectStore('documents');request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error);});
+  try{await new Promise((resolve,reject)=>{
+    const transaction=db.transaction('documents','readwrite'),store=transaction.objectStore('documents'),key='project:'+project,read=store.get(key);
+    read.onsuccess=()=>{if(!read.result){const now=Date.now();store.put({version:1,nodes:[],edges:[],history:[],future:[],view:{x:0,y:0,scale:1},project:{id:project,title:'公开俯视片场验收',createdAt:now,updatedAt:now}},key);}};
+    transaction.oncomplete=resolve;transaction.onerror=()=>reject(transaction.error);transaction.onabort=()=>reject(transaction.error||Error('俯视验收项目创建中断'));
+  });}finally{db.close();}
+  frame.src='/?project='+encodeURIComponent(project);
+}
+bootstrap().catch(error=>{out.textContent=error.message;});
+</script>
+</html>

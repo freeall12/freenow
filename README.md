@@ -58,11 +58,13 @@ pnpm desktop:dev
 | 工作流与恢复 | 依赖执行、持久任务回执、原任务查询、显式继续与保存保护 | 未知状态不自动重复提交 |
 | 外部Agent（桌面源码） | 本机MCP连接、原生批准、两项当前画布元数据只读工具、刷新撤权 | 支持本机stdio客户端；不含写入/生成/媒体或云端连接器，现有Alpha包未包含 |
 
-源码另有正在补齐的[导演片场 V3](docs/STUDIO-V3-PRODUCTION-20261008.md)：人物/镜头/道具、基准与独立状态、[实体属性](docs/STUDIO-V3-ENTITIES-20261008.md)、[人物操控与摄像机创建](docs/STUDIO-V3-CONTROLS-20261008.md)、[摄像机操控](docs/STUDIO-V3-CAMERA-POSSESSION-20261008.md)已接入。[镜头管理与导出](docs/verification/20261008-studio-shots.md)支持 4096 长边离屏 JPEG、身体轮廓、真实机位缩略图、改名/批量导出与原回执保存重试；9:16 照片实测 2304×4096，1 秒 WebM 实测 1280×720 / 30 fps、30 个不同解码帧。最新[时间轴与历史相册](docs/verification/20261008-studio-temporal.md)接入单目标轨道的关键帧保存/移动/删除、匀速分配、时长与循环预览；采样不覆盖基础状态。相册只读取已有本地照片，普通快门仍只添加到画布。完整平面图、完整视图管理、模型导入/生成流程与 V3 Agent 编排仍未完成，SPZ 离屏 GPU/景深像素及持物渲染仍有限制；现有 Alpha 不含这些增量。
+当前源码的[导演片场 V3](docs/STUDIO-V3-PRODUCTION-20261008.md)已接入人物/镜头/道具、基准与独立状态、[实体属性](docs/STUDIO-V3-ENTITIES-20261008.md)、[操控与创建](docs/STUDIO-V3-CONTROLS-20261008.md)。[摄影与镜头管理](docs/verification/20261008-studio-shots.md)支持 4096 长边 JPEG、身体轮廓、真实缩略图和原回执保存重试；实际一秒 WebM 为 1280×720 / 30 fps、30 个不同帧。[时间轴与只读相册](docs/verification/20261008-studio-temporal.md)支持单目标关键帧编辑/循环预览和已有本地照片浏览，采样不覆盖基础状态，普通快门仍只添加到画布。
 
-| 人物操控与朝向 | 当前视角摄像机确认 |
+最新[平面图与房间](docs/verification/20261008-studio-plan.md)接入独立正交渲染、1.6m 默认剖切、平移/缩放/旋转、已有实体保高度拖动、摄像机朝向/FOV 联动，以及房间尺寸/参考图案和本地场景选择。真实房间编辑、单笔撤销与刷新恢复已验。完整 P2 仍缺路径/关键帧曲线交互和新增摆位的支撑面流程；完整视图管理、导入/生成生命周期与 V3 Agent 编排仍未完成，真实 SPZ/景深 GPU 未验、GLB 景深和持物渲染未实现。现有 Alpha 不含这些源码增量。
+
+| 平面图与摄像机 FOV | 房间与空间设置 |
 | --- | --- |
-| ![freenow 导演片场中的人物操控HUD与朝向](docs/screenshots/20261008-studio-controls/actor-heading.jpg) | ![freenow 导演片场中35mm 9:16当前视角的摄像机确认预览](docs/screenshots/20261008-studio-controls/viewfinder-portrait.jpg) |
+| ![freenow 真实房间俯视图与摄像机视角交互](docs/screenshots/20261008-studio-plan/plan-camera.jpg) | ![freenow 房间来源、尺寸与参考图案菜单](docs/screenshots/20261008-studio-plan/space-room.jpg) |
 
 | 镜头管理与真实缩略图 | 离屏照片连接到画布 |
 | --- | --- |

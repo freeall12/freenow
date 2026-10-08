@@ -29,12 +29,14 @@ freenow 是本地 AI 创作工作台：无限画布、图片/音视频工具、3
 | 修改生成路由、预检或结果归档 | [生成网关](GENERATION-GATEWAY.md)、[路由合同](generation-routing-contract.md)、[预检](GENERATION-PREFLIGHT-READINESS-20261003.md)、[媒体归档](GENERATION-MEDIA-MATERIALIZER-20261003.md) |
 | 修改 Agent 检查点或继续执行 | [服务端会话](AGENT-SESSION-STORE.md)、[存储](AGENT-STORAGE.md)、[恢复合同](agent-stored-continuation.md) |
 | 修改内嵌创作应用 | [本地生成合同](agent-apps-local-generation-contract.md)、[应用目录与历史](HISTORICAL-APPS-AND-NATIVE-TTS-20261003.md) |
-| 核对导演工作区与GLB片场的版本边界 | [下一代实现映射](research/STUDIO-V3-IMPLEMENTATION-MAP-20261008.md)、[V3模块合同](../src/features/studio-v3/README.md)、[生产入口与保存实机证据](STUDIO-V3-PRODUCTION-20261008.md)；官方两入口并存，V3已有entry/保存适配/真实运行时及P0/P1子集，P1–P6未全、旧Alpha未包含 |
+| 核对导演工作区与GLB片场的版本边界 | [下一代实现映射](research/STUDIO-V3-IMPLEMENTATION-MAP-20261008.md)、[V3模块合同](../src/features/studio-v3/README.md)、[生产入口与保存实机证据](STUDIO-V3-PRODUCTION-20261008.md)；官方两入口并存，V3已接生产运行时/保存、时间作者及平面图/房间子集，P1–P6未全、旧Alpha未包含 |
+| 修改V3平面图、房间与场景来源 | [官方合同与缺口矩阵](research/STUDIO-V3-PLAN-20261008.md)、[当前实机证据](verification/20261008-studio-plan.md)、[投影](../src/features/studio-v3/PLAN-PROJECTION.md)、[渲染](../src/features/studio-v3/PLAN-RENDERER.md)、[SVG交互](../src/features/studio-v3/PLAN-VIEW.md)、[作者桥](../src/features/studio-v3/PLAN-WORKSPACE.md)、[房间](../src/features/studio-v3/ROOM-SCENE.md)、[空间菜单](../src/features/studio-v3/SPACE-MENU.md)、[本地来源](../src/features/studio-v3/WORKSPACE-SOURCE.md) |
 | 核对出站和公开文件边界 | [运行边界](LOCAL-RUNTIME-BOUNDARIES-20261003.md)、[依赖审计](RUNTIME-DEPENDENCY-AUDIT-20261003.md)、[公开仓库检查](PUBLIC-REPOSITORY-AUDIT-20261004.md) |
 | 理解许可与第三方资源 | [第三方来源](THIRD-PARTY-RESOURCES.md)；当前没有覆盖全部内容的统一许可证 |
 
 ## 我想核对当前范围
 
+- [平面图与房间最新证据](verification/20261008-studio-plan.md)：真实正交剖切、已有实体/FOV事务、尺寸scrub和刷新恢复；路径/关键帧曲线/新增摆位支撑面与完整P2仍开放。前批[摄影与导出](verification/20261008-studio-shots.md)、[时间轴/只读相册](verification/20261008-studio-temporal.md)保留各自测试和媒体范围，旧Alpha不含这些源码。
 - [当前开发进度](STATUS.md)：已接入能力、本批变化和仍开放的验证。
 - [有效功能缺口](CURRENT-FUNCTION-GAPS-20261003.md)：缺少的接口、精确模板、服务资格与质量验证。
 - [本地化验收](FREENOW-LOCALIZATION-ACCEPTANCE.md)：资源、数据、原站请求与实际导出边界。

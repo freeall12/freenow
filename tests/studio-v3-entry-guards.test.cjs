@@ -23,7 +23,7 @@ const beginCameraCreation = extract('  const beginCameraCreation =', '\n  const 
 const startSelectedControl = extract('  const startSelectedControl =', '\n  async function allowStructuralWrite');
 const startSelectedCameraControl = extract('  const startSelectedCameraControl =', '\n  const startSelectedControl =');
 const captureCamera = extract('  async function captureCamera()', '\n  const startSelectedCameraControl =');
-const hostContext = fields => vm.createContext({temporal: null, photoHistory: null, cameraBatch: null, allowStructuralWrite: async () => true, ...fields});
+const hostContext = fields => vm.createContext({temporal: null, photoHistory: null, cameraBatch: null, planView: null, cancelRoomEdit: () => true, cancelPlanGesture: () => {}, allowStructuralWrite: async () => true, ...fields});
 
 function keyboardHost() {
   const calls = [], pending = [];

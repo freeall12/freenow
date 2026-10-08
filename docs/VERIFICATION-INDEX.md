@@ -6,6 +6,7 @@
 
 | 记录 | 验收范围 |
 | --- | --- |
+| [俯视、房间与本地场景来源](verification/20261008-studio-plan.md) / [官方完整平面图合同](research/STUDIO-V3-PLAN-20261008.md) | 独立正交/真实 near 剖切、−15°/1.12 下原生拖动坐标与 Y 保留、FOV/heading 单笔提交撤销、房间文本/连续 scrub/刷新回读、菜单分层 Escape、原生选择与父层模糊修复、本地 GLB 选择 ready/保存/撤销。逐模块窄验证与 4 张正式页面截图；路径/新 placement/full V3 Agent、SPZ/DOF GPU 与大场景性能仍未验，旧 Alpha 不含。 |
 | [时间轴作者、预览与历史相册](verification/20261008-studio-temporal.md) / [时间轴来源](research/STUDIO-V3-TIMELINE-20261008.md) / [相册来源与合同](research/STUDIO-V3-PHOTO-HISTORY-20261008.md) | 餐椅0/3000ms X0→3、1500ms rootX1.5/base0；确认取消不写key/revision、2000→997ms拖动单笔undo/redo、匀速/时长阻断/删除undo、循环revision不变/reload keys。相机key35→36.396mm后真实4096×2304 JPEG，HUD保持并再改同key至37.848mm，完成/reload rev18 ready/dirty=false、base35。原相册2项、1280×678本地JPEG真解码/逆序/160px缩略图/箭头/Escape；普通快门不append。领域23/host17/entry12分别通过，其他专项分批见主证据，非全项目重跑；完整P2/导入生成/Agent与SPZ像素仍缺，旧Alpha不含 |
 | [离屏摄影、轮廓与镜头导出](verification/20261008-studio-shots.md) / [真实视频审核](verification/20261008-studio-shots-video.json) | 真实 4096 长边 JPEG、9:16 为 2304×4096；独立缩略图、改名/删除撤销、批次选择/Escape、保存失败 close/reopen/原回执重试与刷新无重复；公开餐椅 VP9 1280×720 30fps/1秒/30个不同解码帧。新增资源就绪守卫5项、受影响Spark/drain2项、trigger/body Escape1项与optics容差修正1项通过。SPZ离屏GPU/景深与holding未验/未全；当时的时间轴/只读相册缺口以上行新证据为准，完整Agent仍缺，旧Alpha不含 |
 | [音频节点手势](AUDIO-PLAYER-GESTURES-20261008.md) / [普通标题模块](../src/features/canvas-node-titles/README.md) | 正式上传 WAV、空白拖动/波形定位、标题 Enter/Escape/立即撤销重做、刷新；11 项音频与 20 项标题专项；5000 未选中节点零编辑 DOM，非整体 FPS 结论 |

@@ -13,7 +13,16 @@
 | 生成接口 | 多供应商路由及若干原生适配已实现；其余能力保留任务接口 | [配置及每项限制](MULTI-PROVIDER-SETUP.md) |
 | 本地化 | 本地资源/归档、原站出站阻断与显式资源修复已实现 | [验收清单](FREENOW-LOCALIZATION-ACCEPTANCE.md) |
 
-## 最新：时间轴作者、循环预览与只读历史相册
+## 最新：平面图、房间与空间来源
+
+- 当前源码接独立正交renderer profile、真实六面房间/source、默认1.6m near-plane剖切、成功显示投影快照及SVG实体/FOV层。平移/缩放/旋转/剖切只改变导航，实体/光学编辑进入既有session/temporal作者事务。
+- 真实UI在旋转−15°、zoom1.12后拖餐椅，原Y=0保持且一笔history。房间width输入9m、depth从6经一次64px scrub到7.9170474646m；Escape先panel再menu，刷新revision5房间/位置保持。
+- 原生camera点击修复后实际FOV32.26880217→46.74428389°、heading0.22→0.03990825750rad；undo同时回35mm/0.22。剖切all near约44.8，reset回1.6m/near48.4；source empty可撤销回room。[当前证据与截图](verification/20261008-studio-plan.md)
+- 房间尺寸/参考图案和本地场景选择已接；picker初始空态，显式导入公开GLB来源样本后实际选为history-world，source ready/root存在，保存回读revision10/dirty=false，undo回room；样本不是生成结果。原sourceBinding保持，拒绝远端/API来源，无供应商历史请求。
+- 新模块分项结果见主证据：投影/导航21项、renderer/runtime各3项、surface全文件19项后旋转/键盘仅2项、作者桥8项及新增1项、room/space13项、菜单初7项及wheel定向补验、来源7项及混合格式新增1项、entry新增11项；不合并前批或重复用例为全项目测试数字。
+- 路径/关键帧曲线交互、新placement支撑面、完整导入/生成生命周期及V3 Agent仍缺，P2不能标完整；真实SPZ/DOF GPU未验，Alpha不含当前源码。没有新增依赖或供应商API调用。[官方依据与缺口](research/STUDIO-V3-PLAN-20261008.md)
+
+## 前批：时间轴作者、循环预览与只读历史相册
 
 - 独立状态接入当前 actor/camera/prop 单目标轨道：保存/移动/删除 key、删除 track、匀速分配、时长及循环。作者内容和 render-only 预览分开，播放/seek 不覆写 base、不新增 history/revision；隐式创建关键帧先确认。
 - 生产 UI 保存 0/3000ms 餐椅 X=0→3，1500ms 实际 root X=1.5、作者 base X=0；取消确认在修复视图复原并 reload 后重验，revision/keys保持。真实拖动2000→997ms为一笔undo，恢复0/2000/3000；redo/匀速、4→3秒/最短3秒阻断、key与track删除undo均已验。

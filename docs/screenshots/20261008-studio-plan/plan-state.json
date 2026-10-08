@@ -1,0 +1,594 @@
+{
+  "reference": "official package contract; local pages are verification only",
+  "environment": {
+    "port": 4196,
+    "project": "qa-plan-public-1008",
+    "providers": "No keys or provider generation calls"
+  },
+  "initialDrag": {
+    "marker": {
+      "id": "qa-plan-chair:fef00a6e-854a-4588-8c1e-a9e7afd29505",
+      "entityId": "qa-plan-chair:fef00a6e-854a-4588-8c1e-a9e7afd29505",
+      "kind": "object",
+      "position": {
+        "x": 0.7648068669527905,
+        "y": 0,
+        "z": -0.4886266094420599
+      },
+      "heading": 0,
+      "yaw": 0,
+      "label": "本地公开餐椅",
+      "color": "#D0A552",
+      "selected": true,
+      "visible": true,
+      "locked": false,
+      "readOnly": false,
+      "draggable": true,
+      "projected": {
+        "x": 694,
+        "y": 198.5,
+        "nx": 0.5421875,
+        "ny": 0.4259656652360515,
+        "inView": true
+      },
+      "parentClient": {
+        "x": 694,
+        "y": 248
+      }
+    },
+    "history": {
+      "nextSequence": 3,
+      "lanes": {
+        "world": {
+          "undoCount": 1,
+          "redoCount": 0,
+          "lastUndo": {
+            "id": "world-history:6fee7d56-c787-4a23-868c-fac29a46da2f",
+            "label": "准备公开房间与俯视实体",
+            "sequence": 1
+          }
+        },
+        "setup:setup:state-1": {
+          "undoCount": 1,
+          "redoCount": 0,
+          "lastUndo": {
+            "id": "world-history:11cd29e0-78a7-4a6e-805b-44f762dd500e",
+            "label": "实体变换",
+            "sequence": 2
+          }
+        }
+      }
+    },
+    "persistence": {
+      "status": "ready",
+      "dirtySeq": 2,
+      "contentDirtySeq": 2,
+      "savedSeq": 2,
+      "savedContentSeq": 2,
+      "revision": 2,
+      "dirty": false,
+      "contentDirty": false,
+      "error": null
+    }
+  },
+  "rotatedDrag": {
+    "projection": {
+      "width": 1280,
+      "height": 466,
+      "target": {
+        "x": 0,
+        "y": 0,
+        "z": 2.220446049250313e-16
+      },
+      "right": {
+        "x": 0.9659258262890683,
+        "y": 0,
+        "z": -0.25881904510252074
+      },
+      "down": {
+        "x": 0.25881904510252074,
+        "y": 0,
+        "z": 0.9659258262890683
+      },
+      "forward": {
+        "x": 0,
+        "y": -1,
+        "z": 0
+      },
+      "halfWidth": 10.61032256334768,
+      "halfHeight": 3.8628205582187647,
+      "cameraPosition": {
+        "x": 0,
+        "y": 50,
+        "z": 2.220446049250313e-16
+      },
+      "near": 48.4,
+      "far": 52.00000002384186,
+      "zoom": 1.12,
+      "rotation": -0.2617993877991494,
+      "sectionHeight": 1.6
+    },
+    "marker": {
+      "id": "qa-plan-chair:fef00a6e-854a-4588-8c1e-a9e7afd29505",
+      "entityId": "qa-plan-chair:fef00a6e-854a-4588-8c1e-a9e7afd29505",
+      "kind": "object",
+      "position": {
+        "x": 1.8085553303580018,
+        "y": 0,
+        "z": -0.4245288312410299
+      },
+      "heading": 0,
+      "yaw": 0,
+      "label": "本地公开餐椅",
+      "color": "#D0A552",
+      "selected": true,
+      "visible": true,
+      "locked": false,
+      "readOnly": false,
+      "draggable": true,
+      "projected": {
+        "x": 752,
+        "y": 236.5,
+        "nx": 0.5875,
+        "ny": 0.5075107296137339,
+        "inView": true
+      },
+      "parentClient": {
+        "x": 752,
+        "y": 286
+      }
+    },
+    "history": {
+      "nextSequence": 2,
+      "lanes": {
+        "world": {
+          "undoCount": 0,
+          "redoCount": 0,
+          "lastUndo": null
+        },
+        "setup:setup:state-1": {
+          "undoCount": 1,
+          "redoCount": 0,
+          "lastUndo": {
+            "id": "world-history:c3f06c70-d9e2-4574-a94a-0fee97e2bba4",
+            "label": "实体变换",
+            "sequence": 1
+          }
+        }
+      }
+    },
+    "currentTransaction": null
+  },
+  "roomEdit": {
+    "author": {
+      "width": 9,
+      "depth": 7.917047464637365,
+      "height": 3.2,
+      "trackingGuides": {
+        "enabled": true,
+        "lineMarkers": true,
+        "mode": "standard",
+        "spacingMeters": 0.5
+      }
+    },
+    "persisted": {
+      "width": 9,
+      "depth": 7.917047464637365,
+      "height": 3.2,
+      "trackingGuides": {
+        "enabled": true,
+        "lineMarkers": true,
+        "mode": "standard",
+        "spacingMeters": 0.5
+      }
+    },
+    "history": {
+      "nextSequence": 4,
+      "lanes": {
+        "world": {
+          "undoCount": 0,
+          "redoCount": 0,
+          "lastUndo": null
+        },
+        "setup:setup:state-1": {
+          "undoCount": 3,
+          "redoCount": 0,
+          "lastUndo": {
+            "id": "world-history:c8a531cf-489d-4a1b-b96c-4da0894c4a8b",
+            "label": "修改房间",
+            "sequence": 3
+          }
+        }
+      }
+    }
+  },
+  "reload": {
+    "room": {
+      "width": 9,
+      "depth": 7.917047464637365,
+      "height": 3.2,
+      "trackingGuides": {
+        "enabled": true,
+        "lineMarkers": true,
+        "mode": "standard",
+        "spacingMeters": 0.5
+      }
+    },
+    "markers": [
+      {
+        "id": "qa-plan-chair:fef00a6e-854a-4588-8c1e-a9e7afd29505",
+        "entityId": "qa-plan-chair:fef00a6e-854a-4588-8c1e-a9e7afd29505",
+        "kind": "object",
+        "position": {
+          "x": 1.8085553303580018,
+          "y": 0,
+          "z": -0.4245288312410299
+        },
+        "heading": 0,
+        "yaw": 0,
+        "label": "本地公开餐椅",
+        "color": "#D0A552",
+        "selected": false,
+        "visible": true,
+        "locked": false,
+        "readOnly": false,
+        "draggable": true,
+        "projected": {
+          "x": 736.7746882318136,
+          "y": 210.28372220680998,
+          "nx": 0.5756052251811044,
+          "ny": 0.45125262276139483,
+          "inView": true
+        },
+        "parentClient": {
+          "x": 736.7746882318136,
+          "y": 259.78372220681
+        }
+      },
+      {
+        "id": "qa-plan-camera:b5a05b07-b70d-45be-8a41-c47e33036890",
+        "entityId": "qa-plan-camera:b5a05b07-b70d-45be-8a41-c47e33036890",
+        "kind": "camera",
+        "position": {
+          "x": -2,
+          "y": 1.5,
+          "z": 2
+        },
+        "heading": 0.22000000000000003,
+        "yaw": 0.22000000000000003,
+        "label": "公开俯视验收摄像机",
+        "color": "#6F93C8",
+        "selected": false,
+        "visible": true,
+        "locked": false,
+        "readOnly": false,
+        "draggable": true,
+        "fov": 32.26880217111643,
+        "frameAspectRatio": 1.7777777777777777,
+        "focalLength": 35,
+        "camera": {
+          "fov": 32.26880217111643,
+          "frameAspectRatio": 1.7777777777777777,
+          "focalLength": 35
+        },
+        "showExtendedFov": false,
+        "projected": {
+          "x": 532.981224729622,
+          "y": 340.018775270378,
+          "nx": 0.4163915818200172,
+          "ny": 0.7296540241853605,
+          "inView": true
+        },
+        "parentClient": {
+          "x": 532.981224729622,
+          "y": 389.518775270378
+        }
+      }
+    ],
+    "persistence": {
+      "status": "ready",
+      "dirtySeq": 0,
+      "contentDirtySeq": 0,
+      "savedSeq": 0,
+      "savedContentSeq": 0,
+      "revision": 5,
+      "dirty": false,
+      "contentDirty": false,
+      "error": null
+    }
+  },
+  "fov": {
+    "edited": {
+      "id": "qa-plan-camera:b5a05b07-b70d-45be-8a41-c47e33036890",
+      "entityId": "qa-plan-camera:b5a05b07-b70d-45be-8a41-c47e33036890",
+      "kind": "camera",
+      "position": {
+        "x": -2,
+        "y": 1.5,
+        "z": 2
+      },
+      "heading": 0.039908257501529286,
+      "yaw": 0.039908257501529286,
+      "label": "公开俯视验收摄像机",
+      "color": "#6F93C8",
+      "selected": true,
+      "visible": true,
+      "locked": false,
+      "readOnly": false,
+      "draggable": true,
+      "fov": 46.744283887363174,
+      "frameAspectRatio": 1.7777777777777777,
+      "focalLength": 23.42874139735992,
+      "camera": {
+        "fov": 46.744283887363174,
+        "frameAspectRatio": 1.7777777777777777,
+        "focalLength": 23.42874139735992
+      },
+      "showExtendedFov": true,
+      "projected": {
+        "x": 532.981224729622,
+        "y": 340.018775270378,
+        "nx": 0.4163915818200172,
+        "ny": 0.7296540241853605,
+        "inView": true
+      },
+      "parentClient": {
+        "x": 532.981224729622,
+        "y": 389.518775270378
+      }
+    },
+    "undo": {
+      "id": "qa-plan-camera:b5a05b07-b70d-45be-8a41-c47e33036890",
+      "entityId": "qa-plan-camera:b5a05b07-b70d-45be-8a41-c47e33036890",
+      "kind": "camera",
+      "position": {
+        "x": -2,
+        "y": 1.5,
+        "z": 2
+      },
+      "heading": 0.22000000000000003,
+      "yaw": 0.22000000000000003,
+      "label": "公开俯视验收摄像机",
+      "color": "#6F93C8",
+      "selected": true,
+      "visible": true,
+      "locked": false,
+      "readOnly": false,
+      "draggable": true,
+      "fov": 32.26880217111643,
+      "frameAspectRatio": 1.7777777777777777,
+      "focalLength": 35,
+      "camera": {
+        "fov": 32.26880217111643,
+        "frameAspectRatio": 1.7777777777777777,
+        "focalLength": 35
+      },
+      "showExtendedFov": true,
+      "projected": {
+        "x": 532.981224729622,
+        "y": 340.018775270378,
+        "nx": 0.4163915818200172,
+        "ny": 0.7296540241853605,
+        "inView": true
+      },
+      "parentClient": {
+        "x": 532.981224729622,
+        "y": 389.518775270378
+      }
+    },
+    "history": {
+      "nextSequence": 2,
+      "lanes": {
+        "world": {
+          "undoCount": 0,
+          "redoCount": 0,
+          "lastUndo": null
+        },
+        "setup:setup:state-1": {
+          "undoCount": 1,
+          "redoCount": 0,
+          "lastUndo": {
+            "id": "world-history:ff20544d-ec08-4ee5-ba77-2d8a6f6fb823",
+            "label": "摄像机操控",
+            "sequence": 1
+          }
+        }
+      }
+    }
+  },
+  "sectionAll": {
+    "width": 1280,
+    "height": 466,
+    "target": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "right": {
+      "x": 1,
+      "y": 0,
+      "z": 0
+    },
+    "down": {
+      "x": 0,
+      "y": 0,
+      "z": 1
+    },
+    "forward": {
+      "x": 0,
+      "y": -1,
+      "z": 0
+    },
+    "halfWidth": 11.96051811251006,
+    "halfHeight": 4.354376125335694,
+    "cameraPosition": {
+      "x": 0,
+      "y": 50,
+      "z": 0
+    },
+    "near": 44.79999997615814,
+    "far": 52.00000002384186,
+    "zoom": 1,
+    "rotation": 0,
+    "sectionHeight": "all"
+  },
+  "empty": {
+    "source": {
+      "kind": "empty"
+    },
+    "projection": {
+      "width": 1280,
+      "height": 466,
+      "target": {
+        "x": 0.04151292900387871,
+        "y": 0,
+        "z": 0.6679125064462452
+      },
+      "right": {
+        "x": 1,
+        "y": 0,
+        "z": 0
+      },
+      "down": {
+        "x": 0,
+        "y": 0,
+        "z": 1
+      },
+      "forward": {
+        "x": 0,
+        "y": -1,
+        "z": 0
+      },
+      "halfWidth": 4.024848049192461,
+      "halfHeight": 1.4652962429091303,
+      "cameraPosition": {
+        "x": 0.04151292900387871,
+        "y": 50,
+        "z": 0.6679125064462452
+      },
+      "near": 48.4,
+      "far": 52,
+      "zoom": 1,
+      "rotation": 0,
+      "sectionHeight": 1.6
+    },
+    "markers": [
+      {
+        "id": "qa-plan-chair:fef00a6e-854a-4588-8c1e-a9e7afd29505",
+        "entityId": "qa-plan-chair:fef00a6e-854a-4588-8c1e-a9e7afd29505",
+        "kind": "object",
+        "position": {
+          "x": 1.8085553303580018,
+          "y": 0,
+          "z": -0.4245288312410299
+        },
+        "heading": 0,
+        "yaw": 0,
+        "label": "本地公开餐椅",
+        "color": "#D0A552",
+        "selected": false,
+        "visible": true,
+        "locked": false,
+        "readOnly": false,
+        "draggable": true,
+        "projected": {
+          "x": 920.9813247716376,
+          "y": 59.28848404348213,
+          "nx": 0.7195166599778419,
+          "ny": 0.12722850653107753,
+          "inView": true
+        },
+        "parentClient": {
+          "x": 920.9813247716376,
+          "y": 108.78848404348213
+        }
+      },
+      {
+        "id": "qa-plan-camera:b5a05b07-b70d-45be-8a41-c47e33036890",
+        "entityId": "qa-plan-camera:b5a05b07-b70d-45be-8a41-c47e33036890",
+        "kind": "camera",
+        "position": {
+          "x": -2,
+          "y": 1.5,
+          "z": 2
+        },
+        "heading": 0.22000000000000003,
+        "yaw": 0.22000000000000003,
+        "label": "公开俯视验收摄像机",
+        "color": "#6F93C8",
+        "selected": true,
+        "visible": true,
+        "locked": false,
+        "readOnly": false,
+        "draggable": true,
+        "fov": 32.26880217111643,
+        "frameAspectRatio": 1.7777777777777777,
+        "focalLength": 35,
+        "camera": {
+          "fov": 32.26880217111643,
+          "frameAspectRatio": 1.7777777777777777,
+          "focalLength": 35
+        },
+        "showExtendedFov": true,
+        "projected": {
+          "x": 315.37450890235965,
+          "y": 444.8181818181818,
+          "nx": 0.2463863350799685,
+          "ny": 0.9545454545454546,
+          "inView": true
+        },
+        "parentClient": {
+          "x": 315.37450890235965,
+          "y": 494.3181818181818
+        }
+      }
+    ]
+  },
+  "localScene": {
+    "source": {
+      "kind": "history-world",
+      "historyAssetId": "946396a4-fd6a-47c6-8d20-6a5c75dc276d",
+      "label": "公开餐椅 GLB · 来源加载样本",
+      "thumbnailSrc": "/assets/studio/library/chair-dining.webp",
+      "threedMeta": {
+        "format": "glb",
+        "url": "/assets/studio/library/chair-dining.glb",
+        "thumbnail": "/assets/studio/library/chair-dining.webp",
+        "name": "chair-dining.glb",
+        "bytes": 607700
+      }
+    },
+    "runtime": {
+      "status": "ready",
+      "error": null,
+      "assetDescriptor": {
+        "format": "glb",
+        "url": "/assets/studio/library/chair-dining.glb",
+        "thumbnail": "/assets/studio/library/chair-dining.webp",
+        "name": "chair-dining.glb",
+        "bytes": 607700,
+        "sourceUrl": "/assets/studio/library/chair-dining.glb",
+        "sourceFormat": "glb"
+      },
+      "rootPresent": true,
+      "position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "visible": true
+    },
+    "revision": 10,
+    "dirty": false
+  },
+  "headingNative": {
+    "renderedDegrees": 45,
+    "undoDegrees": 12.605071492878114
+  },
+  "remaining": [
+    "path and key-curve edits",
+    "new plan placement support surfaces",
+    "full V3 Agent and import/generation lifecycle",
+    "real SPZ and DOF pixel validation"
+  ]
+}
